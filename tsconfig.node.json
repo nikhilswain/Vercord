@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "lib": ["ES2023"], "types": ["node"] },
+  "include": [
+    "vite.config.ts",
+    "vitest.client.config.ts",
+    "vitest.worker.config.ts",
+    "playwright.config.ts",
+    "tests/e2e"
+  ]
+}

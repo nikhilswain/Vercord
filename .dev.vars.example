@@ -1,0 +1,5 @@
+DISCORD_BOT_TOKEN=enter-bot-token-in-local-dev-vars
+DISCORD_GUILD_ID=enter-test-server-id
+MAP_SLUG=dmap-preview
+SYNC_SECRET=generate-a-long-random-local-secret
+PUBLICATION_ALLOWLIST_JSON={"categoryIds":[],"channelIds":[]}
