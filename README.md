@@ -1,6 +1,7 @@
 # Dmap
 
-Dmap turns an explicitly approved subset of a Discord server into a shareable visual world.
+Dmap is building a visual world from a Discord server. Phase 1 first establishes a private,
+minimized structural source of truth; public publishing remains a later phase.
 
 The MVP is one React application and one Cloudflare Worker. The Worker is the Discord bot
 backend; no separate always-running bot service is required.
