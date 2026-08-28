@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+test('renders the document with a dark CSS color scheme', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
+});
+
 test('serves the Dmap shell and Worker health route together', async ({ page }) => {
   await page.goto('/');
 
