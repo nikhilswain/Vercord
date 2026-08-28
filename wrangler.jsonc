@@ -5,9 +5,27 @@
   "compatibility_date": "2026-08-28",
   "workers_dev": false,
   "preview_urls": false,
+  "secrets": {
+    "required": [
+      "DISCORD_BOT_TOKEN",
+      "DISCORD_GUILD_ID",
+      "MAP_SLUG",
+      "SYNC_SECRET",
+      "SNAPSHOT_ID_SECRET",
+    ],
+  },
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true,
+  },
+  "kv_namespaces": [
+    {
+      "binding": "MAP_SNAPSHOTS",
+      "id": "509e73fe886c4c638a451201158cb0f8",
+      "remote": false,
+    },
+  ],
 }

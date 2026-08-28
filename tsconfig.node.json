@@ -6,6 +6,7 @@
     "vitest.client.config.ts",
     "vitest.worker.config.ts",
     "playwright.config.ts",
+    "scripts",
     "tests/e2e"
   ]
 }

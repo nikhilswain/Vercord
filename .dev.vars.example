@@ -2,4 +2,6 @@ DISCORD_BOT_TOKEN=enter-bot-token-in-local-dev-vars
 DISCORD_GUILD_ID=enter-test-server-id
 MAP_SLUG=dmap-preview
 SYNC_SECRET=generate-a-long-random-local-secret
+# Unused in Phase 1; reserved for a later public-publication workflow.
 PUBLICATION_ALLOWLIST_JSON={"categoryIds":[],"channelIds":[]}
+SNAPSHOT_ID_SECRET=generate-a-32-byte-base64url-secret

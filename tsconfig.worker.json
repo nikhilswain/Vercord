@@ -4,5 +4,11 @@
     "lib": ["ES2022"],
     "types": ["@cloudflare/vitest-plugin/types"]
   },
-  "include": ["worker", "tests/integration/worker", "worker-configuration.d.ts"]
+  "include": [
+    "worker",
+    "tests/integration/worker",
+    "tests/unit/domain",
+    "tests/fixtures/discord",
+    "worker-configuration.d.ts"
+  ]
 }
