@@ -33,8 +33,8 @@ export function decodeBase64UrlSecret(value: string): Uint8Array {
 }
 
 export function parseRuntimeConfig(env: Env): RuntimeConfig {
-  const source = parseDiscordSourceConfig({ ...env });
-  const auth = parseSyncAuthConfig({ ...env });
+  const source = parseDiscordSourceConfig(env);
+  const auth = parseSyncAuthConfig(env);
   const parsed = runtimeOnlySchema.safeParse(env);
   if (
     !parsed.success ||

@@ -23,6 +23,19 @@ function validEnv(overrides: Partial<Env> = {}): Env {
   };
 }
 
+function expectConfigInvalid(action: () => unknown): void {
+  let thrown: unknown;
+
+  try {
+    action();
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(thrown).toBeInstanceOf(Error);
+  expect((thrown as Error).message).toBe('CONFIG_INVALID');
+}
+
 describe('Phase 1 configuration', () => {
   it('parses the Discord-only verifier subset', () => {
     expect(
@@ -43,33 +56,14 @@ describe('Phase 1 configuration', () => {
     ['SYNC_SECRET', 'short'],
     ['SNAPSHOT_ID_SECRET', SYNC_SECRET],
   ])('rejects invalid %s configuration', (name, value) => {
-    const env = {
-      DISCORD_BOT_TOKEN: BOT_TOKEN,
-      DISCORD_GUILD_ID: GUILD_ID,
-      MAP_SLUG: 'test-map',
-      SYNC_SECRET,
-      SNAPSHOT_ID_SECRET: ID_SECRET,
-      MAP_SNAPSHOTS: {} as unknown as KVNamespace,
-      [name]: value,
-    } as Env;
-
-    expect(() => parseRuntimeConfig(env)).toThrowError('CONFIG_INVALID');
+    expectConfigInvalid(() => parseRuntimeConfig(validEnv({ [name]: value } as Partial<Env>)));
   });
 
   it.each([
     ['SYNC_SECRET', SYNC_SECRET],
     ['SNAPSHOT_ID_SECRET', ID_SECRET],
   ])('rejects a bot token reused as %s', (_name, value) => {
-    const env = {
-      DISCORD_BOT_TOKEN: value,
-      DISCORD_GUILD_ID: GUILD_ID,
-      MAP_SLUG: 'test-map',
-      SYNC_SECRET,
-      SNAPSHOT_ID_SECRET: ID_SECRET,
-      MAP_SNAPSHOTS: {} as unknown as KVNamespace,
-    } as Env;
-
-    expect(() => parseRuntimeConfig(env)).toThrowError('CONFIG_INVALID');
+    expectConfigInvalid(() => parseRuntimeConfig(validEnv({ DISCORD_BOT_TOKEN: value })));
   });
 
   it('parses the sync secret independently for pre-sync authorization', () => {
@@ -94,45 +88,58 @@ describe('Phase 1 configuration', () => {
     ['DISCORD_BOT_TOKEN', 'enter-bot-token-in-local-dev-vars'],
     ['DISCORD_GUILD_ID', '0'],
     ['DISCORD_GUILD_ID', '100000000000000000 '],
+    ['DISCORD_GUILD_ID', 'not-a-snowflake'],
   ])('rejects invalid Discord source %s', (name, value) => {
-    expect(() =>
+    expectConfigInvalid(() =>
       parseDiscordSourceConfig({
         DISCORD_GUILD_ID: GUILD_ID,
         DISCORD_BOT_TOKEN: BOT_TOKEN,
         [name]: value,
       }),
-    ).toThrowError('CONFIG_INVALID');
+    );
   });
 
-  it.each(['generate-a-long-random-local-secret', `${SYNC_SECRET}=`, SYNC_SECRET.slice(1)])(
-    'rejects invalid sync authorization secret',
-    (syncSecret) => {
-      expect(() => parseSyncAuthConfig({ SYNC_SECRET: syncSecret })).toThrowError('CONFIG_INVALID');
-    },
-  );
+  it.each([
+    'generate-a-long-random-local-secret',
+    `${SYNC_SECRET}=`,
+    SYNC_SECRET.slice(1),
+    `generate-${'a'.repeat(34)}`,
+  ])('rejects invalid sync authorization secret', (syncSecret) => {
+    expectConfigInvalid(() => parseSyncAuthConfig({ SYNC_SECRET: syncSecret }));
+  });
 
   it.each([
     ['SYNC_SECRET', 'enter-a-secret'],
     ['SNAPSHOT_ID_SECRET', 'generate-a-32-byte-base64url-secret'],
     ['SNAPSHOT_ID_SECRET', BOT_TOKEN],
   ])('rejects placeholder or malformed runtime secret %s', (name, value) => {
-    expect(() => parseRuntimeConfig(validEnv({ [name]: value } as Partial<Env>))).toThrowError(
-      'CONFIG_INVALID',
-    );
+    expectConfigInvalid(() => parseRuntimeConfig(validEnv({ [name]: value } as Partial<Env>)));
   });
 
   it('rejects matching independent secrets', () => {
-    expect(() => parseRuntimeConfig(validEnv({ SNAPSHOT_ID_SECRET: SYNC_SECRET }))).toThrowError(
-      'CONFIG_INVALID',
-    );
+    expectConfigInvalid(() => parseRuntimeConfig(validEnv({ SNAPSHOT_ID_SECRET: SYNC_SECRET })));
+  });
+
+  it.each([
+    ['DISCORD_BOT_TOKEN', 'x'.repeat(513)],
+    ['DISCORD_BOT_TOKEN', `generate-${'a'.repeat(34)}`],
+    ['MAP_SLUG', 'ab'],
+    ['MAP_SLUG', 'a'.repeat(64)],
+    ['MAP_SLUG', '-test-map'],
+    ['MAP_SLUG', 'test-map-'],
+    ['MAP_SLUG', 'test--map'],
+    ['SYNC_SECRET', `enter-${'a'.repeat(37)}`],
+    ['SNAPSHOT_ID_SECRET', `generate-${'a'.repeat(34)}`],
+  ])('rejects the %s fail-closed boundary', (name, value) => {
+    expectConfigInvalid(() => parseRuntimeConfig(validEnv({ [name]: value } as Partial<Env>)));
   });
 
   it.each([{}, { get: async () => null }, { put: async () => undefined }])(
     'rejects a malformed MAP_SNAPSHOTS binding',
     (snapshots) => {
-      expect(() =>
+      expectConfigInvalid(() =>
         parseRuntimeConfig(validEnv({ MAP_SNAPSHOTS: snapshots as unknown as KVNamespace })),
-      ).toThrowError('CONFIG_INVALID');
+      );
     },
   );
 
@@ -146,6 +153,6 @@ describe('Phase 1 configuration', () => {
     ID_SECRET.slice(1),
     `enter-${'a'.repeat(37)}`,
   ])('rejects an invalid base64url secret', (secret) => {
-    expect(() => decodeBase64UrlSecret(secret)).toThrowError('CONFIG_INVALID');
+    expectConfigInvalid(() => decodeBase64UrlSecret(secret));
   });
 });
