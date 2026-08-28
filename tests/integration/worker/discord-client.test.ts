@@ -254,6 +254,35 @@ describe('Discord REST status and retry policy', () => {
     expectValueFree(error);
   });
 
+  it('prefers the shared deadline when the final network rejection exhausts the budget', async () => {
+    let clock = 0;
+    let attempts = 0;
+    const sleeps: number[] = [];
+    const fetch: FetchLike = async () => {
+      attempts += 1;
+      if (attempts === 3) clock = DISCORD_SYNC_BUDGET_MS + 1;
+      throw new Error(PRIVATE_NETWORK_DETAIL);
+    };
+    const client = createDiscordRestClient({
+      botToken: TEST_TOKEN,
+      dependencies: {
+        fetch,
+        now: () => clock,
+        random: () => 0,
+        sleep: async (milliseconds) => {
+          sleeps.push(milliseconds);
+        },
+      },
+    });
+
+    const error = await captureWorkerError(client.fetchGuildSource(TEST_IDS.guild));
+
+    expectCode(error, 'SYNC_TIMEOUT');
+    expect(attempts).toBe(3);
+    expect(sleeps).toEqual([250, 500]);
+    expectValueFree(error);
+  });
+
   it('uses the documented lower and upper jitter bounds', async () => {
     const randomValues = [0, 1];
     const sleeps: number[] = [];
@@ -321,10 +350,12 @@ describe('Discord REST status and retry policy', () => {
   });
 
   it('honors a bounded Retry-After header without inspecting its body', async () => {
-    const queued = createQueuedFetch([
-      new Response(PRIVATE_BODY, { status: 429, headers: { 'Retry-After': '1.25' } }),
-      ...sourceResponses(),
-    ]);
+    const rateLimitResponse = new Response(PRIVATE_BODY, {
+      status: 429,
+      headers: { 'Retry-After': '1.25' },
+    });
+    const getReader = vi.spyOn(rateLimitResponse.body!, 'getReader');
+    const queued = createQueuedFetch([rateLimitResponse, ...sourceResponses()]);
     const sleeps: number[] = [];
     const client = createDiscordRestClient({
       botToken: TEST_TOKEN,
@@ -340,6 +371,8 @@ describe('Discord REST status and retry policy', () => {
       createValidatedDiscordSourceFixture(),
     );
     expect(sleeps).toEqual([1_250]);
+    expect(getReader).not.toHaveBeenCalled();
+    expect(rateLimitResponse.bodyUsed).toBe(false);
   });
 
   it('uses bounded JSON retry_after only when Retry-After is absent', async () => {
@@ -514,6 +547,51 @@ describe('Discord REST status and retry policy', () => {
     expect(sleeps).toEqual([0, 0]);
   });
 
+  it('prefers the shared deadline when terminal 429 body processing exhausts the budget', async () => {
+    let clock = 0;
+    const terminalResponse = jsonResponse({ retry_after: 0 }, { status: 429 });
+    const body = terminalResponse.body!;
+    const originalGetReader = body.getReader.bind(body);
+    Object.defineProperty(body, 'getReader', {
+      value: () => {
+        const reader = originalGetReader();
+        const originalRead = reader.read.bind(reader);
+        Object.defineProperty(reader, 'read', {
+          value: async () => {
+            const result = await originalRead();
+            clock = DISCORD_SYNC_BUDGET_MS + 1;
+            return result;
+          },
+        });
+        return reader;
+      },
+    });
+    const queued = createQueuedFetch([
+      new Response('', { status: 429, headers: { 'Retry-After': '0' } }),
+      new Response('', { status: 429, headers: { 'Retry-After': '0' } }),
+      terminalResponse,
+    ]);
+    const sleeps: number[] = [];
+    const client = createDiscordRestClient({
+      botToken: TEST_TOKEN,
+      dependencies: {
+        fetch: queued.fetch,
+        now: () => clock,
+        random: () => 0,
+        sleep: async (milliseconds) => {
+          sleeps.push(milliseconds);
+        },
+      },
+    });
+
+    const error = await captureWorkerError(client.fetchGuildSource(TEST_IDS.guild));
+
+    expectCode(error, 'SYNC_TIMEOUT');
+    expect(queued.requests).toHaveLength(3);
+    expect(sleeps).toEqual([0, 0]);
+    expectValueFree(error);
+  });
+
   it('does not sleep when a retry delay would pass the shared sync deadline', async () => {
     let clock = 0;
     let attempts = 0;
@@ -568,6 +646,7 @@ describe('Discord REST body and source validation', () => {
 
   it('cancels a chunked body as soon as it crosses the five-MiB limit', async () => {
     let cancelled = 0;
+    let released = 0;
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(new Uint8Array(DISCORD_MAX_BODY_BYTES));
@@ -577,13 +656,28 @@ describe('Discord REST body and source validation', () => {
         cancelled += 1;
       },
     });
+    const response = new Response(stream, { headers: { 'Content-Type': 'application/json' } });
+    const body = response.body!;
+    const originalGetReader = body.getReader.bind(body);
+    Object.defineProperty(body, 'getReader', {
+      value: () => {
+        const reader = originalGetReader();
+        const originalReleaseLock = reader.releaseLock.bind(reader);
+        Object.defineProperty(reader, 'releaseLock', {
+          value: () => {
+            released += 1;
+            originalReleaseLock();
+          },
+        });
+        return reader;
+      },
+    });
 
-    const error = await captureWorkerError(
-      readBoundedJson(new Response(stream, { headers: { 'Content-Type': 'application/json' } })),
-    );
+    const error = await captureWorkerError(readBoundedJson(response));
 
     expectCode(error, 'DISCORD_RESPONSE_TOO_LARGE');
     expect(cancelled).toBe(1);
+    expect(released).toBe(1);
   });
 
   it.each([
