@@ -592,6 +592,83 @@ describe('Discord REST status and retry policy', () => {
     expectValueFree(error);
   });
 
+  it('prefers the shared deadline when terminal 429 body parsing fails after the budget', async () => {
+    let clock = 0;
+    const terminalResponse = new Response(`{${PRIVATE_BODY}`, {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const body = terminalResponse.body!;
+    const originalGetReader = body.getReader.bind(body);
+    Object.defineProperty(body, 'getReader', {
+      value: () => {
+        const reader = originalGetReader();
+        const originalRead = reader.read.bind(reader);
+        Object.defineProperty(reader, 'read', {
+          value: async () => {
+            const result = await originalRead();
+            clock = DISCORD_SYNC_BUDGET_MS + 1;
+            return result;
+          },
+        });
+        return reader;
+      },
+    });
+    const queued = createQueuedFetch([
+      new Response('', { status: 429, headers: { 'Retry-After': '0' } }),
+      new Response('', { status: 429, headers: { 'Retry-After': '0' } }),
+      terminalResponse,
+    ]);
+    const sleeps: number[] = [];
+    const client = createDiscordRestClient({
+      botToken: TEST_TOKEN,
+      dependencies: {
+        fetch: queued.fetch,
+        now: () => clock,
+        random: () => 0,
+        sleep: async (milliseconds) => {
+          sleeps.push(milliseconds);
+        },
+      },
+    });
+
+    const error = await captureWorkerError(client.fetchGuildSource(TEST_IDS.guild));
+
+    expectCode(error, 'SYNC_TIMEOUT');
+    expect(queued.requests).toHaveLength(3);
+    expect(sleeps).toEqual([0, 0]);
+    expectValueFree(error);
+  });
+
+  it('keeps terminal failing 429 fallback rate-limited within the shared budget', async () => {
+    const terminalResponse = new Response(`{${PRIVATE_BODY}`, {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const queued = createQueuedFetch([
+      new Response('', { status: 429, headers: { 'Retry-After': '0' } }),
+      new Response('', { status: 429, headers: { 'Retry-After': '0' } }),
+      terminalResponse,
+    ]);
+    const sleeps: number[] = [];
+    const client = createDiscordRestClient({
+      botToken: TEST_TOKEN,
+      dependencies: {
+        ...createDependencies(queued.fetch),
+        sleep: async (milliseconds) => {
+          sleeps.push(milliseconds);
+        },
+      },
+    });
+
+    const error = await captureWorkerError(client.fetchGuildSource(TEST_IDS.guild));
+
+    expectCode(error, 'DISCORD_RATE_LIMITED');
+    expect(queued.requests).toHaveLength(3);
+    expect(sleeps).toEqual([0, 0]);
+    expectValueFree(error);
+  });
+
   it('does not sleep when a retry delay would pass the shared sync deadline', async () => {
     let clock = 0;
     let attempts = 0;

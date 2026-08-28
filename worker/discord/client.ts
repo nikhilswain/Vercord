@@ -132,7 +132,12 @@ export function createDiscordRestClient(options: {
           if (response.status === 403) throw new WorkerError('DISCORD_FORBIDDEN');
           if (response.status === 404) throw new WorkerError('DISCORD_NOT_FOUND');
           if (response.status === 429) {
-            retryDelay = await rateLimitDelay(response);
+            try {
+              retryDelay = await rateLimitDelay(response);
+            } catch (error) {
+              if (dependencies.now() >= deadline) throw new WorkerError('SYNC_TIMEOUT');
+              throw error;
+            }
             if (dependencies.now() >= deadline) throw new WorkerError('SYNC_TIMEOUT');
             if (attempt === DISCORD_MAX_RETRIES) {
               throw new WorkerError('DISCORD_RATE_LIMITED');
