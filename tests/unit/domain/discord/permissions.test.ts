@@ -30,13 +30,27 @@ function roleById(bundle: DiscordSourceBundle, id: string) {
 }
 
 describe('Discord bot permissions', () => {
-  it('finds @everyone by the guild ID before ORing every assigned role', () => {
+  it('finds @everyone by guild ID instead of treating the first role as everyone', () => {
+    const bundle = structuredClone(createValidatedDiscordSourceFixture());
+    roleById(bundle, TEST_IDS.staffRole).permissions = '32';
+    bundle.guild.roles = [
+      roleById(bundle, TEST_IDS.staffRole),
+      roleById(bundle, TEST_IDS.guild),
+      roleById(bundle, TEST_IDS.botRole),
+    ];
+
+    const permissions = computeBasePermissions(bundle);
+
+    expect(permissions).toBe(VIEW_CHANNEL);
+    expect(permissions & 32n).toBe(0n);
+  });
+
+  it('ORs every assigned role into the base permissions', () => {
     const bundle = structuredClone(createValidatedDiscordSourceFixture());
     roleById(bundle, TEST_IDS.guild).permissions = '0';
     roleById(bundle, TEST_IDS.botRole).permissions = '1024';
     roleById(bundle, TEST_IDS.staffRole).permissions = '32';
     bundle.botMember.roleIds.push(TEST_IDS.staffRole);
-    bundle.guild.roles.reverse();
 
     expect(computeBasePermissions(bundle)).toBe(VIEW_CHANNEL | 32n);
   });
@@ -81,8 +95,8 @@ describe('Discord bot permissions', () => {
     const channel = channelById(bundle, TEST_IDS.botPrivateText);
     channel.overwrites = [
       { id: TEST_IDS.guild, type: 0, allow: '0', deny: '1024' },
-      { id: TEST_IDS.botRole, type: 0, allow: '0', deny: '1024' },
       { id: TEST_IDS.staffRole, type: 0, allow: '1024', deny: '0' },
+      { id: TEST_IDS.botRole, type: 0, allow: '0', deny: '1024' },
     ];
 
     const permissions = computeChannelPermissions(computeBasePermissions(bundle), bundle, channel);
@@ -93,12 +107,11 @@ describe('Discord bot permissions', () => {
   it('lets the bot member overwrite run after role overwrites', () => {
     const bundle = structuredClone(createValidatedDiscordSourceFixture());
     const channel = channelById(bundle, TEST_IDS.botPrivateText);
-    channel.overwrites.push({
-      id: TEST_IDS.bot,
-      type: 1,
-      allow: '0',
-      deny: '1024',
-    });
+    channel.overwrites = [
+      { id: TEST_IDS.guild, type: 0, allow: '0', deny: '1024' },
+      { id: TEST_IDS.bot, type: 1, allow: '0', deny: '1024' },
+      { id: TEST_IDS.botRole, type: 0, allow: '1024', deny: '0' },
+    ];
 
     const permissions = computeChannelPermissions(computeBasePermissions(bundle), bundle, channel);
 

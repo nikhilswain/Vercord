@@ -8,6 +8,7 @@ import {
   type NormalizeOptions,
 } from '../../../../src/domain/discord/normalize';
 import type { IdentifierFactory } from '../../../../src/domain/discord/identifiers';
+import { validateDiscordSourceBundle } from '../../../../src/domain/discord/source-schema';
 import type { DiscordSourceBundle } from '../../../../src/domain/discord/source';
 import type { ChannelKind } from '../../../../src/domain/discord/snapshot';
 import { parseGuildStructureSnapshot } from '../../../../src/domain/discord/snapshot';
@@ -95,7 +96,18 @@ describe('bot-visible Discord structure normalization', () => {
   });
 
   it('sorts duplicate positions by numeric raw snowflake before assigning contiguous sibling order', async () => {
-    const snapshot = await normalize();
+    const bundle = structuredClone(createValidatedDiscordSourceFixture());
+    const publicIndex = bundle.channels.findIndex(({ id }) => id === TEST_IDS.publicText);
+    const privateIndex = bundle.channels.findIndex(({ id }) => id === TEST_IDS.botPrivateText);
+    if (publicIndex === -1 || privateIndex === -1) throw new Error('TEST_FIXTURE_CHANNEL_MISSING');
+    [bundle.channels[publicIndex], bundle.channels[privateIndex]] = [
+      bundle.channels[privateIndex]!,
+      bundle.channels[publicIndex]!,
+    ];
+    expect(bundle.channels[publicIndex]?.id).toBe(TEST_IDS.botPrivateText);
+    expect(bundle.channels[privateIndex]?.id).toBe(TEST_IDS.publicText);
+
+    const snapshot = await normalize(bundle);
     const publicCategory = snapshot.channels.find(({ label }) => label === 'Public');
     const children = snapshot.channels
       .filter(({ parentKey }) => parentKey === publicCategory?.key)
@@ -141,22 +153,68 @@ describe('bot-visible Discord structure normalization', () => {
     await expect(identifiers.for('channel', TEST_IDS.botPrivateText)).resolves.toBe(
       privateChannel?.key,
     );
-    expect(privateChannel?.overwrites).toHaveLength(3);
-    expect(
-      privateChannel?.overwrites.map(({ targetType, allow, deny }) => ({
-        targetType,
-        allow,
-        deny,
-      })),
-    ).toEqual([
-      { targetType: 'role', allow: '0', deny: '1024' },
-      { targetType: 'role', allow: '1024', deny: '0' },
-      { targetType: 'member', allow: '1024', deny: '0' },
+
+    const expectedOverwrites = [
+      {
+        label: 'bot-private',
+        targets: [
+          { kind: 'role', id: TEST_IDS.guild, allow: '0', deny: '1024' },
+          { kind: 'role', id: TEST_IDS.botRole, allow: '1024', deny: '0' },
+          { kind: 'member', id: TEST_IDS.memberWithOverwrite, allow: '1024', deny: '0' },
+        ],
+      },
+      {
+        label: 'Denied category',
+        targets: [{ kind: 'role', id: TEST_IDS.guild, allow: '0', deny: '1024' }],
+      },
+      {
+        label: 'visible-child',
+        targets: [
+          { kind: 'role', id: TEST_IDS.guild, allow: '0', deny: '1024' },
+          { kind: 'role', id: TEST_IDS.botRole, allow: '1024', deny: '0' },
+        ],
+      },
+    ] as const;
+
+    for (const { label, targets } of expectedOverwrites) {
+      const normalized = snapshot.channels.find((channel) => channel.label === label);
+      expect(normalized?.overwrites).toHaveLength(targets.length);
+      for (let index = 0; index < targets.length; index += 1) {
+        const expected = targets[index]!;
+        const actual = normalized?.overwrites[index];
+        expect(actual).toMatchObject({
+          targetType: expected.kind,
+          allow: expected.allow,
+          deny: expected.deny,
+        });
+        await expect(identifiers.for(expected.kind, expected.id)).resolves.toBe(actual?.targetKey);
+      }
+    }
+
+    expect(snapshot.channels.flatMap(({ overwrites }) => overwrites)).toHaveLength(6);
+  });
+
+  it('domain-separates valid role and member overwrites with the same raw target ID', async () => {
+    const bundle = structuredClone(createValidatedDiscordSourceFixture());
+    const publicChannel = bundle.channels.find(({ id }) => id === TEST_IDS.publicText);
+    if (publicChannel === undefined) throw new Error('TEST_FIXTURE_CHANNEL_MISSING');
+    publicChannel.overwrites = [
+      { id: TEST_IDS.botRole, type: 0, allow: '0', deny: '0' },
+      { id: TEST_IDS.botRole, type: 1, allow: '0', deny: '0' },
+    ];
+    validateDiscordSourceBundle(bundle, TEST_IDS.guild);
+    const identifiers = await createIdentifierFactory(decodeBase64UrlSecret(SECRET));
+
+    const snapshot = await normalize(bundle, identifiers);
+    const overwrites = snapshot.channels.find(({ label }) => label === 'general')?.overwrites;
+    const expectedRoleKey = await identifiers.for('role', TEST_IDS.botRole);
+    const expectedMemberKey = await identifiers.for('member', TEST_IDS.botRole);
+
+    expect(overwrites).toEqual([
+      { targetKey: expectedRoleKey, targetType: 'role', allow: '0', deny: '0' },
+      { targetKey: expectedMemberKey, targetType: 'member', allow: '0', deny: '0' },
     ]);
-    expect(privateChannel?.overwrites[0]?.targetKey).toBe(snapshot.guild.everyoneRoleKey);
-    await expect(identifiers.for('member', TEST_IDS.memberWithOverwrite)).resolves.toBe(
-      privateChannel?.overwrites[2]?.targetKey,
-    );
+    expect(expectedRoleKey).not.toBe(expectedMemberKey);
   });
 
   it('returns only the minimized parseable snapshot without raw identifiers or discarded data', async () => {
