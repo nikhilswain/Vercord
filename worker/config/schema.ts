@@ -47,16 +47,24 @@ export const runtimeOnlySchema = z.object({
   SNAPSHOT_ID_SECRET: base64UrlSecret,
 });
 
-export function parseDiscordSourceConfig(values: {
+type DiscordSourceValues = {
   DISCORD_BOT_TOKEN?: unknown;
   DISCORD_GUILD_ID?: unknown;
-}): DiscordSourceConfig {
+};
+
+type SyncAuthValues = { SYNC_SECRET?: unknown };
+
+export function parseDiscordSourceConfig(values: Record<string, unknown>): DiscordSourceConfig;
+export function parseDiscordSourceConfig(values: DiscordSourceValues): DiscordSourceConfig;
+export function parseDiscordSourceConfig(values: DiscordSourceValues): DiscordSourceConfig {
   const parsed = discordSourceSchema.safeParse(values);
   if (!parsed.success) throw new Error('CONFIG_INVALID');
   return { botToken: parsed.data.DISCORD_BOT_TOKEN, guildId: parsed.data.DISCORD_GUILD_ID };
 }
 
-export function parseSyncAuthConfig(values: { SYNC_SECRET?: unknown }): SyncAuthConfig {
+export function parseSyncAuthConfig(values: Record<string, unknown>): SyncAuthConfig;
+export function parseSyncAuthConfig(values: SyncAuthValues): SyncAuthConfig;
+export function parseSyncAuthConfig(values: SyncAuthValues): SyncAuthConfig {
   const parsed = syncAuthSchema.safeParse(values);
   if (!parsed.success) throw new Error('CONFIG_INVALID');
   return { syncSecret: parsed.data.SYNC_SECRET };

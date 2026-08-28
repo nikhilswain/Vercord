@@ -5,6 +5,7 @@ import { decodeBase64UrlSecret, parseRuntimeConfig } from '../../../worker/confi
 
 const SYNC_SECRET = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE';
 const ID_SECRET = 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI';
+const INVALID_ALPHABET_SECRET = `${ID_SECRET.slice(0, 42)}+`;
 const BOT_TOKEN = 'test.bot.token.never.real.0001';
 const GUILD_ID = '100000000000000001';
 
@@ -47,6 +48,14 @@ describe('Phase 1 configuration', () => {
       botToken: BOT_TOKEN,
       guildId: GUILD_ID,
     });
+  });
+
+  it('accepts record-shaped verifier input and fails closed for unknown values', () => {
+    expectConfigInvalid(() =>
+      parseDiscordSourceConfig({
+        UNRELATED_TEST_PROPERTY: 'test-only',
+      }),
+    );
   });
 
   it.each([
@@ -106,6 +115,17 @@ describe('Phase 1 configuration', () => {
     `generate-${'a'.repeat(34)}`,
   ])('rejects invalid sync authorization secret', (syncSecret) => {
     expectConfigInvalid(() => parseSyncAuthConfig({ SYNC_SECRET: syncSecret }));
+  });
+
+  it.each([
+    ['parseSyncAuthConfig', () => parseSyncAuthConfig({ SYNC_SECRET: INVALID_ALPHABET_SECRET })],
+    [
+      'parseRuntimeConfig snapshot ID secret',
+      () => parseRuntimeConfig(validEnv({ SNAPSHOT_ID_SECRET: INVALID_ALPHABET_SECRET })),
+    ],
+    ['decodeBase64UrlSecret', () => decodeBase64UrlSecret(INVALID_ALPHABET_SECRET)],
+  ])('rejects a 43-character invalid-alphabet secret through %s', (_path, action) => {
+    expectConfigInvalid(action);
   });
 
   it.each([
