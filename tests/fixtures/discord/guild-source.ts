@@ -60,7 +60,7 @@ export function createRawDiscordResponses(): RawDiscordResponses {
         topic: 'PRIVATE_TOPIC_MUST_NOT_PERSIST',
         last_message_id: TEST_IDS.lastMessage,
       },
-      channel(TEST_IDS.botPrivateText, 0, 1, 'bot-private', TEST_IDS.category, false, [
+      channel(TEST_IDS.botPrivateText, 0, 0, 'bot-private', TEST_IDS.category, false, [
         overwrite(TEST_IDS.guild, 0, '0', '1024'),
         overwrite(TEST_IDS.botRole, 0, '1024', '0'),
         overwrite(TEST_IDS.memberWithOverwrite, 1, '1024', '0'),
@@ -81,7 +81,10 @@ export function createRawDiscordResponses(): RawDiscordResponses {
         false,
         [overwrite(TEST_IDS.guild, 0, '0', '1024'), overwrite(TEST_IDS.botRole, 0, '1024', '0')],
       ),
-      channel(TEST_IDS.unsupportedChannel, 14, 4, 'unsupported', null),
+      {
+        ...channel(TEST_IDS.unsupportedChannel, 14, 4, 'unsupported', null),
+        nsfw: undefined,
+      },
       channel(TEST_IDS.thread, 11, 5, 'thread', null),
       channel(TEST_IDS.emptyCategory, 4, 2, 'Empty', null),
     ],
