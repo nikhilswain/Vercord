@@ -19,3 +19,14 @@ test('serves the Dmap shell and Worker health route together', async ({ page }) 
     status: 'ok',
   });
 });
+
+test('serves the Dmap shell for a nested non-API navigation', async ({ page }) => {
+  await page.goto('/worlds/foundation');
+
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Turn your server into a world worth exploring.',
+    }),
+  ).toBeVisible();
+});

@@ -238,7 +238,7 @@ h1 {
 }
 .site-footer {
   justify-content: center;
-  color: #68738f;
+  color: var(--muted);
   font-size: 0.78rem;
   text-align: center;
 }
