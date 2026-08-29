@@ -1,6 +1,8 @@
 import {
   type HTMLAttributes,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -40,6 +42,15 @@ export interface MapViewportController {
   >;
 }
 
+interface ActivePointer {
+  id: number;
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastY: number;
+  captured: boolean;
+}
+
 export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
   const frameRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<SVGGElement>(null);
@@ -51,6 +62,9 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
   const viewportRef = useRef<ViewportSize>({ width: 0, height: 0 });
   const zoomFrameRef = useRef<number | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
+  const pointerRef = useRef<ActivePointer | null>(null);
+  const suppressNextClickRef = useRef(false);
+  const clickGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [zoomPercent, setZoomPercent] = useState('100%');
 
   const applyTransform = useCallback((next: ViewTransform, publish = true) => {
@@ -124,6 +138,98 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     [applyTransform, bounds],
   );
 
+  const armClickGuard = useCallback(() => {
+    suppressNextClickRef.current = true;
+    if (clickGuardTimerRef.current !== null) clearTimeout(clickGuardTimerRef.current);
+    clickGuardTimerRef.current = setTimeout(() => {
+      suppressNextClickRef.current = false;
+      clickGuardTimerRef.current = null;
+    }, 0);
+  }, []);
+
+  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerRef.current || event.pointerType === 'touch') return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    pointerRef.current = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      captured: false,
+    };
+  }, []);
+
+  const onPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const pointer = pointerRef.current;
+      if (!pointer || pointer.id !== event.pointerId) return;
+      if (
+        !pointer.captured &&
+        Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY) <
+          VIEWPORT_LIMITS.dragThresholdPixels
+      ) {
+        return;
+      }
+      if (!pointer.captured) {
+        event.currentTarget.setPointerCapture(pointer.id);
+        pointer.captured = true;
+      }
+      event.preventDefault();
+      const deltaX = event.clientX - pointer.lastX;
+      const deltaY = event.clientY - pointer.lastY;
+      pointer.lastX = event.clientX;
+      pointer.lastY = event.clientY;
+      applyTransform(
+        panBy(transformRef.current, deltaX, deltaY, bounds, viewportRef.current),
+        false,
+      );
+    },
+    [applyTransform, bounds],
+  );
+
+  const finishPointer = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>, guardClick: boolean) => {
+      const pointer = pointerRef.current;
+      if (!pointer || pointer.id !== event.pointerId) return;
+      pointerRef.current = null;
+      if (!pointer.captured) return;
+      if (event.currentTarget.hasPointerCapture(pointer.id)) {
+        event.currentTarget.releasePointerCapture(pointer.id);
+      }
+      if (guardClick) armClickGuard();
+    },
+    [armClickGuard],
+  );
+
+  const onPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => finishPointer(event, true),
+    [finishPointer],
+  );
+  const onPointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => finishPointer(event, false),
+    [finishPointer],
+  );
+  const onLostPointerCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => finishPointer(event, false),
+    [finishPointer],
+  );
+  const onClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!suppressNextClickRef.current) return;
+    suppressNextClickRef.current = false;
+    if (clickGuardTimerRef.current !== null) clearTimeout(clickGuardTimerRef.current);
+    clickGuardTimerRef.current = null;
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (clickGuardTimerRef.current !== null) clearTimeout(clickGuardTimerRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
@@ -190,6 +296,14 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     reset,
     zoomIn,
     zoomOut,
-    frameHandlers: { onKeyDown },
+    frameHandlers: {
+      onKeyDown,
+      onClickCapture,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerCancel,
+      onLostPointerCapture,
+    },
   };
 }

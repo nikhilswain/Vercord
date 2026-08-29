@@ -210,4 +210,124 @@ describe('MapViewport camera', () => {
     fireEvent.keyDown(screen.getByTestId('pointer-room'), { key: 'ArrowLeft' });
     expect(readMatrixText()).toBe(afterArrow);
   });
+
+  it('keeps a sub-threshold room click and captures at an exact Euclidean 4px', () => {
+    const onRoomClick = vi.fn();
+    const frame = renderViewport({ useLargeFixture: true, onRoomClick });
+    const room = screen.getByTestId('pointer-room');
+    fireEvent.pointerDown(room, {
+      pointerId: 7,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(room, { pointerId: 7, pointerType: 'mouse', clientX: 103, clientY: 100 });
+    expect(frame.hasPointerCapture(7)).toBe(false);
+    fireEvent.pointerUp(room, { pointerId: 7, pointerType: 'mouse', clientX: 103, clientY: 100 });
+    fireEvent.click(room);
+    expect(onRoomClick).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerDown(room, {
+      pointerId: 8,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(room, { pointerId: 8, pointerType: 'mouse', clientX: 100, clientY: 104 });
+    expect(frame.hasPointerCapture(8)).toBe(true);
+    fireEvent.pointerCancel(room, { pointerId: 8, pointerType: 'mouse' });
+    expect(frame.hasPointerCapture(8)).toBe(false);
+  });
+
+  it('lets the first pointer win and ignores other pointer ids', () => {
+    const frame = renderViewport({ useLargeFixture: true });
+    const room = screen.getByTestId('pointer-room');
+    fireEvent.pointerDown(room, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+    });
+    fireEvent.pointerDown(room, {
+      pointerId: 2,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 150,
+      clientY: 150,
+    });
+    const before = readMatrixText();
+    fireEvent.pointerMove(room, { pointerId: 2, pointerType: 'mouse', clientX: 180, clientY: 180 });
+    fireEvent.pointerUp(room, { pointerId: 2, pointerType: 'mouse' });
+    expect(readMatrixText()).toBe(before);
+    expect(frame.hasPointerCapture(2)).toBe(false);
+    fireEvent.pointerMove(room, { pointerId: 1, pointerType: 'mouse', clientX: 54, clientY: 50 });
+    expect(frame.hasPointerCapture(1)).toBe(true);
+    fireEvent.pointerUp(room, { pointerId: 1, pointerType: 'mouse' });
+  });
+
+  it('suppresses exactly one synthesized post-drag click and has a timeout fallback', () => {
+    vi.useFakeTimers();
+    const onRoomClick = vi.fn();
+    renderViewport({ useLargeFixture: true, onRoomClick });
+    const room = screen.getByTestId('pointer-room');
+    fireEvent.pointerDown(room, {
+      pointerId: 3,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 60,
+      clientY: 60,
+    });
+    fireEvent.pointerMove(room, { pointerId: 3, pointerType: 'mouse', clientX: 66, clientY: 60 });
+    fireEvent.pointerUp(room, { pointerId: 3, pointerType: 'mouse', clientX: 66, clientY: 60 });
+    fireEvent.click(room);
+    expect(onRoomClick).not.toHaveBeenCalled();
+    fireEvent.click(room);
+    expect(onRoomClick).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerDown(room, {
+      pointerId: 4,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 60,
+      clientY: 60,
+    });
+    fireEvent.pointerMove(room, { pointerId: 4, pointerType: 'mouse', clientX: 64, clientY: 60 });
+    fireEvent.pointerUp(room, { pointerId: 4, pointerType: 'mouse', clientX: 64, clientY: 60 });
+    act(() => vi.runOnlyPendingTimers());
+    fireEvent.click(room);
+    expect(onRoomClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('cleans active state after cancel and lost capture', () => {
+    const frame = renderViewport({ useLargeFixture: true });
+    const room = screen.getByTestId('pointer-room');
+    fireEvent.pointerDown(room, {
+      pointerId: 11,
+      pointerType: 'pen',
+      button: 0,
+      clientX: 80,
+      clientY: 80,
+    });
+    fireEvent.pointerMove(room, { pointerId: 11, pointerType: 'pen', clientX: 84, clientY: 80 });
+    fireEvent.pointerCancel(room, { pointerId: 11, pointerType: 'pen' });
+    const afterCancel = readMatrixText();
+    fireEvent.pointerMove(room, { pointerId: 11, pointerType: 'pen', clientX: 120, clientY: 80 });
+    expect(readMatrixText()).toBe(afterCancel);
+
+    fireEvent.pointerDown(room, {
+      pointerId: 12,
+      pointerType: 'pen',
+      button: 0,
+      clientX: 80,
+      clientY: 80,
+    });
+    fireEvent.pointerMove(room, { pointerId: 12, pointerType: 'pen', clientX: 84, clientY: 80 });
+    fireEvent.lostPointerCapture(frame, { pointerId: 12, pointerType: 'pen' });
+    const afterLoss = readMatrixText();
+    fireEvent.pointerMove(room, { pointerId: 12, pointerType: 'pen', clientX: 120, clientY: 80 });
+    expect(readMatrixText()).toBe(afterLoss);
+  });
 });
