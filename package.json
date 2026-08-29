@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "discord:verify": "tsx scripts/discord/verify-access.ts",
     "build": "tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
     "deploy": "vite build && wrangler deploy",
