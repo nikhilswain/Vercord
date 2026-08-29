@@ -153,6 +153,80 @@
   color: var(--color-route-violet-soft);
 }
 
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-inline-size: 0;
+}
+
+.map-toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-inline-size: 0;
+}
+
+.map-toolbar-search {
+  flex: 1 1 17rem;
+}
+
+.map-control-wrap {
+  position: relative;
+}
+
+.map-control-button {
+  display: inline-grid;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.55);
+  border-radius: var(--radius-control);
+  color: var(--color-map-white);
+  background: var(--color-chart-navy-elevated);
+}
+
+.map-control-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+}
+
+.map-control-tooltip {
+  position: absolute;
+  z-index: 4;
+  inset-block-start: calc(100% + 0.35rem);
+  inset-inline-start: 50%;
+  width: max-content;
+  max-width: 12rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.4rem;
+  color: var(--color-void);
+  background: var(--color-map-white);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.map-control-wrap:hover .map-control-tooltip,
+.map-control-wrap:focus-within .map-control-tooltip {
+  opacity: 1;
+}
+
+.map-zoom-status {
+  min-width: 4.25rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .map-state {
   display: grid;
   min-height: 30rem;
