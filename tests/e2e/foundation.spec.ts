@@ -15,7 +15,7 @@ test('serves the Dmap shell and Worker health route together', async ({ page }) 
       name: 'Turn your server into a world worth exploring.',
     }),
   ).toBeVisible();
-  await expect(page.getByText('Foundation ready')).toBeVisible();
+  await expect(page.getByText('Atlas phase')).toBeVisible();
 
   const healthResponse = await page.request.get('/api/health');
 
@@ -26,13 +26,9 @@ test('serves the Dmap shell and Worker health route together', async ({ page }) 
   });
 });
 
-test('serves the Dmap shell for a nested non-API navigation', async ({ page }) => {
+test('renders the application-owned not-found view for a nested path', async ({ page }) => {
   await page.goto('/worlds/foundation');
 
-  await expect(
-    page.getByRole('heading', {
-      level: 1,
-      name: 'Turn your server into a world worth exploring.',
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Return home' })).toBeVisible();
 });

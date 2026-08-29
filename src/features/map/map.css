@@ -1,0 +1,181 @@
+.atlas-page {
+  max-width: calc(var(--page-atlas-max) + var(--page-gutter) + var(--page-gutter));
+  padding-bottom: 3rem;
+}
+
+.atlas-intro {
+  max-width: 68ch;
+  padding: 2rem 0 1.5rem;
+}
+
+.atlas-intro h1 {
+  margin: 0;
+  color: var(--color-map-white);
+  font-size: clamp(2.5rem, 6vw, 5.25rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.atlas-intro .route-note {
+  margin-top: 0.85rem;
+  color: var(--color-route-violet-soft);
+}
+
+.atlas-intro > p:last-child,
+.map-status,
+.map-state {
+  color: var(--color-text-muted);
+}
+
+.atlas-intro > p:last-child {
+  margin: 0.85rem 0 0;
+  line-height: 1.65;
+}
+
+.map-status {
+  font-family: var(--font-mono);
+}
+
+.map-viewport {
+  min-height: 30rem;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--color-chart-navy);
+  box-shadow: var(--shadow-panel);
+}
+
+.map-viewport > svg {
+  display: block;
+  width: 100%;
+  min-height: 30rem;
+}
+
+.atlas-grid {
+  fill: url('#atlas-grid');
+}
+
+#atlas-grid path {
+  fill: none;
+  stroke: rgb(var(--color-border-rgb) / 0.09);
+  stroke-width: 1;
+}
+
+.atlas-route {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 4 14;
+  opacity: 0.62;
+}
+
+.atlas-route--violet {
+  stroke: var(--color-route-violet);
+}
+
+.atlas-route--cyan {
+  stroke: var(--color-beacon-cyan);
+}
+
+.atlas-route--amber {
+  stroke: var(--color-hearth-amber);
+}
+
+.atlas-area > rect {
+  fill: var(--color-chart-navy);
+  stroke-width: 2;
+}
+
+.atlas-area--violet > rect {
+  stroke: var(--color-route-violet);
+}
+
+.atlas-area--cyan > rect {
+  stroke: var(--color-beacon-cyan);
+}
+
+.atlas-area--amber > rect {
+  stroke: var(--color-hearth-amber);
+}
+
+.atlas-area > text {
+  fill: var(--color-map-white);
+  font-family: var(--font-cartographic);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.atlas-area .atlas-room-count {
+  fill: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.atlas-room {
+  transition: opacity 140ms ease-out;
+}
+
+.atlas-room--interactive {
+  cursor: pointer;
+}
+
+.atlas-room > rect {
+  fill: var(--color-chart-navy-elevated);
+  stroke: rgb(var(--color-border-rgb) / 0.35);
+  stroke-width: 1.5;
+}
+
+.atlas-room > text {
+  fill: var(--color-map-white);
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.atlas-room--interactive:hover > rect {
+  stroke: rgb(var(--color-border-rgb) / 0.7);
+}
+
+.atlas-room.is-selected > rect {
+  stroke: var(--color-map-white);
+  stroke-width: 3;
+}
+
+.atlas-room.is-muted {
+  opacity: 0.32;
+}
+
+.room-type-icon {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--color-route-violet-soft);
+}
+
+.map-state {
+  display: grid;
+  min-height: 30rem;
+  place-content: center;
+  padding: 2rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.2);
+  border-radius: var(--radius-panel);
+  background: var(--color-chart-navy);
+  text-align: center;
+}
+
+.map-state h2 {
+  color: var(--color-map-white);
+}
+
+@media (max-width: 35rem) {
+  .atlas-intro {
+    padding-top: 1.5rem;
+  }
+
+  .map-viewport,
+  .map-viewport > svg,
+  .map-state {
+    min-height: 20rem;
+  }
+}
