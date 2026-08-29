@@ -10,10 +10,13 @@ import {
   useState,
 } from 'react';
 
-import type { AtlasGeometry } from '../../domain/layout/geometry';
+import type { AtlasGeometry, RoomGeometry } from '../../domain/layout/geometry';
+import { useMediaPreference } from './use-media-preference';
 import {
+  centerRect,
   fitTransform,
   formatZoomPercent,
+  isRectVisible,
   panBy,
   resetTransform,
   VIEWPORT_LIMITS,
@@ -30,6 +33,7 @@ export interface MapViewportController {
   reset(): void;
   zoomIn(): void;
   zoomOut(): void;
+  ensureRoomVisible(room: RoomGeometry): void;
   frameHandlers: Pick<
     HTMLAttributes<HTMLDivElement>,
     | 'onKeyDown'
@@ -51,6 +55,13 @@ interface ActivePointer {
   captured: boolean;
 }
 
+interface ProgrammaticMotion {
+  frameId: number;
+  startedAt: number | null;
+  from: ViewTransform;
+  to: ViewTransform;
+}
+
 export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
   const frameRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<SVGGElement>(null);
@@ -65,6 +76,8 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
   const pointerRef = useRef<ActivePointer | null>(null);
   const suppressNextClickRef = useRef(false);
   const clickGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reducedMotion = useMediaPreference('(prefers-reduced-motion: reduce)');
+  const motionRef = useRef<ProgrammaticMotion | null>(null);
   const [zoomPercent, setZoomPercent] = useState('100%');
 
   const applyTransform = useCallback((next: ViewTransform, publish = true) => {
@@ -80,22 +93,30 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     });
   }, []);
 
+  const cancelProgrammaticMotion = useCallback(() => {
+    if (motionRef.current) cancelAnimationFrame(motionRef.current.frameId);
+    motionRef.current = null;
+  }, []);
+
   const fit = useCallback(() => {
+    cancelProgrammaticMotion();
     const viewport = viewportRef.current;
     if (viewport.width > 0 && viewport.height > 0) {
       applyTransform(fitTransform(bounds, viewport));
     }
-  }, [applyTransform, bounds]);
+  }, [applyTransform, bounds, cancelProgrammaticMotion]);
 
   const reset = useCallback(() => {
+    cancelProgrammaticMotion();
     const viewport = viewportRef.current;
     if (viewport.width > 0 && viewport.height > 0) {
       applyTransform(resetTransform(bounds, viewport));
     }
-  }, [applyTransform, bounds]);
+  }, [applyTransform, bounds, cancelProgrammaticMotion]);
 
   const zoomBy = useCallback(
     (factor: number) => {
+      cancelProgrammaticMotion();
       const viewport = viewportRef.current;
       if (viewport.width <= 0 || viewport.height <= 0) return;
       applyTransform(
@@ -108,7 +129,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
         ),
       );
     },
-    [applyTransform, bounds],
+    [applyTransform, bounds, cancelProgrammaticMotion],
   );
 
   const zoomIn = useCallback(() => zoomBy(VIEWPORT_LIMITS.zoomFactor), [zoomBy]);
@@ -132,10 +153,11 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
         }
       })();
       if (!delta) return;
+      cancelProgrammaticMotion();
       event.preventDefault();
       applyTransform(panBy(transformRef.current, delta.x, delta.y, bounds, viewportRef.current));
     },
-    [applyTransform, bounds],
+    [applyTransform, bounds, cancelProgrammaticMotion],
   );
 
   const armClickGuard = useCallback(() => {
@@ -147,18 +169,22 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     }, 0);
   }, []);
 
-  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (pointerRef.current || event.pointerType === 'touch') return;
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    pointerRef.current = {
-      id: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      captured: false,
-    };
-  }, []);
+  const onPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (pointerRef.current || event.pointerType === 'touch') return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      cancelProgrammaticMotion();
+      pointerRef.current = {
+        id: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        captured: false,
+      };
+    },
+    [cancelProgrammaticMotion],
+  );
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -223,6 +249,45 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     event.stopPropagation();
   }, []);
 
+  const ensureRoomVisible = useCallback(
+    (room: RoomGeometry) => {
+      cancelProgrammaticMotion();
+      const viewport = viewportRef.current;
+      const from = transformRef.current;
+      if (viewport.width <= 0 || viewport.height <= 0 || isRectVisible(from, room, viewport)) return;
+      const to = centerRect(from, room, bounds, viewport);
+      if (reducedMotion) {
+        applyTransform(to);
+        return;
+      }
+      const motion: ProgrammaticMotion = { frameId: 0, startedAt: null, from, to };
+      const step = (timestamp: number) => {
+        if (motionRef.current !== motion) return;
+        if (motion.startedAt === null) motion.startedAt = timestamp;
+        const progress = Math.min(
+          1,
+          (timestamp - motion.startedAt) / VIEWPORT_LIMITS.programmaticDurationMs,
+        );
+        const eased = 1 - Math.pow(1 - progress, 3);
+        applyTransform({
+          x: motion.from.x + (motion.to.x - motion.from.x) * eased,
+          y: motion.from.y + (motion.to.y - motion.from.y) * eased,
+          scale: motion.from.scale + (motion.to.scale - motion.from.scale) * eased,
+        });
+        if (progress === 1) {
+          motionRef.current = null;
+        } else {
+          motion.frameId = requestAnimationFrame(step);
+        }
+      };
+      motionRef.current = motion;
+      motion.frameId = requestAnimationFrame(step);
+    },
+    [applyTransform, bounds, cancelProgrammaticMotion, reducedMotion],
+  );
+
+  useEffect(() => () => cancelProgrammaticMotion(), [cancelProgrammaticMotion]);
+
   useEffect(
     () => () => {
       if (clickGuardTimerRef.current !== null) clearTimeout(clickGuardTimerRef.current);
@@ -234,6 +299,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     const frame = frameRef.current;
     if (!frame) return;
     const fit = (size: ViewportSize) => {
+      cancelProgrammaticMotion();
       viewportRef.current = size;
       applyTransform(fitTransform(bounds, size));
     };
@@ -263,13 +329,14 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
       if (zoomFrameRef.current !== null) cancelAnimationFrame(zoomFrameRef.current);
       zoomFrameRef.current = null;
     };
-  }, [applyTransform, bounds]);
+  }, [applyTransform, bounds, cancelProgrammaticMotion]);
 
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
     const onWheel = (event: WheelEvent) => {
       if (event.deltaY === 0) return;
+      cancelProgrammaticMotion();
       event.preventDefault();
       const rect = frame.getBoundingClientRect();
       const factor =
@@ -286,7 +353,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     };
     frame.addEventListener('wheel', onWheel, { passive: false });
     return () => frame.removeEventListener('wheel', onWheel);
-  }, [applyTransform, bounds]);
+  }, [applyTransform, bounds, cancelProgrammaticMotion]);
 
   return {
     frameRef,
@@ -296,6 +363,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     reset,
     zoomIn,
     zoomOut,
+    ensureRoomVisible,
     frameHandlers: {
       onKeyDown,
       onClickCapture,

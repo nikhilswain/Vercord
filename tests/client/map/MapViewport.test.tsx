@@ -8,11 +8,18 @@ import {
   useMapViewport,
 } from '../../../src/features/map/use-map-viewport';
 import {
+  centerRect,
   fitTransform,
   formatZoomPercent,
+  isRectVisible,
   type ViewTransform,
 } from '../../../src/features/map/viewport-transform';
-import { flushAnimationFrames, setElementRect, triggerResize } from '../helpers/browser-api-mocks';
+import {
+  flushAnimationFrames,
+  setBrowserMediaState,
+  setElementRect,
+  triggerResize,
+} from '../helpers/browser-api-mocks';
 import {
   createLayoutSnapshotFixture,
   createMapSnapshotFixture,
@@ -329,5 +336,97 @@ describe('MapViewport camera', () => {
     const afterLoss = readMatrixText();
     fireEvent.pointerMove(room, { pointerId: 12, pointerType: 'pen', clientX: 120, clientY: 80 });
     expect(readMatrixText()).toBe(afterLoss);
+  });
+
+  it('does not move a visible room and centres an offscreen room over 220ms', () => {
+    const frame = renderViewport({ useLargeFixture: true });
+    const initial = readTransform();
+    const visibleRoom = largeGeometry.areas
+      .flatMap((area) => area.rooms)
+      .find((room) => isRectVisible(initial, room, { width: 800, height: 600 }));
+    if (!visibleRoom) throw new Error('The fitted fixture must expose a visible room.');
+    const beforeVisible = readMatrixText();
+    act(() => getController().ensureRoomVisible(visibleRoom));
+    expect(readMatrixText()).toBe(beforeVisible);
+
+    act(() => getController().reset());
+    const reset = readTransform();
+    const offscreenRoom = largeGeometry.areas
+      .flatMap((area) => area.rooms)
+      .find((room) => !isRectVisible(reset, room, { width: 800, height: 600 }));
+    if (!offscreenRoom) throw new Error('The reset fixture must contain an offscreen room.');
+    const destination = centerRect(
+      reset,
+      offscreenRoom,
+      { x: 0, y: 0, width: largeGeometry.width, height: largeGeometry.height },
+      { width: 800, height: 600 },
+    );
+    const visibleFromReset = largeGeometry.areas
+      .flatMap((area) => area.rooms)
+      .find((room) => isRectVisible(reset, room, { width: 800, height: 600 }));
+    if (!visibleFromReset) throw new Error('The reset fixture must expose a visible room.');
+
+    act(() => getController().ensureRoomVisible(offscreenRoom));
+    act(() => flushAnimationFrames(0));
+    expect(readTransform()).toEqual(reset);
+    act(() => getController().ensureRoomVisible(visibleFromReset));
+    act(() => flushAnimationFrames(220));
+    expect(readTransform()).toEqual(reset);
+
+    act(() => getController().ensureRoomVisible(offscreenRoom));
+    act(() => flushAnimationFrames(0));
+    act(() => flushAnimationFrames(220));
+    expect(readTransform()).toEqual(destination);
+    expect(frame).toBeInTheDocument();
+  });
+
+  it('moves immediately under reduced motion and direct input cancels an active motion', () => {
+    const frame = renderViewport({ useLargeFixture: true });
+    act(() => getController().reset());
+    const room = largeGeometry.areas
+      .flatMap((area) => area.rooms)
+      .find((candidate) => !isRectVisible(readTransform(), candidate, { width: 800, height: 600 }));
+    if (!room) throw new Error('The reset fixture must contain an offscreen room.');
+
+    act(() => setBrowserMediaState({ reducedMotion: true }));
+    const frameSpy = vi.spyOn(window, 'requestAnimationFrame');
+    const frameCount = frameSpy.mock.calls.length;
+    act(() => getController().ensureRoomVisible(room));
+    expect(frameSpy).toHaveBeenCalledTimes(frameCount);
+    expect(isRectVisible(readTransform(), room, { width: 800, height: 600 })).toBe(true);
+    frameSpy.mockRestore();
+
+    act(() => setBrowserMediaState({ reducedMotion: false }));
+    act(() => getController().reset());
+    act(() => getController().ensureRoomVisible(room));
+    act(() => flushAnimationFrames(0));
+    fireEvent.keyDown(frame, { key: 'ArrowLeft' });
+    const interrupted = readMatrixText();
+    act(() => flushAnimationFrames(220));
+    expect(readMatrixText()).toBe(interrupted);
+  });
+
+  it('keeps a resize fit after cancelling an active room motion', () => {
+    const frame = renderViewport({ useLargeFixture: true });
+    act(() => getController().reset());
+    const room = largeGeometry.areas
+      .flatMap((area) => area.rooms)
+      .find((candidate) => !isRectVisible(readTransform(), candidate, { width: 800, height: 600 }));
+    if (!room) throw new Error('The reset fixture must contain an offscreen room.');
+
+    act(() => getController().ensureRoomVisible(room));
+    act(() => flushAnimationFrames(0));
+    act(() => {
+      triggerResize(frame, 640, 480);
+      flushAnimationFrames(20);
+      flushAnimationFrames(20);
+    });
+    const resizedFit = fitTransform(
+      { x: 0, y: 0, width: largeGeometry.width, height: largeGeometry.height },
+      { width: 640, height: 480 },
+    );
+    expect(readTransform()).toEqual(resizedFit);
+    act(() => flushAnimationFrames(240));
+    expect(readTransform()).toEqual(resizedFit);
   });
 });
