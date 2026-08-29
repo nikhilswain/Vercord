@@ -111,7 +111,7 @@ describe('static atlas SVG', () => {
     }
   });
 
-  it('keeps the ready workspace static and source-status free', () => {
+  it('keeps presentation-only spatial rooms and ready controls', () => {
     const snapshot = createLayoutSnapshotFixture([1]);
     const geometry = layoutAtlas(snapshot);
     const { container } = render(
@@ -121,6 +121,7 @@ describe('static atlas SVG', () => {
     expect(container.querySelector('.atlas-room')).not.toHaveClass('atlas-room--interactive');
     expect(container.querySelector('.atlas-room')).not.toHaveAttribute('tabindex');
     expect(container.querySelector('.atlas-room')).not.toHaveAttribute('role');
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Map zoom' })).toHaveTextContent('100%');
+    expect(screen.getByText('Demo data')).toBeInTheDocument();
   });
 });

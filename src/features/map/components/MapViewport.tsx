@@ -12,15 +12,23 @@ export interface MapViewportProps {
 }
 
 export function MapViewport({ snapshot, children, controller }: MapViewportProps) {
+  const {
+    frameHandlers,
+    frameRef,
+    worldRef,
+    touchNavigationActive,
+    anyCoarsePointer,
+    toggleTouchNavigation,
+  } = controller;
   const idBase = useId();
   const titleId = idBase + '-title-0';
   const descriptionId = idBase + '-description-0';
   const instructionId = idBase + '-instruction-0';
   return (
     <div
-      {...controller.frameHandlers}
-      ref={controller.frameRef}
-      className={'map-viewport' + (controller.touchNavigationActive ? ' is-touch-navigation' : '')}
+      {...frameHandlers}
+      ref={frameRef}
+      className={'map-viewport' + (touchNavigationActive ? ' is-touch-navigation' : '')}
       role="region"
       aria-label="Atlas viewport"
       aria-describedby={instructionId}
@@ -42,19 +50,19 @@ export function MapViewport({ snapshot, children, controller }: MapViewportProps
             A spatial atlas of invented districts and rooms. Search and the room directory provide
             complete keyboard selection.
           </desc>
-          <g ref={controller.worldRef} className="atlas-world" data-map-world>
+          <g ref={worldRef} className="atlas-world" data-map-world>
             {children}
           </g>
         </svg>
       </div>
-      {controller.anyCoarsePointer ? (
+      {anyCoarsePointer ? (
         <button
           className="map-touch-navigation"
           type="button"
           data-map-control="touch-navigation"
-          onClick={controller.toggleTouchNavigation}
+          onClick={toggleTouchNavigation}
         >
-          {controller.touchNavigationActive ? 'Done moving' : 'Move map'}
+          {touchNavigationActive ? 'Done moving' : 'Move map'}
         </button>
       ) : null}
     </div>
