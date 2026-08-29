@@ -1,11 +1,32 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { layoutAtlas } from '../../../src/domain/layout/atlas';
+import type { AtlasGeometry } from '../../../src/domain/layout/geometry';
+import type { MapSnapshot } from '../../../src/domain/map/snapshot';
 import { ReadyMapWorkspace } from '../../../src/features/map/ReadyMapWorkspace';
 import { AtlasMap } from '../../../src/features/map/components/AtlasMap';
 import { MapViewport } from '../../../src/features/map/components/MapViewport';
+import { useMapViewport } from '../../../src/features/map/use-map-viewport';
 import { createLayoutSnapshotFixture } from '../../fixtures/map/map-snapshots';
+
+function ControlledMapViewport({
+  snapshot,
+  geometry,
+  children,
+}: {
+  snapshot: MapSnapshot;
+  geometry: AtlasGeometry;
+  children: ReactNode;
+}) {
+  const controller = useMapViewport(geometry);
+  return (
+    <MapViewport snapshot={snapshot} geometry={geometry} controller={controller}>
+      {children}
+    </MapViewport>
+  );
+}
 
 describe('static atlas SVG', () => {
   it('clips a maximum-length wide district label before the fixed room-count lane', () => {
@@ -13,14 +34,14 @@ describe('static atlas SVG', () => {
     snapshot.areas[0]!.label = 'W'.repeat(100);
     const geometry = layoutAtlas(snapshot);
     const { container } = render(
-      <MapViewport snapshot={snapshot} geometry={geometry}>
+      <ControlledMapViewport snapshot={snapshot} geometry={geometry}>
         <AtlasMap
           snapshot={snapshot}
           geometry={geometry}
           selectedRoomKey={null}
           matchingRoomKeys={null}
         />
-      </MapViewport>,
+      </ControlledMapViewport>,
     );
 
     expect(geometry.areas[0]).toMatchObject({ width: 272 });
@@ -38,7 +59,7 @@ describe('static atlas SVG', () => {
     const geometry = layoutAtlas(snapshot);
     const onSelectRoom = vi.fn();
     const { container } = render(
-      <MapViewport snapshot={snapshot} geometry={geometry}>
+      <ControlledMapViewport snapshot={snapshot} geometry={geometry}>
         <AtlasMap
           snapshot={snapshot}
           geometry={geometry}
@@ -46,7 +67,7 @@ describe('static atlas SVG', () => {
           matchingRoomKeys={new Set([snapshot.areas[0]!.rooms[0]!.key])}
           onSelectRoom={onSelectRoom}
         />
-      </MapViewport>,
+      </ControlledMapViewport>,
     );
 
     expect(screen.getByRole('img', { name: 'Northstar Commons atlas' })).toBeInTheDocument();
