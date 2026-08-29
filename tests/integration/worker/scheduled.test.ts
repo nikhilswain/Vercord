@@ -147,6 +147,24 @@ describe('scheduled synchronization entry point', () => {
     }
   });
 
+  it('settles safely when failure logging itself throws', async () => {
+    const logger = createLogger();
+    logger.error.mockImplementation(() => {
+      throw new Error(`${SYNC_SECRET} logger failure`);
+    });
+    const runSync = vi
+      .fn<(env: Env) => Promise<SyncSummary>>()
+      .mockRejectedValue(new WorkerError('DISCORD_UNAVAILABLE'));
+    const worker = createWorker({ runSync, logger });
+    const context = createExecutionContext();
+
+    worker.scheduled!(createScheduledController(), validEnv(), context);
+
+    await expect(waitOnExecutionContext(context)).resolves.toBeUndefined();
+    expect(logger.error).toHaveBeenCalledOnce();
+    expect(logger.error.mock.calls[0]?.[1]).toMatchObject({ outcome: 'DISCORD_UNAVAILABLE' });
+  });
+
   it('shares one factory-owned guard between scheduled and manual entry points', async () => {
     let release!: (summary: SyncSummary) => void;
     const runSync = vi.fn<(env: Env) => Promise<SyncSummary>>().mockImplementation(

@@ -123,6 +123,51 @@ describe('sync request authorization', () => {
   ])('rejects %s', async (_case, header) => {
     await expect(authorizeSyncRequest(header, SYNC_SECRET)).resolves.toBe(false);
   });
+
+  it('hashes both distinct operands with SHA-256 before comparing a valid mismatch', async () => {
+    const candidate = `${SYNC_SECRET.slice(0, -1)}B`;
+    const digest = vi.spyOn(crypto.subtle, 'digest');
+
+    try {
+      await expect(authorizeSyncRequest(`Bearer ${candidate}`, SYNC_SECRET)).resolves.toBe(false);
+
+      expect(digest).toHaveBeenCalledTimes(2);
+      expect(digest.mock.calls.map(([algorithm]) => algorithm)).toEqual(['SHA-256', 'SHA-256']);
+      expect(
+        digest.mock.calls.map(([, data]) => {
+          const bytes = ArrayBuffer.isView(data)
+            ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+            : new Uint8Array(data);
+          return new TextDecoder().decode(bytes);
+        }),
+      ).toEqual([SYNC_SECRET, candidate]);
+      const digests = await Promise.all(
+        digest.mock.results.map(({ value }) => value as Promise<ArrayBuffer>),
+      );
+      expect(digests.map(({ byteLength }) => byteLength)).toEqual([32, 32]);
+    } finally {
+      digest.mockRestore();
+    }
+  });
+
+  it('uses one all-byte XOR accumulator with no loop-internal return', () => {
+    const source = authorizeSyncRequest.toString();
+    const loop = source.match(
+      /for\s*\(\s*let index = 0;\s*index < expectedBytes\.length;\s*index \+= 1\s*\)\s*\{([\s\S]*?)\}/,
+    );
+
+    expect(loop).not.toBeNull();
+    expect(loop![1]).toMatch(
+      /difference\s*\|=\s*expectedBytes\[index\]\s*\^\s*candidateBytes\[index\]/,
+    );
+    expect(loop![1]).not.toMatch(/\breturn\b/);
+    expect(source.match(/let difference\s*=\s*0/g)).toHaveLength(1);
+    expect(source.match(/difference\s*\|=/g)).toHaveLength(1);
+    expect(source).toMatch(/return difference\s*===\s*0/);
+    expect(source).not.toMatch(
+      /expectedSecret\s*={2,3}\s*candidate|candidate\s*={2,3}\s*expectedSecret/,
+    );
+  });
 });
 
 describe('protected manual synchronization route', () => {
@@ -136,6 +181,21 @@ describe('protected manual synchronization route', () => {
 
     await expectErrorResponse(response, 405, 'METHOD_NOT_ALLOWED');
     expect(response.headers.get('allow')).toBe('POST');
+    expect(runSync).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-POST with a body before body, config, and authentication checks', async () => {
+    const runSync = vi.fn<(env: Env) => Promise<SyncSummary>>().mockResolvedValue(SUMMARY);
+    const request = new Request('https://dmap.test/api/admin/sync', {
+      method: 'PUT',
+      body: '{}',
+      headers: { authorization: 'Basic invalid' },
+    });
+    const { response } = await fetchWith(request, validEnv({ SYNC_SECRET: 'invalid' }), runSync);
+
+    await expectErrorResponse(response, 405, 'METHOD_NOT_ALLOWED');
+    expect(response.headers.get('allow')).toBe('POST');
+    expect(request.bodyUsed).toBe(false);
     expect(runSync).not.toHaveBeenCalled();
   });
 
@@ -155,6 +215,21 @@ describe('protected manual synchronization route', () => {
       expect(runSync).not.toHaveBeenCalled();
     },
   );
+
+  it('rejects a present empty Transfer-Encoding header as a body signal', async () => {
+    const runSync = vi.fn<(env: Env) => Promise<SyncSummary>>().mockResolvedValue(SUMMARY);
+    const request = adminRequest({
+      headers: {
+        authorization: `Bearer ${SYNC_SECRET}`,
+        'transfer-encoding': '',
+      },
+    });
+    const { response } = await fetchWith(request, validEnv(), runSync);
+
+    await expectErrorResponse(response, 400, 'REQUEST_BODY_NOT_ALLOWED');
+    expect(request.bodyUsed).toBe(false);
+    expect(runSync).not.toHaveBeenCalled();
+  });
 
   it('maps invalid synchronization authorization configuration without invoking the runner', async () => {
     const runSync = vi.fn<(env: Env) => Promise<SyncSummary>>().mockResolvedValue(SUMMARY);
@@ -242,6 +317,39 @@ describe('protected manual synchronization route', () => {
     expect(runSync).toHaveBeenCalledOnce();
     release(SUMMARY);
     await expect(first).resolves.toMatchObject({ status: 200 });
+  });
+
+  it('allows independent workers to own independent active guards', async () => {
+    let releaseFirst!: (summary: SyncSummary) => void;
+    let releaseSecond!: (summary: SyncSummary) => void;
+    const firstRunner = vi.fn<(env: Env) => Promise<SyncSummary>>().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+    );
+    const secondRunner = vi.fn<(env: Env) => Promise<SyncSummary>>().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseSecond = resolve;
+        }),
+    );
+    const firstWorker = createWorker({ runSync: firstRunner, logger: createLogger() });
+    const secondWorker = createWorker({ runSync: secondRunner, logger: createLogger() });
+    const env = validEnv();
+
+    const first = invokeFetch(firstWorker, adminRequest(), env);
+    await vi.waitFor(() => expect(firstRunner).toHaveBeenCalledOnce());
+    const second = invokeFetch(secondWorker, adminRequest(), env);
+    await vi.waitFor(() => expect(secondRunner).toHaveBeenCalledOnce());
+
+    expect(firstRunner).toHaveBeenCalledWith(env);
+    expect(secondRunner).toHaveBeenCalledWith(env);
+    releaseFirst(SUMMARY);
+    releaseSecond(SUMMARY);
+    const [firstResponse, secondResponse] = await Promise.all([first, second]);
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
   });
 
   it.each([

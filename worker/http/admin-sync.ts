@@ -41,8 +41,7 @@ function hasRequestBody(request: Request): boolean {
     return true;
   }
 
-  const transferEncoding = request.headers.get('transfer-encoding');
-  return transferEncoding !== null && transferEncoding.trim().length > 0;
+  return request.headers.has('transfer-encoding');
 }
 
 function stableErrorCode(error: unknown): StableErrorCode | 'SYNC_FAILED' {

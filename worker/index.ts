@@ -69,11 +69,15 @@ export function createWorker(dependencies: Partial<WorkerDependencies> = {}): Ex
             : error instanceof Error && error.message === 'CONFIG_INVALID'
               ? 'CONFIG_INVALID'
               : 'SYNC_FAILED';
-        logger.error('discord_sync_failed', {
-          correlationId,
-          outcome,
-          durationMs: Math.max(0, Date.now() - startedAt),
-        });
+        try {
+          logger.error('discord_sync_failed', {
+            correlationId,
+            outcome,
+            durationMs: Math.max(0, Date.now() - startedAt),
+          });
+        } catch {
+          // Logging is best-effort and must not change handled scheduled settlement.
+        }
       });
       ctx.waitUntil(pending);
     },
