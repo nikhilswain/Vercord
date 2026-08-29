@@ -7,7 +7,11 @@ import {
   type MapViewportController,
   useMapViewport,
 } from '../../../src/features/map/use-map-viewport';
-import { fitTransform, type ViewTransform } from '../../../src/features/map/viewport-transform';
+import {
+  fitTransform,
+  formatZoomPercent,
+  type ViewTransform,
+} from '../../../src/features/map/viewport-transform';
 import { flushAnimationFrames, setElementRect, triggerResize } from '../helpers/browser-api-mocks';
 import {
   createLayoutSnapshotFixture,
@@ -123,5 +127,25 @@ describe('MapViewport camera', () => {
     expect(document.getElementById(descriptionId!)).toHaveTextContent(/Arrow keys pan/u);
     expect(document.body.innerHTML).not.toContain('room-welcome');
     expect(document.body.innerHTML).not.toContain('area-arrivals');
+  });
+
+  it('publishes zoom after geometry replaces a pending publication frame', () => {
+    latestController = null;
+    const { rerender } = render(<ViewportHarness />);
+    const frame = screen.getByRole('region', { name: 'Atlas viewport' }) as HTMLDivElement;
+    setElementRect(frame, { x: 10, y: 20, width: 800, height: 600 });
+    act(() => {
+      triggerResize(frame, 800, 600);
+      flushAnimationFrames(0);
+    });
+
+    rerender(<ViewportHarness useLargeFixture />);
+    act(() => {
+      triggerResize(frame, 640, 480);
+      flushAnimationFrames(1);
+      flushAnimationFrames(1);
+    });
+
+    expect(getController().zoomPercent).toBe(formatZoomPercent(readTransform()));
   });
 });

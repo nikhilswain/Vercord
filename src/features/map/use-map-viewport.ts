@@ -69,7 +69,9 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     return () => {
       observer.disconnect();
       if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
+      resizeFrameRef.current = null;
       if (zoomFrameRef.current !== null) cancelAnimationFrame(zoomFrameRef.current);
+      zoomFrameRef.current = null;
     };
   }, [applyTransform, bounds]);
 
