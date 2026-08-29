@@ -140,7 +140,11 @@ function hasValidSnapshotRelationships(snapshot: GuildStructureSnapshot): boolea
     if (channel.parentKey !== null && channelsByKey.get(channel.parentKey)?.kind !== 'category') {
       return false;
     }
+    const overwriteTargets = new Set<string>();
     for (const overwrite of channel.overwrites) {
+      const target = `${overwrite.targetType}:${overwrite.targetKey}`;
+      if (overwriteTargets.has(target)) return false;
+      overwriteTargets.add(target);
       if (overwrite.targetType === 'role' && !roleKeys.has(overwrite.targetKey)) return false;
     }
     const orders = siblingOrders.get(channel.parentKey) ?? [];

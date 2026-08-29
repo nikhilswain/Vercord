@@ -291,6 +291,36 @@ describe('persisted guild structure snapshot', () => {
     },
   );
 
+  it.each(['role', 'member'] as const)(
+    'rejects duplicate %s overwrites within the same channel',
+    (targetType) => {
+      const snapshot = validSnapshot();
+      const overwrite = snapshot.channels[1]!.overwrites.find(
+        (candidate) => candidate.targetType === targetType,
+      )!;
+      snapshot.channels[1]!.overwrites.push({ ...overwrite });
+
+      expectSnapshotInvalid(() => parseGuildStructureSnapshot(snapshot));
+    },
+  );
+
+  it('accepts the same overwrite digest in valid role and member target domains', () => {
+    const snapshot = validSnapshot();
+    const sharedDigest = 'J'.repeat(43);
+    snapshot.roles.push({ key: `r_${sharedDigest}`, permissions: '0' });
+    snapshot.channels[1]!.overwrites.push(
+      { targetKey: `r_${sharedDigest}`, targetType: 'role', allow: '0', deny: '0' },
+      { targetKey: `m_${sharedDigest}`, targetType: 'member', allow: '0', deny: '0' },
+    );
+
+    expect(parseGuildStructureSnapshot(snapshot).channels[1]?.overwrites).toContainEqual({
+      targetKey: `m_${sharedDigest}`,
+      targetType: 'member',
+      allow: '0',
+      deny: '0',
+    });
+  });
+
   it('validates sibling order numerically rather than requiring array order', () => {
     const snapshot = validSnapshot();
     snapshot.channels.reverse();
