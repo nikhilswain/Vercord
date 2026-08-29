@@ -22,7 +22,7 @@
     "test:client": "vitest run --config vitest.client.config.ts",
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "test:e2e": "playwright test",
-    "check": "prettier --check . && eslint . && tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && vitest run --config vitest.client.config.ts && vitest run --config vitest.worker.config.ts && vite build"
+    "check": "prettier --check . && eslint . && tsx scripts/verify-browser-import-boundary.ts && tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && vitest run --config vitest.client.config.ts && vitest run --config vitest.worker.config.ts && vite build"
   },
   "dependencies": {
     "react": "19.2.8",

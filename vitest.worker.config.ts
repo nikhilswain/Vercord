@@ -20,7 +20,7 @@ export default defineConfig({
     name: 'worker',
     include: [
       'tests/integration/worker/**/*.test.ts',
-      'tests/unit/domain/**/*.test.ts',
+      'tests/unit/domain/discord/**/*.test.ts',
       'tests/fixtures/discord/**/*.test.ts',
     ],
   },

@@ -7,7 +7,7 @@
   "include": [
     "worker",
     "tests/integration/worker",
-    "tests/unit/domain",
+    "tests/unit/domain/discord",
     "tests/fixtures/discord",
     "worker-configuration.d.ts"
   ]
