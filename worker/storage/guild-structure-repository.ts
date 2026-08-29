@@ -18,9 +18,7 @@ export function guildStructureSnapshotKey(slug: string): string {
   return `guild-structure:v1:${slug}`;
 }
 
-export function createKvGuildStructureRepository(
-  kv: KVNamespace,
-): GuildStructureRepository {
+export function createKvGuildStructureRepository(kv: KVNamespace): GuildStructureRepository {
   return {
     async read(slug) {
       let text: string | null;
