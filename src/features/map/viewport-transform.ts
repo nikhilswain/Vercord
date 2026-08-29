@@ -117,3 +117,38 @@ export function panBy(
 export function formatZoomPercent(transform: ViewTransform): string {
   return Math.round(transform.scale * 100) + '%';
 }
+
+export function isRectVisible(
+  transform: ViewTransform,
+  rect: Rect,
+  viewport: ViewportSize,
+  inset = VIEWPORT_LIMITS.fitInset,
+): boolean {
+  const left = transform.x + rect.x * transform.scale;
+  const top = transform.y + rect.y * transform.scale;
+  const right = left + rect.width * transform.scale;
+  const bottom = top + rect.height * transform.scale;
+  return (
+    left >= inset &&
+    top >= inset &&
+    right <= viewport.width - inset &&
+    bottom <= viewport.height - inset
+  );
+}
+
+export function centerRect(
+  transform: ViewTransform,
+  rect: Rect,
+  world: Rect,
+  viewport: ViewportSize,
+): ViewTransform {
+  return clampTransform(
+    {
+      x: viewport.width / 2 - (rect.x + rect.width / 2) * transform.scale,
+      y: viewport.height / 2 - (rect.y + rect.height / 2) * transform.scale,
+      scale: transform.scale,
+    },
+    world,
+    viewport,
+  );
+}
