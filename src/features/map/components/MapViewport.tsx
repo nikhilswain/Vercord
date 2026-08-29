@@ -20,7 +20,7 @@ export function MapViewport({ snapshot, children, controller }: MapViewportProps
     <div
       {...controller.frameHandlers}
       ref={controller.frameRef}
-      className="map-viewport"
+      className={'map-viewport' + (controller.touchNavigationActive ? ' is-touch-navigation' : '')}
       role="region"
       aria-label="Atlas viewport"
       aria-describedby={instructionId}
@@ -47,6 +47,16 @@ export function MapViewport({ snapshot, children, controller }: MapViewportProps
           </g>
         </svg>
       </div>
+      {controller.anyCoarsePointer ? (
+        <button
+          className="map-touch-navigation"
+          type="button"
+          data-map-control="touch-navigation"
+          onClick={controller.toggleTouchNavigation}
+        >
+          {controller.touchNavigationActive ? 'Done moving' : 'Move map'}
+        </button>
+      ) : null}
     </div>
   );
 }

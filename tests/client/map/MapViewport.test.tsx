@@ -248,6 +248,48 @@ describe('MapViewport camera', () => {
     expect(frame.hasPointerCapture(8)).toBe(false);
   });
 
+  it('keeps touch scroll-safe until Move map and exits from the focused toggle with Escape', () => {
+    act(() => setBrowserMediaState({ anyCoarsePointer: true }));
+    const frame = renderViewport({ useLargeFixture: true });
+    const room = screen.getByTestId('pointer-room');
+    expect(screen.getByRole('button', { name: 'Move map' })).toBeInTheDocument();
+    expect(frame).not.toHaveClass('is-touch-navigation');
+
+    fireEvent.pointerDown(room, { pointerId: 21, pointerType: 'touch', clientX: 100, clientY: 100 });
+    const scrollSafeMove = fireEvent.pointerMove(room, {
+      pointerId: 21,
+      pointerType: 'touch',
+      clientX: 120,
+      clientY: 100,
+    });
+    expect(scrollSafeMove).toBe(true);
+    expect(frame.hasPointerCapture(21)).toBe(false);
+
+    act(() => screen.getByRole('button', { name: 'Move map' }).click());
+    expect(frame).toHaveClass('is-touch-navigation');
+    fireEvent.pointerDown(room, { pointerId: 22, pointerType: 'touch', clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(room, { pointerId: 22, pointerType: 'touch', clientX: 103, clientY: 100 });
+    expect(frame.hasPointerCapture(22)).toBe(false);
+    fireEvent.pointerMove(room, { pointerId: 22, pointerType: 'touch', clientX: 104, clientY: 100 });
+    expect(frame.hasPointerCapture(22)).toBe(true);
+    fireEvent.pointerUp(room, { pointerId: 22, pointerType: 'touch', clientX: 104, clientY: 100 });
+
+    const done = screen.getByRole('button', { name: 'Done moving' });
+    done.focus();
+    fireEvent.keyDown(done, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Move map' })).toHaveFocus();
+    expect(frame).not.toHaveClass('is-touch-navigation');
+
+    act(() => screen.getByRole('button', { name: 'Move map' }).click());
+    fireEvent.pointerDown(room, { pointerId: 23, pointerType: 'touch', clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(room, { pointerId: 23, pointerType: 'touch', clientX: 104, clientY: 100 });
+    expect(frame.hasPointerCapture(23)).toBe(true);
+    act(() => setBrowserMediaState({ anyCoarsePointer: false }));
+    expect(screen.queryByRole('button', { name: /moving|Move map/iu })).not.toBeInTheDocument();
+    expect(frame).not.toHaveClass('is-touch-navigation');
+    expect(frame.hasPointerCapture(23)).toBe(false);
+  });
+
   it('lets the first pointer win and ignores other pointer ids', () => {
     const frame = renderViewport({ useLargeFixture: true });
     const room = screen.getByTestId('pointer-room');

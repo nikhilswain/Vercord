@@ -264,3 +264,35 @@
     height: auto;
   }
 }
+
+.map-viewport {
+  position: relative;
+  overflow: visible;
+  touch-action: pan-y pinch-zoom;
+}
+
+.map-viewport.is-touch-navigation {
+  touch-action: none;
+}
+
+.map-viewport-clip {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.map-touch-navigation {
+  position: absolute;
+  z-index: 3;
+  inset-inline-end: 0.75rem;
+  inset-block-end: 0.75rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 0.85rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.65);
+  border-radius: var(--radius-control);
+  color: var(--color-map-white);
+  background: var(--color-chart-navy-elevated);
+  touch-action: manipulation;
+}

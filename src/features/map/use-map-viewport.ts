@@ -29,6 +29,10 @@ export interface MapViewportController {
   frameRef: React.RefObject<HTMLDivElement | null>;
   worldRef: React.RefObject<SVGGElement | null>;
   zoomPercent: string;
+  touchNavigationActive: boolean;
+  anyCoarsePointer: boolean;
+  toggleTouchNavigation(): void;
+  exitTouchNavigation(): void;
   fit(): void;
   reset(): void;
   zoomIn(): void;
@@ -77,8 +81,10 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
   const suppressNextClickRef = useRef(false);
   const clickGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducedMotion = useMediaPreference('(prefers-reduced-motion: reduce)');
+  const anyCoarsePointer = useMediaPreference('(any-pointer: coarse)');
   const motionRef = useRef<ProgrammaticMotion | null>(null);
   const [zoomPercent, setZoomPercent] = useState('100%');
+  const [touchNavigationActive, setTouchNavigationActive] = useState(false);
 
   const applyTransform = useCallback((next: ViewTransform, publish = true) => {
     transformRef.current = next;
@@ -97,6 +103,30 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     if (motionRef.current) cancelAnimationFrame(motionRef.current.frameId);
     motionRef.current = null;
   }, []);
+
+  const exitTouchNavigation = useCallback(() => {
+    const pointer = pointerRef.current;
+    pointerRef.current = null;
+    const frame = frameRef.current;
+    if (pointer?.captured && frame?.hasPointerCapture(pointer.id)) {
+      frame.releasePointerCapture(pointer.id);
+    }
+    setTouchNavigationActive(false);
+  }, []);
+
+  const toggleTouchNavigation = useCallback(() => {
+    if (touchNavigationActive) exitTouchNavigation();
+    else setTouchNavigationActive(true);
+  }, [exitTouchNavigation, touchNavigationActive]);
+
+  useEffect(() => {
+    const mediaQuery = matchMedia('(any-pointer: coarse)');
+    const exitWhenCoarsePointerIsLost = (event: MediaQueryListEvent) => {
+      if (!event.matches) exitTouchNavigation();
+    };
+    mediaQuery.addEventListener('change', exitWhenCoarsePointerIsLost);
+    return () => mediaQuery.removeEventListener('change', exitWhenCoarsePointerIsLost);
+  }, [exitTouchNavigation]);
 
   const fit = useCallback(() => {
     cancelProgrammaticMotion();
@@ -137,6 +167,11 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
 
   const onKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Escape' && touchNavigationActive) {
+        event.preventDefault();
+        exitTouchNavigation();
+        return;
+      }
       if (event.currentTarget !== event.target) return;
       const delta = (() => {
         switch (event.key) {
@@ -157,7 +192,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
       event.preventDefault();
       applyTransform(panBy(transformRef.current, delta.x, delta.y, bounds, viewportRef.current));
     },
-    [applyTransform, bounds, cancelProgrammaticMotion],
+    [applyTransform, bounds, cancelProgrammaticMotion, exitTouchNavigation, touchNavigationActive],
   );
 
   const armClickGuard = useCallback(() => {
@@ -171,7 +206,9 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (pointerRef.current || event.pointerType === 'touch') return;
+      if (pointerRef.current) return;
+      if ((event.target as Element).closest('[data-map-control]')) return;
+      if (event.pointerType === 'touch' && !touchNavigationActive) return;
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       cancelProgrammaticMotion();
       pointerRef.current = {
@@ -183,7 +220,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
         captured: false,
       };
     },
-    [cancelProgrammaticMotion],
+    [cancelProgrammaticMotion, touchNavigationActive],
   );
 
   const onPointerMove = useCallback(
@@ -242,6 +279,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
   );
   const onClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     if (!suppressNextClickRef.current) return;
+    if ((event.target as Element).closest('[data-map-control]')) return;
     suppressNextClickRef.current = false;
     if (clickGuardTimerRef.current !== null) clearTimeout(clickGuardTimerRef.current);
     clickGuardTimerRef.current = null;
@@ -359,6 +397,10 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     frameRef,
     worldRef,
     zoomPercent,
+    touchNavigationActive,
+    anyCoarsePointer,
+    toggleTouchNavigation,
+    exitTouchNavigation,
     fit,
     reset,
     zoomIn,
