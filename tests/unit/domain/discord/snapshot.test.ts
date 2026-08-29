@@ -291,18 +291,35 @@ describe('persisted guild structure snapshot', () => {
     },
   );
 
-  it.each(['role', 'member'] as const)(
+  it.each([
+    ['role', { allow: '2048', deny: '0' }],
+    ['member', { allow: '0', deny: '2048' }],
+  ] as const)(
     'rejects duplicate %s overwrites within the same channel',
-    (targetType) => {
+    (targetType, permissions) => {
       const snapshot = validSnapshot();
       const overwrite = snapshot.channels[1]!.overwrites.find(
         (candidate) => candidate.targetType === targetType,
       )!;
-      snapshot.channels[1]!.overwrites.push({ ...overwrite });
+      snapshot.channels[1]!.overwrites.push({ ...overwrite, ...permissions });
 
       expectSnapshotInvalid(() => parseGuildStructureSnapshot(snapshot));
     },
   );
+
+  it('accepts the same overwrite target in different channels', () => {
+    const snapshot = validSnapshot();
+    snapshot.channels[2]!.overwrites.push({
+      targetKey: KEYS.everyone,
+      targetType: 'role',
+      allow: '2048',
+      deny: '0',
+    });
+
+    expect(parseGuildStructureSnapshot(snapshot).channels[2]?.overwrites).toEqual([
+      { targetKey: KEYS.everyone, targetType: 'role', allow: '2048', deny: '0' },
+    ]);
+  });
 
   it('accepts the same overwrite digest in valid role and member target domains', () => {
     const snapshot = validSnapshot();
