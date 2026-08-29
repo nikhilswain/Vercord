@@ -18,6 +18,7 @@ export function MapViewport({ snapshot, children, controller }: MapViewportProps
   const instructionId = idBase + '-instruction-0';
   return (
     <div
+      {...controller.frameHandlers}
       ref={controller.frameRef}
       className="map-viewport"
       role="region"

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { layoutAtlas } from '../../../src/domain/layout/atlas';
@@ -147,5 +147,67 @@ describe('MapViewport camera', () => {
     });
 
     expect(getController().zoomPercent).toBe(formatZoomPercent(readTransform()));
+  });
+
+  it('uses a non-passive native wheel listener and preserves the pointer world point', () => {
+    const addSpy = vi.spyOn(HTMLDivElement.prototype, 'addEventListener');
+    const frame = renderViewport({ useLargeFixture: true });
+    expect(
+      addSpy.mock.calls.some(
+        ([type, , options]) =>
+          type === 'wheel' && (options as AddEventListenerOptions | undefined)?.passive === false,
+      ),
+    ).toBe(true);
+    act(() => getController().reset());
+    const before = readTransform();
+    const localPoint = { x: 600, y: 200 };
+    const worldPoint = {
+      x: (localPoint.x - before.x) / before.scale,
+      y: (localPoint.y - before.y) / before.scale,
+    };
+    const wheel = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 610,
+      clientY: 220,
+      deltaY: -120,
+    });
+    act(() => frame.dispatchEvent(wheel));
+    const after = readTransform();
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(after.x + worldPoint.x * after.scale).toBeCloseTo(localPoint.x, 8);
+    expect(after.y + worldPoint.y * after.scale).toBeCloseTo(localPoint.y, 8);
+    addSpy.mockRestore();
+  });
+
+  it('supports fit, reset, 1.2x buttons, and frame-only arrow panning', () => {
+    const frame = renderViewport({ useLargeFixture: true });
+    act(() => getController().reset());
+    expect(readTransform().scale).toBe(1);
+    act(() => getController().zoomIn());
+    expect(readTransform().scale).toBe(1.2);
+    act(() => getController().zoomOut());
+    expect(readTransform().scale).toBe(1);
+    act(() => getController().fit());
+    expect(readTransform()).toEqual(
+      fitTransform(
+        { x: 0, y: 0, width: largeGeometry.width, height: largeGeometry.height },
+        { width: 800, height: 600 },
+      ),
+    );
+    act(() => getController().zoomIn());
+    expect(readTransform().scale).toBeGreaterThan(
+      fitTransform(
+        { x: 0, y: 0, width: largeGeometry.width, height: largeGeometry.height },
+        { width: 800, height: 600 },
+      ).scale,
+    );
+
+    const beforeArrow = readMatrixText();
+    fireEvent.keyDown(frame, { key: 'ArrowRight' });
+    expect(readMatrixText()).not.toBe(beforeArrow);
+    const afterArrow = readMatrixText();
+    fireEvent.keyDown(screen.getByTestId('pointer-room'), { key: 'ArrowLeft' });
+    expect(readMatrixText()).toBe(afterArrow);
   });
 });
