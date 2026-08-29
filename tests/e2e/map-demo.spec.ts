@@ -28,7 +28,9 @@ test('opens the first visible invented atlas from home and directly', async ({
   });
 });
 
-test('home and atlas reflow at 320px without concealed document overflow', async ({ page }) => {
+test('home reflows and the atlas stays legible in its owned scroller at 320px', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 760 });
 
   for (const route of ['/', '/map/demo']) {
@@ -44,4 +46,31 @@ test('home and atlas reflow at 320px without concealed document overflow', async
 
   await expect(page.getByRole('heading', { name: 'Explore Northstar Commons' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Northstar Commons atlas' })).toBeVisible();
+
+  const atlasPresentation = await page.locator('.map-viewport').evaluate((viewport) => {
+    const svg = viewport.querySelector('svg')!;
+    const districtLabel = viewport.querySelector('.atlas-area > text:not(.atlas-room-count)')!;
+    const roomLabel = viewport.querySelector('.atlas-room > text')!;
+
+    return {
+      districtLabelHeight: districtLabel.getBoundingClientRect().height,
+      documentFits: document.documentElement.scrollWidth <= innerWidth,
+      roomLabelHeight: roomLabel.getBoundingClientRect().height,
+      svgHasTabIndex: svg.hasAttribute('tabindex'),
+      svgWidth: svg.getBoundingClientRect().width,
+      viewportClientWidth: viewport.clientWidth,
+      viewportOverflowX: getComputedStyle(viewport).overflowX,
+      viewportScrollWidth: viewport.scrollWidth,
+    };
+  });
+
+  expect(atlasPresentation.documentFits).toBe(true);
+  expect(atlasPresentation.viewportOverflowX).toBe('auto');
+  expect(atlasPresentation.viewportScrollWidth).toBeGreaterThan(
+    atlasPresentation.viewportClientWidth,
+  );
+  expect(atlasPresentation.svgWidth).toBeGreaterThan(atlasPresentation.viewportClientWidth);
+  expect(atlasPresentation.districtLabelHeight).toBeGreaterThanOrEqual(16);
+  expect(atlasPresentation.roomLabelHeight).toBeGreaterThanOrEqual(11);
+  expect(atlasPresentation.svgHasTabIndex).toBe(false);
 });

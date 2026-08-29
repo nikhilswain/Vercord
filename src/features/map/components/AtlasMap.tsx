@@ -8,6 +8,8 @@ import { orderedMapAreas, orderedMapRooms } from '../../../domain/map/order';
 import type { MapSnapshot } from '../../../domain/map/snapshot';
 import { RoomTypeIcon } from './RoomTypeIcon';
 
+const AREA_ROOM_COUNT_LANE_WIDTH = 96;
+
 export interface AtlasMapProps {
   snapshot: MapSnapshot;
   geometry: AtlasGeometry;
@@ -32,7 +34,12 @@ export function AtlasMap({
         </pattern>
         {geometry.areas.flatMap((area, areaIndex) => [
           <clipPath id={'area-clip-' + areaIndex} key={'area-clip-' + areaIndex}>
-            <rect x={area.x + 24} y={area.y + 18} width={area.width - 48} height={32} />
+            <rect
+              x={area.x + 24}
+              y={area.y + 18}
+              width={area.width - 48 - AREA_ROOM_COUNT_LANE_WIDTH}
+              height={32}
+            />
           </clipPath>,
           ...area.rooms.map((room, roomIndex) => (
             <clipPath

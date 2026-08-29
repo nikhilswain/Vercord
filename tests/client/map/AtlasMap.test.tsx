@@ -8,6 +8,30 @@ import { MapViewport } from '../../../src/features/map/components/MapViewport';
 import { createLayoutSnapshotFixture } from '../../fixtures/map/map-snapshots';
 
 describe('static atlas SVG', () => {
+  it('clips a maximum-length wide district label before the fixed room-count lane', () => {
+    const snapshot = createLayoutSnapshotFixture([1]);
+    snapshot.areas[0]!.label = 'W'.repeat(100);
+    const geometry = layoutAtlas(snapshot);
+    const { container } = render(
+      <MapViewport snapshot={snapshot} geometry={geometry}>
+        <AtlasMap
+          snapshot={snapshot}
+          geometry={geometry}
+          selectedRoomKey={null}
+          matchingRoomKeys={null}
+        />
+      </MapViewport>,
+    );
+
+    expect(geometry.areas[0]).toMatchObject({ width: 272 });
+    expect(container.querySelector('#area-clip-0 rect')).toHaveAttribute('x', '72');
+    expect(container.querySelector('#area-clip-0 rect')).toHaveAttribute('width', '128');
+    expect(container.querySelector('.atlas-area > text:not(.atlas-room-count)')).toHaveTextContent(
+      /^W{23}…$/,
+    );
+    expect(container.querySelector('.atlas-room-count')).toHaveAttribute('x', '296');
+  });
+
   it('renders ordered layers, safe clips, icons, full titles, and conditional pointer behavior', () => {
     const snapshot = createLayoutSnapshotFixture([7, 1]);
     snapshot.server.displayName = 'Northstar Commons';

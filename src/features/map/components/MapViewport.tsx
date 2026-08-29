@@ -18,6 +18,8 @@ export function MapViewport({ snapshot, geometry, children }: MapViewportProps) 
         role="img"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
+        width={geometry.width}
+        height={geometry.height}
         viewBox={'0 0 ' + geometry.width + ' ' + geometry.height}
         preserveAspectRatio="xMidYMid meet"
       >
