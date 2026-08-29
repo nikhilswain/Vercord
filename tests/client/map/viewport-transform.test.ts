@@ -4,8 +4,11 @@ import type { Rect } from '../../../src/domain/layout/geometry';
 import {
   VIEWPORT_LIMITS,
   clampTransform,
+  formatZoomPercent,
   fitTransform,
+  panBy,
   resetTransform,
+  zoomAtPoint,
 } from '../../../src/features/map/viewport-transform';
 
 const world: Rect = { x: 0, y: 0, width: 720, height: 480 };
@@ -44,6 +47,27 @@ describe('viewport transforms', () => {
       x: 220,
       y: 180,
       scale: 0.5,
+    });
+  });
+
+  it('zooms around the pointer, clamps scale, and formats the readout', () => {
+    const current = { x: -200, y: -100, scale: 1 };
+    const anchor = { x: 300, y: 250 };
+    expect(zoomAtPoint(current, anchor, 1.2, large, viewport)).toEqual({
+      x: -300,
+      y: -170,
+      scale: 1.2,
+    });
+    expect(zoomAtPoint(current, anchor, 99, large, viewport).scale).toBe(3);
+    expect(zoomAtPoint(current, anchor, 0.0001, large, viewport).scale).toBe(0.01);
+    expect(formatZoomPercent({ x: 0, y: 0, scale: 1.204 })).toBe('120%');
+  });
+
+  it('pans and applies the same recoverable-map clamp', () => {
+    expect(panBy({ x: 700, y: 500, scale: 1 }, 100, 100, large, viewport)).toEqual({
+      x: 736,
+      y: 536,
+      scale: 1,
     });
   });
 });

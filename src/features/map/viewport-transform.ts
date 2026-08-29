@@ -79,3 +79,41 @@ export function resetTransform(world: Rect, viewport: ViewportSize): ViewTransfo
     viewport,
   );
 }
+
+export function zoomAtPoint(
+  transform: ViewTransform,
+  point: { x: number; y: number },
+  factor: number,
+  world: Rect,
+  viewport: ViewportSize,
+): ViewTransform {
+  const nextScale = clampScale(transform.scale * factor);
+  const ratio = nextScale / transform.scale;
+  return clampTransform(
+    {
+      x: point.x - (point.x - transform.x) * ratio,
+      y: point.y - (point.y - transform.y) * ratio,
+      scale: nextScale,
+    },
+    world,
+    viewport,
+  );
+}
+
+export function panBy(
+  transform: ViewTransform,
+  deltaX: number,
+  deltaY: number,
+  world: Rect,
+  viewport: ViewportSize,
+): ViewTransform {
+  return clampTransform(
+    { x: transform.x + deltaX, y: transform.y + deltaY, scale: transform.scale },
+    world,
+    viewport,
+  );
+}
+
+export function formatZoomPercent(transform: ViewTransform): string {
+  return Math.round(transform.scale * 100) + '%';
+}
