@@ -37,6 +37,67 @@
   font-family: var(--font-mono);
 }
 
+.map-status {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-inline-size: 0;
+  margin: 0;
+  border-inline-start: 3px solid currentColor;
+  padding: 0.75rem 1rem;
+  color: var(--color-map-white);
+  background: var(--color-chart-navy-elevated);
+}
+.map-status h2,
+.map-status p {
+  margin: 0;
+}
+.map-status time {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.map-status-icon {
+  flex: 0 0 auto;
+  font-weight: 800;
+}
+.map-status--warning {
+  color: var(--color-hearth-amber);
+}
+.map-status--danger {
+  color: var(--color-danger);
+}
+.map-status.is-compact {
+  padding-block: 0.5rem;
+}
+.map-status.is-in-flow {
+  min-height: 5rem;
+}
+.map-loading-dots {
+  display: inline-flex;
+  gap: 0.18rem;
+  margin-inline-start: 0.4rem;
+}
+.map-loading-dot {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: currentColor;
+  animation: map-loading-pulse 1s ease-in-out infinite alternate;
+}
+.map-loading-dot:nth-child(2) {
+  animation-delay: 120ms;
+}
+.map-loading-dot:nth-child(3) {
+  animation-delay: 240ms;
+}
+@keyframes map-loading-pulse {
+  to {
+    opacity: 0.25;
+    transform: translateY(-0.15rem);
+  }
+}
+
 .map-viewport {
   min-height: 30rem;
   overflow: hidden;

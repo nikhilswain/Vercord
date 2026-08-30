@@ -5,7 +5,7 @@ import { MapDirectory } from './components/MapDirectory';
 import { MapSearch } from './components/MapSearch';
 import { MapToolbar } from './components/MapToolbar';
 import { MapViewport } from './components/MapViewport';
-import { SourceStatus } from './components/MapStatus';
+import { MapStatus } from './components/MapStatus';
 import { RoomDetails } from './components/RoomDetails';
 import type { MapSource } from './map-view-state';
 import { useMapViewport } from './use-map-viewport';
@@ -24,7 +24,7 @@ export function ReadyMapWorkspace({ snapshot, geometry, source, stale }: ReadyMa
   return (
     <>
       <MapToolbar search={<MapSearch explorer={explorer} />} viewport={viewport} />
-      <SourceStatus source={source} stale={stale} />
+      <MapStatus state={{ status: 'ready', snapshot, source, stale }} compact />
       <MapViewport snapshot={snapshot} geometry={geometry} controller={viewport}>
         <AtlasMap
           snapshot={snapshot}
