@@ -270,7 +270,12 @@ describe('MapViewport camera', () => {
     expect(screen.getByRole('button', { name: 'Move map' })).toBeInTheDocument();
     expect(frame).not.toHaveClass('is-touch-navigation');
 
-    fireEvent.pointerDown(room, { pointerId: 21, pointerType: 'touch', clientX: 100, clientY: 100 });
+    fireEvent.pointerDown(room, {
+      pointerId: 21,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 100,
+    });
     const scrollSafeMove = fireEvent.pointerMove(room, {
       pointerId: 21,
       pointerType: 'touch',
@@ -282,10 +287,25 @@ describe('MapViewport camera', () => {
 
     act(() => screen.getByRole('button', { name: 'Move map' }).click());
     expect(frame).toHaveClass('is-touch-navigation');
-    fireEvent.pointerDown(room, { pointerId: 22, pointerType: 'touch', clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(room, { pointerId: 22, pointerType: 'touch', clientX: 103, clientY: 100 });
+    fireEvent.pointerDown(room, {
+      pointerId: 22,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(room, {
+      pointerId: 22,
+      pointerType: 'touch',
+      clientX: 103,
+      clientY: 100,
+    });
     expect(frame.hasPointerCapture(22)).toBe(false);
-    fireEvent.pointerMove(room, { pointerId: 22, pointerType: 'touch', clientX: 104, clientY: 100 });
+    fireEvent.pointerMove(room, {
+      pointerId: 22,
+      pointerType: 'touch',
+      clientX: 104,
+      clientY: 100,
+    });
     expect(frame.hasPointerCapture(22)).toBe(true);
     fireEvent.pointerUp(room, { pointerId: 22, pointerType: 'touch', clientX: 104, clientY: 100 });
 
@@ -296,8 +316,18 @@ describe('MapViewport camera', () => {
     expect(frame).not.toHaveClass('is-touch-navigation');
 
     act(() => screen.getByRole('button', { name: 'Move map' }).click());
-    fireEvent.pointerDown(room, { pointerId: 23, pointerType: 'touch', clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(room, { pointerId: 23, pointerType: 'touch', clientX: 104, clientY: 100 });
+    fireEvent.pointerDown(room, {
+      pointerId: 23,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(room, {
+      pointerId: 23,
+      pointerType: 'touch',
+      clientX: 104,
+      clientY: 100,
+    });
     expect(frame.hasPointerCapture(23)).toBe(true);
     act(() => setBrowserMediaState({ anyCoarsePointer: false }));
     expect(screen.queryByRole('button', { name: /moving|Move map/iu })).not.toBeInTheDocument();

@@ -76,10 +76,18 @@ describe('viewport transforms', () => {
   it('requires all four room edges inside the 24px visible frame', () => {
     const transform = { x: 0, y: 0, scale: 1 };
     expect(isRectVisible(transform, { x: 24, y: 24, width: 100, height: 60 }, viewport)).toBe(true);
-    expect(isRectVisible(transform, { x: 23, y: 24, width: 100, height: 60 }, viewport)).toBe(false);
-    expect(isRectVisible(transform, { x: 24, y: 23, width: 100, height: 60 }, viewport)).toBe(false);
-    expect(isRectVisible(transform, { x: 701, y: 24, width: 76, height: 60 }, viewport)).toBe(false);
-    expect(isRectVisible(transform, { x: 24, y: 541, width: 100, height: 36 }, viewport)).toBe(false);
+    expect(isRectVisible(transform, { x: 23, y: 24, width: 100, height: 60 }, viewport)).toBe(
+      false,
+    );
+    expect(isRectVisible(transform, { x: 24, y: 23, width: 100, height: 60 }, viewport)).toBe(
+      false,
+    );
+    expect(isRectVisible(transform, { x: 701, y: 24, width: 76, height: 60 }, viewport)).toBe(
+      false,
+    );
+    expect(isRectVisible(transform, { x: 24, y: 541, width: 100, height: 36 }, viewport)).toBe(
+      false,
+    );
   });
 
   it('centres an offscreen room and retains the map clamp', () => {

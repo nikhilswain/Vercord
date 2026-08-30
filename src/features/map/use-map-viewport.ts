@@ -292,7 +292,8 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
       cancelProgrammaticMotion();
       const viewport = viewportRef.current;
       const from = transformRef.current;
-      if (viewport.width <= 0 || viewport.height <= 0 || isRectVisible(from, room, viewport)) return;
+      if (viewport.width <= 0 || viewport.height <= 0 || isRectVisible(from, room, viewport))
+        return;
       const to = centerRect(from, room, bounds, viewport);
       if (reducedMotion) {
         applyTransform(to);
@@ -377,8 +378,7 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
       cancelProgrammaticMotion();
       event.preventDefault();
       const rect = frame.getBoundingClientRect();
-      const factor =
-        event.deltaY < 0 ? VIEWPORT_LIMITS.zoomFactor : 1 / VIEWPORT_LIMITS.zoomFactor;
+      const factor = event.deltaY < 0 ? VIEWPORT_LIMITS.zoomFactor : 1 / VIEWPORT_LIMITS.zoomFactor;
       applyTransform(
         zoomAtPoint(
           transformRef.current,
