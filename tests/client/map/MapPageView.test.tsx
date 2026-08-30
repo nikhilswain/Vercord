@@ -41,7 +41,8 @@ describe('MapPageView', () => {
       />,
     );
     expect(screen.getByRole('heading', { name: 'Map unavailable' })).toBeInTheDocument();
-    expect(document.querySelector('svg')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-map-world]')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
 
     rerender(<MapPageView state={{ status: 'unavailable' }} />);
     expect(screen.getByRole('heading', { name: 'Atlas unavailable' })).toBeInTheDocument();

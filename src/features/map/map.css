@@ -553,3 +553,100 @@
   grid-template-columns: 7rem minmax(0, 1fr);
   gap: 0.75rem;
 }
+
+.map-workspace-shell,
+.map-workspace-grid,
+.map-workspace-map,
+.map-shell-toolbar,
+.map-shell-viewport,
+.map-shell-details,
+.map-shell-directory {
+  min-inline-size: 0;
+}
+
+.map-workspace-shell {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  gap: 1rem;
+}
+
+.map-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.map-workspace-map {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.map-viewport {
+  width: 100%;
+  min-width: 0;
+  height: clamp(24rem, 64vh, 46rem);
+  border-radius: var(--radius-panel);
+}
+
+.map-viewport--status .map-viewport-clip {
+  min-height: 100%;
+  background:
+    linear-gradient(rgb(var(--color-border-rgb) / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--color-border-rgb) / 0.05) 1px, transparent 1px),
+    var(--color-chart-navy);
+  background-size: 32px 32px;
+}
+
+.map-shell-details .room-details {
+  padding-block-end: max(1rem, env(safe-area-inset-bottom));
+}
+
+.map-directory-label,
+.map-search-results button span,
+.room-details dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 56rem) {
+  .map-workspace-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(19rem, 22rem);
+    align-items: start;
+  }
+
+  .map-workspace-map {
+    grid-column: 1;
+  }
+
+  .map-shell-details {
+    position: sticky;
+    top: 1rem;
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 55.999rem) {
+  .map-shell-details {
+    grid-row: 2;
+  }
+
+  .room-details {
+    border-start-start-radius: var(--radius-panel);
+    border-start-end-radius: var(--radius-panel);
+  }
+}
+
+@media (max-width: 24rem) {
+  .map-viewport {
+    height: 22rem;
+  }
+
+  .map-toolbar-group,
+  .map-toolbar-search,
+  .map-search {
+    width: 100%;
+  }
+}
