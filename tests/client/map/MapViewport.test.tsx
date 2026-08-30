@@ -130,6 +130,19 @@ describe('MapViewport camera', () => {
     );
   });
 
+  it('discards a pending resize fit when the viewport returns to its applied size', () => {
+    const frame = renderViewport();
+    const appliedTransform = readMatrixText();
+
+    act(() => {
+      triggerResize(frame, 640, 480);
+      triggerResize(frame, 800, 600);
+      flushAnimationFrames(1);
+    });
+
+    expect(readMatrixText()).toBe(appliedTransform);
+  });
+
   it('links visible instructions and contains no opaque snapshot key in relationship IDs', () => {
     const frame = renderViewport();
     const descriptionId = frame.getAttribute('aria-describedby');

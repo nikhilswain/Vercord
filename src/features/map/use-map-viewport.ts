@@ -347,6 +347,10 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
       const next = { width: entry.contentRect.width, height: entry.contentRect.height };
+      if (resizeFrameRef.current !== null) {
+        cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
       const previous = viewportRef.current;
       if (
         Math.abs(next.width - previous.width) < 1 &&
@@ -354,7 +358,6 @@ export function useMapViewport(geometry: AtlasGeometry): MapViewportController {
       ) {
         return;
       }
-      if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
       resizeFrameRef.current = requestAnimationFrame(() => {
         resizeFrameRef.current = null;
         fit(next);
