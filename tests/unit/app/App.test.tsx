@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { App } from '../../../src/app/App';
@@ -32,7 +32,10 @@ describe('App routes', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Explore Northstar Commons' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Demo data');
+    const banner = screen.getByRole('banner');
+    expect(within(banner).getByRole('status')).toHaveTextContent('Demo data');
+    expect(banner.querySelectorAll('.map-status')).toHaveLength(1);
+    expect(screen.getByRole('status', { name: 'Map zoom' })).toBeInTheDocument();
     expect(document.title).toBe('Demo atlas — Dmap');
 
     rerender(<App pathname="/missing" />);
