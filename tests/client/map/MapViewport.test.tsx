@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+// @ts-expect-error Vitest reads the checked-in stylesheet through Node.
+import { readFileSync } from 'node:fs';
 import { layoutAtlas } from '../../../src/domain/layout/atlas';
 import { MapViewport } from '../../../src/features/map/components/MapViewport';
 import {
@@ -29,6 +31,7 @@ const snapshot = createMapSnapshotFixture();
 const geometry = layoutAtlas(snapshot);
 const largeSnapshot = createLayoutSnapshotFixture([10, 10, 10, 10]);
 const largeGeometry = layoutAtlas(largeSnapshot);
+const mapStyles = readFileSync('src/features/map/map.css', 'utf8');
 let latestController: MapViewportController | null = null;
 
 function getController(): MapViewportController {
@@ -134,6 +137,18 @@ describe('MapViewport camera', () => {
     expect(document.getElementById(descriptionId!)).toHaveTextContent(/Arrow keys pan/u);
     expect(document.body.innerHTML).not.toContain('room-welcome');
     expect(document.body.innerHTML).not.toContain('area-arrivals');
+  });
+
+  it('applies desktop and narrow SVG sizing rules to the wrapped atlas image', () => {
+    renderViewport();
+    const image = screen.getByRole('img', { name: 'Northstar Commons atlas' });
+    expect(image.matches('.map-viewport-clip > svg')).toBe(true);
+    expect(mapStyles).toMatch(
+      /\.map-viewport-clip > svg\s*\{\s*display: block;\s*width: 100%;\s*min-height: 30rem;\s*\}/u,
+    );
+    expect(mapStyles).toMatch(
+      /@media \(max-width: 35rem\) \{[\s\S]*?\.map-viewport-clip > svg\s*\{\s*width: auto;\s*min-width: 100%;\s*height: auto;\s*\}/u,
+    );
   });
 
   it('publishes zoom after geometry replaces a pending publication frame', () => {

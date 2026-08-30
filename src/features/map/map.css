@@ -45,7 +45,7 @@
   box-shadow: var(--shadow-panel);
 }
 
-.map-viewport > svg {
+.map-viewport-clip > svg {
   display: block;
   width: 100%;
   min-height: 30rem;
@@ -258,7 +258,7 @@
     overscroll-behavior-inline: contain;
   }
 
-  .map-viewport > svg {
+  .map-viewport-clip > svg {
     width: auto;
     min-width: 100%;
     height: auto;
