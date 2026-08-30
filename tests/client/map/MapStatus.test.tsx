@@ -1,12 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { MapStatus } from '../../../src/features/map/components/MapStatus';
+import { MapStatus, SourceStatus } from '../../../src/features/map/components/MapStatus';
 import { createMapSnapshotFixture } from '../../fixtures/map/map-snapshots';
 
 const snapshot = createMapSnapshotFixture();
 
 describe('MapStatus copy and roles', () => {
+  it('keeps the compact header source seam to one status surface', () => {
+    const { container } = render(
+      <span className="map-status">
+        <SourceStatus source="fixture" stale={false} />
+      </span>,
+    );
+
+    expect(container.querySelectorAll('.map-status')).toHaveLength(1);
+    expect(screen.getByText('Demo data', { exact: true })).toBeInTheDocument();
+  });
+
   it('renders loading as one polite status with three app-owned dots', () => {
     const { container } = render(<MapStatus state={{ status: 'loading' }} inFlow />);
     expect(screen.getByRole('status')).toHaveTextContent('Charting the atlas');

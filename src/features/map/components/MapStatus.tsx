@@ -20,8 +20,8 @@ function statusClass(tone: string, compact: boolean, inFlow: boolean): string {
 }
 
 export function SourceStatus({ source, stale }: { source: MapSource; stale: boolean }) {
-  if (source === 'fixture') return <p className="map-status">Demo data</p>;
-  return <p className="map-status">{stale ? 'Published map · Update delayed' : 'Published map'}</p>;
+  if (source === 'fixture') return <>Demo data</>;
+  return <>{stale ? 'Published map · Update delayed' : 'Published map'}</>;
 }
 
 export function MapStatus({ state, compact = false, inFlow = false }: MapStatusProps) {
