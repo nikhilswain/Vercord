@@ -29,6 +29,21 @@ function DirectoryHarness() {
 }
 
 describe('MapDirectory and RoomDetails', () => {
+  it('wraps each directory room icon in a presentational SVG viewport', () => {
+    render(<DirectoryHarness />);
+    const directory = screen.getByRole('navigation', { name: 'Room directory' });
+    const iconViewports = within(directory)
+      .getAllByRole('button')
+      .flatMap((button) => Array.from(button.querySelectorAll('svg[aria-hidden="true"]')));
+
+    expect(iconViewports).toHaveLength(8);
+    iconViewports.forEach((viewport) => {
+      expect(viewport.namespaceURI).toBe('http://www.w3.org/2000/svg');
+      expect(viewport).toHaveAttribute('viewBox', '0 0 20 20');
+      expect(viewport.querySelector('.room-type-icon')).toBeInTheDocument();
+    });
+  });
+
   it('renders exact demo area/room order, counts, full labels, and room types', () => {
     render(<DirectoryHarness />);
     const directory = screen.getByRole('navigation', { name: 'Room directory' });

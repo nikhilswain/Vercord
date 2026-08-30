@@ -37,7 +37,9 @@ export function MapDirectory({ snapshot, explorer }: MapDirectoryProps) {
                       aria-pressed={selected}
                       onClick={(event) => explorer.selectRoom(room.key, event.currentTarget)}
                     >
-                      <RoomTypeIcon type={room.type} />
+                      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+                        <RoomTypeIcon type={room.type} />
+                      </svg>
                       <span className="map-directory-label">{room.label}</span>
                       <span className="map-directory-type">{room.type}</span>
                       {selected ? <span className="map-directory-selected">✓ Selected</span> : null}
