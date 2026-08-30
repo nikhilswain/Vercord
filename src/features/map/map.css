@@ -296,3 +296,110 @@
   background: var(--color-chart-navy-elevated);
   touch-action: manipulation;
 }
+
+.map-search {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  width: min(100%, 30rem);
+  min-inline-size: 0;
+}
+
+.map-search-icon {
+  width: 20px;
+  height: 20px;
+  margin-inline: 12px;
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.75;
+}
+
+.map-search-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.55);
+  border-radius: var(--radius-control);
+  padding: 0.65rem 3rem 0.65rem 2.75rem;
+  color: var(--color-map-white);
+  background: var(--color-chart-navy-elevated);
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.map-search-icon {
+  z-index: 1;
+  grid-column: 1;
+  grid-row: 1;
+  pointer-events: none;
+}
+
+.map-search-clear {
+  z-index: 1;
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  border: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.map-search-clear svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+}
+
+.map-search-popover {
+  position: absolute;
+  z-index: 5;
+  inset-block-start: calc(100% + 0.35rem);
+  inset-inline: 0;
+  max-height: 18rem;
+  overflow: auto;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.55);
+  border-radius: var(--radius-control);
+  background: var(--color-chart-navy-elevated);
+  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 0.38);
+}
+
+.map-search-count,
+.map-search-empty {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.map-search-results {
+  margin: 0;
+  padding: 0 0.35rem 0.35rem;
+  list-style: none;
+}
+
+.map-search-results button {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  gap: 0.1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  color: var(--color-map-white);
+  background: transparent;
+  text-align: start;
+}
+
+.map-search-results button[aria-selected='true'] {
+  background: rgb(var(--color-border-rgb) / 0.18);
+}
+
+.map-search-results button span:last-child {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
