@@ -121,6 +121,26 @@ export function AtlasMap({
                   >
                     <title>{sourceRoom.label}</title>
                     <rect x={room.x} y={room.y} width={room.width} height={room.height} rx="12" />
+                    {selected ? (
+                      <>
+                        <rect
+                          className="atlas-room-selection-ring"
+                          x={room.x - 3}
+                          y={room.y - 3}
+                          width={room.width + 6}
+                          height={room.height + 6}
+                          rx="15"
+                          aria-hidden="true"
+                        />
+                        <path
+                          className="atlas-room-selection-notch"
+                          d={
+                            'M ' + (room.x + room.width - 18) + ' ' + (room.y + 7) + ' h 11 v 11 z'
+                          }
+                          aria-hidden="true"
+                        />
+                      </>
+                    ) : null}
                     <g transform={'translate(' + (room.x + 12) + ' ' + (room.y + 16) + ')'}>
                       <RoomTypeIcon type={sourceRoom.type} />
                     </g>

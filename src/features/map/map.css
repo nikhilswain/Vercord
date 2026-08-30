@@ -202,7 +202,7 @@
 }
 
 .atlas-room.is-muted {
-  opacity: 0.32;
+  opacity: 0.35;
 }
 
 .room-type-icon {
@@ -648,5 +648,73 @@
   .map-toolbar-search,
   .map-search {
     width: 100%;
+  }
+}
+
+.atlas-area > rect,
+.atlas-room > rect {
+  vector-effect: non-scaling-stroke;
+}
+
+.atlas-room-selection-ring {
+  /* Override the room-marker fill and stroke so the selected SVG cue remains distinct. */
+  fill: none !important;
+  stroke: var(--color-map-white) !important;
+  stroke-width: 3 !important;
+  stroke-dasharray: 7 4;
+  pointer-events: none;
+}
+
+.atlas-room-selection-notch {
+  fill: var(--color-map-white);
+  stroke: none;
+  pointer-events: none;
+}
+
+.map-viewport:focus-visible,
+.map-control-button:focus-visible,
+.map-search-input:focus-visible,
+.map-search-clear:focus-visible,
+.map-directory-room:focus-visible,
+.room-details-close:focus-visible,
+.map-touch-navigation:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.map-viewport:focus-visible {
+  position: relative;
+  z-index: 2;
+}
+
+@media (forced-colors: active) {
+  .map-viewport:focus-visible,
+  .map-control-button:focus-visible,
+  .map-search-input:focus-visible,
+  .map-search-clear:focus-visible,
+  .map-directory-room:focus-visible,
+  .room-details-close:focus-visible,
+  .map-touch-navigation:focus-visible {
+    outline: 2px solid CanvasText;
+  }
+
+  .atlas-room-selection-ring,
+  .atlas-room-selection-notch,
+  .map-directory-room.is-selected {
+    /* Preserve the selection cue against ordinary SVG stroke rules in high contrast mode. */
+    color: Highlight;
+    border-color: Highlight;
+    stroke: Highlight !important;
+    forced-color-adjust: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-world,
+  .map-loading-dot,
+  .map-control-tooltip {
+    /* Override existing animation declarations for a complete reduced-motion path. */
+    animation: none !important;
+    transition: none !important;
   }
 }
