@@ -117,7 +117,7 @@ export function AtlasMap({
                       (selected ? ' is-selected' : '') +
                       (muted ? ' is-muted' : '')
                     }
-                    onPointerUp={onSelectRoom ? () => onSelectRoom(sourceRoom.key) : undefined}
+                    onClick={onSelectRoom ? () => onSelectRoom(sourceRoom.key) : undefined}
                   >
                     <title>{sourceRoom.label}</title>
                     <rect x={room.x} y={room.y} width={room.width} height={room.height} rx="12" />

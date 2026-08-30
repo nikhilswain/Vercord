@@ -1,11 +1,15 @@
 import type { AtlasGeometry } from '../../domain/layout/geometry';
 import type { MapSnapshot } from '../../domain/map/snapshot';
 import { AtlasMap } from './components/AtlasMap';
+import { MapDirectory } from './components/MapDirectory';
+import { MapSearch } from './components/MapSearch';
 import { MapToolbar } from './components/MapToolbar';
 import { MapViewport } from './components/MapViewport';
 import { SourceStatus } from './components/MapStatus';
+import { RoomDetails } from './components/RoomDetails';
 import type { MapSource } from './map-view-state';
 import { useMapViewport } from './use-map-viewport';
+import { useRoomExplorer } from './use-room-explorer';
 
 export interface ReadyMapWorkspaceProps {
   snapshot: MapSnapshot;
@@ -16,21 +20,22 @@ export interface ReadyMapWorkspaceProps {
 
 export function ReadyMapWorkspace({ snapshot, geometry, source, stale }: ReadyMapWorkspaceProps) {
   const viewport = useMapViewport(geometry);
+  const explorer = useRoomExplorer(snapshot, geometry, viewport);
   return (
     <>
-      <MapToolbar
-        search={<input className="map-search-input" type="search" aria-label="Search rooms" disabled />}
-        viewport={viewport}
-      />
+      <MapToolbar search={<MapSearch explorer={explorer} />} viewport={viewport} />
       <SourceStatus source={source} stale={stale} />
       <MapViewport snapshot={snapshot} geometry={geometry} controller={viewport}>
         <AtlasMap
           snapshot={snapshot}
           geometry={geometry}
-          selectedRoomKey={null}
-          matchingRoomKeys={null}
+          selectedRoomKey={explorer.selectedRoomKey}
+          matchingRoomKeys={explorer.matchingRoomKeys}
+          onSelectRoom={(roomKey) => explorer.selectRoom(roomKey, null)}
         />
       </MapViewport>
+      <RoomDetails details={explorer.selectedDetails} onClose={explorer.clearSelection} />
+      <MapDirectory snapshot={snapshot} explorer={explorer} />
     </>
   );
 }

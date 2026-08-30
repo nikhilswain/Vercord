@@ -88,7 +88,7 @@ describe('static atlas SVG', () => {
     expect(firstRoom).toHaveClass('atlas-room--interactive');
     expect(firstRoom).not.toHaveAttribute('tabindex');
     expect(firstRoom).not.toHaveAttribute('role');
-    fireEvent.pointerUp(firstRoom!);
+    fireEvent.click(firstRoom!);
     expect(onSelectRoom).toHaveBeenCalledWith(snapshot.areas[0]!.rooms[0]!.key);
     expect(container.querySelectorAll('.room-type-icon')).toHaveLength(8);
     expect(container.querySelector('.is-selected')).toBeInTheDocument();
@@ -111,16 +111,19 @@ describe('static atlas SVG', () => {
     }
   });
 
-  it('keeps presentation-only spatial rooms and ready controls', () => {
+  it('connects ready spatial rooms to the shared explorer controls', () => {
     const snapshot = createLayoutSnapshotFixture([1]);
     const geometry = layoutAtlas(snapshot);
     const { container } = render(
       <ReadyMapWorkspace snapshot={snapshot} geometry={geometry} source="fixture" stale={false} />,
     );
 
-    expect(container.querySelector('.atlas-room')).not.toHaveClass('atlas-room--interactive');
-    expect(container.querySelector('.atlas-room')).not.toHaveAttribute('tabindex');
-    expect(container.querySelector('.atlas-room')).not.toHaveAttribute('role');
+    const room = container.querySelector('.atlas-room');
+    expect(room).toHaveClass('atlas-room--interactive');
+    expect(room).not.toHaveAttribute('tabindex');
+    expect(room).not.toHaveAttribute('role');
+    fireEvent.click(room!);
+    expect(screen.getByRole('region', { name: 'Room details' })).toHaveTextContent('Room 1.1');
     expect(screen.getByRole('status', { name: 'Map zoom' })).toHaveTextContent('100%');
     expect(screen.getByText('Demo data')).toBeInTheDocument();
   });
