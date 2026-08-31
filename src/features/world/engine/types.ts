@@ -29,16 +29,18 @@ export interface WorldTileLayer {
   id: string;
   bounds: Rect;
   tileIndex: number;
+  radius?: number;
 }
 
 export type WorldPropKind =
   | 'bench'
   | 'bookshelf'
   | 'building'
+  | 'chair'
   | 'desk'
   | 'fountain'
-  | 'lamp'
   | 'planter'
+  | 'rug'
   | 'screen'
   | 'sofa'
   | 'table'
@@ -69,15 +71,14 @@ export interface WorldTheme {
     url: string;
     sprites: Partial<Record<WorldPropKind, Rect>>;
   };
+  exteriorSprites?: {
+    buildings: Rect[];
+    trees: Rect[];
+  };
   tiles: {
     ground: number;
     path: number;
     plaza: number;
-    facade: number;
-    roof: number;
-    tree: number;
-    planter: number;
-    lamp: number;
     player: Record<Direction, number>;
   };
 }
@@ -95,6 +96,8 @@ export interface WorldProp extends Rect {
   id: string;
   kind: WorldPropKind;
   solid: boolean;
+  layer?: 'floor' | 'object';
+  hitbox?: Rect;
   tint?: string;
 }
 

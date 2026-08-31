@@ -14,63 +14,97 @@ function prop(
   y: number,
   width: number,
   height: number,
-  tint?: string,
+  options: {
+    solid?: boolean;
+    layer?: WorldProp['layer'];
+    hitbox?: Rect;
+    tint?: string;
+  } = {},
 ): WorldProp {
-  return { id, kind, x, y, width, height, solid: true, tint };
+  return {
+    id,
+    kind,
+    x,
+    y,
+    width,
+    height,
+    solid: options.solid ?? true,
+    layer: options.layer,
+    hitbox: options.hitbox,
+    tint: options.tint,
+  };
 }
 
 function roomProps(type: MapRoomType, accent: string): WorldProp[] {
   const common = [
-    prop('bookshelf', 'bookshelf', 84, 78, 148, 44),
-    prop('plant', 'planter', 762, 82, 48, 48, accent),
+    prop('bookshelf', 'bookshelf', 72, 72, 96, 144),
+    prop('plant', 'planter', 776, 88, 48, 48, {
+      hitbox: { x: 12, y: 24, width: 24, height: 24 },
+    }),
   ];
+  const rug = (id: string, x = 328, y = 196): WorldProp =>
+    prop(id, 'rug', x, y, 240, 240, { solid: false, layer: 'floor', tint: accent });
 
   switch (type) {
     case 'voice':
       return [
+        rug('voice-rug'),
         ...common,
-        prop('sofa-left', 'sofa', 156, 216, 168, 64, accent),
-        prop('sofa-right', 'sofa', 572, 216, 168, 64, accent),
-        prop('coffee-table', 'table', 354, 276, 188, 88),
+        prop('sofa-left', 'sofa', 156, 260, 144, 96),
+        prop('sofa-right', 'sofa', 596, 260, 144, 96),
+        prop('coffee-table', 'table', 376, 272, 144, 96),
       ];
     case 'stage':
       return [
+        rug('stage-rug', 328, 210),
         ...common,
-        prop('stage-screen', 'screen', 286, 82, 324, 72, accent),
-        prop('front-row', 'sofa', 208, 300, 208, 56, accent),
-        prop('back-row', 'sofa', 480, 300, 208, 56, accent),
+        prop('stage-screen', 'screen', 384, 68, 128, 128),
+        prop('front-row', 'sofa', 196, 340, 144, 96),
+        prop('back-row', 'sofa', 556, 340, 144, 96),
       ];
     case 'forum':
       return [
+        rug('forum-rug', 328, 188),
         ...common,
-        prop('forum-table', 'table', 250, 202, 396, 132, accent),
-        prop('reference-shelf', 'bookshelf', 84, 398, 176, 44),
+        prop('forum-table', 'table', 376, 256, 144, 96),
+        prop('chair-left', 'chair', 304, 256, 48, 96),
+        prop('chair-right', 'chair', 544, 256, 48, 96),
+        prop('reference-shelf', 'bookshelf', 728, 360, 96, 144),
       ];
     case 'media':
       return [
+        rug('media-rug', 328, 216),
         ...common,
-        prop('media-screen', 'screen', 262, 78, 372, 82, accent),
-        prop('editing-desk-left', 'desk', 174, 282, 180, 70),
-        prop('editing-desk-right', 'desk', 542, 282, 180, 70),
+        prop('media-screen', 'screen', 384, 68, 128, 128),
+        prop('editing-desk-left', 'desk', 176, 280, 144, 96),
+        prop('editing-chair-left', 'chair', 328, 280, 48, 96),
+        prop('editing-desk-right', 'desk', 576, 280, 144, 96),
+        prop('editing-chair-right', 'chair', 520, 280, 48, 96),
       ];
     case 'announcement':
       return [
+        rug('announcement-rug', 328, 210),
         ...common,
-        prop('announcement-screen', 'screen', 258, 78, 380, 84, accent),
-        prop('speaker-desk', 'desk', 344, 272, 208, 76, accent),
+        prop('announcement-screen', 'screen', 384, 68, 128, 128),
+        prop('speaker-desk', 'desk', 376, 284, 144, 96),
       ];
     case 'unsupported':
       return [
+        rug('oddments-rug', 328, 188),
         ...common,
-        prop('oddments-table', 'table', 312, 216, 272, 132, accent),
-        prop('oddments-sofa', 'sofa', 324, 400, 248, 60, accent),
+        prop('oddments-table', 'table', 376, 252, 144, 96),
+        prop('oddments-chair', 'chair', 544, 252, 48, 96),
+        prop('oddments-sofa', 'sofa', 160, 404, 144, 96),
       ];
     default:
       return [
+        rug('text-rug', 328, 208),
         ...common,
-        prop('desk-left', 'desk', 172, 224, 184, 72, accent),
-        prop('desk-right', 'desk', 540, 224, 184, 72, accent),
-        prop('lounge', 'sofa', 324, 398, 248, 60, accent),
+        prop('desk-left', 'desk', 176, 272, 144, 96),
+        prop('chair-left', 'chair', 328, 272, 48, 96),
+        prop('desk-right', 'desk', 576, 272, 144, 96),
+        prop('chair-right', 'chair', 520, 272, 48, 96),
+        prop('lounge', 'sofa', 640, 420, 144, 96),
       ];
   }
 }
@@ -126,7 +160,12 @@ export function createRoomWorld(portal: WorldPortal, theme: WorldTheme): WorldDe
     props,
     colliders: [
       ...wallColliders,
-      ...props.map(({ x, y, width, height }) => ({ x, y, width, height })),
+      ...props.filter((item) => item.solid).map((item) => ({
+        x: item.x + (item.hitbox?.x ?? 0),
+        y: item.y + (item.hitbox?.y ?? 0),
+        width: item.hitbox?.width ?? item.width,
+        height: item.hitbox?.height ?? item.height,
+      })),
     ],
   };
 }

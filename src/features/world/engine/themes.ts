@@ -1,11 +1,11 @@
 import type { WorldTheme } from './types';
 
-export const KENNEY_URBAN_THEME: WorldTheme = {
-  id: 'kenney-urban',
-  name: 'Urban Commons',
-  atlasUrl: '/game-assets/kenney-urban/tiles.png',
+export const KENNEY_TINY_TOWN_THEME: WorldTheme = {
+  id: 'kenney-tiny-town',
+  name: 'Tiny Town Commons',
+  atlasUrl: '/game-assets/tiny-town/tiles.png',
   sourceTileSize: 16,
-  sheetColumns: 27,
+  sheetColumns: 12,
   avatar: {
     layerUrls: [
       '/game-assets/mana-seed/base.png',
@@ -38,28 +38,36 @@ export const KENNEY_URBAN_THEME: WorldTheme = {
   interiorAtlas: {
     url: '/game-assets/pixel-lands/interiors.png',
     sprites: {
-      bookshelf: { x: 160, y: 112, width: 32, height: 64 },
+      bookshelf: { x: 160, y: 128, width: 32, height: 48 },
+      chair: { x: 112, y: 48, width: 16, height: 32 },
       desk: { x: 192, y: 128, width: 48, height: 32 },
-      planter: { x: 240, y: 80, width: 16, height: 48 },
+      planter: { x: 240, y: 96, width: 16, height: 16 },
+      rug: { x: 64, y: 80, width: 48, height: 48 },
       screen: { x: 64, y: 48, width: 32, height: 32 },
       sofa: { x: 0, y: 128, width: 48, height: 32 },
-      table: { x: 64, y: 80, width: 48, height: 48 },
+      table: { x: 192, y: 128, width: 48, height: 32 },
     },
   },
+  exteriorSprites: {
+    buildings: [
+      { x: 0, y: 48, width: 48, height: 48 },
+      { x: 48, y: 48, width: 48, height: 48 },
+    ],
+    trees: [
+      { x: 48, y: 0, width: 16, height: 32 },
+      { x: 64, y: 0, width: 16, height: 32 },
+      { x: 80, y: 0, width: 16, height: 32 },
+    ],
+  },
   tiles: {
-    ground: 28,
-    path: 468,
-    plaza: 8,
-    facade: 74,
-    roof: 20,
-    tree: 232,
-    planter: 260,
-    lamp: 167,
+    ground: 0,
+    path: 25,
+    plaza: 1,
     player: {
-      right: 23,
-      down: 24,
-      up: 25,
-      left: 26,
+      right: 0,
+      down: 0,
+      up: 0,
+      left: 0,
     },
   },
 };

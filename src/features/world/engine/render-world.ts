@@ -90,7 +90,47 @@ function drawTileLayers(
 ): void {
   world.tileLayers
     .filter(({ bounds }) => intersects(bounds, visible))
-    .forEach((layer) => tileRect(ctx, image, world.theme, layer.tileIndex, layer.bounds, visible));
+    .forEach((layer) => {
+      ctx.save();
+      if (layer.radius) {
+        roundedRect(
+          ctx,
+          layer.bounds.x,
+          layer.bounds.y,
+          layer.bounds.width,
+          layer.bounds.height,
+          layer.radius,
+        );
+        ctx.clip();
+      }
+      tileRect(ctx, image, world.theme, layer.tileIndex, layer.bounds, visible);
+      ctx.restore();
+    });
+}
+
+function variantFor(key: string, variants: readonly Rect[]): Rect | undefined {
+  if (variants.length === 0) return undefined;
+  const value = [...key].reduce((total, character) => total + character.charCodeAt(0), 0);
+  return variants[value % variants.length];
+}
+
+function drawAtlasRegion(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  source: Rect,
+  destination: Rect,
+): void {
+  ctx.drawImage(
+    image,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    destination.x,
+    destination.y,
+    destination.width,
+    destination.height,
+  );
 }
 
 function drawArea(ctx: CanvasRenderingContext2D, area: WorldArea): void {
@@ -177,11 +217,9 @@ function drawPortal(
   theme: WorldTheme,
   portal: WorldPortal,
   active: boolean,
-  elapsed: number,
 ): void {
   const x = Math.round(portal.x);
   const y = Math.round(portal.y);
-  const pulse = active ? 4 + Math.sin(elapsed / 160) * 2 : 0;
 
   if (portal.destination === 'world') {
     ctx.fillStyle = active ? portal.accent : '#65718a';
@@ -198,36 +236,27 @@ function drawPortal(
     return;
   }
 
-  const facade = { x: x - 48, y: y - 70, width: 96, height: 48 };
-  tileRect(ctx, image, theme, theme.tiles.facade, facade);
-  ctx.fillStyle = `${portal.accent}32`;
-  ctx.fillRect(facade.x, facade.y, facade.width, facade.height);
-  for (let roofX = x - 48; roofX < x + 48; roofX += 32)
-    drawSheetTile(ctx, image, theme, theme.tiles.roof, roofX, y - 86, 32, 24);
-  ctx.fillStyle = '#46516c';
-  ctx.fillRect(x - 15, y - 55, 30, 31);
-  ctx.fillStyle = '#18233d';
-  ctx.fillRect(x - 10, y - 50, 20, 26);
-  ctx.fillStyle = portal.accent;
-  ctx.fillRect(x - 7, y - 47, 14, 18);
-
-  if (active) {
-    ctx.strokeStyle = portal.accent;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(x, y - 28, 34 + pulse, 0, Math.PI * 2);
-    ctx.stroke();
+  const building = variantFor(portal.key, theme.exteriorSprites?.buildings ?? []);
+  if (building) {
+    drawAtlasRegion(ctx, image, building, { x: x - 72, y: y - 136, width: 144, height: 144 });
+  } else {
+    ctx.fillStyle = '#b66f4f';
+    ctx.fillRect(x - 64, y - 110, 128, 104);
   }
 
-  roundedRect(ctx, x - 48, y + 10, 96, 28, 7);
+  roundedRect(ctx, x - 66, y + 8, 132, 30, 7);
   ctx.fillStyle = active ? '#18233d' : 'rgb(24 35 61 / 0.9)';
   ctx.fill();
+  if (active) {
+    ctx.fillStyle = portal.accent;
+    ctx.fillRect(x - 58, y + 33, 116, 4);
+  }
   ctx.fillStyle = portal.accent;
   ctx.font = '700 13px "Inter Variable", sans-serif';
   ctx.textBaseline = 'middle';
-  ctx.fillText(roomGlyph(portal.room.type), x - 39, y + 24);
+  ctx.fillText(roomGlyph(portal.room.type), x - 55, y + 23);
   ctx.fillStyle = '#f4f6ff';
-  ctx.fillText(portal.room.label, x - 22, y + 24, 64);
+  ctx.fillText(portal.room.label, x - 37, y + 23, 94);
 }
 
 function drawProp(
@@ -258,7 +287,8 @@ function drawProp(
 
   switch (prop.kind) {
     case 'tree': {
-      drawSheetTile(ctx, image, theme, theme.tiles.tree, x, y, width, height);
+      const tree = variantFor(prop.id, theme.exteriorSprites?.trees ?? []);
+      if (tree) drawAtlasRegion(ctx, image, tree, prop);
       break;
     }
     case 'bench':
@@ -279,17 +309,16 @@ function drawProp(
       ctx.fillStyle = '#d9e1f2';
       ctx.fillRect(x + width / 2 - 7, y, 14, 45);
       break;
-    case 'lamp':
-      drawSheetTile(ctx, image, theme, theme.tiles.lamp, x, y, width, height);
-      break;
     case 'planter':
-      drawSheetTile(ctx, image, theme, theme.tiles.planter, x, y, width, height);
+      ctx.fillStyle = '#43a777';
+      ctx.fillRect(x, y, width, height);
       break;
     case 'building':
       ctx.fillStyle = prop.tint ?? '#c8764d';
       ctx.fillRect(x, y, width, height);
       break;
     case 'desk':
+    case 'chair':
       ctx.fillStyle = '#8a5a3d';
       ctx.fillRect(x, y + 8, width, height - 24);
       ctx.fillStyle = '#b17a52';
@@ -301,6 +330,10 @@ function drawProp(
         ctx.fillStyle = prop.tint;
         ctx.fillRect(x + width / 2 - 18, y - 8, 36, 22);
       }
+      break;
+    case 'rug':
+      ctx.fillStyle = prop.tint ?? '#a65d4a';
+      ctx.fillRect(x, y, width, height);
       break;
     case 'sofa':
       ctx.fillStyle = prop.tint ?? '#63769a';
@@ -487,11 +520,15 @@ export function renderWorld(
       .filter((area) => intersects(area.bounds, visibleWithMargin))
       .forEach((area) => drawArea(ctx, area));
   }
+  const visibleProps = world.props.filter((prop) => intersects(prop, visibleWithMargin));
+  visibleProps
+    .filter((prop) => prop.layer === 'floor')
+    .forEach((prop) => drawProp(ctx, image, interiorImage, world, prop));
   drawRoute(ctx, state);
 
   const sorted = [
-    ...world.props
-      .filter((prop) => intersects(prop, visibleWithMargin))
+    ...visibleProps
+      .filter((prop) => prop.layer !== 'floor')
       .map((prop) => ({
         y: prop.y + prop.height,
         draw: () => drawProp(ctx, image, interiorImage, world, prop),
@@ -505,7 +542,6 @@ export function renderWorld(
           world.theme,
           portal,
           state.nearbyPortal?.key === portal.key,
-          state.elapsed,
         ),
     })),
     {

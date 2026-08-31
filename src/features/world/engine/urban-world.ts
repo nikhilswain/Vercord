@@ -9,7 +9,7 @@ import type {
   WorldProp,
   WorldTileLayer,
 } from './types';
-import { KENNEY_URBAN_THEME } from './themes';
+import { KENNEY_TINY_TOWN_THEME } from './themes';
 
 const WORLD_WIDTH = 1536;
 const AREA_WIDTH = 512;
@@ -27,8 +27,8 @@ interface AreaSlot {
 }
 
 function areaHeight(roomCount: number): number {
-  const roomRows = Math.max(1, Math.ceil(roomCount / 3));
-  return Math.max(288, 184 + roomRows * 104);
+  const roomRows = Math.max(1, Math.ceil(roomCount / 2));
+  return Math.max(420, 224 + roomRows * 184);
 }
 
 function createAreaSlots(snapshot: MapSnapshot): {
@@ -82,11 +82,11 @@ function createAreaSlots(snapshot: MapSnapshot): {
 
 function roomPositions(bounds: Rect, count: number): Point[] {
   if (count === 0) return [];
-  const columns = Math.min(3, count);
+  const columns = Math.min(2, count);
   const horizontalGap = bounds.width / (columns + 1);
   return Array.from({ length: count }, (_, index) => ({
     x: bounds.x + horizontalGap * ((index % columns) + 1),
-    y: bounds.y + 142 + Math.floor(index / columns) * 104,
+    y: bounds.y + 210 + Math.floor(index / columns) * 184,
   }));
 }
 
@@ -127,93 +127,39 @@ function buildAreas(snapshot: MapSnapshot, slots: AreaSlot[]): {
 }
 
 function buildProps(areas: WorldArea[], worldHeight: number): WorldProp[] {
+  const tree = (id: string, x: number, y: number): WorldProp => ({
+    id,
+    kind: 'tree',
+    x,
+    y,
+    width: 48,
+    height: 96,
+    solid: true,
+    hitbox: { x: 18, y: 68, width: 12, height: 24 },
+  });
   const props: WorldProp[] = [
-    { id: 'northwest-tree', kind: 'tree', x: 24, y: 32, width: 64, height: 80, solid: true },
-    { id: 'northeast-tree', kind: 'tree', x: 1448, y: 32, width: 64, height: 80, solid: true },
-    {
-      id: 'southwest-tree',
-      kind: 'tree',
-      x: 24,
-      y: worldHeight - 112,
-      width: 64,
-      height: 80,
-      solid: true,
-    },
-    {
-      id: 'southeast-tree',
-      kind: 'tree',
-      x: 1448,
-      y: worldHeight - 112,
-      width: 64,
-      height: 80,
-      solid: true,
-    },
+    tree('northwest-tree', 32, 24),
+    tree('northeast-tree', 1456, 24),
+    tree('southwest-tree', 32, worldHeight - 120),
+    tree('southeast-tree', 1456, worldHeight - 120),
   ];
 
-  areas.forEach((area, index) => {
-    props.push({
-      id: `bench-${area.key}`,
-      kind: 'bench',
-      x: area.bounds.x + (index % 2 === 0 ? 30 : area.bounds.width - 126),
-      y: area.bounds.y + area.bounds.height - 54,
-      width: 96,
-      height: 32,
-      solid: true,
-    });
-    props.push({
-      id: `planter-${area.key}`,
-      kind: 'planter',
-      x: area.bounds.x + area.bounds.width - 72,
-      y: area.bounds.y + 82,
-      width: 44,
-      height: 44,
-      solid: true,
-      tint: area.accent,
-    });
+  areas.forEach((area) => {
     props.push(
-      {
-        id: `tree-left-${area.key}`,
-        kind: 'tree',
-        x: area.bounds.x + 24,
-        y: area.bounds.y + area.bounds.height - 108,
-        width: 64,
-        height: 80,
-        solid: true,
-      },
-      {
-        id: `tree-right-${area.key}`,
-        kind: 'tree',
-        x: area.bounds.x + area.bounds.width - 88,
-        y: area.bounds.y + area.bounds.height - 108,
-        width: 64,
-        height: 80,
-        solid: true,
-      },
+      tree(`tree-top-left-${area.key}`, area.bounds.x + 18, area.bounds.y + 78),
+      tree(`tree-top-right-${area.key}`, area.bounds.x + area.bounds.width - 66, area.bounds.y + 78),
+      tree(
+        `tree-bottom-left-${area.key}`,
+        area.bounds.x + 18,
+        area.bounds.y + area.bounds.height - 120,
+      ),
+      tree(
+        `tree-bottom-right-${area.key}`,
+        area.bounds.x + area.bounds.width - 66,
+        area.bounds.y + area.bounds.height - 120,
+      ),
     );
   });
-
-  for (let y = 152; y < worldHeight - 96; y += 224) {
-    props.push(
-      {
-        id: `lamp-west-${y}`,
-        kind: 'lamp',
-        x: CENTRAL_PATH_X - 36,
-        y,
-        width: 28,
-        height: 56,
-        solid: true,
-      },
-      {
-        id: `lamp-east-${y}`,
-        kind: 'lamp',
-        x: CENTRAL_PATH_X + CENTRAL_PATH_WIDTH + 8,
-        y: y + 96,
-        width: 28,
-        height: 56,
-        solid: true,
-      },
-    );
-  }
   return props;
 }
 
@@ -225,26 +171,22 @@ export function createUrbanWorld(snapshot: MapSnapshot): WorldDefinition {
     ...layout.paths.map((path) => ({
       id: path.id,
       bounds: path.bounds,
-      tileIndex: KENNEY_URBAN_THEME.tiles.path,
-    })),
-    ...areas.map((area) => ({
-      id: `neighborhood-${area.key}`,
-      bounds: area.bounds,
-      tileIndex: KENNEY_URBAN_THEME.tiles.plaza,
+      tileIndex: KENNEY_TINY_TOWN_THEME.tiles.path,
+      radius: 24,
     })),
   ];
   const bounds: Rect = { x: 0, y: 0, width: WORLD_WIDTH, height: layout.height };
   const portalColliders: Rect[] = portals.map((portal) => ({
-    x: portal.x - 44,
-    y: portal.y - 72,
-    width: 88,
-    height: 48,
+    x: portal.x - 64,
+    y: portal.y - 124,
+    width: 128,
+    height: 96,
   }));
 
   return {
     name: snapshot.server.displayName,
     environment: 'exterior',
-    theme: KENNEY_URBAN_THEME,
+    theme: KENNEY_TINY_TOWN_THEME,
     bounds,
     spawn: { x: CENTRAL_PATH_X + CENTRAL_PATH_WIDTH / 2, y: 64 },
     areas,
@@ -253,7 +195,12 @@ export function createUrbanWorld(snapshot: MapSnapshot): WorldDefinition {
     portals,
     props,
     colliders: [
-      ...props.filter((prop) => prop.solid).map(({ x, y, width, height }) => ({ x, y, width, height })),
+      ...props.filter((prop) => prop.solid).map((prop) => ({
+        x: prop.x + (prop.hitbox?.x ?? 0),
+        y: prop.y + (prop.hitbox?.y ?? 0),
+        width: prop.hitbox?.width ?? prop.width,
+        height: prop.hitbox?.height ?? prop.height,
+      })),
       ...portalColliders,
     ],
   };
