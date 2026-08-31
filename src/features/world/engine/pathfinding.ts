@@ -1,32 +1,41 @@
 import { overlaps } from './collision';
 import type { Point, Rect } from './types';
 
-interface GridPoint {
+interface SearchNode {
   col: number;
   row: number;
+  g: number;
+  h: number;
+  parent: SearchNode | null;
+  direction: Point;
 }
 
-const CELL_SIZE = 32;
-const FOOTPRINT = { width: 18, height: 12 };
+const CELL_SIZE = 16;
+const PLAYER_FOOTPRINT = { width: 18, height: 12 };
+const DIRECTIONS: Point[] = [
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 },
+];
 
-function gridKey(point: GridPoint): string {
-  return `${point.col}:${point.row}`;
+function key(col: number, row: number): string {
+  return `${col}:${row}`;
 }
 
-function toWorld(point: GridPoint): Point {
+function gridToWorld(col: number, row: number): Point {
   return {
-    x: point.col * CELL_SIZE + CELL_SIZE / 2,
-    y: point.row * CELL_SIZE + CELL_SIZE / 2,
+    x: col * CELL_SIZE + CELL_SIZE / 2,
+    y: row * CELL_SIZE + CELL_SIZE / 2,
   };
 }
 
-function isWalkable(point: GridPoint, colliders: Rect[], bounds: Rect): boolean {
-  const world = toWorld(point);
+function pointIsWalkable(point: Point, colliders: Rect[], bounds: Rect): boolean {
   const box: Rect = {
-    x: world.x - FOOTPRINT.width / 2,
-    y: world.y - FOOTPRINT.height / 2,
-    width: FOOTPRINT.width,
-    height: FOOTPRINT.height,
+    x: point.x - PLAYER_FOOTPRINT.width / 2,
+    y: point.y - PLAYER_FOOTPRINT.height / 2,
+    width: PLAYER_FOOTPRINT.width,
+    height: PLAYER_FOOTPRINT.height,
   };
   if (
     box.x < bounds.x ||
@@ -36,81 +45,129 @@ function isWalkable(point: GridPoint, colliders: Rect[], bounds: Rect): boolean 
   ) {
     return false;
   }
-  return !colliders.some((collider) => overlaps(box, collider));
+  const clearance = 2;
+  return !colliders.some((collider) =>
+    overlaps(box, {
+      x: collider.x - clearance,
+      y: collider.y - clearance,
+      width: collider.width + clearance * 2,
+      height: collider.height + clearance * 2,
+    }),
+  );
 }
 
-function nearestWalkable(point: Point, colliders: Rect[], bounds: Rect): GridPoint | null {
+function gridIsWalkable(col: number, row: number, colliders: Rect[], bounds: Rect): boolean {
+  return pointIsWalkable(gridToWorld(col, row), colliders, bounds);
+}
+
+function nearestWalkable(point: Point, colliders: Rect[], bounds: Rect): Point | null {
   const origin = {
-    col: Math.floor(point.x / CELL_SIZE),
-    row: Math.floor(point.y / CELL_SIZE),
+    x: Math.floor(point.x / CELL_SIZE),
+    y: Math.floor(point.y / CELL_SIZE),
   };
-  for (let radius = 0; radius <= 5; radius += 1) {
-    for (let row = origin.row - radius; row <= origin.row + radius; row += 1) {
-      for (let col = origin.col - radius; col <= origin.col + radius; col += 1) {
-        const candidate = { col, row };
-        if (isWalkable(candidate, colliders, bounds)) return candidate;
+  for (let radius = 0; radius <= 10; radius += 1) {
+    let closest: Point | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (let row = origin.y - radius; row <= origin.y + radius; row += 1) {
+      for (let col = origin.x - radius; col <= origin.x + radius; col += 1) {
+        if (radius > 0 && Math.abs(col - origin.x) !== radius && Math.abs(row - origin.y) !== radius) {
+          continue;
+        }
+        if (!gridIsWalkable(col, row, colliders, bounds)) continue;
+        const world = gridToWorld(col, row);
+        const distance = Math.hypot(world.x - point.x, world.y - point.y);
+        if (distance < closestDistance) {
+          closest = { x: col, y: row };
+          closestDistance = distance;
+        }
       }
     }
+    if (closest) return closest;
   }
   return null;
 }
 
-export function findPath(
-  from: Point,
-  to: Point,
-  colliders: Rect[],
-  bounds: Rect,
-): Point[] {
-  const start = nearestWalkable(from, colliders, bounds);
-  const target = nearestWalkable(to, colliders, bounds);
-  if (!start || !target) return [];
+function reconstruct(end: SearchNode, exactTarget: Point | null): Point[] {
+  const nodes: SearchNode[] = [];
+  let cursor: SearchNode | null = end;
+  while (cursor) {
+    nodes.unshift(cursor);
+    cursor = cursor.parent;
+  }
 
-  const frontier: GridPoint[] = [start];
-  const cameFrom = new Map<string, GridPoint | null>([[gridKey(start), null]]);
-  const targetKey = gridKey(target);
-  const directions = [
-    { col: 1, row: 0 },
-    { col: -1, row: 0 },
-    { col: 0, row: 1 },
-    { col: 0, row: -1 },
-  ];
+  const corners = nodes
+    .filter((node, index) => {
+      if (index === 0 || index === nodes.length - 1) return true;
+      const previous = nodes[index - 1];
+      const next = nodes[index + 1];
+      if (!previous || !next) return true;
+      return previous.col !== next.col && previous.row !== next.row;
+    })
+    .map((node) => gridToWorld(node.col, node.row));
 
-  while (frontier.length > 0) {
-    frontier.sort((a, b) => {
-      const aDistance = Math.abs(a.col - target.col) + Math.abs(a.row - target.row);
-      const bDistance = Math.abs(b.col - target.col) + Math.abs(b.row - target.row);
-      return aDistance - bDistance;
-    });
-    const current = frontier.shift();
+  if (exactTarget) {
+    const last = corners[corners.length - 1];
+    if (!last || Math.hypot(last.x - exactTarget.x, last.y - exactTarget.y) > 4) corners.push(exactTarget);
+  }
+  return corners;
+}
+
+export function findPath(from: Point, to: Point, colliders: Rect[], bounds: Rect): Point[] {
+  const startGrid = nearestWalkable(from, colliders, bounds);
+  const targetGrid = nearestWalkable(to, colliders, bounds);
+  if (!startGrid || !targetGrid) return [];
+
+  const start: SearchNode = {
+    col: startGrid.x,
+    row: startGrid.y,
+    g: 0,
+    h: Math.abs(targetGrid.x - startGrid.x) + Math.abs(targetGrid.y - startGrid.y),
+    parent: null,
+    direction: { x: 0, y: 0 },
+  };
+  const open: SearchNode[] = [start];
+  const bestScore = new Map<string, number>([[key(start.col, start.row), 0]]);
+  const closed = new Set<string>();
+  let closest = start;
+  let closestDistance = start.h;
+
+  while (open.length > 0) {
+    open.sort((a, b) => a.g + a.h - (b.g + b.h));
+    const current = open.shift();
     if (!current) break;
-    if (gridKey(current) === targetKey) break;
+    const currentKey = key(current.col, current.row);
+    if (closed.has(currentKey)) continue;
+    closed.add(currentKey);
 
-    for (const direction of directions) {
-      const next = { col: current.col + direction.col, row: current.row + direction.row };
-      const key = gridKey(next);
-      if (cameFrom.has(key) || !isWalkable(next, colliders, bounds)) continue;
-      cameFrom.set(key, current);
-      frontier.push(next);
+    if (current.h < closestDistance) {
+      closest = current;
+      closestDistance = current.h;
+    }
+    if (current.col === targetGrid.x && current.row === targetGrid.y) {
+      return reconstruct(current, pointIsWalkable(to, colliders, bounds) ? to : null);
+    }
+
+    for (const direction of DIRECTIONS) {
+      const col = current.col + direction.x;
+      const row = current.row + direction.y;
+      const nodeKey = key(col, row);
+      if (closed.has(nodeKey) || !gridIsWalkable(col, row, colliders, bounds)) continue;
+      const turning =
+        current.parent !== null &&
+        (current.direction.x !== direction.x || current.direction.y !== direction.y);
+      const g = current.g + 1 + (turning ? 0.35 : 0);
+      if (g >= (bestScore.get(nodeKey) ?? Number.POSITIVE_INFINITY)) continue;
+      bestScore.set(nodeKey, g);
+      open.push({
+        col,
+        row,
+        g,
+        h: Math.abs(targetGrid.x - col) + Math.abs(targetGrid.y - row),
+        parent: current,
+        direction,
+      });
     }
   }
 
-  if (!cameFrom.has(targetKey)) return [];
-  const route: GridPoint[] = [];
-  let cursor: GridPoint | null = target;
-  while (cursor) {
-    route.unshift(cursor);
-    cursor = cameFrom.get(gridKey(cursor)) ?? null;
-  }
-
-  const waypoints = route.map(toWorld).filter((point, index, points) => {
-    if (index === 0 || index === points.length - 1) return true;
-    const previous = points[index - 1];
-    const next = points[index + 1];
-    if (!previous || !next) return true;
-    return previous.x !== next.x && previous.y !== next.y;
-  });
-  if (isWalkable({ col: Math.floor(to.x / CELL_SIZE), row: Math.floor(to.y / CELL_SIZE) }, colliders, bounds)) {
-    waypoints.push(to);
-  }
-  return waypoints;
+  return closest === start ? [] : reconstruct(closest, null);
 }

@@ -8,17 +8,10 @@ import type {
   WorldDefinition,
   WorldPortal,
   WorldProp,
+  WorldTheme,
 } from './types';
 
-const SOURCE_TILE = 16;
-const SHEET_COLUMNS = 27;
 const WORLD_TILE = 32;
-const PLAYER_TILE: Record<PlayerState['direction'], number> = {
-  right: 23,
-  down: 24,
-  up: 25,
-  left: 26,
-};
 
 interface RenderState {
   elapsed: number;
@@ -43,43 +36,61 @@ function roundedRect(
 function drawSheetTile(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
+  theme: WorldTheme,
   index: number,
   x: number,
   y: number,
   width = WORLD_TILE,
   height = WORLD_TILE,
 ): void {
-  const sourceX = (index % SHEET_COLUMNS) * SOURCE_TILE;
-  const sourceY = Math.floor(index / SHEET_COLUMNS) * SOURCE_TILE;
-  ctx.drawImage(image, sourceX, sourceY, SOURCE_TILE, SOURCE_TILE, x, y, width, height);
+  const sourceX = (index % theme.sheetColumns) * theme.sourceTileSize;
+  const sourceY = Math.floor(index / theme.sheetColumns) * theme.sourceTileSize;
+  ctx.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    theme.sourceTileSize,
+    theme.sourceTileSize,
+    x,
+    y,
+    width,
+    height,
+  );
 }
 
 function tileRect(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
+  theme: WorldTheme,
   index: number,
   rect: Rect,
+  clip = rect,
 ): void {
-  for (let y = rect.y; y < rect.y + rect.height; y += WORLD_TILE) {
-    for (let x = rect.x; x < rect.x + rect.width; x += WORLD_TILE) {
-      drawSheetTile(ctx, image, index, x, y);
+  const startX = Math.max(rect.x, rect.x + Math.floor((clip.x - rect.x) / WORLD_TILE) * WORLD_TILE);
+  const startY = Math.max(rect.y, rect.y + Math.floor((clip.y - rect.y) / WORLD_TILE) * WORLD_TILE);
+  const endX = Math.min(rect.x + rect.width, clip.x + clip.width + WORLD_TILE);
+  const endY = Math.min(rect.y + rect.height, clip.y + clip.height + WORLD_TILE);
+  for (let y = startY; y < endY; y += WORLD_TILE) {
+    for (let x = startX; x < endX; x += WORLD_TILE) {
+      drawSheetTile(ctx, image, theme, index, x, y);
     }
   }
 }
 
-function drawPaths(ctx: CanvasRenderingContext2D, image: HTMLImageElement): void {
-  const paths: Rect[] = [
-    { x: 0, y: 448, width: 1536, height: 128 },
-    { x: 704, y: 0, width: 128, height: 1024 },
-    { x: 352, y: 352, width: 96, height: 160 },
-    { x: 1088, y: 352, width: 96, height: 160 },
-    { x: 352, y: 544, width: 96, height: 160 },
-    { x: 1088, y: 544, width: 96, height: 160 },
-  ];
-  paths.forEach((path) => {
+function intersects(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function drawPaths(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  world: WorldDefinition,
+  visible: Rect,
+): void {
+  world.paths.filter(({ bounds }) => intersects(bounds, visible)).forEach(({ bounds: path }) => {
     ctx.fillStyle = '#aeb2bd';
     ctx.fillRect(path.x, path.y, path.width, path.height);
-    tileRect(ctx, image, 8, path);
+    tileRect(ctx, image, world.theme, world.theme.tiles.path, path, visible);
     ctx.strokeStyle = 'rgb(31 43 65 / 0.28)';
     ctx.lineWidth = 4;
     ctx.strokeRect(path.x + 2, path.y + 2, path.width - 4, path.height - 4);
@@ -148,6 +159,7 @@ function roomGlyph(type: MapRoomType): string {
 function drawPortal(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
+  theme: WorldTheme,
   portal: WorldPortal,
   active: boolean,
   elapsed: number,
@@ -164,7 +176,7 @@ function drawPortal(
   ctx.fillStyle = '#d98658';
   ctx.fillRect(x - 44, y - 69, 88, 43);
   for (let roofX = x - 48; roofX < x + 48; roofX += 32) {
-    drawSheetTile(ctx, image, 21, roofX, y - 82, 32, 24);
+    drawSheetTile(ctx, image, theme, theme.tiles.roof, roofX, y - 82, 32, 24);
   }
   ctx.fillStyle = '#46516c';
   ctx.fillRect(x - 15, y - 55, 30, 31);
@@ -192,7 +204,12 @@ function drawPortal(
   ctx.fillText(portal.room.label, x - 22, y + 24, 64);
 }
 
-function drawProp(ctx: CanvasRenderingContext2D, image: HTMLImageElement, prop: WorldProp): void {
+function drawProp(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  theme: WorldTheme,
+  prop: WorldProp,
+): void {
   const { x, y, width, height } = prop;
   switch (prop.kind) {
     case 'tree': {
@@ -204,7 +221,7 @@ function drawProp(ctx: CanvasRenderingContext2D, image: HTMLImageElement, prop: 
       ctx.fillRect(x + width / 2 - 7, y + 42, 14, 32);
       ctx.fillStyle = '#2e9f74';
       ctx.fillRect(x + 14, y + 12, 36, 44);
-      drawSheetTile(ctx, image, 178, x + 16, y + 8, 32, 32);
+      drawSheetTile(ctx, image, theme, theme.tiles.tree, x + 16, y + 8, 32, 32);
       break;
     }
     case 'bench':
@@ -260,6 +277,7 @@ function drawRoute(ctx: CanvasRenderingContext2D, state: RenderState): void {
 function drawPlayer(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
+  theme: WorldTheme,
   player: PlayerState,
   elapsed: number,
 ): void {
@@ -268,7 +286,16 @@ function drawPlayer(
   ctx.beginPath();
   ctx.ellipse(player.x, player.y + 9, 13, 6, 0, 0, Math.PI * 2);
   ctx.fill();
-  drawSheetTile(ctx, image, PLAYER_TILE[player.direction], player.x - 18, player.y - 27 + bob, 36, 36);
+  drawSheetTile(
+    ctx,
+    image,
+    theme,
+    theme.tiles.player[player.direction],
+    player.x - 18,
+    player.y - 27 + bob,
+    36,
+    36,
+  );
 
   roundedRect(ctx, player.x - 29, player.y - 50 + bob, 58, 20, 7);
   ctx.fillStyle = '#5c4bd8';
@@ -328,23 +355,50 @@ export function renderWorld(
   ctx.translate(-camera.x * camera.zoom, -camera.y * camera.zoom);
   ctx.scale(camera.zoom, camera.zoom);
   ctx.imageSmoothingEnabled = false;
+  const visible = camera.visibleBounds();
+  const visibleWithMargin = {
+    x: visible.x - 96,
+    y: visible.y - 96,
+    width: visible.width + 192,
+    height: visible.height + 192,
+  };
 
   ctx.fillStyle = '#67a86b';
   ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
-  tileRect(ctx, image, 28, world.bounds);
-  drawPaths(ctx, image);
-  world.areas.forEach((area) => drawArea(ctx, area));
+  tileRect(ctx, image, world.theme, world.theme.tiles.ground, world.bounds, visible);
+  drawPaths(ctx, image, world, visible);
+  world.areas.filter((area) => intersects(area.bounds, visibleWithMargin)).forEach((area) => drawArea(ctx, area));
   drawRoute(ctx, state);
 
   const sorted = [
-    ...world.props.map((prop) => ({ y: prop.y + prop.height, draw: () => drawProp(ctx, image, prop) })),
-    ...world.portals.map((portal) => ({
+    ...world.props
+      .filter((prop) => intersects(prop, visibleWithMargin))
+      .map((prop) => ({
+        y: prop.y + prop.height,
+        draw: () => drawProp(ctx, image, world.theme, prop),
+      })),
+    ...world.portals.filter((portal) => containsPortal(portal, visibleWithMargin)).map((portal) => ({
       y: portal.y,
-      draw: () => drawPortal(ctx, image, portal, state.nearbyPortal?.key === portal.key, state.elapsed),
+      draw: () =>
+        drawPortal(
+          ctx,
+          image,
+          world.theme,
+          portal,
+          state.nearbyPortal?.key === portal.key,
+          state.elapsed,
+        ),
     })),
-    { y: state.player.y, draw: () => drawPlayer(ctx, image, state.player, state.elapsed) },
+    {
+      y: state.player.y,
+      draw: () => drawPlayer(ctx, image, world.theme, state.player, state.elapsed),
+    },
   ].sort((a, b) => a.y - b.y);
   sorted.forEach((item) => item.draw());
   ctx.restore();
   if (viewport.width >= 620) drawMiniMap(ctx, world, camera, viewport);
+}
+
+function containsPortal(portal: WorldPortal, rect: Rect): boolean {
+  return portal.x >= rect.x && portal.x <= rect.x + rect.width && portal.y >= rect.y && portal.y <= rect.y + rect.height;
 }

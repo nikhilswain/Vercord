@@ -1,46 +1,111 @@
 import type { MapSnapshot } from '../../../domain/map/snapshot';
-import type { Point, Rect, WorldArea, WorldDefinition, WorldPortal, WorldProp } from './types';
+import type {
+  Point,
+  Rect,
+  WorldArea,
+  WorldDefinition,
+  WorldPath,
+  WorldPortal,
+  WorldProp,
+} from './types';
+import { KENNEY_URBAN_THEME } from './themes';
 
-const WORLD_BOUNDS: Rect = { x: 0, y: 0, width: 1536, height: 1024 };
+const WORLD_WIDTH = 1536;
+const AREA_WIDTH = 512;
+const LEFT_AREA_X = 96;
+const RIGHT_AREA_X = 928;
+const CENTRAL_PATH_X = 704;
+const CENTRAL_PATH_WIDTH = 128;
+const TOP_MARGIN = 112;
+const ROW_GAP = 192;
+const ACCENTS = ['#9284f7', '#45c5c7', '#d59645', '#83a8f5', '#f17c86', '#64e6ae'];
 
-const AREA_SLOTS: Array<{ bounds: Rect; accent: string }> = [
-  { bounds: { x: 96, y: 96, width: 512, height: 288 }, accent: '#9284f7' },
-  { bounds: { x: 928, y: 96, width: 512, height: 288 }, accent: '#45c5c7' },
-  { bounds: { x: 96, y: 640, width: 512, height: 288 }, accent: '#d59645' },
-  { bounds: { x: 928, y: 640, width: 512, height: 288 }, accent: '#83a8f5' },
-  { bounds: { x: 656, y: 704, width: 224, height: 224 }, accent: '#f17c86' },
-];
+interface AreaSlot {
+  bounds: Rect;
+  accent: string;
+}
+
+function areaHeight(roomCount: number): number {
+  const roomRows = Math.max(1, Math.ceil(roomCount / 3));
+  return Math.max(288, 184 + roomRows * 104);
+}
+
+function createAreaSlots(snapshot: MapSnapshot): {
+  slots: AreaSlot[];
+  paths: WorldPath[];
+  height: number;
+} {
+  const slots: AreaSlot[] = [];
+  const paths: WorldPath[] = [];
+  let y = TOP_MARGIN;
+
+  for (let index = 0; index < snapshot.areas.length; index += 2) {
+    const leftArea = snapshot.areas[index];
+    const rightArea = snapshot.areas[index + 1];
+    const leftHeight = areaHeight(leftArea?.rooms.length ?? 0);
+    const rightHeight = areaHeight(rightArea?.rooms.length ?? 0);
+    const rowHeight = Math.max(leftHeight, rightHeight);
+
+    if (leftArea) {
+      slots.push({
+        bounds: { x: LEFT_AREA_X, y, width: AREA_WIDTH, height: leftHeight },
+        accent: ACCENTS[index % ACCENTS.length] ?? ACCENTS[0] ?? '#9284f7',
+      });
+      paths.push({
+        id: `connector-${leftArea.key}`,
+        bounds: { x: LEFT_AREA_X + AREA_WIDTH, y: y + leftHeight / 2 - 48, width: 96, height: 96 },
+      });
+    }
+
+    if (rightArea) {
+      slots.push({
+        bounds: { x: RIGHT_AREA_X, y, width: AREA_WIDTH, height: rightHeight },
+        accent: ACCENTS[(index + 1) % ACCENTS.length] ?? ACCENTS[0] ?? '#9284f7',
+      });
+      paths.push({
+        id: `connector-${rightArea.key}`,
+        bounds: { x: CENTRAL_PATH_X + CENTRAL_PATH_WIDTH, y: y + rightHeight / 2 - 48, width: 96, height: 96 },
+      });
+    }
+
+    y += rowHeight + ROW_GAP;
+  }
+
+  const height = Math.max(1024, y - ROW_GAP + TOP_MARGIN);
+  paths.unshift({
+    id: 'central-spine',
+    bounds: { x: CENTRAL_PATH_X, y: 0, width: CENTRAL_PATH_WIDTH, height },
+  });
+  return { slots, paths, height };
+}
 
 function roomPositions(bounds: Rect, count: number): Point[] {
   if (count === 0) return [];
-  const columns = Math.min(3, Math.max(1, count));
-  const rows = Math.ceil(count / columns);
+  const columns = Math.min(3, count);
   const horizontalGap = bounds.width / (columns + 1);
-  const verticalStart = bounds.y + 130;
-  const verticalGap = rows === 1 ? 0 : Math.min(104, (bounds.height - 158) / (rows - 1));
-
   return Array.from({ length: count }, (_, index) => ({
     x: bounds.x + horizontalGap * ((index % columns) + 1),
-    y: verticalStart + verticalGap * Math.floor(index / columns),
+    y: bounds.y + 142 + Math.floor(index / columns) * 104,
   }));
 }
 
-function buildAreas(snapshot: MapSnapshot): { areas: WorldArea[]; portals: WorldPortal[] } {
-  const fallback = AREA_SLOTS[AREA_SLOTS.length - 1];
-  if (!fallback) return { areas: [], portals: [] };
+function buildAreas(snapshot: MapSnapshot, slots: AreaSlot[]): {
+  areas: WorldArea[];
+  portals: WorldPortal[];
+} {
   const areas: WorldArea[] = [];
   const portals: WorldPortal[] = [];
 
   snapshot.areas.forEach((area, index) => {
-    const slot = AREA_SLOTS[index] ?? fallback;
-    const worldArea: WorldArea = {
+    const slot = slots[index];
+    if (!slot) return;
+    areas.push({
       key: area.key,
       label: area.label,
       accent: slot.accent,
       bounds: slot.bounds,
       roomCount: area.rooms.length,
-    };
-    areas.push(worldArea);
+    });
 
     const positions = roomPositions(slot.bounds, area.rooms.length);
     area.rooms.forEach((room, roomIndex) => {
@@ -56,42 +121,62 @@ function buildAreas(snapshot: MapSnapshot): { areas: WorldArea[]; portals: World
       });
     });
   });
-
   return { areas, portals };
 }
 
-function buildProps(): WorldProp[] {
-  const props: WorldProp[] = [];
-  const treePositions = [
-    [40, 48],
-    [1424, 48],
-    [40, 880],
-    [1424, 880],
-    [640, 48],
-    [848, 48],
-    [640, 896],
-    [848, 896],
-    [40, 448],
-    [1424, 448],
+function buildProps(areas: WorldArea[], worldHeight: number): WorldProp[] {
+  const props: WorldProp[] = [
+    { id: 'northwest-tree', kind: 'tree', x: 24, y: 32, width: 64, height: 80, solid: true },
+    { id: 'northeast-tree', kind: 'tree', x: 1448, y: 32, width: 64, height: 80, solid: true },
+    {
+      id: 'southwest-tree',
+      kind: 'tree',
+      x: 24,
+      y: worldHeight - 112,
+      width: 64,
+      height: 80,
+      solid: true,
+    },
+    {
+      id: 'southeast-tree',
+      kind: 'tree',
+      x: 1448,
+      y: worldHeight - 112,
+      width: 64,
+      height: 80,
+      solid: true,
+    },
   ];
-  treePositions.forEach(([x, y], index) => {
-    if (x === undefined || y === undefined) return;
-    props.push({ id: `tree-${index}`, kind: 'tree', x, y, width: 64, height: 80, solid: true });
-  });
 
-  props.push(
-    { id: 'central-fountain', kind: 'fountain', x: 704, y: 416, width: 128, height: 96, solid: true },
-    { id: 'arrival-bench', kind: 'bench', x: 256, y: 320, width: 96, height: 32, solid: true },
-    { id: 'workshop-bench', kind: 'bench', x: 1136, y: 320, width: 96, height: 32, solid: true },
-    { id: 'commons-planter', kind: 'planter', x: 496, y: 816, width: 48, height: 48, solid: true },
-    { id: 'quiet-planter', kind: 'planter', x: 992, y: 816, width: 48, height: 48, solid: true },
-  );
+  areas.forEach((area, index) => {
+    props.push({
+      id: `bench-${area.key}`,
+      kind: 'bench',
+      x: area.bounds.x + (index % 2 === 0 ? 30 : area.bounds.width - 126),
+      y: area.bounds.y + area.bounds.height - 54,
+      width: 96,
+      height: 32,
+      solid: true,
+    });
+    props.push({
+      id: `planter-${area.key}`,
+      kind: 'planter',
+      x: area.bounds.x + area.bounds.width - 72,
+      y: area.bounds.y + 82,
+      width: 44,
+      height: 44,
+      solid: true,
+      tint: area.accent,
+    });
+  });
   return props;
 }
 
 export function createUrbanWorld(snapshot: MapSnapshot): WorldDefinition {
-  const { areas, portals } = buildAreas(snapshot);
-  const props = buildProps();
+  const layout = createAreaSlots(snapshot);
+  const { areas, portals } = buildAreas(snapshot, layout.slots);
+  const props = buildProps(areas, layout.height);
+  const bounds: Rect = { x: 0, y: 0, width: WORLD_WIDTH, height: layout.height };
   const portalColliders: Rect[] = portals.map((portal) => ({
     x: portal.x - 44,
     y: portal.y - 72,
@@ -101,9 +186,11 @@ export function createUrbanWorld(snapshot: MapSnapshot): WorldDefinition {
 
   return {
     name: snapshot.server.displayName,
-    bounds: WORLD_BOUNDS,
-    spawn: { x: 768, y: 568 },
+    theme: KENNEY_URBAN_THEME,
+    bounds,
+    spawn: { x: CENTRAL_PATH_X + CENTRAL_PATH_WIDTH / 2, y: 64 },
     areas,
+    paths: layout.paths,
     portals,
     props,
     colliders: [

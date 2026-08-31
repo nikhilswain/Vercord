@@ -16,21 +16,49 @@ export function resolveMovement(
   colliders: Rect[],
   world: Rect,
 ): Pick<Rect, 'x' | 'y'> {
-  const maxX = world.x + world.width - playerBox.width;
-  const maxY = world.y + world.height - playerBox.height;
-  let x = Math.max(world.x, Math.min(maxX, playerBox.x + deltaX));
-  let y = playerBox.y;
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(deltaX), Math.abs(deltaY)) / 5));
+  const stepX = deltaX / steps;
+  const stepY = deltaY / steps;
+  let current = { ...playerBox };
 
-  if (colliders.some((collider) => overlaps({ ...playerBox, x, y }, collider))) {
-    x = playerBox.x;
+  for (let step = 0; step < steps; step += 1) {
+    current = resolveStep(current, stepX, stepY, colliders, world);
   }
+  return { x: current.x, y: current.y };
+}
 
-  y = Math.max(world.y, Math.min(maxY, playerBox.y + deltaY));
-  if (colliders.some((collider) => overlaps({ ...playerBox, x, y }, collider))) {
-    y = playerBox.y;
-  }
+function overlapArea(a: Rect, b: Rect): number {
+  const width = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+  const height = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+  return width * height;
+}
 
-  return { x, y };
+function totalOverlap(box: Rect, colliders: Rect[]): number {
+  return colliders.reduce((total, collider) => total + overlapArea(box, collider), 0);
+}
+
+function resolveStep(
+  current: Rect,
+  deltaX: number,
+  deltaY: number,
+  colliders: Rect[],
+  world: Rect,
+): Rect {
+  const maxX = world.x + world.width - current.width;
+  const maxY = world.y + world.height - current.height;
+  const initialOverlap = totalOverlap(current, colliders);
+  let x = current.x;
+  let y = current.y;
+
+  const horizontal = { ...current, x: Math.max(world.x, Math.min(maxX, current.x + deltaX)) };
+  const horizontalOverlap = totalOverlap(horizontal, colliders);
+  if (horizontalOverlap === 0 || horizontalOverlap < initialOverlap) x = horizontal.x;
+
+  const vertical = { ...current, x, y: Math.max(world.y, Math.min(maxY, current.y + deltaY)) };
+  const verticalOverlap = totalOverlap(vertical, colliders);
+  if (verticalOverlap === 0 || verticalOverlap < initialOverlap) y = vertical.y;
+
+  return { ...current, x, y };
 }
 
 export function containsPoint(rect: Rect, x: number, y: number): boolean {

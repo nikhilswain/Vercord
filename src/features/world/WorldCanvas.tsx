@@ -4,6 +4,7 @@ import type { MapSnapshot } from '../../domain/map/snapshot';
 import { createUrbanWorld } from './engine/urban-world';
 import type { WorldPortal, WorldUiState } from './engine/types';
 import { WorldEngine } from './engine/world-engine';
+import { VirtualJoystick } from './VirtualJoystick';
 
 export interface WorldCanvasProps {
   snapshot: MapSnapshot;
@@ -108,8 +109,13 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
         <span><kbd>WASD</kbd> move</span>
         <span><kbd>Shift</kbd> sprint</span>
         <span><kbd>Click</kbd> walk</span>
+        <span><kbd>Drag</kbd> pan</span>
         <span><kbd>Wheel</kbd> zoom</span>
       </div>
+
+      <VirtualJoystick
+        onChange={(x, y, sprinting) => engineRef.current?.setVirtualAxis(x, y, sprinting)}
+      />
 
       {ui.nearbyPortal ? (
         <button

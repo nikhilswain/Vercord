@@ -20,6 +20,26 @@ export interface WorldArea {
   roomCount: number;
 }
 
+export interface WorldPath {
+  id: string;
+  bounds: Rect;
+}
+
+export interface WorldTheme {
+  id: string;
+  name: string;
+  atlasUrl: string;
+  sourceTileSize: number;
+  sheetColumns: number;
+  tiles: {
+    ground: number;
+    path: number;
+    roof: number;
+    tree: number;
+    player: Record<Direction, number>;
+  };
+}
+
 export interface WorldPortal extends Point {
   key: string;
   areaKey: string;
@@ -37,9 +57,11 @@ export interface WorldProp extends Rect {
 
 export interface WorldDefinition {
   name: string;
+  theme: WorldTheme;
   bounds: Rect;
   spawn: Point;
   areas: WorldArea[];
+  paths: WorldPath[];
   portals: WorldPortal[];
   props: WorldProp[];
   colliders: Rect[];
