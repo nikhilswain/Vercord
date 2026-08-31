@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { MapSnapshot } from '../../domain/map/snapshot';
 import { createUrbanWorld } from './engine/urban-world';
-import type { WorldPortal, WorldUiState } from './engine/types';
+import type { WorldUiState } from './engine/types';
 import { WorldEngine } from './engine/world-engine';
 import { VirtualJoystick } from './VirtualJoystick';
 
@@ -10,7 +10,13 @@ export interface WorldCanvasProps {
   snapshot: MapSnapshot;
 }
 
-const INITIAL_UI: WorldUiState = { area: null, nearbyPortal: null, zoom: 100 };
+const INITIAL_UI: WorldUiState = {
+  area: null,
+  nearbyPortal: null,
+  room: null,
+  environment: 'exterior',
+  zoom: 100,
+};
 
 function ControlIcon({ children }: { children: string }) {
   return <span aria-hidden="true">{children}</span>;
@@ -24,7 +30,7 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
   const [ready, setReady] = useState(false);
   const [assetError, setAssetError] = useState(false);
   const [ui, setUi] = useState<WorldUiState>(INITIAL_UI);
-  const [selectedPortal, setSelectedPortal] = useState<WorldPortal | null>(null);
+  const [sceneRoom, setSceneRoom] = useState<WorldUiState['room']>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -35,7 +41,7 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
       onReady: () => setReady(true),
       onAssetError: () => setAssetError(true),
       onUiChange: setUi,
-      onOpenRoom: setSelectedPortal,
+      onSceneChange: setSceneRoom,
     });
     engineRef.current = engine;
 
@@ -82,9 +88,17 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
       ) : null}
 
       <div className="world-location" aria-live="polite">
-        <span className="world-location-kicker">Now exploring</span>
-        <strong>{ui.area?.label ?? 'Central crossing'}</strong>
-        <span>{ui.area ? `${ui.area.roomCount} mapped rooms` : world.name}</span>
+        <span className="world-location-kicker">
+          {sceneRoom ? 'Inside channel' : 'Now exploring'}
+        </span>
+        <strong>{sceneRoom ? `#${sceneRoom.room.label}` : (ui.area?.label ?? 'Central crossing')}</strong>
+        <span>
+          {sceneRoom
+            ? `${sceneRoom.room.type} room · ${sceneRoom.areaLabel}`
+            : ui.area
+              ? `${ui.area.roomCount} mapped rooms`
+              : world.name}
+        </span>
       </div>
 
       <div className="world-controls" aria-label="World view controls">
@@ -111,6 +125,7 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
         <span><kbd>Click</kbd> walk</span>
         <span><kbd>Drag</kbd> pan</span>
         <span><kbd>Wheel</kbd> zoom</span>
+        <span><kbd>E</kbd> enter</span>
       </div>
 
       <VirtualJoystick
@@ -125,31 +140,10 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
         >
           <kbd>E</kbd>
           <span>
-            Open <strong>#{ui.nearbyPortal.room.label}</strong>
+            {ui.nearbyPortal.destination === 'world' ? 'Leave' : 'Enter'}{' '}
+            <strong>#{ui.nearbyPortal.room.label}</strong>
           </span>
         </button>
-      ) : null}
-
-      {selectedPortal ? (
-        <aside className="world-room-panel" aria-label="Selected room">
-          <button
-            className="world-room-close"
-            type="button"
-            onClick={() => setSelectedPortal(null)}
-            aria-label="Close room details"
-          >
-            ×
-          </button>
-          <span className="world-room-kicker">{selectedPortal.areaLabel}</span>
-          <h2>#{selectedPortal.room.label}</h2>
-          <p>
-            This <strong>{selectedPortal.room.type}</strong> room is represented as a place in the
-            world. Discord entry will connect here in a later slice.
-          </p>
-          <button type="button" className="world-room-action" disabled>
-            Discord connection pending
-          </button>
-        </aside>
       ) : null}
     </div>
   );

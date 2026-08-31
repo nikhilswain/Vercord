@@ -3,6 +3,7 @@ import { containsPoint, resolveMovement } from './collision';
 import { WorldInput } from './input';
 import { findPath } from './pathfinding';
 import { renderWorld } from './render-world';
+import { createRoomWorld } from './room-world';
 import type {
   Direction,
   PlayerState,
@@ -20,7 +21,7 @@ interface WorldEngineCallbacks {
   onReady: () => void;
   onAssetError: () => void;
   onUiChange: (state: WorldUiState) => void;
-  onOpenRoom: (portal: WorldPortal) => void;
+  onSceneChange: (room: WorldPortal | null) => void;
 }
 
 export class WorldEngine {
@@ -29,6 +30,10 @@ export class WorldEngine {
   private readonly camera = new WorldCamera();
   private readonly input = new WorldInput();
   private readonly player: PlayerState;
+  private readonly campusWorld: WorldDefinition;
+  private world: WorldDefinition;
+  private campusPlayer: PlayerState | null = null;
+  private currentRoom: WorldPortal | null = null;
   private animationFrame: number | null = null;
   private previousTime = 0;
   private elapsed = 0;
@@ -48,12 +53,14 @@ export class WorldEngine {
 
   public constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly world: WorldDefinition,
+    world: WorldDefinition,
     private readonly callbacks: WorldEngineCallbacks,
   ) {
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Canvas 2D is unavailable.');
     this.context = context;
+    this.world = world;
+    this.campusWorld = world;
     this.player = {
       ...world.spawn,
       direction: 'down',
@@ -98,7 +105,9 @@ export class WorldEngine {
   }
 
   public interact(): void {
-    if (this.nearbyPortal) this.callbacks.onOpenRoom(this.nearbyPortal);
+    if (!this.nearbyPortal) return;
+    if (this.nearbyPortal.destination === 'room') this.enterRoom(this.nearbyPortal);
+    else this.leaveRoom();
   }
 
   public destroy(): void {
@@ -217,7 +226,13 @@ export class WorldEngine {
       this.area = nextArea;
       this.nearbyPortal = nextPortal;
       this.previousZoom = zoom;
-      this.callbacks.onUiChange({ area: this.area, nearbyPortal: this.nearbyPortal, zoom });
+      this.callbacks.onUiChange({
+        area: this.area,
+        nearbyPortal: this.nearbyPortal,
+        room: this.currentRoom,
+        environment: this.world.environment,
+        zoom,
+      });
     }
   }
 
@@ -357,5 +372,40 @@ export class WorldEngine {
 
   private viewportCenter(): Point {
     return { x: this.viewport.width / 2, y: this.viewport.height / 2 };
+  }
+
+  private enterRoom(portal: WorldPortal): void {
+    this.campusPlayer = { ...this.player };
+    this.currentRoom = portal;
+    this.switchWorld(createRoomWorld(portal, this.campusWorld.theme), 'up');
+    this.callbacks.onSceneChange(portal);
+  }
+
+  private leaveRoom(): void {
+    const campusPlayer = this.campusPlayer;
+    this.world = this.campusWorld;
+    this.currentRoom = null;
+    this.route = [];
+    this.routeTarget = null;
+    if (campusPlayer) Object.assign(this.player, campusPlayer);
+    else Object.assign(this.player, this.campusWorld.spawn, { direction: 'down', moving: false });
+    this.resetUiCache();
+    this.camera.centerImmediately(this.player, this.world.bounds);
+    this.callbacks.onSceneChange(null);
+  }
+
+  private switchWorld(world: WorldDefinition, direction: Direction): void {
+    this.world = world;
+    this.route = [];
+    this.routeTarget = null;
+    Object.assign(this.player, world.spawn, { direction, moving: false });
+    this.resetUiCache();
+    this.camera.centerImmediately(this.player, world.bounds);
+  }
+
+  private resetUiCache(): void {
+    this.area = null;
+    this.nearbyPortal = null;
+    this.previousZoom = -1;
   }
 }

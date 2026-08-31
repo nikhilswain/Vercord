@@ -118,6 +118,7 @@ function buildAreas(snapshot: MapSnapshot, slots: AreaSlot[]): {
         areaLabel: area.label,
         room,
         accent: slot.accent,
+        destination: 'room',
       });
     });
   });
@@ -186,6 +187,7 @@ export function createUrbanWorld(snapshot: MapSnapshot): WorldDefinition {
 
   return {
     name: snapshot.server.displayName,
+    environment: 'exterior',
     theme: KENNEY_URBAN_THEME,
     bounds,
     spawn: { x: CENTRAL_PATH_X + CENTRAL_PATH_WIDTH / 2, y: 64 },

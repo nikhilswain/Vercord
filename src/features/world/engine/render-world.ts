@@ -137,6 +137,50 @@ function drawArea(ctx: CanvasRenderingContext2D, area: WorldArea): void {
   ctx.textAlign = 'left';
 }
 
+function drawInteriorShell(ctx: CanvasRenderingContext2D, world: WorldDefinition): void {
+  const area = world.areas[0];
+  const accent = area?.accent ?? '#9284f7';
+  ctx.fillStyle = '#c8b99e';
+  ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
+
+  ctx.strokeStyle = 'rgb(71 59 46 / 0.13)';
+  ctx.lineWidth = 1;
+  for (let y = 48; y < world.bounds.height - 48; y += 32) {
+    ctx.beginPath();
+    ctx.moveTo(48, y);
+    ctx.lineTo(world.bounds.width - 48, y);
+    ctx.stroke();
+  }
+  for (let x = 48; x < world.bounds.width - 48; x += 32) {
+    ctx.beginPath();
+    ctx.moveTo(x, 48);
+    ctx.lineTo(x, world.bounds.height - 48);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#313b54';
+  ctx.fillRect(0, 0, world.bounds.width, 48);
+  ctx.fillRect(0, 0, 48, world.bounds.height);
+  ctx.fillRect(world.bounds.width - 48, 0, 48, world.bounds.height);
+  ctx.fillRect(0, world.bounds.height - 48, 400, 48);
+  ctx.fillRect(496, world.bounds.height - 48, world.bounds.width - 496, 48);
+  ctx.fillStyle = accent;
+  ctx.fillRect(48, 44, world.bounds.width - 96, 4);
+
+  ctx.fillStyle = '#172136';
+  roundedRect(ctx, 72, 10, Math.min(360, world.bounds.width - 144), 28, 6);
+  ctx.fill();
+  ctx.fillStyle = '#f4f6ff';
+  ctx.font = '700 17px "Barlow Condensed", sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(world.name, 88, 24, 310);
+
+  ctx.fillStyle = '#18233d';
+  ctx.fillRect(400, world.bounds.height - 48, 96, 48);
+  ctx.fillStyle = accent;
+  ctx.fillRect(407, world.bounds.height - 10, 82, 6);
+}
+
 function roomGlyph(type: MapRoomType): string {
   switch (type) {
     case 'voice':
@@ -167,6 +211,21 @@ function drawPortal(
   const x = Math.round(portal.x);
   const y = Math.round(portal.y);
   const pulse = active ? 4 + Math.sin(elapsed / 160) * 2 : 0;
+
+  if (portal.destination === 'world') {
+    ctx.fillStyle = active ? portal.accent : '#65718a';
+    ctx.fillRect(x - 38, y + 18, 76, 6);
+    roundedRect(ctx, x - 34, y - 20, 68, 26, 6);
+    ctx.fillStyle = active ? '#18233d' : 'rgb(24 35 61 / 0.88)';
+    ctx.fill();
+    ctx.fillStyle = '#f4f6ff';
+    ctx.font = '700 11px "Cascadia Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('EXIT', x, y - 7);
+    ctx.textAlign = 'left';
+    return;
+  }
 
   ctx.fillStyle = 'rgb(3 7 18 / 0.22)';
   ctx.beginPath();
@@ -253,6 +312,57 @@ function drawProp(
     case 'building':
       ctx.fillStyle = prop.tint ?? '#c8764d';
       ctx.fillRect(x, y, width, height);
+      break;
+    case 'desk':
+      ctx.fillStyle = '#8a5a3d';
+      ctx.fillRect(x, y + 8, width, height - 24);
+      ctx.fillStyle = '#b17a52';
+      ctx.fillRect(x + 5, y, width - 10, 18);
+      ctx.fillStyle = '#303b55';
+      ctx.fillRect(x + 16, y + height - 20, 12, 20);
+      ctx.fillRect(x + width - 28, y + height - 20, 12, 20);
+      if (prop.tint) {
+        ctx.fillStyle = prop.tint;
+        ctx.fillRect(x + width / 2 - 18, y - 8, 36, 22);
+      }
+      break;
+    case 'sofa':
+      ctx.fillStyle = prop.tint ?? '#63769a';
+      roundedRect(ctx, x, y, width, height, 10);
+      ctx.fill();
+      ctx.fillStyle = 'rgb(244 246 255 / 0.14)';
+      ctx.fillRect(x + 10, y + 10, width - 20, 10);
+      ctx.strokeStyle = '#303b55';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x + 4, y + 4, width - 8, height - 8);
+      break;
+    case 'table':
+      ctx.fillStyle = '#9a6847';
+      roundedRect(ctx, x, y, width, height, 12);
+      ctx.fill();
+      ctx.strokeStyle = prop.tint ?? '#4e5a72';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      break;
+    case 'bookshelf':
+      ctx.fillStyle = '#5b3c32';
+      ctx.fillRect(x, y, width, height);
+      for (let bookX = x + 8; bookX < x + width - 8; bookX += 14) {
+        ctx.fillStyle = [theme.tiles.path % 2 === 0 ? '#d59645' : '#9284f7', '#45c5c7', '#f17c86'][
+          Math.floor((bookX - x) / 14) % 3
+        ] ?? '#d59645';
+        ctx.fillRect(bookX, y + 8, 8, height - 15);
+      }
+      break;
+    case 'screen':
+      ctx.fillStyle = '#27324a';
+      roundedRect(ctx, x, y, width, height, 8);
+      ctx.fill();
+      ctx.fillStyle = prop.tint ?? '#45c5c7';
+      ctx.fillRect(x + 9, y + 9, width - 18, height - 18);
+      ctx.fillStyle = 'rgb(244 246 255 / 0.24)';
+      ctx.fillRect(x + 18, y + 18, width * 0.38, 5);
+      ctx.fillRect(x + 18, y + 30, width * 0.58, 5);
       break;
   }
 }
@@ -363,11 +473,17 @@ export function renderWorld(
     height: visible.height + 192,
   };
 
-  ctx.fillStyle = '#67a86b';
-  ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
-  tileRect(ctx, image, world.theme, world.theme.tiles.ground, world.bounds, visible);
-  drawPaths(ctx, image, world, visible);
-  world.areas.filter((area) => intersects(area.bounds, visibleWithMargin)).forEach((area) => drawArea(ctx, area));
+  if (world.environment === 'interior') {
+    drawInteriorShell(ctx, world);
+  } else {
+    ctx.fillStyle = '#67a86b';
+    ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
+    tileRect(ctx, image, world.theme, world.theme.tiles.ground, world.bounds, visible);
+    drawPaths(ctx, image, world, visible);
+    world.areas
+      .filter((area) => intersects(area.bounds, visibleWithMargin))
+      .forEach((area) => drawArea(ctx, area));
+  }
   drawRoute(ctx, state);
 
   const sorted = [

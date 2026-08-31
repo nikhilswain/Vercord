@@ -46,17 +46,29 @@ export interface WorldPortal extends Point {
   areaLabel: string;
   room: MapRoom;
   accent: string;
+  destination: 'room' | 'world';
 }
 
 export interface WorldProp extends Rect {
   id: string;
-  kind: 'bench' | 'building' | 'fountain' | 'planter' | 'tree';
+  kind:
+    | 'bench'
+    | 'bookshelf'
+    | 'building'
+    | 'desk'
+    | 'fountain'
+    | 'planter'
+    | 'screen'
+    | 'sofa'
+    | 'table'
+    | 'tree';
   solid: boolean;
   tint?: string;
 }
 
 export interface WorldDefinition {
   name: string;
+  environment: 'exterior' | 'interior';
   theme: WorldTheme;
   bounds: Rect;
   spawn: Point;
@@ -75,5 +87,7 @@ export interface PlayerState extends Point {
 export interface WorldUiState {
   area: WorldArea | null;
   nearbyPortal: WorldPortal | null;
+  room: WorldPortal | null;
+  environment: WorldDefinition['environment'];
   zoom: number;
 }
