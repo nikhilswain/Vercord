@@ -29,6 +29,17 @@ export const KENNEY_URBAN_THEME: WorldTheme = {
     renderSize: 64,
     animationMs: 110,
   },
+  interiorAtlas: {
+    url: '/game-assets/pixel-lands/interiors.png',
+    sprites: {
+      bookshelf: { x: 160, y: 112, width: 32, height: 64 },
+      desk: { x: 192, y: 128, width: 48, height: 32 },
+      planter: { x: 240, y: 80, width: 16, height: 48 },
+      screen: { x: 64, y: 48, width: 32, height: 32 },
+      sofa: { x: 0, y: 128, width: 48, height: 32 },
+      table: { x: 64, y: 80, width: 48, height: 48 },
+    },
+  },
   tiles: {
     ground: 28,
     path: 8,

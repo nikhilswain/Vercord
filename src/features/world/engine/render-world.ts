@@ -267,10 +267,33 @@ function drawPortal(
 function drawProp(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
-  theme: WorldTheme,
+  interiorImage: HTMLImageElement | null,
+  world: WorldDefinition,
   prop: WorldProp,
 ): void {
+  const { theme } = world;
   const { x, y, width, height } = prop;
+  const interiorSprite =
+    world.environment === 'interior' ? theme.interiorAtlas?.sprites[prop.kind] : undefined;
+  if (interiorImage && interiorSprite) {
+    ctx.fillStyle = 'rgb(30 25 20 / 0.18)';
+    ctx.beginPath();
+    ctx.ellipse(x + width / 2, y + height - 4, width * 0.4, Math.max(5, height * 0.08), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.drawImage(
+      interiorImage,
+      interiorSprite.x,
+      interiorSprite.y,
+      interiorSprite.width,
+      interiorSprite.height,
+      x,
+      y,
+      width,
+      height,
+    );
+    return;
+  }
+
   switch (prop.kind) {
     case 'tree': {
       ctx.fillStyle = 'rgb(3 7 18 / 0.2)';
@@ -486,6 +509,7 @@ export function renderWorld(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
   avatarImages: readonly HTMLImageElement[],
+  interiorImage: HTMLImageElement | null,
   world: WorldDefinition,
   camera: WorldCamera,
   viewport: { width: number; height: number },
@@ -522,7 +546,7 @@ export function renderWorld(
       .filter((prop) => intersects(prop, visibleWithMargin))
       .map((prop) => ({
         y: prop.y + prop.height,
-        draw: () => drawProp(ctx, image, world.theme, prop),
+        draw: () => drawProp(ctx, image, interiorImage, world, prop),
       })),
     ...world.portals.filter((portal) => containsPortal(portal, visibleWithMargin)).map((portal) => ({
       y: portal.y,

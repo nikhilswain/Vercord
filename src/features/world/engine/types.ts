@@ -25,6 +25,18 @@ export interface WorldPath {
   bounds: Rect;
 }
 
+export type WorldPropKind =
+  | 'bench'
+  | 'bookshelf'
+  | 'building'
+  | 'desk'
+  | 'fountain'
+  | 'planter'
+  | 'screen'
+  | 'sofa'
+  | 'table'
+  | 'tree';
+
 export interface WorldTheme {
   id: string;
   name: string;
@@ -39,6 +51,10 @@ export interface WorldTheme {
     idleRows: Record<Direction, number>;
     renderSize: number;
     animationMs: number;
+  };
+  interiorAtlas?: {
+    url: string;
+    sprites: Partial<Record<WorldPropKind, Rect>>;
   };
   tiles: {
     ground: number;
@@ -60,17 +76,7 @@ export interface WorldPortal extends Point {
 
 export interface WorldProp extends Rect {
   id: string;
-  kind:
-    | 'bench'
-    | 'bookshelf'
-    | 'building'
-    | 'desk'
-    | 'fountain'
-    | 'planter'
-    | 'screen'
-    | 'sofa'
-    | 'table'
-    | 'tree';
+  kind: WorldPropKind;
   solid: boolean;
   tint?: string;
 }

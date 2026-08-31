@@ -42,6 +42,7 @@ export class WorldEngine {
   private readonly reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private image: HTMLImageElement | null = null;
   private avatarImages: HTMLImageElement[] = [];
+  private interiorImage: HTMLImageElement | null = null;
   private world: WorldDefinition;
   private campusPlayer: PlayerState | null = null;
   private currentRoom: WorldPortal | null = null;
@@ -83,11 +84,15 @@ export class WorldEngine {
   public start(): void {
     const avatarUrls = this.world.theme.avatar?.layerUrls ?? [];
     const avatarImages = Promise.all(avatarUrls.map((url) => loadImage(url))).catch(() => []);
-    void Promise.all([loadImage(this.world.theme.atlasUrl), avatarImages])
-      .then(([image, layers]) => {
+    const interiorImage = this.world.theme.interiorAtlas
+      ? loadImage(this.world.theme.interiorAtlas.url).catch(() => null)
+      : Promise.resolve(null);
+    void Promise.all([loadImage(this.world.theme.atlasUrl), avatarImages, interiorImage])
+      .then(([image, layers, interior]) => {
         if (this.destroyed) return;
         this.image = image;
         this.avatarImages = layers;
+        this.interiorImage = interior;
         this.callbacks.onReady();
         this.previousTime = performance.now();
         this.animationFrame = requestAnimationFrame(this.frame);
@@ -155,14 +160,23 @@ export class WorldEngine {
     this.previousTime = time;
     this.elapsed += deltaSeconds * 1000;
     this.update(deltaSeconds);
-    renderWorld(this.context, this.image, this.avatarImages, this.world, this.camera, this.viewport, {
-      elapsed: this.elapsed,
-      player: this.player,
-      nearbyPortal: this.nearbyPortal,
-      route: this.route,
-      routeTarget: this.routeTarget,
-      reduceMotion: this.reduceMotion,
-    });
+    renderWorld(
+      this.context,
+      this.image,
+      this.avatarImages,
+      this.interiorImage,
+      this.world,
+      this.camera,
+      this.viewport,
+      {
+        elapsed: this.elapsed,
+        player: this.player,
+        nearbyPortal: this.nearbyPortal,
+        route: this.route,
+        routeTarget: this.routeTarget,
+        reduceMotion: this.reduceMotion,
+      },
+    );
     this.animationFrame = requestAnimationFrame(this.frame);
   };
 
