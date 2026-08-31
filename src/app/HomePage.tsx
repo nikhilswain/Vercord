@@ -1,18 +1,18 @@
 import { AppHeader } from '../components/AppHeader';
-import { FoundationMapPreview } from '../components/FoundationMapPreview';
+import { WorldMapPreview } from '../components/WorldMapPreview';
 import '../styles/home.css';
 
 export function HomePage() {
   return (
     <div className="page-shell app-shell">
-      <AppHeader status={<span className="build-status">Atlas phase</span>} />
+      <AppHeader status={<span className="build-status">World prototype</span>} />
       <main className="hero">
         <section className="hero-copy" aria-labelledby="hero-title">
           <h1 id="hero-title">Turn your server into a world worth exploring.</h1>
           <p className="hero-context">Discord server world map</p>
           <p className="hero-description">
-            Dmap turns carefully published server structure into a clear atlas without exposing
-            messages, members, or private spaces.
+            Dmap turns carefully published server structure into a place you can walk through—one
+            district and room at a time.
           </p>
           <a className="primary-action" href="/map/demo">
             Explore demo map
@@ -21,12 +21,12 @@ export function HomePage() {
         <section className="preview-card" aria-labelledby="demo-illustration-title">
           <div className="preview-heading">
             <div>
-              <h2 id="demo-illustration-title">Demo illustration</h2>
-              <p>Community Atlas</p>
+              <h2 id="demo-illustration-title">Northstar Commons</h2>
+              <p>Playable community world</p>
             </div>
             <span>Fixture data</span>
           </div>
-          <FoundationMapPreview />
+          <WorldMapPreview />
         </section>
       </main>
       <footer className="site-footer">

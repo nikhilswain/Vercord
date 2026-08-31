@@ -1,32 +1,26 @@
 import { AppHeader } from '../../components/AppHeader';
-import { SourceStatus } from './components/MapStatus';
+import { WorldCanvas } from '../world/WorldCanvas';
+import '../world/world.css';
 import { demoMapFixtureResult } from './fixtures/demo-map';
-import { createMapViewState } from './map-view-state';
-import { MapPageView } from './MapPageView';
-import './map.css';
 
 export function DemoMapPage() {
-  const state = createMapViewState(
-    demoMapFixtureResult.ok ? demoMapFixtureResult.snapshot : null,
-    'fixture',
-  );
+  if (!demoMapFixtureResult.ok) {
+    return (
+      <main className="world-demo-error" role="alert">
+        <h1>World unavailable</h1>
+        <p>The local demo snapshot could not be read.</p>
+      </main>
+    );
+  }
+
   return (
-    <div className="atlas-page">
+    <div className="world-page">
       <AppHeader
-        context="Demo atlas"
-        status={
-          <span className="map-status">
-            <SourceStatus source="fixture" stale={false} />
-          </span>
-        }
+        context={demoMapFixtureResult.snapshot.server.displayName}
+        status={<span>Playable demo · local data</span>}
       />
-      <main>
-        <div className="atlas-intro">
-          <h1>Explore Northstar Commons</h1>
-          <p className="route-note">Invented community fixture</p>
-          <p>Read the districts and rooms of a sanitized demonstration map.</p>
-        </div>
-        <MapPageView state={state} />
+      <main className="world-main">
+        <WorldCanvas snapshot={demoMapFixtureResult.snapshot} />
       </main>
     </div>
   );

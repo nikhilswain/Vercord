@@ -6,6 +6,7 @@ coverage/
 playwright-report/
 test-results/
 *.local
+/assets/
 
 .dev.vars*
 !.dev.vars.example
