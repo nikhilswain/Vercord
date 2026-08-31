@@ -51,6 +51,12 @@ export interface WorldTheme {
     idleRows: Record<Direction, number>;
     renderSize: number;
     animationMs: number;
+    collider: {
+      width: number;
+      height: number;
+      offsetX: number;
+      offsetY: number;
+    };
   };
   interiorAtlas?: {
     url: string;

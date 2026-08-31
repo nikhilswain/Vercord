@@ -100,14 +100,9 @@ function drawPaths(
 
 function drawArea(ctx: CanvasRenderingContext2D, area: WorldArea): void {
   const { x, y, width, height } = area.bounds;
-  ctx.save();
-  ctx.shadowColor = 'rgb(3 7 18 / 0.3)';
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 8;
   roundedRect(ctx, x, y, width, height, 18);
   ctx.fillStyle = '#d5d1c6';
   ctx.fill();
-  ctx.restore();
 
   roundedRect(ctx, x, y, width, height, 18);
   ctx.strokeStyle = '#647086';
@@ -228,11 +223,6 @@ function drawPortal(
     return;
   }
 
-  ctx.fillStyle = 'rgb(3 7 18 / 0.22)';
-  ctx.beginPath();
-  ctx.ellipse(x, y + 1, 50, 13, 0, 0, Math.PI * 2);
-  ctx.fill();
-
   ctx.fillStyle = '#d98658';
   ctx.fillRect(x - 44, y - 69, 88, 43);
   for (let roofX = x - 48; roofX < x + 48; roofX += 32) {
@@ -276,10 +266,6 @@ function drawProp(
   const interiorSprite =
     world.environment === 'interior' ? theme.interiorAtlas?.sprites[prop.kind] : undefined;
   if (interiorImage && interiorSprite) {
-    ctx.fillStyle = 'rgb(30 25 20 / 0.18)';
-    ctx.beginPath();
-    ctx.ellipse(x + width / 2, y + height - 4, width * 0.4, Math.max(5, height * 0.08), 0, 0, Math.PI * 2);
-    ctx.fill();
     ctx.drawImage(
       interiorImage,
       interiorSprite.x,
@@ -296,10 +282,6 @@ function drawProp(
 
   switch (prop.kind) {
     case 'tree': {
-      ctx.fillStyle = 'rgb(3 7 18 / 0.2)';
-      ctx.beginPath();
-      ctx.ellipse(x + width / 2, y + height - 6, width * 0.38, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
       ctx.fillStyle = '#8b5a3c';
       ctx.fillRect(x + width / 2 - 7, y + 42, 14, 32);
       ctx.fillStyle = '#2e9f74';
@@ -420,10 +402,6 @@ function drawPlayer(
   const avatar = theme.avatar;
   const hasAvatar = avatar && avatarImages.length === avatar.layerUrls.length;
   const bob = !hasAvatar && player.moving && !reduceMotion ? Math.sin(elapsed / 70) * 1.5 : 0;
-  ctx.fillStyle = 'rgb(3 7 18 / 0.28)';
-  ctx.beginPath();
-  ctx.ellipse(player.x, player.y + 5, 13, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
 
   if (hasAvatar) {
     const row = player.moving ? avatar.walkRows[player.direction] : avatar.idleRows[player.direction];

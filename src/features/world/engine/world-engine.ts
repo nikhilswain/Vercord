@@ -212,11 +212,17 @@ export class WorldEngine {
     if (moving) {
       this.player.direction = this.directionFromVector(movementX, movementY);
       const speed = WALK_SPEED * (input.sprinting ? SPRINT_MULTIPLIER : 1);
-      const playerBox = {
-        x: this.player.x - 9,
-        y: this.player.y - 5,
+      const collider = this.world.theme.avatar?.collider ?? {
         width: 18,
         height: 12,
+        offsetX: -9,
+        offsetY: -5,
+      };
+      const playerBox = {
+        x: this.player.x + collider.offsetX,
+        y: this.player.y + collider.offsetY,
+        width: collider.width,
+        height: collider.height,
       };
       const next = resolveMovement(
         playerBox,
@@ -225,8 +231,8 @@ export class WorldEngine {
         this.world.colliders,
         this.world.bounds,
       );
-      this.player.x = next.x + 9;
-      this.player.y = next.y + 5;
+      this.player.x = next.x - collider.offsetX;
+      this.player.y = next.y - collider.offsetY;
     }
 
     this.camera.update(this.player, this.world.bounds, deltaSeconds * 60);

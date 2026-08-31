@@ -17,17 +17,23 @@ export const KENNEY_URBAN_THEME: WorldTheme = {
     walkRows: {
       down: 4,
       up: 5,
-      left: 6,
-      right: 7,
+      left: 7,
+      right: 6,
     },
     idleRows: {
       down: 0,
       up: 1,
-      left: 2,
-      right: 3,
+      left: 3,
+      right: 2,
     },
     renderSize: 64,
     animationMs: 110,
+    collider: {
+      width: 18,
+      height: 26,
+      offsetX: -9,
+      offsetY: -24,
+    },
   },
   interiorAtlas: {
     url: '/game-assets/pixel-lands/interiors.png',
