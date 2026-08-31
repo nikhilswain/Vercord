@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { MapSnapshot } from '../../domain/map/snapshot';
-import { createUrbanWorld } from './engine/urban-world';
+import { createVillageWorld } from './engine/village-world';
 import type { WorldUiState } from './engine/types';
 import { WorldEngine } from './engine/world-engine';
 import { VirtualJoystick } from './VirtualJoystick';
@@ -26,7 +26,7 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<WorldEngine | null>(null);
-  const world = useMemo(() => createUrbanWorld(snapshot), [snapshot]);
+  const world = useMemo(() => createVillageWorld(snapshot), [snapshot]);
   const [ready, setReady] = useState(false);
   const [assetError, setAssetError] = useState(false);
   const [ui, setUi] = useState<WorldUiState>(INITIAL_UI);

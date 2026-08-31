@@ -32,6 +32,22 @@ export interface WorldTileLayer {
   radius?: number;
 }
 
+export interface WorldTileStamp extends Point {
+  id: string;
+  tiles: Array<Array<number | null>>;
+  tileSize: number;
+  layer?: 'floor' | 'object';
+  solid?: boolean;
+  hitbox?: Rect;
+  sortY?: number;
+}
+
+export interface WorldBuildingStyle {
+  id: string;
+  doorColumn: number;
+  tiles: Array<Array<number | null>>;
+}
+
 export type WorldPropKind =
   | 'bench'
   | 'bookshelf'
@@ -52,6 +68,7 @@ export interface WorldTheme {
   atlasUrl: string;
   sourceTileSize: number;
   sheetColumns: number;
+  worldTileSize: number;
   avatar?: {
     layerUrls: string[];
     frameSize: number;
@@ -71,9 +88,8 @@ export interface WorldTheme {
     url: string;
     sprites: Partial<Record<WorldPropKind, Rect>>;
   };
-  exteriorSprites?: {
-    buildings: Rect[];
-    trees: Rect[];
+  exterior?: {
+    buildings: WorldBuildingStyle[];
   };
   tiles: {
     ground: number;
@@ -90,6 +106,7 @@ export interface WorldPortal extends Point {
   room: MapRoom;
   accent: string;
   destination: 'room' | 'world';
+  buildingStyle?: number;
 }
 
 export interface WorldProp extends Rect {
@@ -110,6 +127,7 @@ export interface WorldDefinition {
   areas: WorldArea[];
   paths: WorldPath[];
   tileLayers: WorldTileLayer[];
+  tileStamps: WorldTileStamp[];
   portals: WorldPortal[];
   props: WorldProp[];
   colliders: Rect[];

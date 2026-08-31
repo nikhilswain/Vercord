@@ -9,9 +9,8 @@ import type {
   WorldPortal,
   WorldProp,
   WorldTheme,
+  WorldTileStamp,
 } from './types';
-
-const WORLD_TILE = 32;
 
 interface RenderState {
   elapsed: number;
@@ -41,8 +40,8 @@ function drawSheetTile(
   index: number,
   x: number,
   y: number,
-  width = WORLD_TILE,
-  height = WORLD_TILE,
+  width = theme.worldTileSize,
+  height = theme.worldTileSize,
 ): void {
   const sourceX = (index % theme.sheetColumns) * theme.sourceTileSize;
   const sourceY = Math.floor(index / theme.sheetColumns) * theme.sourceTileSize;
@@ -67,12 +66,13 @@ function tileRect(
   rect: Rect,
   clip = rect,
 ): void {
-  const startX = Math.max(rect.x, rect.x + Math.floor((clip.x - rect.x) / WORLD_TILE) * WORLD_TILE);
-  const startY = Math.max(rect.y, rect.y + Math.floor((clip.y - rect.y) / WORLD_TILE) * WORLD_TILE);
-  const endX = Math.min(rect.x + rect.width, clip.x + clip.width + WORLD_TILE);
-  const endY = Math.min(rect.y + rect.height, clip.y + clip.height + WORLD_TILE);
-  for (let y = startY; y < endY; y += WORLD_TILE) {
-    for (let x = startX; x < endX; x += WORLD_TILE) {
+  const tileSize = theme.worldTileSize;
+  const startX = Math.max(rect.x, rect.x + Math.floor((clip.x - rect.x) / tileSize) * tileSize);
+  const startY = Math.max(rect.y, rect.y + Math.floor((clip.y - rect.y) / tileSize) * tileSize);
+  const endX = Math.min(rect.x + rect.width, clip.x + clip.width + tileSize);
+  const endY = Math.min(rect.y + rect.height, clip.y + clip.height + tileSize);
+  for (let y = startY; y < endY; y += tileSize) {
+    for (let x = startX; x < endX; x += tileSize) {
       drawSheetTile(ctx, image, theme, index, x, y);
     }
   }
@@ -108,43 +108,72 @@ function drawTileLayers(
     });
 }
 
-function variantFor(key: string, variants: readonly Rect[]): Rect | undefined {
-  if (variants.length === 0) return undefined;
-  const value = [...key].reduce((total, character) => total + character.charCodeAt(0), 0);
-  return variants[value % variants.length];
-}
-
-function drawAtlasRegion(
+function drawTileMatrix(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
-  source: Rect,
-  destination: Rect,
+  theme: WorldTheme,
+  tiles: Array<Array<number | null>>,
+  x: number,
+  y: number,
+  tileSize: number,
 ): void {
-  ctx.drawImage(
-    image,
-    source.x,
-    source.y,
-    source.width,
-    source.height,
-    destination.x,
-    destination.y,
-    destination.width,
-    destination.height,
-  );
+  tiles.forEach((row, rowIndex) => {
+    row.forEach((tileIndex, columnIndex) => {
+      if (tileIndex === null) return;
+      drawSheetTile(
+        ctx,
+        image,
+        theme,
+        tileIndex,
+        x + columnIndex * tileSize,
+        y + rowIndex * tileSize,
+        tileSize,
+        tileSize,
+      );
+    });
+  });
+}
+
+function tileStampBounds(stamp: WorldTileStamp): Rect {
+  return {
+    x: stamp.x,
+    y: stamp.y,
+    width: Math.max(0, ...stamp.tiles.map((row) => row.length)) * stamp.tileSize,
+    height: stamp.tiles.length * stamp.tileSize,
+  };
+}
+
+function drawTileStamp(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  theme: WorldTheme,
+  stamp: WorldTileStamp,
+): void {
+  drawTileMatrix(ctx, image, theme, stamp.tiles, stamp.x, stamp.y, stamp.tileSize);
 }
 
 function drawArea(ctx: CanvasRenderingContext2D, area: WorldArea): void {
-  const { x, y, width, height } = area.bounds;
+  const { x, y, width } = area.bounds;
+  const roomCount = `${area.roomCount} room${area.roomCount === 1 ? '' : 's'}`;
+  ctx.font = '700 22px "Barlow Condensed", sans-serif';
+  const labelWidth = ctx.measureText(area.label).width;
+  ctx.font = '600 10px "Cascadia Mono", monospace';
+  const countWidth = ctx.measureText(roomCount).width;
+  const plaqueWidth = Math.min(width - 48, Math.max(184, labelWidth + countWidth + 78));
+
+  roundedRect(ctx, x + 18, y + 14, plaqueWidth, 46, 5);
+  ctx.fillStyle = 'rgb(23 33 54 / 0.9)';
+  ctx.fill();
   ctx.fillStyle = area.accent;
-  ctx.fillRect(x + 24, y + 20, 5, 36);
-  ctx.fillStyle = '#172136';
-  ctx.font = '700 24px "Barlow Condensed", sans-serif';
+  ctx.fillRect(x + 18, y + 14, 5, 46);
+  ctx.fillStyle = '#f4f6ff';
+  ctx.font = '700 22px "Barlow Condensed", sans-serif';
   ctx.textBaseline = 'middle';
-  ctx.fillText(area.label, x + 42, y + 44, width - 118);
-  ctx.fillStyle = '#46516c';
-  ctx.font = '600 11px "Cascadia Mono", monospace';
+  ctx.fillText(area.label, x + 35, y + 37, plaqueWidth - countWidth - 64);
+  ctx.fillStyle = '#c9d1e2';
+  ctx.font = '600 10px "Cascadia Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText(`${area.roomCount} ROOM${area.roomCount === 1 ? '' : 'S'}`, x + width - 24, y + 44);
+  ctx.fillText(roomCount, x + 18 + plaqueWidth - 12, y + 37);
   ctx.textAlign = 'left';
 }
 
@@ -236,27 +265,44 @@ function drawPortal(
     return;
   }
 
-  const building = variantFor(portal.key, theme.exteriorSprites?.buildings ?? []);
+  const buildings = theme.exterior?.buildings ?? [];
+  const building = buildings[(portal.buildingStyle ?? 0) % Math.max(1, buildings.length)];
   if (building) {
-    drawAtlasRegion(ctx, image, building, { x: x - 72, y: y - 136, width: 144, height: 144 });
+    const tileSize = theme.worldTileSize;
+    const startX = x - (building.doorColumn + 0.5) * tileSize;
+    const startY = y - building.tiles.length * tileSize;
+    drawTileMatrix(ctx, image, theme, building.tiles, startX, startY, tileSize);
   } else {
-    ctx.fillStyle = '#b66f4f';
-    ctx.fillRect(x - 64, y - 110, 128, 104);
+    drawTileMatrix(
+      ctx,
+      image,
+      theme,
+      [
+        [48, 49, 50],
+        [60, 63, 62],
+        [72, 73, 75],
+        [72, 85, 75],
+      ],
+      x - theme.worldTileSize * 1.5,
+      y - theme.worldTileSize * 4,
+      theme.worldTileSize,
+    );
   }
 
-  roundedRect(ctx, x - 66, y + 8, 132, 30, 7);
+  ctx.font = '700 13px "Inter Variable", sans-serif';
+  const labelWidth = Math.max(126, Math.min(190, ctx.measureText(portal.room.label).width + 52));
+  roundedRect(ctx, x - labelWidth / 2, y + 8, labelWidth, 30, 6);
   ctx.fillStyle = active ? '#18233d' : 'rgb(24 35 61 / 0.9)';
   ctx.fill();
   if (active) {
     ctx.fillStyle = portal.accent;
-    ctx.fillRect(x - 58, y + 33, 116, 4);
+    ctx.fillRect(x - labelWidth / 2 + 7, y + 33, labelWidth - 14, 4);
   }
   ctx.fillStyle = portal.accent;
-  ctx.font = '700 13px "Inter Variable", sans-serif';
   ctx.textBaseline = 'middle';
-  ctx.fillText(roomGlyph(portal.room.type), x - 55, y + 23);
+  ctx.fillText(roomGlyph(portal.room.type), x - labelWidth / 2 + 11, y + 23);
   ctx.fillStyle = '#f4f6ff';
-  ctx.fillText(portal.room.label, x - 37, y + 23, 94);
+  ctx.fillText(portal.room.label, x - labelWidth / 2 + 30, y + 23, labelWidth - 39);
 }
 
 function drawProp(
@@ -286,11 +332,9 @@ function drawProp(
   }
 
   switch (prop.kind) {
-    case 'tree': {
-      const tree = variantFor(prop.id, theme.exteriorSprites?.trees ?? []);
-      if (tree) drawAtlasRegion(ctx, image, tree, prop);
+    case 'tree':
+      drawTileMatrix(ctx, image, theme, [[4], [16]], x, y, Math.min(width, theme.worldTileSize));
       break;
-    }
     case 'bench':
       ctx.fillStyle = '#8b5136';
       ctx.fillRect(x, y + 6, width, 16);
@@ -512,7 +556,7 @@ export function renderWorld(
   if (world.environment === 'interior') {
     drawInteriorShell(ctx, world);
   } else {
-    ctx.fillStyle = '#67a86b';
+    ctx.fillStyle = '#7ec665';
     ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
     tileRect(ctx, image, world.theme, world.theme.tiles.ground, world.bounds, visible);
     drawTileLayers(ctx, image, world, visible);
@@ -521,12 +565,25 @@ export function renderWorld(
       .forEach((area) => drawArea(ctx, area));
   }
   const visibleProps = world.props.filter((prop) => intersects(prop, visibleWithMargin));
+  const visibleStamps = world.tileStamps.filter((stamp) => intersects(tileStampBounds(stamp), visibleWithMargin));
+  visibleStamps
+    .filter((stamp) => stamp.layer === 'floor')
+    .forEach((stamp) => drawTileStamp(ctx, image, world.theme, stamp));
   visibleProps
     .filter((prop) => prop.layer === 'floor')
     .forEach((prop) => drawProp(ctx, image, interiorImage, world, prop));
   drawRoute(ctx, state);
 
   const sorted = [
+    ...visibleStamps
+      .filter((stamp) => stamp.layer !== 'floor')
+      .map((stamp) => {
+        const bounds = tileStampBounds(stamp);
+        return {
+          y: stamp.sortY ?? bounds.y + bounds.height,
+          draw: () => drawTileStamp(ctx, image, world.theme, stamp),
+        };
+      }),
     ...visibleProps
       .filter((prop) => prop.layer !== 'floor')
       .map((prop) => ({

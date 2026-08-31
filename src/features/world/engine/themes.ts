@@ -6,6 +6,7 @@ export const KENNEY_TINY_TOWN_THEME: WorldTheme = {
   atlasUrl: '/game-assets/tiny-town/tiles.png',
   sourceTileSize: 16,
   sheetColumns: 12,
+  worldTileSize: 48,
   avatar: {
     layerUrls: [
       '/game-assets/mana-seed/base.png',
@@ -48,15 +49,68 @@ export const KENNEY_TINY_TOWN_THEME: WorldTheme = {
       table: { x: 192, y: 128, width: 48, height: 32 },
     },
   },
-  exteriorSprites: {
+  exterior: {
     buildings: [
-      { x: 0, y: 48, width: 48, height: 48 },
-      { x: 48, y: 48, width: 48, height: 48 },
-    ],
-    trees: [
-      { x: 48, y: 0, width: 16, height: 32 },
-      { x: 64, y: 0, width: 16, height: 32 },
-      { x: 80, y: 0, width: 16, height: 32 },
+      {
+        id: 'blue-roof-cottage',
+        doorColumn: 1,
+        tiles: [
+          [48, 49, 50],
+          [60, 63, 62],
+          [72, 73, 75],
+          [72, 85, 75],
+        ],
+      },
+      {
+        id: 'orange-roof-cottage',
+        doorColumn: 1,
+        tiles: [
+          [52, 53, 54],
+          [64, 67, 66],
+          [76, 77, 79],
+          [76, 89, 79],
+        ],
+      },
+      {
+        id: 'blue-roof-workshop',
+        doorColumn: 2,
+        tiles: [
+          [48, 49, 49, 50],
+          [60, 61, 63, 62],
+          [72, 73, 73, 75],
+          [72, 84, 85, 75],
+        ],
+      },
+      {
+        id: 'orange-roof-hall',
+        doorColumn: 2,
+        tiles: [
+          [52, 53, 53, 54],
+          [64, 65, 67, 66],
+          [76, 77, 77, 79],
+          [76, 88, 89, 79],
+        ],
+      },
+      {
+        id: 'slate-roof-stone-house',
+        doorColumn: 1,
+        tiles: [
+          [48, 49, 50],
+          [60, 63, 62],
+          [76, 77, 79],
+          [76, 89, 79],
+        ],
+      },
+      {
+        id: 'terracotta-roof-townhouse',
+        doorColumn: 2,
+        tiles: [
+          [52, 53, 53, 54],
+          [64, 65, 67, 66],
+          [72, 73, 73, 75],
+          [72, 84, 85, 75],
+        ],
+      },
     ],
   },
   tiles: {

@@ -156,6 +156,7 @@ export function createRoomWorld(portal: WorldPortal, theme: WorldTheme): WorldDe
     ],
     paths: [],
     tileLayers: [],
+    tileStamps: [],
     portals: [exit],
     props,
     colliders: [
