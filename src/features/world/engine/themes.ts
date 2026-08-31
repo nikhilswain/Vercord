@@ -48,9 +48,13 @@ export const KENNEY_URBAN_THEME: WorldTheme = {
   },
   tiles: {
     ground: 28,
-    path: 8,
-    roof: 21,
-    tree: 178,
+    path: 468,
+    plaza: 8,
+    facade: 74,
+    roof: 20,
+    tree: 232,
+    planter: 260,
+    lamp: 167,
     player: {
       right: 23,
       down: 24,

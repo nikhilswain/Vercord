@@ -25,12 +25,19 @@ export interface WorldPath {
   bounds: Rect;
 }
 
+export interface WorldTileLayer {
+  id: string;
+  bounds: Rect;
+  tileIndex: number;
+}
+
 export type WorldPropKind =
   | 'bench'
   | 'bookshelf'
   | 'building'
   | 'desk'
   | 'fountain'
+  | 'lamp'
   | 'planter'
   | 'screen'
   | 'sofa'
@@ -65,8 +72,12 @@ export interface WorldTheme {
   tiles: {
     ground: number;
     path: number;
+    plaza: number;
+    facade: number;
     roof: number;
     tree: number;
+    planter: number;
+    lamp: number;
     player: Record<Direction, number>;
   };
 }
@@ -95,6 +106,7 @@ export interface WorldDefinition {
   spawn: Point;
   areas: WorldArea[];
   paths: WorldPath[];
+  tileLayers: WorldTileLayer[];
   portals: WorldPortal[];
   props: WorldProp[];
   colliders: Rect[];

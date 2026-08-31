@@ -7,6 +7,7 @@ import type {
   WorldPath,
   WorldPortal,
   WorldProp,
+  WorldTileLayer,
 } from './types';
 import { KENNEY_URBAN_THEME } from './themes';
 
@@ -169,7 +170,50 @@ function buildProps(areas: WorldArea[], worldHeight: number): WorldProp[] {
       solid: true,
       tint: area.accent,
     });
+    props.push(
+      {
+        id: `tree-left-${area.key}`,
+        kind: 'tree',
+        x: area.bounds.x + 24,
+        y: area.bounds.y + area.bounds.height - 108,
+        width: 64,
+        height: 80,
+        solid: true,
+      },
+      {
+        id: `tree-right-${area.key}`,
+        kind: 'tree',
+        x: area.bounds.x + area.bounds.width - 88,
+        y: area.bounds.y + area.bounds.height - 108,
+        width: 64,
+        height: 80,
+        solid: true,
+      },
+    );
   });
+
+  for (let y = 152; y < worldHeight - 96; y += 224) {
+    props.push(
+      {
+        id: `lamp-west-${y}`,
+        kind: 'lamp',
+        x: CENTRAL_PATH_X - 36,
+        y,
+        width: 28,
+        height: 56,
+        solid: true,
+      },
+      {
+        id: `lamp-east-${y}`,
+        kind: 'lamp',
+        x: CENTRAL_PATH_X + CENTRAL_PATH_WIDTH + 8,
+        y: y + 96,
+        width: 28,
+        height: 56,
+        solid: true,
+      },
+    );
+  }
   return props;
 }
 
@@ -177,6 +221,18 @@ export function createUrbanWorld(snapshot: MapSnapshot): WorldDefinition {
   const layout = createAreaSlots(snapshot);
   const { areas, portals } = buildAreas(snapshot, layout.slots);
   const props = buildProps(areas, layout.height);
+  const tileLayers: WorldTileLayer[] = [
+    ...layout.paths.map((path) => ({
+      id: path.id,
+      bounds: path.bounds,
+      tileIndex: KENNEY_URBAN_THEME.tiles.path,
+    })),
+    ...areas.map((area) => ({
+      id: `neighborhood-${area.key}`,
+      bounds: area.bounds,
+      tileIndex: KENNEY_URBAN_THEME.tiles.plaza,
+    })),
+  ];
   const bounds: Rect = { x: 0, y: 0, width: WORLD_WIDTH, height: layout.height };
   const portalColliders: Rect[] = portals.map((portal) => ({
     x: portal.x - 44,
@@ -193,6 +249,7 @@ export function createUrbanWorld(snapshot: MapSnapshot): WorldDefinition {
     spawn: { x: CENTRAL_PATH_X + CENTRAL_PATH_WIDTH / 2, y: 64 },
     areas,
     paths: layout.paths,
+    tileLayers,
     portals,
     props,
     colliders: [

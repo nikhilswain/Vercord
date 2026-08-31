@@ -82,51 +82,26 @@ function intersects(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
-function drawPaths(
+function drawTileLayers(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
   world: WorldDefinition,
   visible: Rect,
 ): void {
-  world.paths.filter(({ bounds }) => intersects(bounds, visible)).forEach(({ bounds: path }) => {
-    ctx.fillStyle = '#aeb2bd';
-    ctx.fillRect(path.x, path.y, path.width, path.height);
-    tileRect(ctx, image, world.theme, world.theme.tiles.path, path, visible);
-    ctx.strokeStyle = 'rgb(31 43 65 / 0.28)';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(path.x + 2, path.y + 2, path.width - 4, path.height - 4);
-  });
+  world.tileLayers
+    .filter(({ bounds }) => intersects(bounds, visible))
+    .forEach((layer) => tileRect(ctx, image, world.theme, layer.tileIndex, layer.bounds, visible));
 }
 
 function drawArea(ctx: CanvasRenderingContext2D, area: WorldArea): void {
   const { x, y, width, height } = area.bounds;
-  roundedRect(ctx, x, y, width, height, 18);
-  ctx.fillStyle = '#d5d1c6';
-  ctx.fill();
-
-  roundedRect(ctx, x, y, width, height, 18);
-  ctx.strokeStyle = '#647086';
-  ctx.lineWidth = 8;
-  ctx.stroke();
-  roundedRect(ctx, x + 10, y + 10, width - 20, height - 20, 12);
-  ctx.strokeStyle = area.accent;
-  ctx.lineWidth = 3;
-  ctx.setLineDash([10, 8]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.fillStyle = '#18233d';
-  roundedRect(ctx, x + 24, y + 20, Math.min(230, width - 48), 48, 8);
-  ctx.fill();
-  ctx.fillStyle = '#f4f6ff';
+  ctx.fillStyle = area.accent;
+  ctx.fillRect(x + 24, y + 20, 5, 36);
+  ctx.fillStyle = '#172136';
   ctx.font = '700 24px "Barlow Condensed", sans-serif';
   ctx.textBaseline = 'middle';
   ctx.fillText(area.label, x + 42, y + 44, width - 118);
-  ctx.fillStyle = area.accent;
-  ctx.beginPath();
-  ctx.arc(x + 29, y + 44, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#a8b2ca';
+  ctx.fillStyle = '#46516c';
   ctx.font = '600 11px "Cascadia Mono", monospace';
   ctx.textAlign = 'right';
   ctx.fillText(`${area.roomCount} ROOM${area.roomCount === 1 ? '' : 'S'}`, x + width - 24, y + 44);
@@ -223,11 +198,12 @@ function drawPortal(
     return;
   }
 
-  ctx.fillStyle = '#d98658';
-  ctx.fillRect(x - 44, y - 69, 88, 43);
-  for (let roofX = x - 48; roofX < x + 48; roofX += 32) {
-    drawSheetTile(ctx, image, theme, theme.tiles.roof, roofX, y - 82, 32, 24);
-  }
+  const facade = { x: x - 48, y: y - 70, width: 96, height: 48 };
+  tileRect(ctx, image, theme, theme.tiles.facade, facade);
+  ctx.fillStyle = `${portal.accent}32`;
+  ctx.fillRect(facade.x, facade.y, facade.width, facade.height);
+  for (let roofX = x - 48; roofX < x + 48; roofX += 32)
+    drawSheetTile(ctx, image, theme, theme.tiles.roof, roofX, y - 86, 32, 24);
   ctx.fillStyle = '#46516c';
   ctx.fillRect(x - 15, y - 55, 30, 31);
   ctx.fillStyle = '#18233d';
@@ -282,11 +258,7 @@ function drawProp(
 
   switch (prop.kind) {
     case 'tree': {
-      ctx.fillStyle = '#8b5a3c';
-      ctx.fillRect(x + width / 2 - 7, y + 42, 14, 32);
-      ctx.fillStyle = '#2e9f74';
-      ctx.fillRect(x + 14, y + 12, 36, 44);
-      drawSheetTile(ctx, image, theme, theme.tiles.tree, x + 16, y + 8, 32, 32);
+      drawSheetTile(ctx, image, theme, theme.tiles.tree, x, y, width, height);
       break;
     }
     case 'bench':
@@ -307,13 +279,11 @@ function drawProp(
       ctx.fillStyle = '#d9e1f2';
       ctx.fillRect(x + width / 2 - 7, y, 14, 45);
       break;
+    case 'lamp':
+      drawSheetTile(ctx, image, theme, theme.tiles.lamp, x, y, width, height);
+      break;
     case 'planter':
-      ctx.fillStyle = '#9a5a3a';
-      ctx.fillRect(x + 5, y + 23, width - 10, height - 23);
-      ctx.fillStyle = '#43a777';
-      ctx.beginPath();
-      ctx.arc(x + width / 2, y + 19, width * 0.38, 0, Math.PI * 2);
-      ctx.fill();
+      drawSheetTile(ctx, image, theme, theme.tiles.planter, x, y, width, height);
       break;
     case 'building':
       ctx.fillStyle = prop.tint ?? '#c8764d';
@@ -512,7 +482,7 @@ export function renderWorld(
     ctx.fillStyle = '#67a86b';
     ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
     tileRect(ctx, image, world.theme, world.theme.tiles.ground, world.bounds, visible);
-    drawPaths(ctx, image, world, visible);
+    drawTileLayers(ctx, image, world, visible);
     world.areas
       .filter((area) => intersects(area.bounds, visibleWithMargin))
       .forEach((area) => drawArea(ctx, area));
