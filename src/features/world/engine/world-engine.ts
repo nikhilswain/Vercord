@@ -17,6 +17,15 @@ import type {
 const WALK_SPEED = 150;
 const SPRINT_MULTIPLIER = 1.65;
 
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image), { once: true });
+    image.addEventListener('error', () => reject(new Error(`Unable to load ${url}`)), { once: true });
+    image.src = url;
+  });
+}
+
 interface WorldEngineCallbacks {
   onReady: () => void;
   onAssetError: () => void;
@@ -26,11 +35,13 @@ interface WorldEngineCallbacks {
 
 export class WorldEngine {
   private readonly context: CanvasRenderingContext2D;
-  private readonly image = new Image();
   private readonly camera = new WorldCamera();
   private readonly input = new WorldInput();
   private readonly player: PlayerState;
   private readonly campusWorld: WorldDefinition;
+  private readonly reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private image: HTMLImageElement | null = null;
+  private avatarImages: HTMLImageElement[] = [];
   private world: WorldDefinition;
   private campusPlayer: PlayerState | null = null;
   private currentRoom: WorldPortal | null = null;
@@ -70,9 +81,20 @@ export class WorldEngine {
   }
 
   public start(): void {
-    this.image.addEventListener('load', this.handleImageLoad);
-    this.image.addEventListener('error', this.handleImageError);
-    this.image.src = this.world.theme.atlasUrl;
+    const avatarUrls = this.world.theme.avatar?.layerUrls ?? [];
+    const avatarImages = Promise.all(avatarUrls.map((url) => loadImage(url))).catch(() => []);
+    void Promise.all([loadImage(this.world.theme.atlasUrl), avatarImages])
+      .then(([image, layers]) => {
+        if (this.destroyed) return;
+        this.image = image;
+        this.avatarImages = layers;
+        this.callbacks.onReady();
+        this.previousTime = performance.now();
+        this.animationFrame = requestAnimationFrame(this.frame);
+      })
+      .catch(() => {
+        if (!this.destroyed) this.callbacks.onAssetError();
+      });
   }
 
   public resize(width: number, height: number): void {
@@ -113,8 +135,6 @@ export class WorldEngine {
   public destroy(): void {
     this.destroyed = true;
     if (this.animationFrame !== null) cancelAnimationFrame(this.animationFrame);
-    this.image.removeEventListener('load', this.handleImageLoad);
-    this.image.removeEventListener('error', this.handleImageError);
     this.input.destroy();
     window.removeEventListener('keydown', this.handleKeyDown);
     this.canvas.removeEventListener('pointerdown', this.handlePointerDown);
@@ -128,29 +148,20 @@ export class WorldEngine {
     this.canvas.removeEventListener('touchcancel', this.handleTouchEnd);
   }
 
-  private readonly handleImageLoad = (): void => {
-    if (this.destroyed) return;
-    this.callbacks.onReady();
-    this.previousTime = performance.now();
-    this.animationFrame = requestAnimationFrame(this.frame);
-  };
-
-  private readonly handleImageError = (): void => {
-    if (!this.destroyed) this.callbacks.onAssetError();
-  };
-
   private readonly frame = (time: number): void => {
     if (this.destroyed) return;
+    if (!this.image) return;
     const deltaSeconds = Math.min(0.05, Math.max(0, (time - this.previousTime) / 1000));
     this.previousTime = time;
     this.elapsed += deltaSeconds * 1000;
     this.update(deltaSeconds);
-    renderWorld(this.context, this.image, this.world, this.camera, this.viewport, {
+    renderWorld(this.context, this.image, this.avatarImages, this.world, this.camera, this.viewport, {
       elapsed: this.elapsed,
       player: this.player,
       nearbyPortal: this.nearbyPortal,
       route: this.route,
       routeTarget: this.routeTarget,
+      reduceMotion: this.reduceMotion,
     });
     this.animationFrame = requestAnimationFrame(this.frame);
   };

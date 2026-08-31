@@ -31,6 +31,15 @@ export interface WorldTheme {
   atlasUrl: string;
   sourceTileSize: number;
   sheetColumns: number;
+  avatar?: {
+    layerUrls: string[];
+    frameSize: number;
+    walkFrames: number;
+    walkRows: Record<Direction, number>;
+    idleRows: Record<Direction, number>;
+    renderSize: number;
+    animationMs: number;
+  };
   tiles: {
     ground: number;
     path: number;

@@ -19,6 +19,7 @@ interface RenderState {
   nearbyPortal: WorldPortal | null;
   route: Point[];
   routeTarget: Point | null;
+  reduceMotion: boolean;
 }
 
 function roundedRect(
@@ -387,34 +388,63 @@ function drawRoute(ctx: CanvasRenderingContext2D, state: RenderState): void {
 function drawPlayer(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
+  avatarImages: readonly HTMLImageElement[],
   theme: WorldTheme,
   player: PlayerState,
   elapsed: number,
+  reduceMotion: boolean,
 ): void {
-  const bob = player.moving ? Math.sin(elapsed / 70) * 1.5 : 0;
+  const avatar = theme.avatar;
+  const hasAvatar = avatar && avatarImages.length === avatar.layerUrls.length;
+  const bob = !hasAvatar && player.moving && !reduceMotion ? Math.sin(elapsed / 70) * 1.5 : 0;
   ctx.fillStyle = 'rgb(3 7 18 / 0.28)';
   ctx.beginPath();
-  ctx.ellipse(player.x, player.y + 9, 13, 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(player.x, player.y + 5, 13, 6, 0, 0, Math.PI * 2);
   ctx.fill();
-  drawSheetTile(
-    ctx,
-    image,
-    theme,
-    theme.tiles.player[player.direction],
-    player.x - 18,
-    player.y - 27 + bob,
-    36,
-    36,
-  );
 
-  roundedRect(ctx, player.x - 29, player.y - 50 + bob, 58, 20, 7);
+  if (hasAvatar) {
+    const row = player.moving ? avatar.walkRows[player.direction] : avatar.idleRows[player.direction];
+    const frame =
+      player.moving && !reduceMotion
+        ? Math.floor(elapsed / avatar.animationMs) % avatar.walkFrames
+        : 0;
+    const renderX = Math.round(player.x - avatar.renderSize / 2);
+    const renderY = Math.round(player.y - avatar.renderSize + 9);
+    avatarImages.forEach((layer) => {
+      ctx.drawImage(
+        layer,
+        frame * avatar.frameSize,
+        row * avatar.frameSize,
+        avatar.frameSize,
+        avatar.frameSize,
+        renderX,
+        renderY,
+        avatar.renderSize,
+        avatar.renderSize,
+      );
+    });
+  } else {
+    drawSheetTile(
+      ctx,
+      image,
+      theme,
+      theme.tiles.player[player.direction],
+      player.x - 18,
+      player.y - 27 + bob,
+      36,
+      36,
+    );
+  }
+
+  const labelY = hasAvatar ? player.y - 62 : player.y - 50 + bob;
+  roundedRect(ctx, player.x - 29, labelY, 58, 20, 7);
   ctx.fillStyle = '#5c4bd8';
   ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.font = '700 11px "Inter Variable", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('you', player.x, player.y - 40 + bob);
+  ctx.fillText('you', player.x, labelY + 10);
   ctx.textAlign = 'left';
 }
 
@@ -455,6 +485,7 @@ function drawMiniMap(
 export function renderWorld(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
+  avatarImages: readonly HTMLImageElement[],
   world: WorldDefinition,
   camera: WorldCamera,
   viewport: { width: number; height: number },
@@ -507,7 +538,16 @@ export function renderWorld(
     })),
     {
       y: state.player.y,
-      draw: () => drawPlayer(ctx, image, world.theme, state.player, state.elapsed),
+      draw: () =>
+        drawPlayer(
+          ctx,
+          image,
+          avatarImages,
+          world.theme,
+          state.player,
+          state.elapsed,
+          state.reduceMotion,
+        ),
     },
   ].sort((a, b) => a.y - b.y);
   sorted.forEach((item) => item.draw());
