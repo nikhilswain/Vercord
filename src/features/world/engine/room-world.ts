@@ -10,7 +10,7 @@ import type {
 } from './types';
 
 const TILE = 48;
-const SOURCE_SCALE = 3;
+const FURNITURE_SCALE = 2;
 const ROOM_WIDTH = 20 * TILE;
 const ROOM_HEIGHT = 15 * TILE;
 const ROOM_INSET = TILE;
@@ -81,8 +81,8 @@ function atlasProp(
   options: PropOptions = {},
 ): WorldProp {
   const source = theme.interiorAtlas?.sprites[kind];
-  const width = (source?.width ?? 16) * SOURCE_SCALE;
-  const height = (source?.height ?? 16) * SOURCE_SCALE;
+  const width = (source?.width ?? 16) * FURNITURE_SCALE;
+  const height = (source?.height ?? 16) * FURNITURE_SCALE;
   return prop(id, kind, x, y, width, height, {
     ...options,
     hitbox: options.hitbox ?? defaultHitbox(kind, width, height),
@@ -90,7 +90,7 @@ function atlasProp(
 }
 
 function screen(id: string, x: number, y: number, accent: string): WorldProp {
-  return prop(id, 'screen', x, y, 192, 96, { solid: false, tint: accent });
+  return prop(id, 'screen', x, y, 144, 72, { solid: false, tint: accent });
 }
 
 function redRug(theme: WorldTheme, id: string, x: number, y: number): WorldProp {
@@ -113,96 +113,94 @@ function wallProp(
 
 function socialRoom(theme: WorldTheme): WorldProp[] {
   return [
-    redRug(theme, 'conversation-rug', 408, 324),
-    wallProp(theme, 'conversation-window', 'window', 456, 104),
-    wallProp(theme, 'conversation-art', 'art', 720, 112),
-    atlasProp(theme, 'conversation-books', 'bookshelf', 72, 216),
-    atlasProp(theme, 'conversation-plant', 'planter', 840, 216),
-    atlasProp(theme, 'conversation-sofa-left', 'sofa', 192, 288),
-    atlasProp(theme, 'conversation-sofa-right', 'sofa', 624, 288),
-    atlasProp(theme, 'conversation-table', 'table', 408, 372),
-    atlasProp(theme, 'conversation-chair-left', 'armchair', 288, 468),
-    atlasProp(theme, 'conversation-chair-right', 'armchair', 576, 468),
+    redRug(theme, 'conversation-rug', 432, 328),
+    wallProp(theme, 'conversation-window', 'window', 464, 112),
+    wallProp(theme, 'conversation-art', 'art', 744, 118),
+    atlasProp(theme, 'conversation-books', 'bookshelf', 88, 236),
+    atlasProp(theme, 'conversation-plant', 'planter', 840, 244),
+    atlasProp(theme, 'conversation-sofa-left', 'sofa', 224, 300),
+    atlasProp(theme, 'conversation-sofa-right', 'sofa', 640, 300),
+    atlasProp(theme, 'conversation-table', 'table', 432, 376),
+    atlasProp(theme, 'conversation-chair-left', 'armchair', 336, 464),
+    atlasProp(theme, 'conversation-chair-right', 'armchair', 560, 464),
   ];
 }
 
 function textRoom(theme: WorldTheme): WorldProp[] {
   return [
-    redRug(theme, 'text-rug', 408, 324),
-    wallProp(theme, 'text-window', 'window', 456, 104),
-    wallProp(theme, 'text-art', 'art', 744, 112),
-    atlasProp(theme, 'text-books', 'bookshelf', 72, 216),
-    atlasProp(theme, 'text-plant', 'planter', 840, 216),
-    atlasProp(theme, 'text-desk-left', 'desk', 192, 300),
-    atlasProp(theme, 'text-chair-left', 'chair', 240, 408),
-    atlasProp(theme, 'text-desk-right', 'desk', 624, 300),
-    atlasProp(theme, 'text-chair-right', 'chair', 672, 408),
-    atlasProp(theme, 'text-sofa', 'sofa', 408, 228),
+    redRug(theme, 'text-rug', 432, 348),
+    wallProp(theme, 'text-window', 'window', 464, 112),
+    wallProp(theme, 'text-art', 'art', 760, 118),
+    atlasProp(theme, 'text-books', 'bookshelf', 88, 236),
+    atlasProp(theme, 'text-plant', 'planter', 840, 244),
+    atlasProp(theme, 'text-desk-left', 'desk', 240, 324),
+    atlasProp(theme, 'text-chair-left', 'chair', 272, 404),
+    atlasProp(theme, 'text-desk-right', 'desk', 624, 324),
+    atlasProp(theme, 'text-chair-right', 'chair', 656, 404),
+    atlasProp(theme, 'text-sofa', 'sofa', 432, 244),
   ];
 }
 
 function workshopRoom(theme: WorldTheme): WorldProp[] {
   return [
-    blueRug(theme, 'workshop-rug-left', 216, 300),
-    blueRug(theme, 'workshop-rug-right', 648, 300),
-    wallProp(theme, 'workshop-window-left', 'window', 312, 104),
-    wallProp(theme, 'workshop-window-right', 'window', 600, 104),
-    wallProp(theme, 'workshop-art', 'art', 456, 112),
-    atlasProp(theme, 'workshop-books-left', 'bookshelf', 72, 216),
-    atlasProp(theme, 'workshop-books-right', 'bookshelf', 792, 216),
-    atlasProp(theme, 'workshop-table-left', 'table', 192, 306),
-    atlasProp(theme, 'workshop-chair-left', 'chair', 240, 414),
-    atlasProp(theme, 'workshop-table-right', 'table', 624, 306),
-    atlasProp(theme, 'workshop-chair-right', 'chair', 672, 414),
-    atlasProp(theme, 'workshop-plant', 'planter', 456, 216),
+    wallProp(theme, 'workshop-window-left', 'window', 320, 112),
+    wallProp(theme, 'workshop-window-right', 'window', 608, 112),
+    wallProp(theme, 'workshop-art', 'art', 464, 118),
+    atlasProp(theme, 'workshop-books-left', 'bookshelf', 88, 236),
+    atlasProp(theme, 'workshop-books-right', 'bookshelf', 808, 236),
+    atlasProp(theme, 'workshop-table-left', 'table', 240, 326),
+    atlasProp(theme, 'workshop-chair-left', 'chair', 272, 406),
+    atlasProp(theme, 'workshop-table-right', 'table', 624, 326),
+    atlasProp(theme, 'workshop-chair-right', 'chair', 656, 406),
+    atlasProp(theme, 'workshop-plant', 'planter', 464, 236),
   ];
 }
 
 function stageRoom(theme: WorldTheme, accent: string): WorldProp[] {
   return [
-    redRug(theme, 'stage-rug', 408, 228),
-    wallProp(theme, 'stage-curtain-left', 'curtain', 264, 88),
-    wallProp(theme, 'stage-curtain-right', 'curtain', 600, 88),
-    screen('stage-screen', 384, 80, accent),
-    atlasProp(theme, 'stage-books', 'bookshelf', 72, 216),
-    atlasProp(theme, 'stage-plant', 'planter', 840, 216),
-    atlasProp(theme, 'stage-podium', 'desk', 408, 294),
-    atlasProp(theme, 'stage-sofa-left', 'sofa', 144, 438),
-    atlasProp(theme, 'stage-sofa-right', 'sofa', 672, 438),
-    atlasProp(theme, 'stage-chair-left', 'armchair', 312, 438),
-    atlasProp(theme, 'stage-chair-right', 'armchair', 552, 438),
+    redRug(theme, 'stage-rug', 432, 344),
+    wallProp(theme, 'stage-curtain-left', 'curtain', 288, 104),
+    wallProp(theme, 'stage-curtain-right', 'curtain', 608, 104),
+    screen('stage-screen', 408, 92, accent),
+    atlasProp(theme, 'stage-books', 'bookshelf', 88, 236),
+    atlasProp(theme, 'stage-plant', 'planter', 840, 244),
+    atlasProp(theme, 'stage-podium', 'desk', 432, 248),
+    atlasProp(theme, 'stage-sofa-left', 'sofa', 192, 448),
+    atlasProp(theme, 'stage-sofa-right', 'sofa', 672, 448),
+    atlasProp(theme, 'stage-chair-left', 'armchair', 336, 448),
+    atlasProp(theme, 'stage-chair-right', 'armchair', 560, 448),
   ];
 }
 
 function mediaRoom(theme: WorldTheme, accent: string): WorldProp[] {
   return [
-    blueRug(theme, 'media-rug', 432, 318),
-    wallProp(theme, 'media-curtain-left', 'curtain', 264, 88),
-    wallProp(theme, 'media-curtain-right', 'curtain', 600, 88),
-    screen('media-screen', 384, 80, accent),
-    atlasProp(theme, 'media-books', 'bookshelf', 72, 216),
-    atlasProp(theme, 'media-plant', 'planter', 840, 216),
-    atlasProp(theme, 'media-desk-left', 'desk', 192, 312),
-    atlasProp(theme, 'media-chair-left', 'chair', 240, 420),
-    atlasProp(theme, 'media-desk-right', 'desk', 624, 312),
-    atlasProp(theme, 'media-chair-right', 'chair', 672, 420),
-    atlasProp(theme, 'media-console', 'table', 408, 258),
+    blueRug(theme, 'media-rug', 448, 360),
+    wallProp(theme, 'media-curtain-left', 'curtain', 288, 104),
+    wallProp(theme, 'media-curtain-right', 'curtain', 608, 104),
+    screen('media-screen', 408, 92, accent),
+    atlasProp(theme, 'media-books', 'bookshelf', 88, 236),
+    atlasProp(theme, 'media-plant', 'planter', 840, 244),
+    atlasProp(theme, 'media-desk-left', 'desk', 240, 326),
+    atlasProp(theme, 'media-chair-left', 'chair', 272, 406),
+    atlasProp(theme, 'media-desk-right', 'desk', 624, 326),
+    atlasProp(theme, 'media-chair-right', 'chair', 656, 406),
+    atlasProp(theme, 'media-console', 'table', 432, 248),
   ];
 }
 
 function oddmentsRoom(theme: WorldTheme): WorldProp[] {
   return [
-    redRug(theme, 'oddments-rug', 408, 354),
-    wallProp(theme, 'oddments-window', 'window', 552, 104),
-    wallProp(theme, 'oddments-art-left', 'art', 360, 112),
-    wallProp(theme, 'oddments-art-right', 'art', 648, 112),
-    atlasProp(theme, 'oddments-books-left', 'bookshelf', 72, 216),
-    atlasProp(theme, 'oddments-books-right', 'bookshelf', 792, 360),
-    atlasProp(theme, 'oddments-table', 'table', 192, 330),
-    atlasProp(theme, 'oddments-chair', 'chair', 348, 342),
-    atlasProp(theme, 'oddments-armchair', 'armchair', 552, 258),
-    atlasProp(theme, 'oddments-sofa', 'sofa', 624, 480),
-    atlasProp(theme, 'oddments-plant', 'planter', 840, 216),
+    redRug(theme, 'oddments-rug', 432, 368),
+    wallProp(theme, 'oddments-window', 'window', 560, 112),
+    wallProp(theme, 'oddments-art-left', 'art', 376, 118),
+    wallProp(theme, 'oddments-art-right', 'art', 664, 118),
+    atlasProp(theme, 'oddments-books-left', 'bookshelf', 88, 236),
+    atlasProp(theme, 'oddments-books-right', 'bookshelf', 808, 400),
+    atlasProp(theme, 'oddments-table', 'table', 208, 344),
+    atlasProp(theme, 'oddments-chair', 'chair', 320, 352),
+    atlasProp(theme, 'oddments-armchair', 'armchair', 576, 288),
+    atlasProp(theme, 'oddments-sofa', 'sofa', 672, 472),
+    atlasProp(theme, 'oddments-plant', 'planter', 840, 244),
   ];
 }
 
