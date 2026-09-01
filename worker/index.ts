@@ -2,6 +2,7 @@ import { DiscordDomainError } from '../src/domain/discord/errors';
 import { WorkerError } from './errors';
 import { handleAdminSync } from './http/admin-sync';
 import { jsonResponse } from './http/json-response';
+import { handleLocalPreviewMap } from './http/local-preview-map';
 import { handlePublicMap } from './http/public-map';
 import { createConsoleSafeLogger, type SafeLogger } from './logging/safe-logger';
 import { createSingleFlight } from './sync/single-flight';
@@ -10,6 +11,7 @@ import type { SyncSummary } from './sync/synchronize-guild';
 
 const HEALTH_PATH = '/api/health';
 const ADMIN_SYNC_PATH = '/api/admin/sync';
+const LOCAL_PREVIEW_MAP_PREFIX = '/api/preview/maps/';
 const PUBLIC_MAP_PREFIX = '/api/maps/';
 
 export interface WorkerDependencies {
@@ -43,6 +45,14 @@ export function createWorker(dependencies: Partial<WorkerDependencies> = {}): Ex
 
       if (pathname === ADMIN_SYNC_PATH) {
         return handleAdminSync(request, env, guardedSync);
+      }
+
+      if (pathname.startsWith(LOCAL_PREVIEW_MAP_PREFIX)) {
+        return handleLocalPreviewMap(
+          request,
+          env,
+          pathname.slice(LOCAL_PREVIEW_MAP_PREFIX.length),
+        );
       }
 
       if (pathname.startsWith(PUBLIC_MAP_PREFIX)) {

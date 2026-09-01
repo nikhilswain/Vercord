@@ -33,15 +33,23 @@ function errorResponse(code: string, status: number, headers?: HeadersInit): Res
   return jsonResponse({ error: { code } }, { status, headers }, { noStore: true });
 }
 
-function hasRequestBody(request: Request): boolean {
-  if (request.body !== null) return true;
-
+async function hasRequestBody(request: Request): Promise<boolean> {
   const contentLength = request.headers.get('content-length');
   if (contentLength !== null && /^\d+$/.test(contentLength) && Number(contentLength) > 0) {
     return true;
   }
+  if (request.body === null) return false;
 
-  return request.headers.has('transfer-encoding');
+  const reader = request.body.getReader();
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) return false;
+      if (chunk.value.byteLength > 0) return true;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
 }
 
 function stableErrorCode(error: unknown): StableErrorCode | 'SYNC_FAILED' {
@@ -59,7 +67,7 @@ export async function handleAdminSync(
     return errorResponse('METHOD_NOT_ALLOWED', 405, { allow: 'POST' });
   }
 
-  if (hasRequestBody(request)) {
+  if (await hasRequestBody(request)) {
     return errorResponse('REQUEST_BODY_NOT_ALLOWED', 400);
   }
 

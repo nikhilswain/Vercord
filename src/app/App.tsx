@@ -23,6 +23,8 @@ export function App({ pathname = window.location.pathname }: AppProps) {
       return <DemoMapPage />;
     case 'map':
       return <DiscordMapPage slug={route.slug} />;
+    case 'preview':
+      return <DiscordMapPage slug={route.slug} mode="local-preview" />;
     default:
       return <NotFoundPage />;
   }

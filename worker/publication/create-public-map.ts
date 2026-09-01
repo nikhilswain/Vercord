@@ -52,41 +52,19 @@ function isRoom(channel: SnapshotChannel): channel is SnapshotRoom {
   return channel.kind !== 'category';
 }
 
-export async function createPublicMapSnapshot(
+function assembleMapSnapshot(
   snapshot: GuildStructureSnapshot,
-  options: PublicMapOptions,
-): Promise<MapSnapshot> {
-  const [allowedCategoryKeys, allowedChannelKeys] = await Promise.all([
-    Promise.all(
-      options.allowlist.categoryIds.map((id) => options.identifiers.for('channel', id)),
-    ),
-    Promise.all(
-      options.allowlist.channelIds.map((id) => options.identifiers.for('channel', id)),
-    ),
-  ]);
-  const categoryAllowlist = new Set(allowedCategoryKeys);
-  const channelAllowlist = new Set(allowedChannelKeys);
+  slug: string,
+  selectedRooms: SnapshotRoom[],
+  includedCategoryKeys: ReadonlySet<string>,
+): MapSnapshot {
   const visibleCategories = snapshot.channels
     .filter((channel) => channel.kind === 'category')
     .sort(compareOrder);
   const visibleCategoryKeys = new Set(visibleCategories.map(({ key }) => key));
-  const ageRestrictedCategoryKeys = new Set(
-    visibleCategories.filter(({ ageRestricted }) => ageRestricted).map(({ key }) => key),
-  );
-  const selectedRooms = snapshot.channels
-    .filter(isRoom)
-    .filter(
-      (channel) =>
-        channelAllowlist.has(channel.key) ||
-        (channel.parentKey !== null &&
-          categoryAllowlist.has(channel.parentKey) &&
-          !ageRestrictedCategoryKeys.has(channel.parentKey) &&
-          !channel.ageRestricted),
-    )
-    .sort(compareOrder);
-  const roomsByParent = new Map<string | null, typeof selectedRooms>();
+  const roomsByParent = new Map<string | null, SnapshotRoom[]>();
 
-  for (const room of selectedRooms) {
+  for (const room of selectedRooms.sort(compareOrder)) {
     const parentKey =
       room.parentKey !== null && visibleCategoryKeys.has(room.parentKey)
         ? room.parentKey
@@ -102,7 +80,7 @@ export async function createPublicMapSnapshot(
   const areas: MapArea[] = visibleCategories
     .filter(
       (category) =>
-        categoryAllowlist.has(category.key) || selectedParentKeys.has(category.key),
+        includedCategoryKeys.has(category.key) || selectedParentKeys.has(category.key),
     )
     .map((category, order) => ({
       key: publicKey(category.key),
@@ -125,9 +103,56 @@ export async function createPublicMapSnapshot(
 
   return parseMapSnapshot({
     schemaVersion: 1,
-    slug: options.slug,
+    slug,
     generatedAt: snapshot.generatedAt,
     server: { displayName: publicLabel(snapshot.guild.displayName, 'Discord server') },
     areas,
   });
+}
+
+export function createPrivatePreviewMapSnapshot(
+  snapshot: GuildStructureSnapshot,
+  slug: string,
+): MapSnapshot {
+  const rooms = snapshot.channels.filter(isRoom);
+  const categoryKeys = new Set(
+    snapshot.channels
+      .filter((channel) => channel.kind === 'category')
+      .map(({ key }) => key),
+  );
+  return assembleMapSnapshot(snapshot, slug, rooms, categoryKeys);
+}
+
+export async function createPublicMapSnapshot(
+  snapshot: GuildStructureSnapshot,
+  options: PublicMapOptions,
+): Promise<MapSnapshot> {
+  const [allowedCategoryKeys, allowedChannelKeys] = await Promise.all([
+    Promise.all(
+      options.allowlist.categoryIds.map((id) => options.identifiers.for('channel', id)),
+    ),
+    Promise.all(
+      options.allowlist.channelIds.map((id) => options.identifiers.for('channel', id)),
+    ),
+  ]);
+  const categoryAllowlist = new Set(allowedCategoryKeys);
+  const channelAllowlist = new Set(allowedChannelKeys);
+  const visibleCategories = snapshot.channels
+    .filter((channel) => channel.kind === 'category')
+    .sort(compareOrder);
+  const ageRestrictedCategoryKeys = new Set(
+    visibleCategories.filter(({ ageRestricted }) => ageRestricted).map(({ key }) => key),
+  );
+  const selectedRooms = snapshot.channels
+    .filter(isRoom)
+    .filter(
+      (channel) =>
+        channelAllowlist.has(channel.key) ||
+        (channel.parentKey !== null &&
+          categoryAllowlist.has(channel.parentKey) &&
+          !ageRestrictedCategoryKeys.has(channel.parentKey) &&
+          !channel.ageRestricted),
+    )
+    .sort(compareOrder);
+  return assembleMapSnapshot(snapshot, options.slug, selectedRooms, categoryAllowlist);
 }

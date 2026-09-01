@@ -7,6 +7,7 @@ import '../world/world.css';
 
 interface DiscordMapPageProps {
   slug: string;
+  mode?: 'public' | 'local-preview';
 }
 
 type LoadState =
@@ -15,14 +16,16 @@ type LoadState =
   | { kind: 'not-found' }
   | { kind: 'unavailable' };
 
-export function DiscordMapPage({ slug }: DiscordMapPageProps) {
+export function DiscordMapPage({ slug, mode = 'public' }: DiscordMapPageProps) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const isLocalPreview = mode === 'local-preview';
 
   useEffect(() => {
     const controller = new AbortController();
     setState({ kind: 'loading' });
 
-    void fetch(`/api/maps/${encodeURIComponent(slug)}`, {
+    const endpoint = isLocalPreview ? '/api/preview/maps/' : '/api/maps/';
+    void fetch(`${endpoint}${encodeURIComponent(slug)}`, {
       headers: { accept: 'application/json' },
       signal: controller.signal,
     })
@@ -43,7 +46,7 @@ export function DiscordMapPage({ slug }: DiscordMapPageProps) {
       });
 
     return () => controller.abort();
-  }, [slug]);
+  }, [isLocalPreview, slug]);
 
   useEffect(() => {
     if (state.kind === 'ready') {
@@ -65,10 +68,18 @@ export function DiscordMapPage({ slug }: DiscordMapPageProps) {
   if (state.kind !== 'ready') {
     return (
       <main className="world-demo-error" role="alert">
-        <h1>{state.kind === 'not-found' ? 'World not published' : 'World unavailable'}</h1>
+        <h1>
+          {state.kind === 'not-found'
+            ? isLocalPreview
+              ? 'Preview not synced'
+              : 'World not published'
+            : 'World unavailable'}
+        </h1>
         <p>
           {state.kind === 'not-found'
-            ? 'This Discord world has not been synced or has no public map yet.'
+            ? isLocalPreview
+              ? 'Run npm run discord:sync, then refresh this page.'
+              : 'This Discord world has not been synced or has no public map yet.'
             : 'The published Discord map could not be loaded right now.'}
         </p>
         <a href="/">Back to Dmap</a>
@@ -80,7 +91,9 @@ export function DiscordMapPage({ slug }: DiscordMapPageProps) {
     <div className="world-page">
       <AppHeader
         context={state.snapshot.server.displayName}
-        status={<span>Published Discord world</span>}
+        status={
+          <span>{isLocalPreview ? 'Private local preview' : 'Published Discord world'}</span>
+        }
       />
       <main className="world-main">
         <WorldCanvas snapshot={state.snapshot} />
