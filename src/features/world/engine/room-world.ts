@@ -1,25 +1,44 @@
 import type { MapRoomType } from '../../../domain/map/snapshot';
-import type { Rect, WorldDefinition, WorldPortal, WorldProp, WorldTheme } from './types';
+import type {
+  Rect,
+  WorldDefinition,
+  WorldInteriorStyle,
+  WorldPortal,
+  WorldProp,
+  WorldPropKind,
+  WorldTheme,
+} from './types';
 
-const ROOM_WIDTH = 896;
-const ROOM_HEIGHT = 640;
-const WALL_DEPTH = 48;
-const DOOR_LEFT = 400;
-const DOOR_RIGHT = 496;
+const TILE = 48;
+const SOURCE_SCALE = 3;
+const ROOM_WIDTH = 20 * TILE;
+const ROOM_HEIGHT = 15 * TILE;
+const ROOM_INSET = TILE;
+const BACK_WALL_BOTTOM = 4 * TILE;
+const BOTTOM_WALL_TOP = 14 * TILE;
+const DOOR_LEFT = 9 * TILE;
+const DOOR_RIGHT = 11 * TILE;
+
+const BLUE_WALL: Rect = { x: 0, y: 0, width: 48, height: 48 };
+const STONE_WALL: Rect = { x: 48, y: 0, width: 48, height: 48 };
+const STONE_FLOOR: Rect = { x: 96, y: 32, width: 16, height: 16 };
+const WOOD_FLOOR: Rect = { x: 112, y: 32, width: 16, height: 16 };
+
+interface PropOptions {
+  solid?: boolean;
+  layer?: WorldProp['layer'];
+  hitbox?: Rect;
+  tint?: string;
+}
 
 function prop(
   id: string,
-  kind: WorldProp['kind'],
+  kind: WorldPropKind,
   x: number,
   y: number,
   width: number,
   height: number,
-  options: {
-    solid?: boolean;
-    layer?: WorldProp['layer'];
-    hitbox?: Rect;
-    tint?: string;
-  } = {},
+  options: PropOptions = {},
 ): WorldProp {
   return {
     id,
@@ -35,97 +54,219 @@ function prop(
   };
 }
 
-function roomProps(type: MapRoomType, accent: string): WorldProp[] {
-  const common = [
-    prop('bookshelf', 'bookshelf', 72, 72, 96, 144),
-    prop('plant', 'planter', 776, 88, 48, 48, {
-      hitbox: { x: 12, y: 24, width: 24, height: 24 },
-    }),
-  ];
-  const rug = (id: string, x = 328, y = 196): WorldProp =>
-    prop(id, 'rug', x, y, 240, 240, { solid: false, layer: 'floor', tint: accent });
-
-  switch (type) {
-    case 'voice':
-      return [
-        rug('voice-rug'),
-        ...common,
-        prop('sofa-left', 'sofa', 156, 260, 144, 96),
-        prop('sofa-right', 'sofa', 596, 260, 144, 96),
-        prop('coffee-table', 'table', 376, 272, 144, 96),
-      ];
-    case 'stage':
-      return [
-        rug('stage-rug', 328, 210),
-        ...common,
-        prop('stage-screen', 'screen', 384, 68, 128, 128),
-        prop('front-row', 'sofa', 196, 340, 144, 96),
-        prop('back-row', 'sofa', 556, 340, 144, 96),
-      ];
-    case 'forum':
-      return [
-        rug('forum-rug', 328, 188),
-        ...common,
-        prop('forum-table', 'table', 376, 256, 144, 96),
-        prop('chair-left', 'chair', 304, 256, 48, 96),
-        prop('chair-right', 'chair', 544, 256, 48, 96),
-        prop('reference-shelf', 'bookshelf', 728, 360, 96, 144),
-      ];
-    case 'media':
-      return [
-        rug('media-rug', 328, 216),
-        ...common,
-        prop('media-screen', 'screen', 384, 68, 128, 128),
-        prop('editing-desk-left', 'desk', 176, 280, 144, 96),
-        prop('editing-chair-left', 'chair', 328, 280, 48, 96),
-        prop('editing-desk-right', 'desk', 576, 280, 144, 96),
-        prop('editing-chair-right', 'chair', 520, 280, 48, 96),
-      ];
-    case 'announcement':
-      return [
-        rug('announcement-rug', 328, 210),
-        ...common,
-        prop('announcement-screen', 'screen', 384, 68, 128, 128),
-        prop('speaker-desk', 'desk', 376, 284, 144, 96),
-      ];
-    case 'unsupported':
-      return [
-        rug('oddments-rug', 328, 188),
-        ...common,
-        prop('oddments-table', 'table', 376, 252, 144, 96),
-        prop('oddments-chair', 'chair', 544, 252, 48, 96),
-        prop('oddments-sofa', 'sofa', 160, 404, 144, 96),
-      ];
+function defaultHitbox(kind: WorldPropKind, width: number, height: number): Rect | undefined {
+  switch (kind) {
+    case 'armchair':
+      return { x: 8, y: 24, width: width - 16, height: height - 30 };
+    case 'chair':
+      return { x: 8, y: 30, width: width - 16, height: height - 36 };
+    case 'planter':
+      return { x: 12, y: height - 34, width: width - 24, height: 30 };
+    case 'sofa':
+      return { x: 4, y: 30, width: width - 8, height: height - 36 };
+    case 'desk':
+    case 'table':
+      return { x: 4, y: 12, width: width - 8, height: height - 22 };
     default:
-      return [
-        rug('text-rug', 328, 208),
-        ...common,
-        prop('desk-left', 'desk', 176, 272, 144, 96),
-        prop('chair-left', 'chair', 328, 272, 48, 96),
-        prop('desk-right', 'desk', 576, 272, 144, 96),
-        prop('chair-right', 'chair', 520, 272, 48, 96),
-        prop('lounge', 'sofa', 640, 420, 144, 96),
-      ];
+      return undefined;
   }
 }
 
+function atlasProp(
+  theme: WorldTheme,
+  id: string,
+  kind: WorldPropKind,
+  x: number,
+  y: number,
+  options: PropOptions = {},
+): WorldProp {
+  const source = theme.interiorAtlas?.sprites[kind];
+  const width = (source?.width ?? 16) * SOURCE_SCALE;
+  const height = (source?.height ?? 16) * SOURCE_SCALE;
+  return prop(id, kind, x, y, width, height, {
+    ...options,
+    hitbox: options.hitbox ?? defaultHitbox(kind, width, height),
+  });
+}
+
+function screen(id: string, x: number, y: number, accent: string): WorldProp {
+  return prop(id, 'screen', x, y, 192, 96, { solid: false, tint: accent });
+}
+
+function redRug(theme: WorldTheme, id: string, x: number, y: number): WorldProp {
+  return atlasProp(theme, id, 'rug', x, y, { solid: false, layer: 'floor' });
+}
+
+function blueRug(theme: WorldTheme, id: string, x: number, y: number): WorldProp {
+  return atlasProp(theme, id, 'blueRug', x, y, { solid: false, layer: 'floor' });
+}
+
+function wallProp(
+  theme: WorldTheme,
+  id: string,
+  kind: 'art' | 'curtain' | 'window',
+  x: number,
+  y: number,
+): WorldProp {
+  return atlasProp(theme, id, kind, x, y, { solid: false });
+}
+
+function socialRoom(theme: WorldTheme): WorldProp[] {
+  return [
+    redRug(theme, 'conversation-rug', 408, 324),
+    wallProp(theme, 'conversation-window', 'window', 456, 104),
+    wallProp(theme, 'conversation-art', 'art', 720, 112),
+    atlasProp(theme, 'conversation-books', 'bookshelf', 72, 216),
+    atlasProp(theme, 'conversation-plant', 'planter', 840, 216),
+    atlasProp(theme, 'conversation-sofa-left', 'sofa', 192, 288),
+    atlasProp(theme, 'conversation-sofa-right', 'sofa', 624, 288),
+    atlasProp(theme, 'conversation-table', 'table', 408, 372),
+    atlasProp(theme, 'conversation-chair-left', 'armchair', 288, 468),
+    atlasProp(theme, 'conversation-chair-right', 'armchair', 576, 468),
+  ];
+}
+
+function textRoom(theme: WorldTheme): WorldProp[] {
+  return [
+    redRug(theme, 'text-rug', 408, 324),
+    wallProp(theme, 'text-window', 'window', 456, 104),
+    wallProp(theme, 'text-art', 'art', 744, 112),
+    atlasProp(theme, 'text-books', 'bookshelf', 72, 216),
+    atlasProp(theme, 'text-plant', 'planter', 840, 216),
+    atlasProp(theme, 'text-desk-left', 'desk', 192, 300),
+    atlasProp(theme, 'text-chair-left', 'chair', 240, 408),
+    atlasProp(theme, 'text-desk-right', 'desk', 624, 300),
+    atlasProp(theme, 'text-chair-right', 'chair', 672, 408),
+    atlasProp(theme, 'text-sofa', 'sofa', 408, 228),
+  ];
+}
+
+function workshopRoom(theme: WorldTheme): WorldProp[] {
+  return [
+    blueRug(theme, 'workshop-rug-left', 216, 300),
+    blueRug(theme, 'workshop-rug-right', 648, 300),
+    wallProp(theme, 'workshop-window-left', 'window', 312, 104),
+    wallProp(theme, 'workshop-window-right', 'window', 600, 104),
+    wallProp(theme, 'workshop-art', 'art', 456, 112),
+    atlasProp(theme, 'workshop-books-left', 'bookshelf', 72, 216),
+    atlasProp(theme, 'workshop-books-right', 'bookshelf', 792, 216),
+    atlasProp(theme, 'workshop-table-left', 'table', 192, 306),
+    atlasProp(theme, 'workshop-chair-left', 'chair', 240, 414),
+    atlasProp(theme, 'workshop-table-right', 'table', 624, 306),
+    atlasProp(theme, 'workshop-chair-right', 'chair', 672, 414),
+    atlasProp(theme, 'workshop-plant', 'planter', 456, 216),
+  ];
+}
+
+function stageRoom(theme: WorldTheme, accent: string): WorldProp[] {
+  return [
+    redRug(theme, 'stage-rug', 408, 228),
+    wallProp(theme, 'stage-curtain-left', 'curtain', 264, 88),
+    wallProp(theme, 'stage-curtain-right', 'curtain', 600, 88),
+    screen('stage-screen', 384, 80, accent),
+    atlasProp(theme, 'stage-books', 'bookshelf', 72, 216),
+    atlasProp(theme, 'stage-plant', 'planter', 840, 216),
+    atlasProp(theme, 'stage-podium', 'desk', 408, 294),
+    atlasProp(theme, 'stage-sofa-left', 'sofa', 144, 438),
+    atlasProp(theme, 'stage-sofa-right', 'sofa', 672, 438),
+    atlasProp(theme, 'stage-chair-left', 'armchair', 312, 438),
+    atlasProp(theme, 'stage-chair-right', 'armchair', 552, 438),
+  ];
+}
+
+function mediaRoom(theme: WorldTheme, accent: string): WorldProp[] {
+  return [
+    blueRug(theme, 'media-rug', 432, 318),
+    wallProp(theme, 'media-curtain-left', 'curtain', 264, 88),
+    wallProp(theme, 'media-curtain-right', 'curtain', 600, 88),
+    screen('media-screen', 384, 80, accent),
+    atlasProp(theme, 'media-books', 'bookshelf', 72, 216),
+    atlasProp(theme, 'media-plant', 'planter', 840, 216),
+    atlasProp(theme, 'media-desk-left', 'desk', 192, 312),
+    atlasProp(theme, 'media-chair-left', 'chair', 240, 420),
+    atlasProp(theme, 'media-desk-right', 'desk', 624, 312),
+    atlasProp(theme, 'media-chair-right', 'chair', 672, 420),
+    atlasProp(theme, 'media-console', 'table', 408, 258),
+  ];
+}
+
+function oddmentsRoom(theme: WorldTheme): WorldProp[] {
+  return [
+    redRug(theme, 'oddments-rug', 408, 354),
+    wallProp(theme, 'oddments-window', 'window', 552, 104),
+    wallProp(theme, 'oddments-art-left', 'art', 360, 112),
+    wallProp(theme, 'oddments-art-right', 'art', 648, 112),
+    atlasProp(theme, 'oddments-books-left', 'bookshelf', 72, 216),
+    atlasProp(theme, 'oddments-books-right', 'bookshelf', 792, 360),
+    atlasProp(theme, 'oddments-table', 'table', 192, 330),
+    atlasProp(theme, 'oddments-chair', 'chair', 348, 342),
+    atlasProp(theme, 'oddments-armchair', 'armchair', 552, 258),
+    atlasProp(theme, 'oddments-sofa', 'sofa', 624, 480),
+    atlasProp(theme, 'oddments-plant', 'planter', 840, 216),
+  ];
+}
+
+function roomProps(type: MapRoomType, accent: string, theme: WorldTheme): WorldProp[] {
+  switch (type) {
+    case 'voice':
+      return socialRoom(theme);
+    case 'stage':
+    case 'announcement':
+      return stageRoom(theme, accent);
+    case 'forum':
+      return workshopRoom(theme);
+    case 'media':
+      return mediaRoom(theme, accent);
+    case 'unsupported':
+      return oddmentsRoom(theme);
+    default:
+      return textRoom(theme);
+  }
+}
+
+function roomStyle(type: MapRoomType): WorldInteriorStyle {
+  switch (type) {
+    case 'voice':
+    case 'text':
+      return { wallPanel: BLUE_WALL, floorTile: WOOD_FLOOR };
+    case 'forum':
+    case 'announcement':
+    case 'stage':
+      return { wallPanel: STONE_WALL, floorTile: WOOD_FLOOR };
+    case 'media':
+    case 'unsupported':
+      return { wallPanel: STONE_WALL, floorTile: STONE_FLOOR };
+    default:
+      return { wallPanel: BLUE_WALL, floorTile: WOOD_FLOOR };
+  }
+}
+
+function propCollider(item: WorldProp): Rect {
+  return {
+    x: item.x + (item.hitbox?.x ?? 0),
+    y: item.y + (item.hitbox?.y ?? 0),
+    width: item.hitbox?.width ?? item.width,
+    height: item.hitbox?.height ?? item.height,
+  };
+}
+
 export function createRoomWorld(portal: WorldPortal, theme: WorldTheme): WorldDefinition {
-  const props = roomProps(portal.room.type, portal.accent);
+  const props = roomProps(portal.room.type, portal.accent, theme);
   const wallColliders: Rect[] = [
-    { x: 0, y: 0, width: ROOM_WIDTH, height: WALL_DEPTH },
-    { x: 0, y: 0, width: WALL_DEPTH, height: ROOM_HEIGHT },
-    { x: ROOM_WIDTH - WALL_DEPTH, y: 0, width: WALL_DEPTH, height: ROOM_HEIGHT },
-    { x: 0, y: ROOM_HEIGHT - WALL_DEPTH, width: DOOR_LEFT, height: WALL_DEPTH },
+    { x: 0, y: 0, width: ROOM_WIDTH, height: BACK_WALL_BOTTOM },
+    { x: 0, y: 0, width: ROOM_INSET, height: ROOM_HEIGHT },
+    { x: ROOM_WIDTH - ROOM_INSET, y: 0, width: ROOM_INSET, height: ROOM_HEIGHT },
+    { x: 0, y: BOTTOM_WALL_TOP, width: DOOR_LEFT, height: ROOM_HEIGHT - BOTTOM_WALL_TOP },
     {
       x: DOOR_RIGHT,
-      y: ROOM_HEIGHT - WALL_DEPTH,
+      y: BOTTOM_WALL_TOP,
       width: ROOM_WIDTH - DOOR_RIGHT,
-      height: WALL_DEPTH,
+      height: ROOM_HEIGHT - BOTTOM_WALL_TOP,
     },
   ];
   const exit: WorldPortal = {
     x: ROOM_WIDTH / 2,
-    y: ROOM_HEIGHT - 76,
+    y: BOTTOM_WALL_TOP - 22,
     key: `exit-${portal.key}`,
     areaKey: portal.areaKey,
     areaLabel: portal.areaLabel,
@@ -138,18 +279,19 @@ export function createRoomWorld(portal: WorldPortal, theme: WorldTheme): WorldDe
     name: `#${portal.room.label}`,
     environment: 'interior',
     theme,
+    interiorStyle: roomStyle(portal.room.type),
     bounds: { x: 0, y: 0, width: ROOM_WIDTH, height: ROOM_HEIGHT },
-    spawn: { x: ROOM_WIDTH / 2, y: ROOM_HEIGHT - 126 },
+    spawn: { x: ROOM_WIDTH / 2, y: BOTTOM_WALL_TOP - 94 },
     areas: [
       {
         key: portal.areaKey,
         label: `#${portal.room.label}`,
         accent: portal.accent,
         bounds: {
-          x: WALL_DEPTH,
-          y: WALL_DEPTH,
-          width: ROOM_WIDTH - WALL_DEPTH * 2,
-          height: ROOM_HEIGHT - WALL_DEPTH * 2,
+          x: ROOM_INSET,
+          y: BACK_WALL_BOTTOM,
+          width: ROOM_WIDTH - ROOM_INSET * 2,
+          height: BOTTOM_WALL_TOP - BACK_WALL_BOTTOM,
         },
         roomCount: 1,
       },
@@ -161,12 +303,7 @@ export function createRoomWorld(portal: WorldPortal, theme: WorldTheme): WorldDe
     props,
     colliders: [
       ...wallColliders,
-      ...props.filter((item) => item.solid).map((item) => ({
-        x: item.x + (item.hitbox?.x ?? 0),
-        y: item.y + (item.hitbox?.y ?? 0),
-        width: item.hitbox?.width ?? item.width,
-        height: item.hitbox?.height ?? item.height,
-      })),
+      ...props.filter((item) => item.solid).map(propCollider),
     ],
   };
 }

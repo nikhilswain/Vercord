@@ -39,14 +39,18 @@ export const KENNEY_TINY_TOWN_THEME: WorldTheme = {
   interiorAtlas: {
     url: '/game-assets/pixel-lands/interiors.png',
     sprites: {
+      armchair: { x: 128, y: 0, width: 32, height: 32 },
+      art: { x: 240, y: 144, width: 16, height: 16 },
+      blueRug: { x: 80, y: 48, width: 32, height: 32 },
       bookshelf: { x: 160, y: 128, width: 32, height: 48 },
       chair: { x: 112, y: 48, width: 16, height: 32 },
+      curtain: { x: 192, y: 96, width: 32, height: 32 },
       desk: { x: 192, y: 128, width: 48, height: 32 },
-      planter: { x: 240, y: 96, width: 16, height: 16 },
-      rug: { x: 64, y: 80, width: 48, height: 48 },
-      screen: { x: 64, y: 48, width: 32, height: 32 },
+      planter: { x: 224, y: 96, width: 16, height: 32 },
+      rug: { x: 80, y: 80, width: 48, height: 48 },
       sofa: { x: 0, y: 128, width: 48, height: 32 },
       table: { x: 192, y: 128, width: 48, height: 32 },
+      window: { x: 104, y: 8, width: 16, height: 16 },
     },
   },
   exterior: {

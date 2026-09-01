@@ -49,10 +49,14 @@ export interface WorldBuildingStyle {
 }
 
 export type WorldPropKind =
+  | 'armchair'
+  | 'art'
   | 'bench'
+  | 'blueRug'
   | 'bookshelf'
   | 'building'
   | 'chair'
+  | 'curtain'
   | 'desk'
   | 'fountain'
   | 'planter'
@@ -60,7 +64,13 @@ export type WorldPropKind =
   | 'screen'
   | 'sofa'
   | 'table'
-  | 'tree';
+  | 'tree'
+  | 'window';
+
+export interface WorldInteriorStyle {
+  wallPanel: Rect;
+  floorTile: Rect;
+}
 
 export interface WorldTheme {
   id: string;
@@ -122,6 +132,7 @@ export interface WorldDefinition {
   name: string;
   environment: 'exterior' | 'interior';
   theme: WorldTheme;
+  interiorStyle?: WorldInteriorStyle;
   bounds: Rect;
   spawn: Point;
   areas: WorldArea[];

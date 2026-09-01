@@ -177,48 +177,100 @@ function drawArea(ctx: CanvasRenderingContext2D, area: WorldArea): void {
   ctx.textAlign = 'left';
 }
 
-function drawInteriorShell(ctx: CanvasRenderingContext2D, world: WorldDefinition): void {
-  const area = world.areas[0];
-  const accent = area?.accent ?? '#9284f7';
-  ctx.fillStyle = '#c8b99e';
+function drawInteriorShell(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  world: WorldDefinition,
+): void {
+  const accent = world.areas[0]?.accent ?? '#9284f7';
+  const inset = 48;
+  const floorTop = 192;
+  const bottomWallTop = world.bounds.height - 48;
+  const doorwayLeft = world.bounds.width / 2 - 48;
+  const doorwayRight = world.bounds.width / 2 + 48;
+
+  ctx.fillStyle = '#171923';
   ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
 
-  ctx.strokeStyle = 'rgb(71 59 46 / 0.13)';
-  ctx.lineWidth = 1;
-  for (let y = 48; y < world.bounds.height - 48; y += 32) {
-    ctx.beginPath();
-    ctx.moveTo(48, y);
-    ctx.lineTo(world.bounds.width - 48, y);
-    ctx.stroke();
-  }
-  for (let x = 48; x < world.bounds.width - 48; x += 32) {
-    ctx.beginPath();
-    ctx.moveTo(x, 48);
-    ctx.lineTo(x, world.bounds.height - 48);
-    ctx.stroke();
+  if (image && world.interiorStyle) {
+    const { wallPanel, floorTile } = world.interiorStyle;
+    const wallWidth = wallPanel.width * 3;
+    const wallHeight = wallPanel.height * 3;
+    for (let x = inset; x < world.bounds.width - inset; x += wallWidth) {
+      ctx.drawImage(
+        image,
+        wallPanel.x,
+        wallPanel.y,
+        wallPanel.width,
+        wallPanel.height,
+        x,
+        floorTop - wallHeight,
+        wallWidth,
+        wallHeight,
+      );
+    }
+
+    const floorTileSize = floorTile.width * 3;
+    for (let y = floorTop; y < bottomWallTop; y += floorTileSize) {
+      for (let x = inset; x < world.bounds.width - inset; x += floorTileSize) {
+        ctx.drawImage(
+          image,
+          floorTile.x,
+          floorTile.y,
+          floorTile.width,
+          floorTile.height,
+          x,
+          y,
+          floorTileSize,
+          floorTileSize,
+        );
+      }
+    }
+    for (let x = doorwayLeft; x < doorwayRight; x += floorTileSize) {
+      ctx.drawImage(
+        image,
+        floorTile.x,
+        floorTile.y,
+        floorTile.width,
+        floorTile.height,
+        x,
+        bottomWallTop,
+        floorTileSize,
+        floorTileSize,
+      );
+    }
+  } else {
+    ctx.fillStyle = '#8b7c6c';
+    ctx.fillRect(inset, 48, world.bounds.width - inset * 2, floorTop - 48);
+    ctx.fillStyle = '#b88a4d';
+    ctx.fillRect(inset, floorTop, world.bounds.width - inset * 2, bottomWallTop - floorTop);
+    ctx.fillRect(doorwayLeft, bottomWallTop, doorwayRight - doorwayLeft, 48);
   }
 
-  ctx.fillStyle = '#313b54';
+  ctx.fillStyle = '#2b2025';
   ctx.fillRect(0, 0, world.bounds.width, 48);
-  ctx.fillRect(0, 0, 48, world.bounds.height);
-  ctx.fillRect(world.bounds.width - 48, 0, 48, world.bounds.height);
-  ctx.fillRect(0, world.bounds.height - 48, 400, 48);
-  ctx.fillRect(496, world.bounds.height - 48, world.bounds.width - 496, 48);
+  ctx.fillRect(0, 0, inset, world.bounds.height);
+  ctx.fillRect(world.bounds.width - inset, 0, inset, world.bounds.height);
+  ctx.fillRect(0, bottomWallTop, doorwayLeft, 48);
+  ctx.fillRect(doorwayRight, bottomWallTop, world.bounds.width - doorwayRight, 48);
+  ctx.fillStyle = '#573526';
+  ctx.fillRect(inset, 42, world.bounds.width - inset * 2, 6);
+  ctx.fillRect(0, bottomWallTop, doorwayLeft, 6);
+  ctx.fillRect(doorwayRight, bottomWallTop, world.bounds.width - doorwayRight, 6);
+  ctx.fillRect(doorwayLeft - 8, bottomWallTop, 8, 48);
+  ctx.fillRect(doorwayRight, bottomWallTop, 8, 48);
   ctx.fillStyle = accent;
-  ctx.fillRect(48, 44, world.bounds.width - 96, 4);
+  ctx.fillRect(doorwayLeft + 8, world.bounds.height - 8, doorwayRight - doorwayLeft - 16, 5);
 
-  ctx.fillStyle = '#172136';
-  roundedRect(ctx, 72, 10, Math.min(360, world.bounds.width - 144), 28, 6);
-  ctx.fill();
-  ctx.fillStyle = '#f4f6ff';
   ctx.font = '700 17px "Barlow Condensed", sans-serif';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(world.name, 88, 24, 310);
-
-  ctx.fillStyle = '#18233d';
-  ctx.fillRect(400, world.bounds.height - 48, 96, 48);
+  const titleWidth = Math.min(360, Math.max(180, ctx.measureText(world.name).width + 46));
+  ctx.fillStyle = '#171923';
+  ctx.fillRect(72, 10, titleWidth, 28);
   ctx.fillStyle = accent;
-  ctx.fillRect(407, world.bounds.height - 10, 82, 6);
+  ctx.fillRect(72, 10, 5, 28);
+  ctx.fillStyle = '#f4f6ff';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(world.name, 88, 24, titleWidth - 28);
 }
 
 function roomGlyph(type: MapRoomType): string {
@@ -332,6 +384,25 @@ function drawProp(
   }
 
   switch (prop.kind) {
+    case 'armchair':
+      ctx.fillStyle = '#883a35';
+      roundedRect(ctx, x, y, width, height, 6);
+      ctx.fill();
+      break;
+    case 'art':
+      ctx.fillStyle = '#6d422d';
+      ctx.fillRect(x, y, width, height);
+      ctx.fillStyle = '#d49a55';
+      ctx.fillRect(x + 7, y + 7, width - 14, height - 14);
+      break;
+    case 'blueRug':
+      ctx.fillStyle = '#4c9eb5';
+      ctx.fillRect(x, y, width, height);
+      break;
+    case 'curtain':
+      ctx.fillStyle = '#8c2950';
+      ctx.fillRect(x, y, width, height);
+      break;
     case 'tree':
       drawTileMatrix(ctx, image, theme, [[4], [16]], x, y, Math.min(width, theme.worldTileSize));
       break;
@@ -416,6 +487,13 @@ function drawProp(
       ctx.fillStyle = 'rgb(244 246 255 / 0.24)';
       ctx.fillRect(x + 18, y + 18, width * 0.38, 5);
       ctx.fillRect(x + 18, y + 30, width * 0.58, 5);
+      break;
+    case 'window':
+      ctx.fillStyle = '#3b8ca8';
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = '#603b2c';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(x, y, width, height);
       break;
   }
 }
@@ -541,6 +619,8 @@ export function renderWorld(
   state: RenderState,
 ): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
+  ctx.fillStyle = world.environment === 'interior' ? '#11141d' : '#2f594b';
+  ctx.fillRect(0, 0, viewport.width, viewport.height);
   ctx.save();
   ctx.translate(-camera.x * camera.zoom, -camera.y * camera.zoom);
   ctx.scale(camera.zoom, camera.zoom);
@@ -554,7 +634,7 @@ export function renderWorld(
   };
 
   if (world.environment === 'interior') {
-    drawInteriorShell(ctx, world);
+    drawInteriorShell(ctx, interiorImage, world);
   } else {
     ctx.fillStyle = '#7ec665';
     ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
