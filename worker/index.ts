@@ -1,6 +1,7 @@
 import { DiscordDomainError } from '../src/domain/discord/errors';
 import { WorkerError } from './errors';
 import { handleAdminSync } from './http/admin-sync';
+import { handleAuth } from './http/auth';
 import { jsonResponse } from './http/json-response';
 import { handleLocalPreviewMap } from './http/local-preview-map';
 import { handlePublicMap } from './http/public-map';
@@ -47,12 +48,12 @@ export function createWorker(dependencies: Partial<WorkerDependencies> = {}): Ex
         return handleAdminSync(request, env, guardedSync);
       }
 
+      if (pathname.startsWith('/api/auth/')) {
+        return handleAuth(request, env, pathname);
+      }
+
       if (pathname.startsWith(LOCAL_PREVIEW_MAP_PREFIX)) {
-        return handleLocalPreviewMap(
-          request,
-          env,
-          pathname.slice(LOCAL_PREVIEW_MAP_PREFIX.length),
-        );
+        return handleLocalPreviewMap(request, env, pathname.slice(LOCAL_PREVIEW_MAP_PREFIX.length));
       }
 
       if (pathname.startsWith(PUBLIC_MAP_PREFIX)) {

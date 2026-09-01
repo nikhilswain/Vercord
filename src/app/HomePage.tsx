@@ -14,9 +14,14 @@ export function HomePage() {
             Dmap turns carefully published server structure into a place you can walk through—one
             district and room at a time.
           </p>
-          <a className="primary-action" href="/map/demo">
-            Explore demo map
-          </a>
+          <div className="hero-actions">
+            <a className="primary-action" href="/map/demo">
+              Explore demo map
+            </a>
+            <a className="secondary-action" href="/dashboard">
+              Use your Discord server
+            </a>
+          </div>
         </section>
         <section className="preview-card" aria-labelledby="demo-illustration-title">
           <div className="preview-heading">

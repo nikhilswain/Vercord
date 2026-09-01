@@ -1,5 +1,6 @@
 export type AppRoute =
   | { kind: 'home'; title: 'Dmap — Your Discord world' }
+  | { kind: 'dashboard'; title: 'Your Discord worlds — Dmap' }
   | { kind: 'demo'; title: 'Northstar Commons — Dmap' }
   | { kind: 'map'; title: 'Discord world — Dmap'; slug: string }
   | { kind: 'preview'; title: 'Local Discord preview — Dmap'; slug: string }
@@ -16,6 +17,9 @@ function validSlugFromMatch(match: RegExpMatchArray | null | undefined): string 
 export function resolveAppRoute(pathname: string): AppRoute {
   const path = pathname.split(/[?#]/u, 1)[0];
   if (path === '/') return { kind: 'home', title: 'Dmap — Your Discord world' };
+  if (path === '/dashboard') {
+    return { kind: 'dashboard', title: 'Your Discord worlds — Dmap' };
+  }
   if (path === '/map/demo') return { kind: 'demo', title: 'Northstar Commons — Dmap' };
   const previewSlug = validSlugFromMatch(path?.match(previewPathPattern));
   if (previewSlug)

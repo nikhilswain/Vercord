@@ -11,6 +11,8 @@
     "dev": "vite",
     "discord:sync": "tsx scripts/discord/sync-local.ts",
     "discord:verify": "tsx scripts/discord/verify-access.ts",
+    "db:migrate:local": "wrangler d1 migrations apply AUTH_DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply AUTH_DB --remote",
     "build": "tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
     "deploy": "vite build && wrangler deploy",

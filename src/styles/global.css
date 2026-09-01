@@ -201,6 +201,31 @@ a {
   transition: filter 140ms ease-out;
 }
 
+.secondary-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.32);
+  border-radius: var(--radius-control);
+  color: var(--color-map-white);
+  background: rgb(var(--color-map-white-rgb) / 0.025);
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    border-color 140ms ease-out,
+    background 140ms ease-out;
+}
+
+.secondary-action:hover {
+  border-color: rgb(var(--color-border-rgb) / 0.66);
+  background: rgb(var(--color-map-white-rgb) / 0.065);
+}
+
+.secondary-action:active {
+  background: rgb(var(--color-map-white-rgb) / 0.035);
+}
+
 .primary-action:hover {
   filter: brightness(1.08);
 }
@@ -254,6 +279,7 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .primary-action,
+  .secondary-action,
   .atlas-room {
     transition-duration: 0ms;
   }

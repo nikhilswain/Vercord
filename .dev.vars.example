@@ -5,3 +5,6 @@ SYNC_SECRET=generate-a-long-random-local-secret
 # Temporary admin control: category IDs publish non-NSFW children; NSFW channels require their own ID.
 PUBLICATION_ALLOWLIST_JSON={"categoryIds":[],"channelIds":[]}
 SNAPSHOT_ID_SECRET=generate-a-32-byte-base64url-secret
+DISCORD_CLIENT_ID=enter-discord-application-id
+DISCORD_CLIENT_SECRET=enter-discord-oauth-client-secret
+AUTH_SESSION_SECRET=generate-a-different-32-byte-base64url-secret

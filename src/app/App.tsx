@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+import { DashboardPage } from '../features/auth/DashboardPage';
 import { DemoMapPage } from '../features/map/DemoMapPage';
 import { DiscordMapPage } from '../features/map/DiscordMapPage';
 import { HomePage } from './HomePage';
@@ -19,6 +20,8 @@ export function App({ pathname = window.location.pathname }: AppProps) {
   switch (route.kind) {
     case 'home':
       return <HomePage />;
+    case 'dashboard':
+      return <DashboardPage />;
     case 'demo':
       return <DemoMapPage />;
     case 'map':

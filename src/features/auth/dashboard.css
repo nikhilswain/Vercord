@@ -1,0 +1,475 @@
+.dashboard-page {
+  max-width: calc(82rem + var(--page-gutter) + var(--page-gutter));
+}
+
+.dashboard-main {
+  width: 100%;
+  align-self: start;
+  padding-block: clamp(2.5rem, 6vw, 5rem);
+}
+
+.dashboard-route {
+  margin: 0 0 0.75rem;
+  color: var(--color-route-violet-soft);
+  font: 600 0.76rem/1.4 var(--font-mono);
+}
+
+.dashboard-gate {
+  display: grid;
+  min-height: min(42rem, calc(100vh - 9rem));
+  grid-template-columns: minmax(0, 0.85fr) minmax(25rem, 1.15fr);
+  align-items: center;
+  gap: clamp(3rem, 8vw, 8rem);
+}
+
+.dashboard-gate-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 38rem;
+}
+
+.dashboard-gate h1,
+.guild-picker-heading h1,
+.dashboard-error h1 {
+  margin: 0;
+  color: var(--color-map-white);
+  font-size: clamp(2.8rem, 6vw, 5.4rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.dashboard-gate-copy > p:not(.dashboard-route, .auth-message, .auth-scope-note),
+.guild-picker-heading > div:first-child > p:last-child,
+.dashboard-error p {
+  max-width: 62ch;
+  margin: 1.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.auth-message {
+  margin: 1.25rem 0 0;
+  border: 1px solid rgb(241 124 134 / 0.38);
+  border-radius: var(--radius-control);
+  padding: 0.8rem 0.9rem;
+  color: var(--color-danger);
+  background: rgb(241 124 134 / 0.08);
+}
+
+.discord-sign-in {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.75rem;
+  border-radius: var(--radius-control);
+  padding: 0.8rem 1.1rem;
+  color: #fff;
+  background: #5865f2;
+  font-weight: 700;
+  text-decoration: none;
+  transition: filter 140ms ease-out;
+}
+
+.discord-sign-in:hover {
+  filter: brightness(1.1);
+}
+
+.discord-sign-in:active {
+  filter: brightness(0.92);
+}
+
+.discord-sign-in svg {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.auth-scope-note {
+  max-width: 54ch;
+  margin: 0.8rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.dashboard-gate-map {
+  position: relative;
+  min-height: 30rem;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.18);
+  border-radius: var(--radius-panel);
+  background-color: var(--color-chart-navy);
+  background-image:
+    linear-gradient(rgb(var(--color-border-rgb) / 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--color-border-rgb) / 0.065) 1px, transparent 1px);
+  background-size: 2rem 2rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.gate-route {
+  position: absolute;
+  height: 0.3rem;
+  border-radius: 1rem;
+  background: var(--color-route-violet);
+  transform-origin: left center;
+}
+
+.gate-route--one {
+  top: 52%;
+  left: 15%;
+  width: 68%;
+  transform: rotate(-18deg);
+}
+
+.gate-route--two {
+  top: 28%;
+  left: 41%;
+  width: 55%;
+  background: var(--color-beacon-cyan);
+  transform: rotate(68deg);
+}
+
+.gate-node {
+  position: absolute;
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  border: 0.25rem solid var(--color-route-violet);
+  border-radius: 1.25rem;
+  color: var(--color-map-white);
+  background: var(--color-chart-navy-elevated);
+  font: 700 1.25rem/1 var(--font-cartographic);
+  box-shadow: 0 1.2rem 2.5rem rgb(0 0 0 / 0.32);
+}
+
+.gate-node--one {
+  top: 22%;
+  left: 13%;
+}
+
+.gate-node--two {
+  top: 48%;
+  left: 54%;
+  border-color: var(--color-beacon-cyan);
+}
+
+.gate-node--three {
+  right: 10%;
+  bottom: 12%;
+  border-color: var(--color-hearth-amber);
+}
+
+.guild-picker {
+  max-width: 70rem;
+  margin-inline: auto;
+}
+
+.guild-picker-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.signed-in-user {
+  display: grid;
+  min-width: 17rem;
+  grid-template-columns: 2.75rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgb(var(--color-border-rgb) / 0.24);
+  padding-bottom: 0.85rem;
+}
+
+.signed-in-user > img,
+.signed-in-user > span {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 0.8rem;
+  background: var(--color-route-violet);
+  color: var(--color-void);
+  font-weight: 800;
+}
+
+.signed-in-user > img {
+  object-fit: cover;
+}
+
+.signed-in-user strong,
+.signed-in-user small {
+  display: block;
+  overflow: hidden;
+  max-width: 11rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signed-in-user small {
+  margin-top: 0.15rem;
+  color: var(--color-text-muted);
+}
+
+.signed-in-user button,
+.dashboard-error button {
+  min-height: 2.75rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.32);
+  border-radius: var(--radius-control);
+  padding: 0.65rem 0.85rem;
+  color: var(--color-map-white);
+  background: transparent;
+  cursor: pointer;
+}
+
+.signed-in-user button:hover,
+.dashboard-error button:hover {
+  border-color: rgb(var(--color-border-rgb) / 0.7);
+  background: rgb(var(--color-map-white-rgb) / 0.06);
+}
+
+.guild-connection-summary {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 2.5rem;
+  border-top: 1px solid rgb(var(--color-border-rgb) / 0.16);
+  border-bottom: 1px solid rgb(var(--color-border-rgb) / 0.16);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.guild-connection-summary > span {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.guild-connection-summary > .is-connected {
+  background: var(--color-success);
+  box-shadow: 0 0 0 0.25rem rgb(100 230 174 / 0.1);
+}
+
+.guild-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guild-row {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 1fr) minmax(10rem, auto);
+  align-items: center;
+  gap: 1rem;
+  min-height: 6.8rem;
+  border-bottom: 1px solid rgb(var(--color-border-rgb) / 0.16);
+  padding: 1.1rem 0.25rem;
+}
+
+.guild-row--connected {
+  background: linear-gradient(90deg, rgb(var(--color-route-violet-rgb) / 0.1), transparent 70%);
+}
+
+.guild-mark {
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 1rem;
+  object-fit: cover;
+}
+
+.guild-mark--fallback {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.28);
+  color: var(--color-route-violet-soft);
+  background: var(--color-chart-navy-elevated);
+  font: 700 1rem/1 var(--font-cartographic);
+}
+
+.guild-identity {
+  min-width: 0;
+}
+
+.guild-title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.guild-title-line h2 {
+  overflow: hidden;
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-identity p {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.guild-badge {
+  flex: none;
+  border: 1px solid rgb(100 230 174 / 0.36);
+  border-radius: 999px;
+  padding: 0.18rem 0.45rem;
+  color: var(--color-success);
+  background: rgb(100 230 174 / 0.07);
+  font: 600 0.66rem/1.2 var(--font-ui);
+}
+
+.guild-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  justify-self: end;
+  border-radius: var(--radius-control);
+  padding: 0.7rem 0.9rem;
+  color: var(--color-void);
+  background: var(--color-route-violet);
+  font-weight: 700;
+  text-decoration: none;
+  transition: filter 140ms ease-out;
+}
+
+.guild-action:hover {
+  filter: brightness(1.08);
+}
+
+.guild-action:active {
+  filter: brightness(0.94);
+}
+
+.guild-action-note {
+  max-width: 13rem;
+  justify-self: end;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.guild-empty,
+.dashboard-error {
+  max-width: 38rem;
+  margin-top: 3rem;
+}
+
+.guild-empty h2,
+.guild-empty p {
+  margin: 0;
+}
+
+.guild-empty p {
+  margin-top: 0.5rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard-loading {
+  display: grid;
+  min-height: 28rem;
+  place-content: center;
+  justify-items: center;
+  color: var(--color-text-muted);
+}
+
+.dashboard-loading > span {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0.2rem solid rgb(var(--color-border-rgb) / 0.22);
+  border-top-color: var(--color-route-violet);
+  border-radius: 50%;
+  animation: dashboard-spin 700ms linear infinite;
+}
+
+.dashboard-error button {
+  margin-top: 1.5rem;
+}
+
+@keyframes dashboard-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 56rem) {
+  .dashboard-gate {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-gate-map {
+    min-height: 18rem;
+  }
+
+  .guild-picker-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .signed-in-user {
+    width: 100%;
+  }
+}
+
+@media (max-width: 38rem) {
+  .dashboard-main {
+    padding-top: 2rem;
+  }
+
+  .dashboard-gate h1,
+  .guild-picker-heading h1,
+  .dashboard-error h1 {
+    font-size: clamp(2.55rem, 13vw, 4rem);
+  }
+
+  .guild-row {
+    grid-template-columns: 3.2rem minmax(0, 1fr);
+    gap: 0.85rem;
+  }
+
+  .guild-mark {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+
+  .guild-action,
+  .guild-action-note {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+
+  .signed-in-user {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+  }
+
+  .signed-in-user form {
+    grid-column: 1 / -1;
+  }
+
+  .signed-in-user button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-loading > span {
+    animation-duration: 1.8s;
+  }
+
+  .discord-sign-in,
+  .guild-action {
+    transition-duration: 0ms;
+  }
+}

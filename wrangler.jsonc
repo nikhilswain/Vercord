@@ -13,6 +13,9 @@
       "SYNC_SECRET",
       "PUBLICATION_ALLOWLIST_JSON",
       "SNAPSHOT_ID_SECRET",
+      "DISCORD_CLIENT_ID",
+      "DISCORD_CLIENT_SECRET",
+      "AUTH_SESSION_SECRET",
     ],
   },
   "assets": {
@@ -27,6 +30,11 @@
       "binding": "MAP_SNAPSHOTS",
       "id": "509e73fe886c4c638a451201158cb0f8",
       "remote": false,
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
     },
   ],
 }
