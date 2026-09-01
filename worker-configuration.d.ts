@@ -7,6 +7,7 @@ interface __BaseEnv_Env {
 	DISCORD_GUILD_ID: string;
 	MAP_SLUG: string;
 	SYNC_SECRET: string;
+	PUBLICATION_ALLOWLIST_JSON?: string;
 	SNAPSHOT_ID_SECRET: string;
 }
 declare namespace Cloudflare {
@@ -20,7 +21,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DISCORD_BOT_TOKEN" | "DISCORD_GUILD_ID" | "MAP_SLUG" | "SYNC_SECRET" | "SNAPSHOT_ID_SECRET">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DISCORD_BOT_TOKEN" | "DISCORD_GUILD_ID" | "MAP_SLUG" | "SYNC_SECRET" | "PUBLICATION_ALLOWLIST_JSON" | "SNAPSHOT_ID_SECRET">> {}
 }
 
 // Begin runtime types

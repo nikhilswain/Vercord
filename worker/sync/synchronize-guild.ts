@@ -7,7 +7,9 @@ import type { RuntimeConfig } from '../config/runtime';
 import type { DiscordRestClient } from '../discord/client';
 import { WorkerError } from '../errors';
 import type { SafeLogFields, SafeLogger } from '../logging/safe-logger';
+import { createPublicMapSnapshot } from '../publication/create-public-map';
 import type { GuildStructureRepository } from '../storage/guild-structure-repository';
+import type { PublicMapRepository } from '../storage/public-map-repository';
 
 export interface SyncSummary {
   status: 'SNAPSHOT_STORED';
@@ -15,11 +17,14 @@ export interface SyncSummary {
   generatedAt: string;
   categoryCount: number;
   channelCount: number;
+  publishedAreaCount?: number;
+  publishedRoomCount?: number;
 }
 
 export interface SyncPorts {
   discord: DiscordRestClient;
   snapshots: GuildStructureRepository;
+  publicMaps?: PublicMapRepository;
   identifiers: IdentifierFactory;
   now(): Date;
   logger: SafeLogger;
@@ -43,7 +48,8 @@ function safelyLog(log: () => void): void {
 }
 
 export async function synchronizeGuild(
-  config: Pick<RuntimeConfig, 'guildId' | 'mapSlug'>,
+  config: Pick<RuntimeConfig, 'guildId' | 'mapSlug'> &
+    Partial<Pick<RuntimeConfig, 'publicationAllowlist'>>,
   ports: SyncPorts,
 ): Promise<SyncSummary> {
   const correlationId = crypto.randomUUID();
@@ -70,6 +76,23 @@ export async function synchronizeGuild(
     if (isEmpty && previousMayContainData) {
       throw new WorkerError('SUSPICIOUS_EMPTY_SNAPSHOT');
     }
+
+    let publicationSummary: Pick<SyncSummary, 'publishedAreaCount' | 'publishedRoomCount'> = {};
+    if (ports.publicMaps) {
+      const publicMap = await createPublicMapSnapshot(snapshot, {
+        slug: config.mapSlug,
+        allowlist: config.publicationAllowlist ?? { categoryIds: [], channelIds: [] },
+        identifiers: ports.identifiers,
+      });
+      await ports.publicMaps.write(config.mapSlug, publicMap);
+      publicationSummary = {
+        publishedAreaCount: publicMap.areas.length,
+        publishedRoomCount: publicMap.areas.reduce(
+          (total, area) => total + area.rooms.length,
+          0,
+        ),
+      };
+    }
     await ports.snapshots.write(config.mapSlug, snapshot);
 
     const categoryCount = snapshot.channels.filter(({ kind }) => kind === 'category').length;
@@ -80,6 +103,7 @@ export async function synchronizeGuild(
       generatedAt: snapshot.generatedAt,
       categoryCount,
       channelCount,
+      ...publicationSummary,
     };
     const fields: SafeLogFields = {
       correlationId,

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
 import { DemoMapPage } from '../features/map/DemoMapPage';
+import { DiscordMapPage } from '../features/map/DiscordMapPage';
 import { HomePage } from './HomePage';
 import { NotFoundPage } from './NotFoundPage';
 import { resolveAppRoute } from './routes';
@@ -20,6 +21,8 @@ export function App({ pathname = window.location.pathname }: AppProps) {
       return <HomePage />;
     case 'demo':
       return <DemoMapPage />;
+    case 'map':
+      return <DiscordMapPage slug={route.slug} />;
     default:
       return <NotFoundPage />;
   }

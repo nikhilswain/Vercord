@@ -83,6 +83,8 @@ export async function handleAdminSync(
         generatedAt: summary.generatedAt,
         categoryCount: summary.categoryCount,
         channelCount: summary.channelCount,
+        publishedAreaCount: summary.publishedAreaCount,
+        publishedRoomCount: summary.publishedRoomCount,
       },
       undefined,
       { noStore: true },

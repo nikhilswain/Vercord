@@ -2,6 +2,7 @@ import { DiscordDomainError } from '../src/domain/discord/errors';
 import { WorkerError } from './errors';
 import { handleAdminSync } from './http/admin-sync';
 import { jsonResponse } from './http/json-response';
+import { handlePublicMap } from './http/public-map';
 import { createConsoleSafeLogger, type SafeLogger } from './logging/safe-logger';
 import { createSingleFlight } from './sync/single-flight';
 import { createSyncRunner } from './sync/create-sync-runner';
@@ -9,6 +10,7 @@ import type { SyncSummary } from './sync/synchronize-guild';
 
 const HEALTH_PATH = '/api/health';
 const ADMIN_SYNC_PATH = '/api/admin/sync';
+const PUBLIC_MAP_PREFIX = '/api/maps/';
 
 export interface WorkerDependencies {
   runSync(env: Env): Promise<SyncSummary>;
@@ -41,6 +43,10 @@ export function createWorker(dependencies: Partial<WorkerDependencies> = {}): Ex
 
       if (pathname === ADMIN_SYNC_PATH) {
         return handleAdminSync(request, env, guardedSync);
+      }
+
+      if (pathname.startsWith(PUBLIC_MAP_PREFIX)) {
+        return handlePublicMap(request, env, pathname.slice(PUBLIC_MAP_PREFIX.length));
       }
 
       if (pathname.startsWith('/api/')) {

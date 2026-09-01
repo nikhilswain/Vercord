@@ -11,6 +11,7 @@
       "DISCORD_GUILD_ID",
       "MAP_SLUG",
       "SYNC_SECRET",
+      "PUBLICATION_ALLOWLIST_JSON",
       "SNAPSHOT_ID_SECRET",
     ],
   },

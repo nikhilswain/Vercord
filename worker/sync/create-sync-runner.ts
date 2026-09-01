@@ -3,6 +3,7 @@ import { parseRuntimeConfig } from '../config/runtime';
 import { createDiscordRestClient } from '../discord/client';
 import { createConsoleSafeLogger } from '../logging/safe-logger';
 import { createKvGuildStructureRepository } from '../storage/guild-structure-repository';
+import { createKvPublicMapRepository } from '../storage/public-map-repository';
 import { synchronizeGuild, type SyncSummary } from './synchronize-guild';
 
 export interface SyncRunner {
@@ -17,6 +18,7 @@ export function createSyncRunner(): SyncRunner {
       return synchronizeGuild(config, {
         discord: createDiscordRestClient({ botToken: config.botToken }),
         snapshots: createKvGuildStructureRepository(config.snapshots),
+        publicMaps: createKvPublicMapRepository(config.snapshots),
         identifiers,
         now: () => new Date(),
         logger: createConsoleSafeLogger(),
