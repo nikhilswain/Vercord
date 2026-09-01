@@ -12,22 +12,45 @@ import type {
 import { KENNEY_TINY_TOWN_THEME } from './themes';
 
 const TILE = KENNEY_TINY_TOWN_THEME.worldTileSize;
-const WORLD_COLUMNS = 38;
-const WORLD_WIDTH = WORLD_COLUMNS * TILE;
-const AREA_WIDTH = 13 * TILE;
-const LEFT_AREA_X = 2 * TILE;
-const RIGHT_AREA_X = 23 * TILE;
-const ROAD_LEFT = 17 * TILE;
-const ROAD_WIDTH = 4 * TILE;
-const TOP_MARGIN = 4 * TILE;
-const ROW_GAP = 3 * TILE;
+const EDGE_MARGIN = 2 * TILE;
+const STREET_WIDTH = 3 * TILE;
+const AREA_GAP = 2 * TILE;
+const AREA_HEADER_HEIGHT = 2 * TILE;
+const AREA_PADDING_X = TILE;
+const ROOM_CELL_WIDTH = 5 * TILE;
+const ROOM_CELL_HEIGHT = 6 * TILE;
+const MAX_DISTRICT_COLUMNS = 4;
+const TARGET_WORLD_ASPECT = 1.6;
 const ACCENTS = ['#9284f7', '#45c5c7', '#d59645', '#83a8f5', '#f17c86', '#64e6ae'];
 
 interface AreaSlot {
   bounds: Rect;
   accent: string;
-  side: 'left' | 'right';
+  column: number;
+  roomColumns: number;
   variant: number;
+}
+
+interface AreaMeasurement {
+  width: number;
+  height: number;
+  roomColumns: number;
+}
+
+interface PackedColumn {
+  areaIndexes: number[];
+  height: number;
+  width: number;
+}
+
+interface VillageLayout {
+  slots: AreaSlot[];
+  width: number;
+  height: number;
+  streets: Rect[];
+  verticalStreets: Rect[];
+  intersections: Point[];
+  spawn: Point;
 }
 
 type CellSet = Set<string>;
@@ -56,81 +79,196 @@ const GROVE_PATTERNS: Array<Array<[number, number]>> = [
   ],
 ];
 
-const ROOM_PATTERNS: Array<Array<[number, number]>> = [
-  [[0.29, 0.56], [0.72, 0.54], [0.51, 0.88], [0.16, 0.84]],
-  [[0.26, 0.54], [0.68, 0.58], [0.47, 0.88], [0.84, 0.84]],
-  [[0.24, 0.55], [0.67, 0.66], [0.46, 0.88], [0.82, 0.54]],
-  [[0.28, 0.54], [0.72, 0.52], [0.5, 0.87], [0.18, 0.82]],
-  [[0.42, 0.55], [0.76, 0.78], [0.22, 0.86], [0.75, 0.52]],
-];
-
-function areaHeight(roomCount: number): number {
-  const extraRows = Math.max(0, Math.ceil(roomCount / 2) - 2);
-  return 11 * TILE + extraRows * 5 * TILE;
+function measureArea(roomCount: number): AreaMeasurement {
+  const roomColumns =
+    roomCount === 0
+      ? 1
+      : Math.min(4, roomCount, Math.max(1, Math.ceil(Math.sqrt(roomCount * 1.35))));
+  const roomRows = Math.ceil(roomCount / roomColumns);
+  return {
+    width: AREA_PADDING_X * 2 + roomColumns * ROOM_CELL_WIDTH,
+    height: Math.max(
+      8 * TILE,
+      AREA_HEADER_HEIGHT + Math.max(1, roomRows) * ROOM_CELL_HEIGHT + TILE,
+    ),
+    roomColumns,
+  };
 }
 
-function createAreaSlots(snapshot: MapSnapshot): { slots: AreaSlot[]; height: number } {
-  const slots: AreaSlot[] = [];
-  let y = TOP_MARGIN;
+function packAreas(measurements: AreaMeasurement[], columnCount: number): PackedColumn[] {
+  const columns = Array.from({ length: columnCount }, (): PackedColumn => ({
+    areaIndexes: [],
+    height: 0,
+    width: 0,
+  }));
 
-  for (let index = 0; index < snapshot.areas.length; index += 2) {
-    const leftArea = snapshot.areas[index];
-    const rightArea = snapshot.areas[index + 1];
-    const leftHeight = areaHeight(leftArea?.rooms.length ?? 0);
-    const rightHeight = areaHeight(rightArea?.rooms.length ?? 0);
-    const rowHeight = Math.max(leftHeight, rightHeight);
+  measurements.forEach((measurement, areaIndex) => {
+    const target = columns.reduce((shortest, column) =>
+      column.height < shortest.height ? column : shortest,
+    );
+    if (target.areaIndexes.length > 0) target.height += AREA_GAP;
+    target.areaIndexes.push(areaIndex);
+    target.height += measurement.height;
+    target.width = Math.max(target.width, measurement.width);
+  });
 
-    if (leftArea) {
-      const isFinalSoloArea = !rightArea && index > 0;
-      slots.push({
-        bounds: {
-          x: isFinalSoloArea ? 4 * TILE : LEFT_AREA_X,
-          y,
-          width: AREA_WIDTH,
-          height: leftHeight,
-        },
-        accent: ACCENTS[index % ACCENTS.length] ?? ACCENTS[0] ?? '#9284f7',
-        side: 'left',
-        variant: index % GROVE_PATTERNS.length,
-      });
+  return columns;
+}
+
+function chooseColumnPacking(measurements: AreaMeasurement[]): PackedColumn[] {
+  const maximum = Math.min(MAX_DISTRICT_COLUMNS, measurements.length);
+  let best = packAreas(measurements, 1);
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let columnCount = 1; columnCount <= maximum; columnCount += 1) {
+    const candidate = packAreas(measurements, columnCount);
+    const width =
+      EDGE_MARGIN * 2 +
+      STREET_WIDTH * (columnCount + 1) +
+      candidate.reduce((total, column) => total + column.width, 0);
+    const height =
+      EDGE_MARGIN * 2 +
+      STREET_WIDTH * 2 +
+      Math.max(0, ...candidate.map((column) => column.height));
+    const score = Math.abs(Math.log(width / height / TARGET_WORLD_ASPECT));
+    if (score < bestScore) {
+      best = candidate;
+      bestScore = score;
     }
-
-    if (rightArea) {
-      slots.push({
-        bounds: { x: RIGHT_AREA_X, y, width: AREA_WIDTH, height: rightHeight },
-        accent: ACCENTS[(index + 1) % ACCENTS.length] ?? ACCENTS[0] ?? '#9284f7',
-        side: 'right',
-        variant: (index + 1) % GROVE_PATTERNS.length,
-      });
-    }
-
-    y += rowHeight + ROW_GAP;
   }
 
-  return { slots, height: Math.ceil((y - ROW_GAP + TOP_MARGIN) / TILE) * TILE };
+  return best;
+}
+
+function createEmptyLayout(): VillageLayout {
+  const width = 24 * TILE;
+  const height = 16 * TILE;
+  const vertical = {
+    x: width / 2 - STREET_WIDTH / 2,
+    y: EDGE_MARGIN,
+    width: STREET_WIDTH,
+    height: height - EDGE_MARGIN * 2,
+  };
+  const horizontal = {
+    x: EDGE_MARGIN,
+    y: height / 2 - STREET_WIDTH / 2,
+    width: width - EDGE_MARGIN * 2,
+    height: STREET_WIDTH,
+  };
+  const spawn = { x: width / 2, y: height / 2 };
+  return {
+    slots: [],
+    width,
+    height,
+    streets: [vertical, horizontal],
+    verticalStreets: [vertical],
+    intersections: [spawn],
+    spawn,
+  };
+}
+
+function createVillageLayout(snapshot: MapSnapshot): VillageLayout {
+  if (snapshot.areas.length === 0) return createEmptyLayout();
+
+  const measurements = snapshot.areas.map((area) => measureArea(area.rooms.length));
+  const columns = chooseColumnPacking(measurements);
+  const contentHeight = Math.max(...columns.map((column) => column.height));
+  const contentTop = EDGE_MARGIN + STREET_WIDTH;
+  const height = EDGE_MARGIN * 2 + STREET_WIDTH * 2 + contentHeight;
+  const slots: AreaSlot[] = [];
+  const verticalStreets: Rect[] = [];
+  let cursorX = EDGE_MARGIN;
+
+  columns.forEach((column, columnIndex) => {
+    verticalStreets.push({
+      x: cursorX,
+      y: EDGE_MARGIN,
+      width: STREET_WIDTH,
+      height: height - EDGE_MARGIN * 2,
+    });
+    cursorX += STREET_WIDTH;
+    const columnX = cursorX;
+    let cursorY =
+      contentTop +
+      Math.floor((contentHeight - column.height) / (TILE * 2)) * TILE;
+
+    column.areaIndexes.forEach((areaIndex) => {
+      const measurement = measurements[areaIndex];
+      if (!measurement) return;
+      const centeredX =
+        columnX + Math.floor((column.width - measurement.width) / (TILE * 2)) * TILE;
+      slots[areaIndex] = {
+        bounds: {
+          x: centeredX,
+          y: cursorY,
+          width: measurement.width,
+          height: measurement.height,
+        },
+        accent: ACCENTS[areaIndex % ACCENTS.length] ?? ACCENTS[0] ?? '#9284f7',
+        column: columnIndex,
+        roomColumns: measurement.roomColumns,
+        variant: areaIndex % GROVE_PATTERNS.length,
+      };
+      cursorY += measurement.height + AREA_GAP;
+    });
+
+    cursorX += column.width;
+  });
+
+  verticalStreets.push({
+    x: cursorX,
+    y: EDGE_MARGIN,
+    width: STREET_WIDTH,
+    height: height - EDGE_MARGIN * 2,
+  });
+  cursorX += STREET_WIDTH;
+  const width = cursorX + EDGE_MARGIN;
+  const topStreet = {
+    x: EDGE_MARGIN,
+    y: EDGE_MARGIN,
+    width: width - EDGE_MARGIN * 2,
+    height: STREET_WIDTH,
+  };
+  const bottomStreet = {
+    x: EDGE_MARGIN,
+    y: height - EDGE_MARGIN - STREET_WIDTH,
+    width: width - EDGE_MARGIN * 2,
+    height: STREET_WIDTH,
+  };
+  const streetCenters = verticalStreets.map((street) => street.x + street.width / 2);
+  const centerX = width / 2;
+  const spawnX = streetCenters.reduce((closest, candidate) =>
+    Math.abs(candidate - centerX) < Math.abs(closest - centerX) ? candidate : closest,
+  );
+  const spawn = { x: spawnX, y: bottomStreet.y + bottomStreet.height / 2 };
+  const intersections = verticalStreets.flatMap((street) => [
+    { x: street.x + street.width / 2, y: topStreet.y + topStreet.height / 2 },
+    { x: street.x + street.width / 2, y: bottomStreet.y + bottomStreet.height / 2 },
+  ]);
+
+  return {
+    slots,
+    width,
+    height,
+    streets: [...verticalStreets, topStreet, bottomStreet],
+    verticalStreets,
+    intersections,
+    spawn,
+  };
 }
 
 function roomPositions(slot: AreaSlot, count: number): Point[] {
-  const pattern = ROOM_PATTERNS[slot.variant] ?? ROOM_PATTERNS[0] ?? [];
   return Array.from({ length: count }, (_, index) => {
-    const authored = pattern[index];
-    if (authored) {
-      return {
-        x: Math.round(slot.bounds.x + slot.bounds.width * authored[0]),
-        y: Math.round(slot.bounds.y + slot.bounds.height * authored[1]),
-      };
-    }
-
-    const overflow = index - pattern.length;
+    const row = Math.floor(index / slot.roomColumns);
+    const column = index % slot.roomColumns;
+    const roomsInRow = Math.min(slot.roomColumns, count - row * slot.roomColumns);
+    const rowWidth = roomsInRow * ROOM_CELL_WIDTH;
+    const rowX = slot.bounds.x + (slot.bounds.width - rowWidth) / 2;
     return {
-      x: slot.bounds.x + (overflow % 2 === 0 ? 0.3 : 0.7) * slot.bounds.width,
-      y: slot.bounds.y + 11 * TILE + Math.floor(overflow / 2) * 5 * TILE,
+      x: rowX + column * ROOM_CELL_WIDTH + ROOM_CELL_WIDTH / 2,
+      y: slot.bounds.y + AREA_HEADER_HEIGHT + 4 * TILE + row * ROOM_CELL_HEIGHT,
     };
   });
-}
-
-function hashKey(value: string): number {
-  return [...value].reduce((total, character) => (total * 31 + character.charCodeAt(0)) >>> 0, 7);
 }
 
 function buildingStyleFor(type: MapRoomType, areaIndex: number, roomIndex: number): number {
@@ -198,37 +336,27 @@ function readCell(key: string): [number, number] {
   return [Number(column), Number(row)];
 }
 
-function laneCenter(row: number): number {
-  if (row < 10) return 19;
-  if (row < 22) return 20;
-  if (row < 34) return 19;
-  return 18;
-}
-
-function createDirtPathCells(worldHeight: number, slots: AreaSlot[]): CellSet {
-  const cells: CellSet = new Set();
-  const worldRows = worldHeight / TILE;
-
-  for (let row = 0; row < worldRows; row += 1) {
-    const center = laneCenter(row);
-    for (let column = center - 1; column <= center + 1; column += 1) {
+function addRectCells(cells: CellSet, rect: Rect): void {
+  const firstColumn = Math.floor(rect.x / TILE);
+  const lastColumn = Math.ceil((rect.x + rect.width) / TILE) - 1;
+  const firstRow = Math.floor(rect.y / TILE);
+  const lastRow = Math.ceil((rect.y + rect.height) / TILE) - 1;
+  for (let row = firstRow; row <= lastRow; row += 1) {
+    for (let column = firstColumn; column <= lastColumn; column += 1) {
       cells.add(cellKey(column, row));
     }
-
-    const previousCenter = laneCenter(Math.max(0, row - 1));
-    if (previousCenter !== center) {
-      for (let column = Math.min(previousCenter, center) - 1; column <= Math.max(previousCenter, center) + 1; column += 1) {
-        cells.add(cellKey(column, row));
-      }
-    }
   }
+}
 
-  slots.forEach((slot) => {
-    const row = Math.round((slot.bounds.y + slot.bounds.height * 0.58) / TILE);
-    const center = laneCenter(row);
-    for (let plazaRow = row - 1; plazaRow <= row + 1; plazaRow += 1) {
-      for (let column = center - 2; column <= center + 2; column += 1) {
-        cells.add(cellKey(column, plazaRow));
+function createDirtPathCells(layout: VillageLayout): CellSet {
+  const cells: CellSet = new Set();
+  layout.streets.forEach((street) => addRectCells(cells, street));
+  layout.intersections.forEach((intersection) => {
+    const centerColumn = Math.floor(intersection.x / TILE);
+    const centerRow = Math.floor(intersection.y / TILE);
+    for (let row = centerRow - 2; row <= centerRow + 2; row += 1) {
+      for (let column = centerColumn - 2; column <= centerColumn + 2; column += 1) {
+        cells.add(cellKey(column, row));
       }
     }
   });
@@ -276,21 +404,47 @@ function buildGroundDetails(areas: WorldArea[], dirtCells: CellSet): WorldTileLa
   return details;
 }
 
-function buildStonePaths(portals: WorldPortal[], dirtCells: CellSet): WorldTileLayer[] {
+function buildStonePaths(
+  portals: WorldPortal[],
+  areas: WorldArea[],
+  slots: AreaSlot[],
+  verticalStreets: Rect[],
+  dirtCells: CellSet,
+): WorldTileLayer[] {
   const stoneCells: CellSet = new Set();
+  const slotsByAreaKey = new Map(
+    areas.flatMap((area, index) => {
+      const slot = slots[index];
+      return slot ? [[area.key, slot] as const] : [];
+    }),
+  );
 
   portals.forEach((portal) => {
+    const slot = slotsByAreaKey.get(portal.areaKey);
+    if (!slot) return;
     const startColumn = Math.floor(portal.x / TILE);
-    const startRow = Math.floor((portal.y + TILE * 0.35) / TILE);
-    const isLeft = portal.x < WORLD_WIDTH / 2;
-    const roadEdge = laneCenter(startRow) + (isLeft ? -2 : 2);
-    const bend = hashKey(portal.key) % 2 === 0 ? 1 : -1;
-    const pathRow = startRow + bend;
+    const startRow = Math.floor(portal.y / TILE);
+    const pathRow = startRow + 1;
+    const areaCenter = slot.bounds.x + slot.bounds.width / 2;
+    const roadCenters = verticalStreets.map((street) => street.x + street.width / 2);
+    const leftRoads = roadCenters.filter((center) => center < slot.bounds.x);
+    const rightRoads = roadCenters.filter(
+      (center) => center > slot.bounds.x + slot.bounds.width,
+    );
+    const leftRoad = leftRoads.at(-1);
+    const rightRoad = rightRoads[0];
+    const targetX =
+      portal.x < areaCenter
+        ? (leftRoad ?? rightRoad)
+        : (rightRoad ?? leftRoad);
+    if (targetX === undefined) return;
+    const targetColumn = Math.floor(targetX / TILE);
 
-    stoneCells.add(cellKey(startColumn, startRow));
-    stoneCells.add(cellKey(startColumn, pathRow));
-    const first = Math.min(startColumn, roadEdge);
-    const last = Math.max(startColumn, roadEdge);
+    for (let row = startRow; row <= pathRow; row += 1) {
+      stoneCells.add(cellKey(startColumn, row));
+    }
+    const first = Math.min(startColumn, targetColumn);
+    const last = Math.max(startColumn, targetColumn);
     for (let column = first; column <= last; column += 1) {
       const key = cellKey(column, pathRow);
       if (!dirtCells.has(key)) stoneCells.add(key);
@@ -308,12 +462,11 @@ function buildStonePaths(portals: WorldPortal[], dirtCells: CellSet): WorldTileL
 }
 
 function buildTileLayers(
-  worldHeight: number,
+  layout: VillageLayout,
   areas: WorldArea[],
-  slots: AreaSlot[],
   portals: WorldPortal[],
 ): WorldTileLayer[] {
-  const dirtCells = createDirtPathCells(worldHeight, slots);
+  const dirtCells = createDirtPathCells(layout);
   const dirt = [...dirtCells].map((key, index) => {
     const [column, row] = readCell(key);
     return {
@@ -325,7 +478,7 @@ function buildTileLayers(
   return [
     ...buildGroundDetails(areas, dirtCells),
     ...dirt,
-    ...buildStonePaths(portals, dirtCells),
+    ...buildStonePaths(portals, areas, layout.slots, layout.verticalStreets, dirtCells),
   ];
 }
 
@@ -390,21 +543,26 @@ function addTree(
   });
   if (force || !blockers.some((blocker) => intersects(stampBounds(tree), inflate(blocker, 20)))) {
     stamps.push(tree);
+    blockers.push(stampBounds(tree));
   }
 }
 
-function buildBorderForest(worldHeight: number, blockers: Rect[]): WorldTileStamp[] {
+function buildBorderForest(
+  worldWidth: number,
+  worldHeight: number,
+  blockers: Rect[],
+  spawn: Point,
+): WorldTileStamp[] {
   const stamps: WorldTileStamp[] = [];
-  const gapStart = ROAD_LEFT - TILE;
-  const gapEnd = ROAD_LEFT + ROAD_WIDTH + TILE;
+  const worldColumns = Math.ceil(worldWidth / TILE);
 
-  for (let column = 0; column < WORLD_COLUMNS; column += 1) {
+  for (let column = 0; column < worldColumns; column += 1) {
     const x = column * TILE + (column % 2 === 0 ? -8 : 10);
-    if (x < gapStart || x > gapEnd) {
-      addTree(stamps, blockers, `north-tree-${column}`, x, column % 3 === 0 ? -18 : 2, column, true);
-      if (column % 4 === 1) addTree(stamps, blockers, `north-tree-deep-${column}`, x + 28, 42, column + 1, true);
+    addTree(stamps, blockers, `north-tree-${column}`, x, column % 3 === 0 ? -18 : 2, column, true);
+    if (column % 4 === 1) {
+      addTree(stamps, blockers, `north-tree-deep-${column}`, x + 28, 42, column + 1, true);
     }
-    if (column % 2 === 0) {
+    if (column % 2 === 0 && Math.abs(x - spawn.x) > TILE * 2.5) {
       addTree(
         stamps,
         blockers,
@@ -420,10 +578,23 @@ function buildBorderForest(worldHeight: number, blockers: Rect[]): WorldTileStam
   const sideRows = Math.floor(worldHeight / TILE);
   for (let row = 2; row < sideRows - 2; row += 2) {
     addTree(stamps, blockers, `west-tree-${row}`, row % 4 === 0 ? -12 : 22, row * TILE, row, true);
-    addTree(stamps, blockers, `east-tree-${row}`, WORLD_WIDTH - (row % 3 === 0 ? 72 : 46), row * TILE - 18, row + 1, true);
+    addTree(stamps, blockers, `east-tree-${row}`, worldWidth - (row % 3 === 0 ? 72 : 46), row * TILE - 18, row + 1, true);
   }
 
   return stamps;
+}
+
+function addSceneryStamps(
+  stamps: WorldTileStamp[],
+  blockers: Rect[],
+  candidates: WorldTileStamp[],
+): void {
+  candidates.forEach((candidate) => {
+    const bounds = stampBounds(candidate);
+    if (blockers.some((blocker) => intersects(bounds, inflate(blocker, 10)))) return;
+    stamps.push(candidate);
+    blockers.push(bounds);
+  });
 }
 
 function buildAreaScenery(
@@ -454,39 +625,41 @@ function buildAreaScenery(
       );
     });
 
-    const signX = slot.side === 'left' ? area.bounds.x + area.bounds.width - 72 : area.bounds.x + 24;
-    stamps.push(stamp(`district-sign-${area.key}`, signX, area.bounds.y + 74, [[83]], { solid: false }));
+    const signX = slot.column % 2 === 0 ? area.bounds.x + area.bounds.width - 72 : area.bounds.x + 24;
+    addSceneryStamps(stamps, sceneryBlockers, [
+      stamp(`district-sign-${area.key}`, signX, area.bounds.y + 74, [[83]], { solid: false }),
+    ]);
 
     switch (areaIndex % 5) {
       case 0:
-        stamps.push(
+        addSceneryStamps(stamps, sceneryBlockers, [
           stamp(`district-fence-${area.key}`, area.bounds.x + 58, area.bounds.y + area.bounds.height - 62, [[80, 81, 81, 82]]),
           stamp(`district-mailbox-${area.key}`, area.bounds.x + area.bounds.width - 132, area.bounds.y + area.bounds.height * 0.72, [[128]]),
-        );
+        ]);
         break;
       case 1:
-        stamps.push(
+        addSceneryStamps(stamps, sceneryBlockers, [
           stamp(`district-log-${area.key}`, area.bounds.x + area.bounds.width * 0.1, area.bounds.y + area.bounds.height * 0.68, [[106]]),
           stamp(`district-target-${area.key}`, area.bounds.x + area.bounds.width * 0.82, area.bounds.y + area.bounds.height * 0.7, [[95]]),
           stamp(`district-crate-${area.key}`, area.bounds.x + area.bounds.width * 0.12, area.bounds.y + area.bounds.height * 0.82, [[130]]),
-        );
+        ]);
         break;
       case 2:
-        stamps.push(
+        addSceneryStamps(stamps, sceneryBlockers, [
           stamp(`district-fence-${area.key}`, area.bounds.x + 248, area.bounds.y + area.bounds.height - 62, [[80, 81, 81, 82]]),
           stamp(`district-hay-${area.key}`, area.bounds.x + 68, area.bounds.y + area.bounds.height * 0.72, [[94]]),
           stamp(`district-well-${area.key}`, area.bounds.x + area.bounds.width - 112, area.bounds.y + area.bounds.height * 0.78, [[104]], {
             solid: true,
             hitbox: { x: 8, y: 24, width: 32, height: 22 },
           }),
-        );
+        ]);
         break;
       case 4:
-        stamps.push(
+        addSceneryStamps(stamps, sceneryBlockers, [
           stamp(`district-chest-${area.key}`, area.bounds.x + area.bounds.width * 0.72, area.bounds.y + area.bounds.height * 0.72, [[131]]),
           stamp(`district-stump-${area.key}`, area.bounds.x + area.bounds.width * 0.2, area.bounds.y + area.bounds.height * 0.78, [[92]]),
           stamp(`district-mushroom-${area.key}`, area.bounds.x + area.bounds.width * 0.27, area.bounds.y + area.bounds.height * 0.82, [[29]]),
-        );
+        ]);
         break;
       default:
         break;
@@ -507,10 +680,10 @@ function buildAreaScenery(
           groveIndex + areaIndex,
         );
       });
-      stamps.push(
+      addSceneryStamps(stamps, sceneryBlockers, [
         stamp(`quiet-well-${area.key}`, area.bounds.x + area.bounds.width * 0.46, area.bounds.y + area.bounds.height * 0.48, [[104]], { solid: true, hitbox: { x: 8, y: 24, width: 32, height: 22 } }),
         stamp(`quiet-mushroom-${area.key}`, area.bounds.x + area.bounds.width * 0.59, area.bounds.y + area.bounds.height * 0.58, [[29]], { solid: false }),
-      );
+      ]);
     }
   });
 
@@ -518,9 +691,8 @@ function buildAreaScenery(
 }
 
 function buildVillageProps(
-  worldHeight: number,
+  layout: VillageLayout,
   areas: WorldArea[],
-  slots: AreaSlot[],
   portals: WorldPortal[],
   tileLayers: WorldTileLayer[],
 ): WorldTileStamp[] {
@@ -528,27 +700,10 @@ function buildVillageProps(
   const pathBlockers = tileLayers
     .filter((layer) => layer.tileIndex !== 1 && layer.tileIndex !== 2)
     .map((layer) => layer.bounds);
-  const stamps = [
-    ...buildBorderForest(worldHeight, buildingBlockers),
-    ...buildAreaScenery(areas, slots, portals, pathBlockers),
+  return [
+    ...buildBorderForest(layout.width, layout.height, buildingBlockers, layout.spawn),
+    ...buildAreaScenery(areas, layout.slots, portals, pathBlockers),
   ];
-
-  const crossingRows = [
-    ...new Set(slots.map((slot) => Math.round((slot.bounds.y + slot.bounds.height * 0.58) / TILE))),
-  ];
-  crossingRows.forEach((row, index) => {
-    const center = laneCenter(row);
-    const side = index % 2 === 0 ? -1 : 1;
-    stamps.push(
-      stamp(`crossing-well-${index}`, (center + side * 3) * TILE, row * TILE - 24, [[104]], {
-        solid: true,
-        hitbox: { x: 8, y: 24, width: 32, height: 22 },
-      }),
-      stamp(`crossing-sign-${index}`, (center - side * 3) * TILE, row * TILE, [[83]], { solid: false }),
-    );
-  });
-
-  return stamps;
 }
 
 function colliderForStamp(item: WorldTileStamp): Rect | null {
@@ -573,16 +728,14 @@ function colliderForPortal(portal: WorldPortal): Rect {
 }
 
 export function createVillageWorld(snapshot: MapSnapshot): WorldDefinition {
-  const layout = createAreaSlots(snapshot);
+  const layout = createVillageLayout(snapshot);
   const { areas, portals } = buildAreas(snapshot, layout.slots);
-  const tileLayers = buildTileLayers(layout.height, areas, layout.slots, portals);
-  const tileStamps = buildVillageProps(layout.height, areas, layout.slots, portals, tileLayers);
-  const paths: WorldPath[] = [
-    {
-      id: 'village-lane',
-      bounds: { x: ROAD_LEFT - TILE, y: 0, width: ROAD_WIDTH + TILE * 2, height: layout.height },
-    },
-  ];
+  const tileLayers = buildTileLayers(layout, areas, portals);
+  const tileStamps = buildVillageProps(layout, areas, portals, tileLayers);
+  const paths: WorldPath[] = layout.streets.map((bounds, index) => ({
+    id: `village-street-${index}`,
+    bounds,
+  }));
   const stampColliders = tileStamps
     .map(colliderForStamp)
     .filter((collider): collider is Rect => collider !== null);
@@ -591,8 +744,8 @@ export function createVillageWorld(snapshot: MapSnapshot): WorldDefinition {
     name: snapshot.server.displayName,
     environment: 'exterior',
     theme: KENNEY_TINY_TOWN_THEME,
-    bounds: { x: 0, y: 0, width: WORLD_WIDTH, height: layout.height },
-    spawn: { x: ROAD_LEFT + ROAD_WIDTH / 2 + TILE / 2, y: TILE * 2 },
+    bounds: { x: 0, y: 0, width: layout.width, height: layout.height },
+    spawn: layout.spawn,
     areas,
     paths,
     tileLayers,
