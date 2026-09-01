@@ -25,6 +25,19 @@ export class WorldCamera {
     this.targetY = position.y;
   }
 
+  public fitBounds(target: Point, bounds: Rect, padding = 16): void {
+    const availableWidth = Math.max(1, this.width - padding * 2);
+    const availableHeight = Math.max(1, this.height - padding * 2);
+    const zoom = Math.min(availableWidth / bounds.width, availableHeight / bounds.height);
+    this.setZoomImmediately(zoom, target, bounds);
+  }
+
+  public setZoomImmediately(zoom: number, target: Point, bounds: Rect): void {
+    this.zoom = this.clampZoom(zoom);
+    this.targetZoom = this.zoom;
+    this.centerImmediately(target, bounds);
+  }
+
   public update(target: Point, bounds: Rect, deltaScale: number): void {
     this.zoom += (this.targetZoom - this.zoom) * Math.min(1, 0.2 * deltaScale);
     if (this.following) {
@@ -45,7 +58,7 @@ export class WorldCamera {
   }
 
   public zoomBy(factor: number, anchor?: Point, bounds?: Rect): void {
-    const nextZoom = Math.max(0.55, Math.min(2.4, this.targetZoom * factor));
+    const nextZoom = this.clampZoom(this.targetZoom * factor);
     if (anchor && bounds) {
       const worldAnchor = this.screenToWorld(anchor.x, anchor.y);
       this.targetX = worldAnchor.x - anchor.x / nextZoom;
@@ -97,6 +110,10 @@ export class WorldCamera {
       target.y - this.height / this.zoom / 2,
       bounds,
     );
+  }
+
+  private clampZoom(zoom: number): number {
+    return Math.max(0.55, Math.min(2.4, zoom));
   }
 
   private clamp(x: number, y: number, bounds: Rect, zoom = this.zoom): Point {

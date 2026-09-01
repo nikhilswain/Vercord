@@ -183,19 +183,22 @@ function drawInteriorShell(
   world: WorldDefinition,
 ): void {
   const accent = world.areas[0]?.accent ?? '#9284f7';
-  const inset = 48;
-  const floorTop = 192;
-  const bottomWallTop = world.bounds.height - 48;
-  const doorwayLeft = world.bounds.width / 2 - 48;
-  const doorwayRight = world.bounds.width / 2 + 48;
+  const interiorScale = 1;
+  const borderSize = (world.interiorStyle?.floorTile.width ?? 16) * interiorScale;
+  const wallHeight = (world.interiorStyle?.wallPanel.height ?? 48) * interiorScale;
+  const inset = borderSize;
+  const floorTop = borderSize + wallHeight;
+  const bottomWallTop = world.bounds.height - borderSize;
+  const doorwayHalfWidth = borderSize * 2;
+  const doorwayLeft = world.bounds.width / 2 - doorwayHalfWidth;
+  const doorwayRight = world.bounds.width / 2 + doorwayHalfWidth;
 
   ctx.fillStyle = '#171923';
   ctx.fillRect(0, 0, world.bounds.width, world.bounds.height);
 
   if (image && world.interiorStyle) {
     const { wallPanel, floorTile } = world.interiorStyle;
-    const wallWidth = wallPanel.width * 3;
-    const wallHeight = wallPanel.height * 3;
+    const wallWidth = wallPanel.width * interiorScale;
     for (let x = inset; x < world.bounds.width - inset; x += wallWidth) {
       ctx.drawImage(
         image,
@@ -210,7 +213,7 @@ function drawInteriorShell(
       );
     }
 
-    const floorTileSize = floorTile.width * 3;
+    const floorTileSize = floorTile.width * interiorScale;
     for (let y = floorTop; y < bottomWallTop; y += floorTileSize) {
       for (let x = inset; x < world.bounds.width - inset; x += floorTileSize) {
         ctx.drawImage(
@@ -241,36 +244,43 @@ function drawInteriorShell(
     }
   } else {
     ctx.fillStyle = '#8b7c6c';
-    ctx.fillRect(inset, 48, world.bounds.width - inset * 2, floorTop - 48);
+    ctx.fillRect(inset, borderSize, world.bounds.width - inset * 2, floorTop - borderSize);
     ctx.fillStyle = '#b88a4d';
     ctx.fillRect(inset, floorTop, world.bounds.width - inset * 2, bottomWallTop - floorTop);
-    ctx.fillRect(doorwayLeft, bottomWallTop, doorwayRight - doorwayLeft, 48);
+    ctx.fillRect(doorwayLeft, bottomWallTop, doorwayRight - doorwayLeft, borderSize);
   }
 
+  const trimSize = Math.max(2, Math.round(borderSize / 8));
+  const jambSize = Math.max(3, Math.round(borderSize / 4));
   ctx.fillStyle = '#2b2025';
-  ctx.fillRect(0, 0, world.bounds.width, 48);
+  ctx.fillRect(0, 0, world.bounds.width, borderSize);
   ctx.fillRect(0, 0, inset, world.bounds.height);
   ctx.fillRect(world.bounds.width - inset, 0, inset, world.bounds.height);
-  ctx.fillRect(0, bottomWallTop, doorwayLeft, 48);
-  ctx.fillRect(doorwayRight, bottomWallTop, world.bounds.width - doorwayRight, 48);
+  ctx.fillRect(0, bottomWallTop, doorwayLeft, borderSize);
+  ctx.fillRect(doorwayRight, bottomWallTop, world.bounds.width - doorwayRight, borderSize);
   ctx.fillStyle = '#573526';
-  ctx.fillRect(inset, 42, world.bounds.width - inset * 2, 6);
-  ctx.fillRect(0, bottomWallTop, doorwayLeft, 6);
-  ctx.fillRect(doorwayRight, bottomWallTop, world.bounds.width - doorwayRight, 6);
-  ctx.fillRect(doorwayLeft - 8, bottomWallTop, 8, 48);
-  ctx.fillRect(doorwayRight, bottomWallTop, 8, 48);
+  ctx.fillRect(inset, borderSize - trimSize, world.bounds.width - inset * 2, trimSize);
+  ctx.fillRect(0, bottomWallTop, doorwayLeft, trimSize);
+  ctx.fillRect(doorwayRight, bottomWallTop, world.bounds.width - doorwayRight, trimSize);
+  ctx.fillRect(doorwayLeft - jambSize, bottomWallTop, jambSize, borderSize);
+  ctx.fillRect(doorwayRight, bottomWallTop, jambSize, borderSize);
   ctx.fillStyle = accent;
-  ctx.fillRect(doorwayLeft + 8, world.bounds.height - 8, doorwayRight - doorwayLeft - 16, 5);
+  ctx.fillRect(
+    doorwayLeft + jambSize,
+    world.bounds.height - 4,
+    doorwayRight - doorwayLeft - jambSize * 2,
+    3,
+  );
 
-  ctx.font = '700 17px "Barlow Condensed", sans-serif';
-  const titleWidth = Math.min(360, Math.max(180, ctx.measureText(world.name).width + 46));
+  ctx.font = '700 8px "Barlow Condensed", sans-serif';
+  const titleWidth = Math.min(160, Math.max(80, ctx.measureText(world.name).width + 22));
   ctx.fillStyle = '#171923';
-  ctx.fillRect(72, 10, titleWidth, 28);
+  ctx.fillRect(24, 2, titleWidth, 14);
   ctx.fillStyle = accent;
-  ctx.fillRect(72, 10, 5, 28);
+  ctx.fillRect(24, 2, 2, 14);
   ctx.fillStyle = '#f4f6ff';
   ctx.textBaseline = 'middle';
-  ctx.fillText(world.name, 88, 24, titleWidth - 28);
+  ctx.fillText(world.name, 30, 9, titleWidth - 12);
 }
 
 function roomGlyph(type: MapRoomType): string {
@@ -304,15 +314,15 @@ function drawPortal(
 
   if (portal.destination === 'world') {
     ctx.fillStyle = active ? portal.accent : '#65718a';
-    ctx.fillRect(x - 38, y + 18, 76, 6);
-    roundedRect(ctx, x - 34, y - 20, 68, 26, 6);
+    ctx.fillRect(x - 19, y + 9, 38, 3);
+    roundedRect(ctx, x - 17, y - 10, 34, 13, 3);
     ctx.fillStyle = active ? '#18233d' : 'rgb(24 35 61 / 0.88)';
     ctx.fill();
     ctx.fillStyle = '#f4f6ff';
-    ctx.font = '700 11px "Cascadia Mono", monospace';
+    ctx.font = '700 6px "Cascadia Mono", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('EXIT', x, y - 7);
+    ctx.fillText('EXIT', x, y - 3);
     ctx.textAlign = 'left';
     return;
   }
@@ -523,6 +533,7 @@ function drawPlayer(
   player: PlayerState,
   elapsed: number,
   reduceMotion: boolean,
+  compactLabel: boolean,
 ): void {
   const avatar = theme.avatar;
   const hasAvatar = avatar && avatarImages.length === avatar.layerUrls.length;
@@ -562,15 +573,19 @@ function drawPlayer(
     );
   }
 
-  const labelY = hasAvatar ? player.y - 62 : player.y - 50 + bob;
-  roundedRect(ctx, player.x - 29, labelY, 58, 20, 7);
+  const labelWidth = compactLabel ? 34 : 58;
+  const labelHeight = compactLabel ? 12 : 20;
+  const labelY = hasAvatar
+    ? player.y - (compactLabel ? 56 : 62)
+    : player.y - (compactLabel ? 44 : 50) + bob;
+  roundedRect(ctx, player.x - labelWidth / 2, labelY, labelWidth, labelHeight, compactLabel ? 4 : 7);
   ctx.fillStyle = '#5c4bd8';
   ctx.fill();
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 11px "Inter Variable", sans-serif';
+  ctx.font = `700 ${compactLabel ? 7 : 11}px "Inter Variable", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('you', player.x, labelY + 10);
+  ctx.fillText('you', player.x, labelY + labelHeight / 2);
   ctx.textAlign = 'left';
 }
 
@@ -692,6 +707,7 @@ export function renderWorld(
           state.player,
           state.elapsed,
           state.reduceMotion,
+          world.environment === 'interior',
         ),
     },
   ].sort((a, b) => a.y - b.y);

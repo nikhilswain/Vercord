@@ -15,6 +15,7 @@ import type {
 } from './types';
 
 const WALK_SPEED = 150;
+const ROOM_WALK_SPEED = 75;
 const SPRINT_MULTIPLIER = 1.65;
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -45,6 +46,7 @@ export class WorldEngine {
   private interiorImage: HTMLImageElement | null = null;
   private world: WorldDefinition;
   private campusPlayer: PlayerState | null = null;
+  private campusZoom = 1;
   private currentRoom: WorldPortal | null = null;
   private animationFrame: number | null = null;
   private previousTime = 0;
@@ -111,7 +113,8 @@ export class WorldEngine {
     this.canvas.style.height = `${height}px`;
     this.context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     this.camera.resize(width, height);
-    this.camera.centerImmediately(this.player, this.world.bounds);
+    if (this.world.environment === 'interior') this.camera.fitBounds(this.player, this.world.bounds);
+    else this.camera.centerImmediately(this.player, this.world.bounds);
   }
 
   public zoomIn(): void {
@@ -123,8 +126,11 @@ export class WorldEngine {
   }
 
   public resetView(): void {
-    this.camera.resetZoom();
-    this.camera.follow(this.player, this.world.bounds);
+    if (this.world.environment === 'interior') this.camera.fitBounds(this.player, this.world.bounds);
+    else {
+      this.camera.resetZoom();
+      this.camera.follow(this.player, this.world.bounds);
+    }
   }
 
   public setVirtualAxis(x: number, y: number, sprinting = false): void {
@@ -211,7 +217,8 @@ export class WorldEngine {
     this.player.moving = moving;
     if (moving) {
       this.player.direction = this.directionFromVector(movementX, movementY);
-      const speed = WALK_SPEED * (input.sprinting ? SPRINT_MULTIPLIER : 1);
+      const baseSpeed = this.world.environment === 'interior' ? ROOM_WALK_SPEED : WALK_SPEED;
+      const speed = baseSpeed * (input.sprinting ? SPRINT_MULTIPLIER : 1);
       const collider = this.world.theme.avatar?.collider ?? {
         width: 18,
         height: 12,
@@ -242,10 +249,11 @@ export class WorldEngine {
   private updateUiState(): void {
     const nextArea =
       this.world.areas.find((area) => containsPoint(area.bounds, this.player.x, this.player.y)) ?? null;
+    const portalRadius = this.world.environment === 'interior' ? 42 : 82;
     const nextPortal =
       this.world.portals
         .map((portal) => ({ portal, distance: Math.hypot(portal.x - this.player.x, portal.y - this.player.y) }))
-        .filter(({ distance }) => distance <= 82)
+        .filter(({ distance }) => distance <= portalRadius)
         .sort((a, b) => a.distance - b.distance)[0]?.portal ?? null;
     const zoom = Math.round(this.camera.zoom * 100);
 
@@ -407,6 +415,7 @@ export class WorldEngine {
 
   private enterRoom(portal: WorldPortal): void {
     this.campusPlayer = { ...this.player };
+    this.campusZoom = this.camera.zoom;
     this.currentRoom = portal;
     this.switchWorld(createRoomWorld(portal, this.campusWorld.theme), 'up');
     this.callbacks.onSceneChange(portal);
@@ -421,7 +430,7 @@ export class WorldEngine {
     if (campusPlayer) Object.assign(this.player, campusPlayer);
     else Object.assign(this.player, this.campusWorld.spawn, { direction: 'down', moving: false });
     this.resetUiCache();
-    this.camera.centerImmediately(this.player, this.world.bounds);
+    this.camera.setZoomImmediately(this.campusZoom, this.player, this.world.bounds);
     this.callbacks.onSceneChange(null);
   }
 
@@ -431,7 +440,7 @@ export class WorldEngine {
     this.routeTarget = null;
     Object.assign(this.player, world.spawn, { direction, moving: false });
     this.resetUiCache();
-    this.camera.centerImmediately(this.player, world.bounds);
+    this.camera.fitBounds(this.player, world.bounds);
   }
 
   private resetUiCache(): void {
