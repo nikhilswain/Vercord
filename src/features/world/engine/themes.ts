@@ -1,6 +1,7 @@
 import type { WorldTheme } from './types';
 
-const LOCAL_GAME_ASSETS_ENABLED = import.meta.env.VITE_LOCAL_GAME_ASSETS === 'true';
+const LOCAL_GAME_ASSETS_ENABLED =
+  import.meta.env.DEV && import.meta.env.VITE_LOCAL_GAME_ASSETS === 'true';
 
 export const KENNEY_TINY_TOWN_THEME: WorldTheme = {
   id: 'kenney-tiny-town',

@@ -8,10 +8,6 @@ test-results/
 *.local
 /assets/
 
-# Licensed for local use, but not redistribution in this repository
-/public/game-assets/mana-seed/
-/public/game-assets/pixel-lands/
-
 .dev.vars*
 !.dev.vars.example
 .env*
