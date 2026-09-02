@@ -69,15 +69,10 @@ pnpm deploy
 
 ## Game assets
 
-The repository includes Kenney Tiny Town and RPG Urban Pack art under CC0. See
-`THIRD_PARTY_NOTICES.md`.
-
-Some local development art is intentionally not redistributed: Mana Seed character layers and the
-PixelSpaces interior pack. If you have your own licensed copies, place the prepared files under
-`assets/runtime/game-assets/mana-seed/` and `assets/runtime/game-assets/pixel-lands/`, then set
-`VITE_LOCAL_GAME_ASSETS=true` in `.env.development.local`. These files are served only by the local
-development server and cannot enter a production build. Without them, Dmap uses its included CC0
-avatar and drawn interior fallbacks.
+The repository ships the same CC0 Kenney art in development and production: Tiny Town for the
+outdoor world, Tiny Dungeon for avatars and room interiors, and RPG Urban Pack for the remaining
+legacy atlas. Source and license details are in `THIRD_PARTY_NOTICES.md` and beside each published
+asset set under `public/game-assets/`.
 
 ## Useful commands
 

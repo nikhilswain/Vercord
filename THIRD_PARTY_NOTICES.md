@@ -8,6 +8,13 @@
 - Upstream: https://kenney.nl/assets/tiny-town
 - Included file: `public/game-assets/tiny-town/tiles.png`
 
+### Kenney Tiny Dungeon 1.0
+
+- License: Creative Commons CC0 1.0 Universal
+- Upstream: https://kenney.nl/assets/tiny-dungeon
+- Included files: `public/game-assets/tiny-dungeon/tiles.png` and the derived avatar sheets under
+  `public/game-assets/tiny-dungeon/avatars/`
+
 ### Kenney RPG Urban Pack 1.0
 
 - License: Creative Commons CC0 1.0 Universal

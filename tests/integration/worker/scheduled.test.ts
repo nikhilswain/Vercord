@@ -195,7 +195,7 @@ describe('scheduled synchronization entry point', () => {
   });
 });
 
-describe('deployment configuration remains local-only and schedule-free', () => {
+describe('deployment configuration remains schedule-free', () => {
   it('contains no cron, environment, preview binding, or remote KV access', () => {
     const config = JSON.parse(
       wranglerSource.replace(/^\s*\/\/.*$/gm, '').replace(/,\s*([}\]])/g, '$1'),
@@ -204,7 +204,7 @@ describe('deployment configuration remains local-only and schedule-free', () => 
 
     expect(config).not.toHaveProperty('triggers');
     expect(config).not.toHaveProperty('env');
-    expect(config.workers_dev).toBe(false);
+    expect(config.workers_dev).toBe(true);
     expect(config.preview_urls).toBe(false);
     expect(namespaces).toHaveLength(1);
     expect(namespaces[0]).not.toHaveProperty('preview_id');

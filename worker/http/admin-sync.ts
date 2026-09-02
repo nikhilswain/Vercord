@@ -38,9 +38,11 @@ async function hasRequestBody(request: Request): Promise<boolean> {
   if (contentLength !== null && /^\d+$/.test(contentLength) && Number(contentLength) > 0) {
     return true;
   }
+  if (request.headers.has('transfer-encoding')) return true;
   if (request.body === null) return false;
 
-  const reader = request.body.getReader();
+  const probe = request.clone();
+  const reader = probe.body!.getReader();
   try {
     while (true) {
       const chunk = await reader.read();
@@ -48,7 +50,7 @@ async function hasRequestBody(request: Request): Promise<boolean> {
       if (chunk.value.byteLength > 0) return true;
     }
   } finally {
-    await reader.cancel().catch(() => undefined);
+    void reader.cancel().catch(() => undefined);
   }
 }
 

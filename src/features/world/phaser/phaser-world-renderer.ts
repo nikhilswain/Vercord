@@ -273,8 +273,9 @@ export class PhaserWorldRenderer {
   private addInteriorShell(world: WorldDefinition): void {
     this.scene.cameras.main.setBackgroundColor('#11141d');
     const accent = color(world.areas[0]?.accent, 0x9284f7);
-    const borderSize = world.interiorStyle?.floorTile.width ?? 16;
-    const wallHeight = world.interiorStyle?.wallPanel.height ?? 48;
+    const tileScale = world.interiorStyle?.tileScale ?? 1;
+    const borderSize = world.interiorStyle?.borderSize ?? 16;
+    const wallHeight = world.interiorStyle?.wallHeight ?? 48;
     const inset = borderSize;
     const floorTop = borderSize + wallHeight;
     const bottomWallTop = world.bounds.height - borderSize;
@@ -309,6 +310,7 @@ export class PhaserWorldRenderer {
           wallFrame,
         )
         .setOrigin(0)
+        .setTileScale(tileScale)
         .setDepth(-9_900);
       this.scene.add
         .tileSprite(
@@ -320,6 +322,7 @@ export class PhaserWorldRenderer {
           floorFrame,
         )
         .setOrigin(0)
+        .setTileScale(tileScale)
         .setDepth(-9_900);
       this.scene.add
         .tileSprite(
@@ -331,6 +334,7 @@ export class PhaserWorldRenderer {
           floorFrame,
         )
         .setOrigin(0)
+        .setTileScale(tileScale)
         .setDepth(-9_900);
     } else {
       this.scene.add
@@ -545,6 +549,21 @@ export class PhaserWorldRenderer {
       this.scene.textures.exists(INTERIOR_ATLAS_KEY) &&
       this.scene.textures.get(INTERIOR_ATLAS_KEY).has(frame);
     if (canUseAtlas) {
+      if (prop.kind === 'rug' || prop.kind === 'blueRug') {
+        this.scene.add
+          .tileSprite(prop.x, prop.y, prop.width, prop.height, INTERIOR_ATLAS_KEY, frame)
+          .setOrigin(0)
+          .setTileScale(this.world.theme.interiorAtlas?.renderScale ?? 1)
+          .setDepth(depth);
+        const trimColor = color(prop.tint, prop.kind === 'blueRug' ? 0x8bd4d2 : 0xd6a15f);
+        const trim = this.scene.add.graphics().setDepth(depth + 0.01);
+        trim
+          .lineStyle(2, trimColor, 1)
+          .strokeRect(prop.x + 3, prop.y + 3, prop.width - 6, prop.height - 6)
+          .lineStyle(1, trimColor, 0.72)
+          .strokeRect(prop.x + 9, prop.y + 9, prop.width - 18, prop.height - 18);
+        return;
+      }
       this.scene.add
         .image(prop.x, prop.y, INTERIOR_ATLAS_KEY, frame)
         .setOrigin(0)

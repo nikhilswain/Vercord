@@ -221,7 +221,7 @@ function GuildPicker({
             <strong>{session.user.displayName}</strong>
             <small>@{session.user.username}</small>
           </div>
-          <form action="/api/auth/logout" method="post">
+          <form action="/api/auth/logout" method="post" noValidate>
             <button type="submit">Sign out</button>
           </form>
         </div>
@@ -274,9 +274,8 @@ export function DashboardPage() {
   const authResult = new URLSearchParams(window.location.search).get('auth');
   const authMessage = authResult === null ? null : (authMessages[authResult] ?? null);
 
-  const loadSession = useCallback(() => {
+  const requestSession = useCallback(() => {
     const controller = new AbortController();
-    setState({ kind: 'loading' });
     void fetch('/api/auth/session', {
       headers: { accept: 'application/json' },
       credentials: 'same-origin',
@@ -298,6 +297,11 @@ export function DashboardPage() {
       });
     return () => controller.abort();
   }, []);
+
+  const loadSession = useCallback(() => {
+    setState({ kind: 'loading' });
+    return requestSession();
+  }, [requestSession]);
 
   const syncGuild = useCallback((guild: AuthGuild) => {
     if (syncControllers.current.has(guild.id)) return;
@@ -380,13 +384,14 @@ export function DashboardPage() {
       });
   }, []);
 
-  useEffect(() => loadSession(), [loadSession]);
+  useEffect(() => requestSession(), [requestSession]);
 
   useEffect(() => {
+    const controllers = syncControllers.current;
     document.title = 'Discord worlds — Dmap';
     return () => {
-      for (const controller of syncControllers.current.values()) controller.abort();
-      syncControllers.current.clear();
+      for (const controller of controllers.values()) controller.abort();
+      controllers.clear();
     };
   }, []);
 

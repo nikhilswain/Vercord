@@ -71,6 +71,9 @@ export type WorldPropKind =
 export interface WorldInteriorStyle {
   wallPanel: Rect;
   floorTile: Rect;
+  tileScale?: number;
+  borderSize?: number;
+  wallHeight?: number;
 }
 
 export interface WorldTheme {
@@ -105,6 +108,7 @@ export interface WorldTheme {
   };
   interiorAtlas?: {
     url: string;
+    renderScale?: number;
     sprites: Partial<Record<WorldPropKind, Rect>>;
   };
   exterior?: {
