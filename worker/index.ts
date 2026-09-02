@@ -10,6 +10,8 @@ import { createSingleFlight } from './sync/single-flight';
 import { createSyncRunner } from './sync/create-sync-runner';
 import type { SyncSummary } from './sync/synchronize-guild';
 
+export { GuildPresence } from './presence/guild-presence';
+
 const HEALTH_PATH = '/api/health';
 const ADMIN_SYNC_PATH = '/api/admin/sync';
 const LOCAL_PREVIEW_MAP_PREFIX = '/api/preview/maps/';

@@ -264,7 +264,7 @@
 
 .guild-row {
   display: grid;
-  grid-template-columns: 3.4rem minmax(0, 1fr) minmax(10rem, auto);
+  grid-template-columns: 3.4rem minmax(0, 1fr) minmax(15rem, auto);
   align-items: center;
   gap: 1rem;
   min-height: 6.8rem;
@@ -329,15 +329,19 @@
 
 .guild-action {
   display: inline-flex;
+  min-width: 7.6rem;
   min-height: 2.75rem;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
   justify-self: end;
+  border: 0;
   border-radius: var(--radius-control);
   padding: 0.7rem 0.9rem;
   color: var(--color-void);
   background: var(--color-route-violet);
+  cursor: pointer;
+  font: inherit;
   font-weight: 700;
   text-decoration: none;
   transition: filter 140ms ease-out;
@@ -349,6 +353,51 @@
 
 .guild-action:active {
   filter: brightness(0.94);
+}
+
+.guild-action:disabled,
+.guild-sync-button:disabled {
+  cursor: wait;
+  opacity: 0.66;
+}
+
+.guild-actions {
+  display: flex;
+  max-width: 22rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  justify-self: end;
+  flex-wrap: wrap;
+}
+
+.guild-sync-button {
+  min-width: 6.9rem;
+  min-height: 2.75rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.34);
+  border-radius: var(--radius-control);
+  padding: 0.65rem 0.85rem;
+  color: var(--color-map-white);
+  background: rgb(var(--color-map-white-rgb) / 0.035);
+  cursor: pointer;
+  font: 700 0.82rem/1 var(--font-ui);
+}
+
+.guild-sync-button:hover:not(:disabled) {
+  border-color: rgb(var(--color-border-rgb) / 0.72);
+  background: rgb(var(--color-map-white-rgb) / 0.075);
+}
+
+.guild-sync-feedback {
+  flex-basis: 100%;
+  color: var(--color-success);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.guild-sync-feedback--error {
+  color: var(--color-danger);
 }
 
 .guild-action-note {
@@ -444,9 +493,18 @@
   }
 
   .guild-action,
-  .guild-action-note {
+  .guild-action-note,
+  .guild-actions {
     grid-column: 2;
     justify-self: start;
+    text-align: left;
+  }
+
+  .guild-actions {
+    justify-content: flex-start;
+  }
+
+  .guild-sync-feedback {
     text-align: left;
   }
 
@@ -469,7 +527,8 @@
   }
 
   .discord-sign-in,
-  .guild-action {
+  .guild-action,
+  .guild-sync-button {
     transition-duration: 0ms;
   }
 }

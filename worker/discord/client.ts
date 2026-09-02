@@ -4,6 +4,7 @@ import {
   parseDiscordBotMember,
   parseDiscordChannels,
   parseDiscordGuild,
+  snowflakeSchema,
   validateDiscordSourceBundle,
 } from '../../src/domain/discord/source-schema';
 import type { DiscordSourceBundle } from '../../src/domain/discord/source';
@@ -17,6 +18,7 @@ import {
 } from './read-json';
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10';
+const DISCORD_GUILD_PAGE_LIMIT = 200;
 
 export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -27,8 +29,29 @@ export interface DiscordClientDependencies {
   random(): number;
 }
 
-export interface DiscordRestClient {
+export interface DiscordGuildSourceClient {
   fetchGuildSource(guildId: string): Promise<DiscordSourceBundle>;
+}
+
+export interface DiscordRestClient extends DiscordGuildSourceClient {
+  fetchGuildIds(): Promise<string[]>;
+}
+
+function parseDiscordGuildIds(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > DISCORD_GUILD_PAGE_LIMIT) {
+    throw new WorkerError('DISCORD_RESPONSE_INVALID');
+  }
+
+  const guildIds = value.map((guild) => {
+    if (typeof guild !== 'object' || guild === null || Array.isArray(guild)) {
+      throw new WorkerError('DISCORD_RESPONSE_INVALID');
+    }
+    const parsed = snowflakeSchema.safeParse((guild as Record<string, unknown>).id);
+    if (!parsed.success) throw new WorkerError('DISCORD_RESPONSE_INVALID');
+    return parsed.data;
+  });
+
+  return [...new Set(guildIds)];
 }
 
 export function createDiscordRestClient(options: {
@@ -203,5 +226,12 @@ export function createDiscordRestClient(options: {
     }
   }
 
-  return { fetchGuildSource };
+  async function fetchGuildIds(): Promise<string[]> {
+    const deadline = dependencies.now() + DISCORD_SYNC_BUDGET_MS;
+    return parseDiscordGuildIds(
+      await requestJson(`/users/@me/guilds?limit=${DISCORD_GUILD_PAGE_LIMIT}`, deadline),
+    );
+  }
+
+  return { fetchGuildIds, fetchGuildSource };
 }

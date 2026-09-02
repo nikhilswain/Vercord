@@ -4,10 +4,12 @@ import type { MapSnapshot } from '../../domain/map/snapshot';
 import { createVillageWorld } from './engine/village-world';
 import type { WorldUiState } from './engine/types';
 import { WorldEngine } from './engine/world-engine';
+import { WorldPresenceClient, type WorldPresenceState } from './presence/world-presence-client';
 import { VirtualJoystick } from './VirtualJoystick';
 
 export interface WorldCanvasProps {
   snapshot: MapSnapshot;
+  presenceGuildId?: string;
 }
 
 const INITIAL_UI: WorldUiState = {
@@ -18,11 +20,16 @@ const INITIAL_UI: WorldUiState = {
   zoom: 100,
 };
 
+const INITIAL_PRESENCE: WorldPresenceState = {
+  connection: 'connecting',
+  onlineCount: 0,
+};
+
 function ControlIcon({ children }: { children: string }) {
   return <span aria-hidden="true">{children}</span>;
 }
 
-export function WorldCanvas({ snapshot }: WorldCanvasProps) {
+export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<WorldEngine | null>(null);
@@ -31,17 +38,26 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
   const [assetError, setAssetError] = useState(false);
   const [ui, setUi] = useState<WorldUiState>(INITIAL_UI);
   const [sceneRoom, setSceneRoom] = useState<WorldUiState['room']>(null);
+  const [presence, setPresence] = useState<WorldPresenceState>(INITIAL_PRESENCE);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const host = hostRef.current;
     if (!canvas || !host) return;
 
+    const presenceClient = presenceGuildId
+      ? new WorldPresenceClient(presenceGuildId, {
+          onPlayers: (players) => engineRef.current?.setRemotePlayers(players),
+          onSelfAvatar: (avatarId) => engineRef.current?.setPlayerAvatar(avatarId),
+          onState: setPresence,
+        })
+      : null;
     const engine = new WorldEngine(canvas, world, {
       onReady: () => setReady(true),
       onAssetError: () => setAssetError(true),
       onUiChange: setUi,
       onSceneChange: setSceneRoom,
+      onPresenceMove: (location) => presenceClient?.updateLocation(location),
     });
     engineRef.current = engine;
 
@@ -50,13 +66,15 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
     resizeObserver.observe(host);
     resize();
     engine.start();
+    presenceClient?.connect();
 
     return () => {
       resizeObserver.disconnect();
+      presenceClient?.disconnect();
       engine.destroy();
       engineRef.current = null;
     };
-  }, [world]);
+  }, [presenceGuildId, world]);
 
   const toggleFullscreen = async () => {
     const host = hostRef.current;
@@ -91,14 +109,29 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
         <span className="world-location-kicker">
           {sceneRoom ? 'Inside channel' : 'Now exploring'}
         </span>
-        <strong>{sceneRoom ? `#${sceneRoom.room.label}` : (ui.area?.label ?? 'Central crossing')}</strong>
-        <span>
+        <strong>
+          {sceneRoom ? `#${sceneRoom.room.label}` : (ui.area?.label ?? 'Central crossing')}
+        </strong>
+        <span className="world-location-meta">
           {sceneRoom
             ? `${sceneRoom.room.type} room · ${sceneRoom.areaLabel}`
             : ui.area
               ? `${ui.area.roomCount} mapped rooms`
               : world.name}
         </span>
+        {presenceGuildId ? (
+          <span
+            className="world-presence-status"
+            data-connection={presence.connection}
+            aria-live="polite"
+          >
+            {presence.connection === 'online'
+              ? `${presence.onlineCount} online`
+              : presence.connection === 'connecting'
+                ? 'Connecting…'
+                : 'Reconnecting…'}
+          </span>
+        ) : null}
       </div>
 
       <div className="world-controls" aria-label="World view controls">
@@ -111,21 +144,41 @@ export function WorldCanvas({ snapshot }: WorldCanvasProps) {
         <button type="button" onClick={() => engineRef.current?.zoomOut()} aria-label="Zoom out">
           <ControlIcon>−</ControlIcon>
         </button>
-        <button type="button" onClick={() => engineRef.current?.resetView()} aria-label="Center on avatar">
+        <button
+          type="button"
+          onClick={() => engineRef.current?.resetView()}
+          aria-label="Center on avatar"
+        >
           <ControlIcon>◎</ControlIcon>
         </button>
-        <button type="button" onClick={() => void toggleFullscreen()} aria-label="Toggle fullscreen">
+        <button
+          type="button"
+          onClick={() => void toggleFullscreen()}
+          aria-label="Toggle fullscreen"
+        >
           <ControlIcon>⛶</ControlIcon>
         </button>
       </div>
 
       <div className="world-help">
-        <span><kbd>WASD</kbd> move</span>
-        <span><kbd>Shift</kbd> sprint</span>
-        <span><kbd>Click</kbd> walk</span>
-        <span><kbd>Drag</kbd> pan</span>
-        <span><kbd>Wheel</kbd> zoom</span>
-        <span><kbd>E</kbd> enter</span>
+        <span>
+          <kbd>WASD</kbd> move
+        </span>
+        <span>
+          <kbd>Shift</kbd> sprint
+        </span>
+        <span>
+          <kbd>Click</kbd> walk
+        </span>
+        <span>
+          <kbd>Drag</kbd> pan
+        </span>
+        <span>
+          <kbd>Wheel</kbd> zoom
+        </span>
+        <span>
+          <kbd>E</kbd> enter
+        </span>
       </div>
 
       <VirtualJoystick

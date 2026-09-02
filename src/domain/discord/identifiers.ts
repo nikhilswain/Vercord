@@ -1,6 +1,12 @@
 import type { Snowflake } from './source';
 
-const PREFIX = { guild: 'g_', channel: 'c_', role: 'r_', member: 'm_' } as const;
+const PREFIX = {
+  guild: 'g_',
+  channel: 'c_',
+  role: 'r_',
+  member: 'm_',
+  presence: 'p_',
+} as const;
 
 export interface IdentifierFactory {
   for(kind: keyof typeof PREFIX, snowflake: Snowflake): Promise<string>;

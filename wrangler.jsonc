@@ -37,4 +37,18 @@
       "binding": "AUTH_DB",
     },
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "WORLD_PRESENCE",
+        "class_name": "GuildPresence",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GuildPresence"],
+    },
+  ],
 }

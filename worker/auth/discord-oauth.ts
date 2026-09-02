@@ -26,6 +26,10 @@ export interface DiscordOAuthGuild {
   permissions: string;
 }
 
+export interface DiscordOAuthGuildMember {
+  roleIds: string[];
+}
+
 interface DiscordOAuthClientOptions {
   clientId: string;
   clientSecret: string;
@@ -51,9 +55,15 @@ async function discordRequest(url: string, init: RequestInit): Promise<unknown> 
   try {
     const response = await fetch(url, { ...init, signal: controller.signal });
     if (!response.ok) {
-      throw new Error(
-        response.status === 401 ? 'AUTH_PROVIDER_UNAUTHORIZED' : 'AUTH_PROVIDER_FAILED',
-      );
+      const code =
+        response.status === 401
+          ? 'AUTH_PROVIDER_UNAUTHORIZED'
+          : response.status === 403
+            ? 'AUTH_PROVIDER_FORBIDDEN'
+            : response.status === 404
+              ? 'AUTH_PROVIDER_NOT_FOUND'
+              : 'AUTH_PROVIDER_FAILED';
+      throw new Error(code);
     }
     const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim();
     if (contentType !== 'application/json') throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
@@ -139,6 +149,22 @@ function parseGuilds(value: unknown): DiscordOAuthGuild[] {
   });
 }
 
+function parseGuildMember(value: unknown): DiscordOAuthGuildMember {
+  const record = objectValue(value);
+  if (!Array.isArray(record.roles) || record.roles.length > 250) {
+    throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
+  }
+  const roleIds = record.roles.map((value) => {
+    const roleId = requiredString(value, 1, 20);
+    if (!/^\d+$/u.test(roleId)) throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
+    return roleId;
+  });
+  if (new Set(roleIds).size !== roleIds.length) {
+    throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
+  }
+  return { roleIds };
+}
+
 export function buildDiscordAuthorizeUrl(options: {
   clientId: string;
   redirectUri: string;
@@ -211,6 +237,21 @@ export function createDiscordOAuthClient(options: DiscordOAuthClientOptions) {
             'User-Agent': 'Dmap/0.1.0',
           },
         }),
+      );
+    },
+
+    async fetchGuildMember(accessToken: string, guildId: string): Promise<DiscordOAuthGuildMember> {
+      return parseGuildMember(
+        await discordRequest(
+          `${DISCORD_API_BASE_URL}/users/@me/guilds/${encodeURIComponent(guildId)}/member`,
+          {
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              'User-Agent': 'Dmap/0.1.0',
+            },
+          },
+        ),
       );
     },
   };

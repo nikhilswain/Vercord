@@ -24,5 +24,14 @@ export const authSessionSchema = z.object({
   guilds: z.array(authGuildSchema).max(200),
 });
 
+export const guildSyncResponseSchema = z.object({
+  status: z.literal('synced'),
+  guildId: z.string().regex(/^\d+$/),
+  worldUrl: z.string().startsWith('/').nullable(),
+  generatedAt: z.string().datetime(),
+  categoryCount: z.number().int().nonnegative(),
+  channelCount: z.number().int().nonnegative(),
+});
+
 export type AuthSession = z.infer<typeof authSessionSchema>;
 export type AuthGuild = z.infer<typeof authGuildSchema>;

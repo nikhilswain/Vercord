@@ -96,7 +96,7 @@ function reconstruct(end: SearchNode, exactTarget: Point | null): Point[] {
   }
 
   const corners = nodes
-    .filter((node, index) => {
+    .filter((_node, index) => {
       if (index === 0 || index === nodes.length - 1) return true;
       const previous = nodes[index - 1];
       const next = nodes[index + 1];

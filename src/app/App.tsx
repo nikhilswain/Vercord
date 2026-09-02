@@ -28,6 +28,8 @@ export function App({ pathname = window.location.pathname }: AppProps) {
       return <DiscordMapPage slug={route.slug} />;
     case 'preview':
       return <DiscordMapPage slug={route.slug} mode="local-preview" />;
+    case 'world':
+      return <DiscordMapPage slug={route.guildId} mode="member" />;
     default:
       return <NotFoundPage />;
   }

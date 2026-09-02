@@ -4,10 +4,12 @@ export type AppRoute =
   | { kind: 'demo'; title: 'Northstar Commons — Dmap' }
   | { kind: 'map'; title: 'Discord world — Dmap'; slug: string }
   | { kind: 'preview'; title: 'Local Discord preview — Dmap'; slug: string }
+  | { kind: 'world'; title: 'Private Discord world — Dmap'; guildId: string }
   | { kind: 'not-found'; title: 'Page not found — Dmap' };
 
 const mapPathPattern = /^\/map\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 const previewPathPattern = /^\/preview\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
+const worldPathPattern = /^\/world\/([1-9]\d{0,19})$/;
 
 function validSlugFromMatch(match: RegExpMatchArray | null | undefined): string | null {
   const slug = match?.[1];
@@ -21,6 +23,14 @@ export function resolveAppRoute(pathname: string): AppRoute {
     return { kind: 'dashboard', title: 'Your Discord worlds — Dmap' };
   }
   if (path === '/map/demo') return { kind: 'demo', title: 'Northstar Commons — Dmap' };
+  const worldMatch = path?.match(worldPathPattern);
+  if (worldMatch?.[1]) {
+    return {
+      kind: 'world',
+      title: 'Private Discord world — Dmap',
+      guildId: worldMatch[1],
+    };
+  }
   const previewSlug = validSlugFromMatch(path?.match(previewPathPattern));
   if (previewSlug)
     return { kind: 'preview', title: 'Local Discord preview — Dmap', slug: previewSlug };

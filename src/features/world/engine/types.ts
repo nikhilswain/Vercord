@@ -1,4 +1,5 @@
 import type { MapRoom } from '../../../domain/map/snapshot';
+import type { AvatarId } from '../../../domain/avatar/identity';
 
 export type Direction = 'down' | 'left' | 'right' | 'up';
 
@@ -80,7 +81,15 @@ export interface WorldTheme {
   sheetColumns: number;
   worldTileSize: number;
   avatar?: {
-    layerUrls: string[];
+    layers: Array<{
+      id: string;
+      url: string;
+    }>;
+    variants: Array<{
+      id: AvatarId;
+      layerIds: string[];
+    }>;
+    defaultVariantId: AvatarId;
     frameSize: number;
     walkFrames: number;
     walkRows: Record<Direction, number>;

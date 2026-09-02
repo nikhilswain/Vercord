@@ -1,3 +1,6 @@
+import { avatarIdForDiscordUser } from '../../src/domain/avatar/identity';
+import { DiscordDomainError } from '../../src/domain/discord/errors';
+import { createIdentifierFactory } from '../../src/domain/discord/identifiers';
 import { parseAuthConfig, type AuthConfig } from '../auth/config';
 import { clearCookie, readCookie, setCookie } from '../auth/cookies';
 import {
@@ -18,8 +21,15 @@ import {
   type SessionRecord,
   type SessionTokenUpdate,
 } from '../auth/repository';
+import { decodeBase64UrlSecret } from '../config/runtime';
+import { parseDiscordSourceConfig } from '../config/schema';
+import { createDiscordRestClient } from '../discord/client';
+import { WorkerError } from '../errors';
+import { createMemberMapSnapshot } from '../publication/create-public-map';
 import { createKvGuildStructureRepository } from '../storage/guild-structure-repository';
 import { createKvPublicMapRepository } from '../storage/public-map-repository';
+import { synchronizePrivateGuild } from '../sync/synchronize-private-guild';
+import { createD1WorldRepository } from '../worlds/repository';
 import { jsonResponse } from './json-response';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
@@ -29,13 +39,51 @@ const DISCORD_START_PATH = '/api/auth/discord/start';
 const DISCORD_CALLBACK_PATH = '/api/auth/discord/callback';
 const SESSION_PATH = '/api/auth/session';
 const LOGOUT_PATH = '/api/auth/logout';
+const GUILD_SYNC_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/sync$/u;
+const GUILD_MAP_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/map$/u;
+const GUILD_PRESENCE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/presence$/u;
+const WORLD_PAGE_PATH = /^\/world\/[1-9]\d{0,19}$/u;
 const MANAGE_GUILD = 1n << 5n;
 const ADMINISTRATOR = 1n << 3n;
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+const activeGuildSyncs = new Set<string>();
+
+const SYNC_STATUS_BY_CODE = {
+  CONFIG_INVALID: 500,
+  DISCORD_SOURCE_INVALID: 502,
+  SNAPSHOT_INVALID: 500,
+  EXCESSIVE_BOT_PERMISSION: 422,
+  DISCORD_UNAUTHORIZED: 502,
+  DISCORD_FORBIDDEN: 502,
+  DISCORD_NOT_FOUND: 502,
+  DISCORD_RATE_LIMITED: 503,
+  DISCORD_UNAVAILABLE: 503,
+  DISCORD_RESPONSE_INVALID: 502,
+  DISCORD_RESPONSE_TOO_LARGE: 502,
+  DISCORD_REQUEST_TIMEOUT: 504,
+  SYNC_TIMEOUT: 504,
+  SNAPSHOT_READ_FAILED: 503,
+  SNAPSHOT_WRITE_FAILED: 503,
+  SUSPICIOUS_EMPTY_SNAPSHOT: 409,
+  SYNC_IN_PROGRESS: 409,
+} as const;
 
 interface WorldAvailability {
   privateReady: boolean;
   publicReady: boolean;
+}
+
+interface GuildWorldAvailability extends WorldAvailability {
+  slug: string;
+}
+
+interface AuthenticatedSession {
+  config: AuthConfig;
+  repository: AuthRepository;
+  idHash: string;
+  session: SessionRecord;
+  accessToken: string;
+  now: number;
 }
 
 function noStoreJson(body: unknown, status = 200): Response {
@@ -66,7 +114,10 @@ function safeReturnTo(value: string | null): string {
   }
   try {
     const parsed = new URL(value, 'https://dmap.invalid');
-    if (parsed.origin !== 'https://dmap.invalid' || parsed.pathname !== '/dashboard') {
+    if (
+      parsed.origin !== 'https://dmap.invalid' ||
+      (parsed.pathname !== '/dashboard' && !WORLD_PAGE_PATH.test(parsed.pathname))
+    ) {
       return '/dashboard';
     }
     return `${parsed.pathname}${parsed.search}`;
@@ -150,6 +201,61 @@ async function currentAccessToken(
   const update = await encryptedTokenUpdate(token, config.sessionSecret, now, refreshToken);
   await repository.updateSessionTokens(session.idHash, update);
   return token.accessToken;
+}
+
+function isInvalidSessionError(error: unknown): boolean {
+  const code = error instanceof Error ? error.message : '';
+  return new Set([
+    'AUTH_PROVIDER_UNAUTHORIZED',
+    'AUTH_SESSION_EXPIRED',
+    'AUTH_SESSION_INVALID',
+  ]).has(code);
+}
+
+async function resolveAuthenticatedSession(
+  request: Request,
+  env: Env,
+): Promise<AuthenticatedSession | null> {
+  const sessionId = readCookie(request, 'session');
+  if (sessionId === null) return null;
+
+  const config = parseAuthConfig(env);
+  const repository = createD1AuthRepository(config.database);
+  const idHash = await hashOpaqueToken(sessionId);
+  const session = await repository.readSession(idHash);
+  const now = Math.floor(Date.now() / 1_000);
+  if (session === null || session.sessionExpiresAt <= now) {
+    if (session !== null) await repository.deleteSession(idHash);
+    return null;
+  }
+
+  try {
+    const accessToken = await currentAccessToken(session, config, repository, now);
+    return { config, repository, idHash, session, accessToken, now };
+  } catch (error) {
+    if (!isInvalidSessionError(error)) throw error;
+    await repository.deleteSession(idHash).catch(() => undefined);
+    return null;
+  }
+}
+
+function unauthenticatedResponse(request: Request): Response {
+  const response = authError('UNAUTHENTICATED', 401);
+  response.headers.append('set-cookie', clearCookie(request, 'session'));
+  return response;
+}
+
+function sameOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  return origin !== null && origin === new URL(request.url).origin;
+}
+
+type StableSyncErrorCode = keyof typeof SYNC_STATUS_BY_CODE;
+
+function stableSyncErrorCode(error: unknown): StableSyncErrorCode | 'SYNC_FAILED' {
+  if (error instanceof WorkerError || error instanceof DiscordDomainError) return error.code;
+  if (error instanceof Error && error.message === 'CONFIG_INVALID') return 'CONFIG_INVALID';
+  return 'SYNC_FAILED';
 }
 
 async function readWorldAvailability(env: Env, slug: string): Promise<WorldAvailability> {
@@ -255,40 +361,60 @@ async function handleDiscordCallback(request: Request, env: Env): Promise<Respon
 
 async function handleSession(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
-  const sessionId = readCookie(request, 'session');
-  if (sessionId === null) return authError('UNAUTHENTICATED', 401);
-
-  let repository: AuthRepository | null = null;
-  let idHash: string | null = null;
+  let authenticated: AuthenticatedSession | null = null;
   try {
-    const config = parseAuthConfig(env);
-    repository = createD1AuthRepository(config.database);
-    idHash = await hashOpaqueToken(sessionId);
-    const session = await repository.readSession(idHash);
-    const now = Math.floor(Date.now() / 1_000);
-    if (session === null || session.sessionExpiresAt <= now) {
-      if (session !== null) await repository.deleteSession(idHash);
-      return authError('UNAUTHENTICATED', 401);
-    }
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (authenticated === null) return unauthenticatedResponse(request);
 
-    const accessToken = await currentAccessToken(session, config, repository, now);
-    const [guilds, availability] = await Promise.all([
+    const { accessToken, config, idHash, now, repository, session } = authenticated;
+    const sourceConfig = parseDiscordSourceConfig(env);
+    const [guilds, botGuildIds] = await Promise.all([
       createDiscordOAuthClient(config).fetchGuilds(accessToken),
-      readWorldAvailability(env, config.mapSlug),
+      createDiscordRestClient({ botToken: sourceConfig.botToken }).fetchGuildIds(),
     ]);
+    const connectedGuildIds = new Set(botGuildIds);
+    const worldsByGuild = await createD1WorldRepository(config.database).readMany(
+      guilds.map(({ id }) => id),
+    );
+    const availabilityByGuild = new Map<string, GuildWorldAvailability>();
+    await Promise.all(
+      guilds
+        .filter((guild) => connectedGuildIds.has(guild.id) && !worldsByGuild.has(guild.id))
+        .map(async (guild) => {
+          let slug = guild.id;
+          let availability = await readWorldAvailability(env, slug);
+          const noGuildIdSnapshot = !availability.privateReady && !availability.publicReady;
+          const hasLegacyConfiguredSnapshot =
+            guild.id === sourceConfig.guildId && config.mapSlug !== guild.id;
+
+          if (noGuildIdSnapshot && hasLegacyConfiguredSnapshot) {
+            const legacyAvailability = await readWorldAvailability(env, config.mapSlug);
+            if (legacyAvailability.privateReady || legacyAvailability.publicReady) {
+              slug = config.mapSlug;
+              availability = legacyAvailability;
+            }
+          }
+
+          availabilityByGuild.set(guild.id, { slug, ...availability });
+        }),
+    );
     await repository.touchSession(idHash, now);
 
     const isLoopback = loopbackHosts.has(new URL(request.url).hostname);
     const projectedGuilds = guilds
       .map((guild) => {
         const manageable = canManageGuild(guild);
-        const connected = guild.id === config.guildId;
+        const connected = connectedGuildIds.has(guild.id);
+        const world = worldsByGuild.get(guild.id);
+        const availability = availabilityByGuild.get(guild.id);
         const worldUrl =
-          connected && availability.privateReady && manageable && isLoopback
-            ? `/preview/${config.mapSlug}`
-            : connected && availability.publicReady
-              ? `/map/${config.mapSlug}`
-              : null;
+          world !== undefined
+            ? `/world/${guild.id}`
+            : availability?.privateReady && manageable && isLoopback
+              ? `/preview/${availability.slug}`
+              : availability?.publicReady
+                ? `/map/${availability.slug}`
+                : null;
         return {
           id: guild.id,
           name: guild.name,
@@ -296,8 +422,8 @@ async function handleSession(request: Request, env: Env): Promise<Response> {
           owner: guild.owner,
           canManage: manageable,
           connected,
-          synced: connected && availability.privateReady,
-          published: connected && availability.publicReady,
+          synced: world !== undefined || (availability?.privateReady ?? false),
+          published: world?.visibility === 'public' || (availability?.publicReady ?? false),
           worldUrl,
         };
       })
@@ -319,25 +445,188 @@ async function handleSession(request: Request, env: Env): Promise<Response> {
     response.headers.set('vary', 'cookie');
     return response;
   } catch (error) {
-    const errorCode = error instanceof Error ? error.message : '';
-    const invalidSession = new Set([
-      'AUTH_PROVIDER_UNAUTHORIZED',
-      'AUTH_SESSION_EXPIRED',
-      'AUTH_SESSION_INVALID',
-    ]).has(errorCode);
-    if (invalidSession && repository !== null && idHash !== null) {
+    const invalidSession = isInvalidSessionError(error);
+    if (invalidSession && authenticated !== null) {
       try {
-        await repository.deleteSession(idHash);
+        await authenticated.repository.deleteSession(authenticated.idHash);
       } catch {
         // Session cleanup is best effort; the response remains unauthenticated.
       }
     }
-    const response = authError(
-      invalidSession ? 'UNAUTHENTICATED' : 'AUTH_UNAVAILABLE',
-      invalidSession ? 401 : 503,
+    return invalidSession ? unauthenticatedResponse(request) : authError('AUTH_UNAVAILABLE', 503);
+  }
+}
+
+async function handleGuildSync(request: Request, env: Env, guildId: string): Promise<Response> {
+  if (request.method !== 'POST') return authError('METHOD_NOT_ALLOWED', 405);
+  if (!sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
+
+  let authenticated: AuthenticatedSession | null = null;
+  try {
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (authenticated === null) return unauthenticatedResponse(request);
+
+    const { accessToken, config, idHash, now, repository } = authenticated;
+    const sourceConfig = parseDiscordSourceConfig(env);
+    const oauth = createDiscordOAuthClient(config);
+    const bot = createDiscordRestClient({ botToken: sourceConfig.botToken });
+    const [guilds, botGuildIds] = await Promise.all([
+      oauth.fetchGuilds(accessToken),
+      bot.fetchGuildIds(),
+    ]);
+    const guild = guilds.find((candidate) => candidate.id === guildId);
+    if (guild === undefined || !canManageGuild(guild)) {
+      return authError('GUILD_MANAGE_PERMISSION_REQUIRED', 403);
+    }
+    if (!botGuildIds.includes(guildId)) return authError('BOT_NOT_CONNECTED', 409);
+    if (activeGuildSyncs.has(guildId)) return authError('SYNC_IN_PROGRESS', 409);
+
+    await repository.touchSession(idHash, now);
+    activeGuildSyncs.add(guildId);
+    try {
+      const summary = await synchronizePrivateGuild(env, guildId);
+      const syncedAt = Math.floor(Date.parse(summary.generatedAt) / 1_000);
+      await createD1WorldRepository(config.database).recordSync(guildId, guildId, syncedAt);
+      return noStoreJson({
+        status: 'synced',
+        guildId,
+        worldUrl: `/world/${guildId}`,
+        generatedAt: summary.generatedAt,
+        categoryCount: summary.categoryCount,
+        channelCount: summary.channelCount,
+      });
+    } finally {
+      activeGuildSyncs.delete(guildId);
+    }
+  } catch (error) {
+    if (isInvalidSessionError(error)) {
+      if (authenticated !== null) {
+        await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+      }
+      return unauthenticatedResponse(request);
+    }
+
+    const code = stableSyncErrorCode(error);
+    return authError(code, code === 'SYNC_FAILED' ? 500 : SYNC_STATUS_BY_CODE[code]);
+  }
+}
+
+function isMembershipProviderError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.message === 'AUTH_PROVIDER_FORBIDDEN' || error.message === 'AUTH_PROVIDER_NOT_FOUND';
+}
+
+async function handleGuildMap(request: Request, env: Env, guildId: string): Promise<Response> {
+  if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
+
+  let authenticated: AuthenticatedSession | null = null;
+  try {
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (authenticated === null) return unauthenticatedResponse(request);
+    if (typeof env.MAP_SNAPSHOTS?.get !== 'function') {
+      return authError('CONFIG_INVALID', 500);
+    }
+
+    const { accessToken, config, idHash, now, repository, session } = authenticated;
+    const oauth = createDiscordOAuthClient(config);
+    const [world, guilds] = await Promise.all([
+      createD1WorldRepository(config.database).read(guildId),
+      oauth.fetchGuilds(accessToken),
+    ]);
+    if (world === null) return authError('WORLD_NOT_FOUND', 404);
+
+    const guild = guilds.find((candidate) => candidate.id === guildId);
+    if (guild === undefined) return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+
+    const [member, storedSnapshot] = await Promise.all([
+      oauth.fetchGuildMember(accessToken, guildId),
+      createKvGuildStructureRepository(env.MAP_SNAPSHOTS).read(world.mapSlug),
+    ]);
+    if (storedSnapshot.state === 'missing') return authError('WORLD_NOT_SYNCED', 404);
+    if (storedSnapshot.state === 'invalid') return authError('WORLD_SNAPSHOT_INVALID', 500);
+
+    const identifiers = await createIdentifierFactory(
+      decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),
     );
-    if (invalidSession) response.headers.append('set-cookie', clearCookie(request, 'session'));
+    const [memberKey, memberRoleKeys] = await Promise.all([
+      identifiers.for('member', session.userId),
+      Promise.all(member.roleIds.map((roleId) => identifiers.for('role', roleId))),
+    ]);
+    const snapshot = createMemberMapSnapshot(storedSnapshot.snapshot, {
+      slug: world.mapSlug,
+      memberKey,
+      memberRoleKeys: new Set(memberRoleKeys),
+      isOwner: guild.owner,
+    });
+    await repository.touchSession(idHash, now);
+
+    const response = noStoreJson(snapshot);
+    response.headers.set('vary', 'cookie');
+    response.headers.set('x-content-type-options', 'nosniff');
     return response;
+  } catch (error) {
+    if (isInvalidSessionError(error)) {
+      if (authenticated !== null) {
+        await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+      }
+      return unauthenticatedResponse(request);
+    }
+    if (isMembershipProviderError(error)) {
+      return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+    }
+    return authError('WORLD_UNAVAILABLE', 503);
+  }
+}
+
+async function handleGuildPresence(request: Request, env: Env, guildId: string): Promise<Response> {
+  if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
+  if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
+    return authError('WEBSOCKET_UPGRADE_REQUIRED', 426);
+  }
+  if (!sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
+
+  let authenticated: AuthenticatedSession | null = null;
+  try {
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (authenticated === null) return unauthenticatedResponse(request);
+    if (typeof env.WORLD_PRESENCE?.getByName !== 'function') {
+      return authError('CONFIG_INVALID', 500);
+    }
+
+    const { accessToken, config, idHash, now, repository, session } = authenticated;
+    const [world] = await Promise.all([
+      createD1WorldRepository(config.database).read(guildId),
+      createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId),
+    ]);
+    if (world === null) return authError('WORLD_NOT_FOUND', 404);
+
+    await repository.touchSession(idHash, now);
+    const identifiers = await createIdentifierFactory(
+      decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),
+    );
+    const presenceId = await identifiers.for('presence', `${guildId}:${session.userId}`);
+    const stub = env.WORLD_PRESENCE.getByName(guildId);
+    return stub.fetch(
+      new Request('https://presence.dmap/connect', {
+        headers: {
+          Upgrade: 'websocket',
+          'x-dmap-avatar-id': avatarIdForDiscordUser(session.userId),
+          'x-dmap-display-name': encodeURIComponent(session.displayName),
+          'x-dmap-presence-id': presenceId,
+        },
+      }),
+    );
+  } catch (error) {
+    if (isInvalidSessionError(error)) {
+      if (authenticated !== null) {
+        await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+      }
+      return unauthenticatedResponse(request);
+    }
+    if (isMembershipProviderError(error)) {
+      return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+    }
+    return authError('PRESENCE_UNAVAILABLE', 503);
   }
 }
 
@@ -364,6 +653,17 @@ async function handleLogout(request: Request, env: Env): Promise<Response> {
 }
 
 export function handleAuth(request: Request, env: Env, pathname: string): Promise<Response> {
+  const guildPresenceMatch = GUILD_PRESENCE_PATH.exec(pathname);
+  if (guildPresenceMatch !== null) {
+    return handleGuildPresence(request, env, guildPresenceMatch[1]!);
+  }
+
+  const guildMapMatch = GUILD_MAP_PATH.exec(pathname);
+  if (guildMapMatch !== null) return handleGuildMap(request, env, guildMapMatch[1]!);
+
+  const guildSyncMatch = GUILD_SYNC_PATH.exec(pathname);
+  if (guildSyncMatch !== null) return handleGuildSync(request, env, guildSyncMatch[1]!);
+
   switch (pathname) {
     case DISCORD_START_PATH:
       return handleDiscordStart(request, env);

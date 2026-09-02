@@ -482,9 +482,10 @@ function drawProp(
       ctx.fillStyle = '#5b3c32';
       ctx.fillRect(x, y, width, height);
       for (let bookX = x + 8; bookX < x + width - 8; bookX += 14) {
-        ctx.fillStyle = [theme.tiles.path % 2 === 0 ? '#d59645' : '#9284f7', '#45c5c7', '#f17c86'][
-          Math.floor((bookX - x) / 14) % 3
-        ] ?? '#d59645';
+        ctx.fillStyle =
+          [theme.tiles.path % 2 === 0 ? '#d59645' : '#9284f7', '#45c5c7', '#f17c86'][
+            Math.floor((bookX - x) / 14) % 3
+          ] ?? '#d59645';
         ctx.fillRect(bookX, y + 8, 8, height - 15);
       }
       break;
@@ -536,11 +537,14 @@ function drawPlayer(
   compactLabel: boolean,
 ): void {
   const avatar = theme.avatar;
-  const hasAvatar = avatar && avatarImages.length === avatar.layerUrls.length;
+  const variant = avatar?.variants.find(({ id }) => id === avatar.defaultVariantId);
+  const hasAvatar = avatar && variant && avatarImages.length === variant.layerIds.length;
   const bob = !hasAvatar && player.moving && !reduceMotion ? Math.sin(elapsed / 70) * 1.5 : 0;
 
   if (hasAvatar) {
-    const row = player.moving ? avatar.walkRows[player.direction] : avatar.idleRows[player.direction];
+    const row = player.moving
+      ? avatar.walkRows[player.direction]
+      : avatar.idleRows[player.direction];
     const frame =
       player.moving && !reduceMotion
         ? Math.floor(elapsed / avatar.animationMs) % avatar.walkFrames
@@ -578,7 +582,14 @@ function drawPlayer(
   const labelY = hasAvatar
     ? player.y - (compactLabel ? 56 : 62)
     : player.y - (compactLabel ? 44 : 50) + bob;
-  roundedRect(ctx, player.x - labelWidth / 2, labelY, labelWidth, labelHeight, compactLabel ? 4 : 7);
+  roundedRect(
+    ctx,
+    player.x - labelWidth / 2,
+    labelY,
+    labelWidth,
+    labelHeight,
+    compactLabel ? 4 : 7,
+  );
   ctx.fillStyle = '#5c4bd8';
   ctx.fill();
   ctx.fillStyle = '#ffffff';
@@ -660,7 +671,9 @@ export function renderWorld(
       .forEach((area) => drawArea(ctx, area));
   }
   const visibleProps = world.props.filter((prop) => intersects(prop, visibleWithMargin));
-  const visibleStamps = world.tileStamps.filter((stamp) => intersects(tileStampBounds(stamp), visibleWithMargin));
+  const visibleStamps = world.tileStamps.filter((stamp) =>
+    intersects(tileStampBounds(stamp), visibleWithMargin),
+  );
   visibleStamps
     .filter((stamp) => stamp.layer === 'floor')
     .forEach((stamp) => drawTileStamp(ctx, image, world.theme, stamp));
@@ -685,17 +698,13 @@ export function renderWorld(
         y: prop.y + prop.height,
         draw: () => drawProp(ctx, image, interiorImage, world, prop),
       })),
-    ...world.portals.filter((portal) => containsPortal(portal, visibleWithMargin)).map((portal) => ({
-      y: portal.y,
-      draw: () =>
-        drawPortal(
-          ctx,
-          image,
-          world.theme,
-          portal,
-          state.nearbyPortal?.key === portal.key,
-        ),
-    })),
+    ...world.portals
+      .filter((portal) => containsPortal(portal, visibleWithMargin))
+      .map((portal) => ({
+        y: portal.y,
+        draw: () =>
+          drawPortal(ctx, image, world.theme, portal, state.nearbyPortal?.key === portal.key),
+      })),
     {
       y: state.player.y,
       draw: () =>
@@ -717,5 +726,10 @@ export function renderWorld(
 }
 
 function containsPortal(portal: WorldPortal, rect: Rect): boolean {
-  return portal.x >= rect.x && portal.x <= rect.x + rect.width && portal.y >= rect.y && portal.y <= rect.y + rect.height;
+  return (
+    portal.x >= rect.x &&
+    portal.x <= rect.x + rect.width &&
+    portal.y >= rect.y &&
+    portal.y <= rect.y + rect.height
+  );
 }

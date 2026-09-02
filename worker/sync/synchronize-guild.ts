@@ -4,7 +4,7 @@ import { normalizeGuildStructure } from '../../src/domain/discord/normalize';
 import { parseGuildStructureSnapshot } from '../../src/domain/discord/snapshot';
 import { validateDiscordSourceBundle } from '../../src/domain/discord/source-schema';
 import type { RuntimeConfig } from '../config/runtime';
-import type { DiscordRestClient } from '../discord/client';
+import type { DiscordGuildSourceClient } from '../discord/client';
 import { WorkerError } from '../errors';
 import type { SafeLogFields, SafeLogger } from '../logging/safe-logger';
 import { createPublicMapSnapshot } from '../publication/create-public-map';
@@ -22,7 +22,7 @@ export interface SyncSummary {
 }
 
 export interface SyncPorts {
-  discord: DiscordRestClient;
+  discord: DiscordGuildSourceClient;
   snapshots: GuildStructureRepository;
   publicMaps?: PublicMapRepository;
   identifiers: IdentifierFactory;

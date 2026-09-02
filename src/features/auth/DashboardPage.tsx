@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AppHeader } from '../../components/AppHeader';
-import { authSessionSchema, type AuthGuild, type AuthSession } from './session';
+import {
+  authSessionSchema,
+  guildSyncResponseSchema,
+  type AuthGuild,
+  type AuthSession,
+} from './session';
 import './dashboard.css';
 
 type DashboardState =
@@ -10,12 +15,38 @@ type DashboardState =
   | { kind: 'ready'; session: AuthSession }
   | { kind: 'error' };
 
+type GuildSyncState =
+  { kind: 'pending' } | { kind: 'success'; message: string } | { kind: 'error'; message: string };
+
+type GuildSyncStates = Record<string, GuildSyncState | undefined>;
+
 const authMessages: Record<string, string> = {
   cancelled: 'Discord sign-in was cancelled.',
   failed: 'Discord sign-in did not finish. Try again.',
   invalid: 'That Discord sign-in link expired. Start again.',
   unavailable: 'Discord sign-in is not ready in this environment yet.',
 };
+
+function errorCodeFromPayload(payload: unknown): string | null {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return null;
+  const error = (payload as Record<string, unknown>).error;
+  if (typeof error !== 'object' || error === null || Array.isArray(error)) return null;
+  const code = (error as Record<string, unknown>).code;
+  return typeof code === 'string' ? code : null;
+}
+
+function syncErrorMessage(code: string | null, status: number): string {
+  if (code === 'BOT_NOT_CONNECTED') return 'The Dmap bot is no longer connected. Refresh the page.';
+  if (code === 'SYNC_IN_PROGRESS') return 'This server is already syncing.';
+  if (code === 'SUSPICIOUS_EMPTY_SNAPSHOT') {
+    return 'Discord returned an empty server, so the existing world was kept.';
+  }
+  if (status === 403) return 'Your server permission changed. Refresh and try again.';
+  if (status === 502 || status === 503 || status === 504) {
+    return 'Discord could not be reached. Try again in a moment.';
+  }
+  return 'World sync failed. Try again.';
+}
 
 function DiscordIcon() {
   return (
@@ -46,8 +77,16 @@ function GuildMark({ guild }: { guild: AuthGuild }) {
   );
 }
 
-function GuildAction({ guild }: { guild: AuthGuild }) {
-  if (guild.worldUrl !== null) {
+function GuildAction({
+  guild,
+  onSync,
+  syncState,
+}: {
+  guild: AuthGuild;
+  onSync(guild: AuthGuild): void;
+  syncState: GuildSyncState | undefined;
+}) {
+  if (guild.worldUrl !== null && (!guild.connected || !guild.canManage)) {
     return (
       <a className="guild-action" href={guild.worldUrl}>
         Open world
@@ -55,16 +94,59 @@ function GuildAction({ guild }: { guild: AuthGuild }) {
       </a>
     );
   }
-  if (guild.connected && !guild.synced) {
-    return <span className="guild-action-note">Waiting for first sync</span>;
+
+  if (guild.connected && guild.canManage) {
+    const pending = syncState?.kind === 'pending';
+    const label = pending
+      ? guild.synced
+        ? 'Syncing…'
+        : 'Creating…'
+      : guild.synced
+        ? 'Sync now'
+        : 'Create world';
+
+    return (
+      <div className="guild-actions">
+        {guild.worldUrl !== null ? (
+          <a className="guild-action" href={guild.worldUrl}>
+            Open world
+            <span aria-hidden="true">→</span>
+          </a>
+        ) : null}
+        <button
+          className={guild.worldUrl === null ? 'guild-action' : 'guild-sync-button'}
+          type="button"
+          disabled={pending}
+          aria-busy={pending}
+          onClick={() => onSync(guild)}
+        >
+          {label}
+        </button>
+        {syncState?.kind === 'success' ? (
+          <span className="guild-sync-feedback" role="status">
+            {syncState.message}
+          </span>
+        ) : syncState?.kind === 'error' ? (
+          <span className="guild-sync-feedback guild-sync-feedback--error" role="alert">
+            {syncState.message}
+          </span>
+        ) : guild.synced && guild.worldUrl === null ? (
+          <span className="guild-sync-feedback">Private snapshot ready</span>
+        ) : null}
+      </div>
+    );
   }
-  if (guild.connected && guild.synced && !guild.published) {
+
+  if (guild.connected) {
     return (
       <span className="guild-action-note">
-        {guild.canManage ? 'Private preview available locally' : 'No public world yet'}
+        {guild.synced
+          ? 'A server manager must finish world setup'
+          : 'A server manager must create this world'}
       </span>
     );
   }
+
   return (
     <span className="guild-action-note">
       {guild.canManage ? 'Dmap is not connected' : 'Member access'}
@@ -106,7 +188,15 @@ function SignedOut({ message }: { message: string | null }) {
   );
 }
 
-function GuildPicker({ session }: { session: AuthSession }) {
+function GuildPicker({
+  onSync,
+  session,
+  syncStates,
+}: {
+  onSync(guild: AuthGuild): void;
+  session: AuthSession;
+  syncStates: GuildSyncStates;
+}) {
   const manageableCount = session.guilds.filter((guild) => guild.canManage).length;
   const connectedCount = session.guilds.filter((guild) => guild.connected).length;
 
@@ -168,7 +258,7 @@ function GuildPicker({ session }: { session: AuthSession }) {
                   {guild.published ? ' · Public world live' : ''}
                 </p>
               </div>
-              <GuildAction guild={guild} />
+              <GuildAction guild={guild} onSync={onSync} syncState={syncStates[guild.id]} />
             </li>
           ))}
         </ul>
@@ -179,6 +269,8 @@ function GuildPicker({ session }: { session: AuthSession }) {
 
 export function DashboardPage() {
   const [state, setState] = useState<DashboardState>({ kind: 'loading' });
+  const [syncStates, setSyncStates] = useState<GuildSyncStates>({});
+  const syncControllers = useRef(new Map<string, AbortController>());
   const authResult = new URLSearchParams(window.location.search).get('auth');
   const authMessage = authResult === null ? null : (authMessages[authResult] ?? null);
 
@@ -207,7 +299,96 @@ export function DashboardPage() {
     return () => controller.abort();
   }, []);
 
+  const syncGuild = useCallback((guild: AuthGuild) => {
+    if (syncControllers.current.has(guild.id)) return;
+
+    const controller = new AbortController();
+    syncControllers.current.set(guild.id, controller);
+    setSyncStates((current) => ({ ...current, [guild.id]: { kind: 'pending' } }));
+
+    void fetch(`/api/auth/guilds/${encodeURIComponent(guild.id)}/sync`, {
+      method: 'POST',
+      headers: { accept: 'application/json' },
+      credentials: 'same-origin',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (response.status === 401) {
+          setState({ kind: 'signed-out' });
+          return;
+        }
+
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          setSyncStates((current) => ({
+            ...current,
+            [guild.id]: {
+              kind: 'error',
+              message: syncErrorMessage(errorCodeFromPayload(payload), response.status),
+            },
+          }));
+          return;
+        }
+
+        const parsed = guildSyncResponseSchema.safeParse(payload);
+        if (!parsed.success || parsed.data.guildId !== guild.id) {
+          setSyncStates((current) => ({
+            ...current,
+            [guild.id]: { kind: 'error', message: 'World sync returned an invalid response.' },
+          }));
+          return;
+        }
+
+        setState((current) =>
+          current.kind === 'ready'
+            ? {
+                kind: 'ready',
+                session: {
+                  ...current.session,
+                  guilds: current.session.guilds.map((candidate) =>
+                    candidate.id === guild.id
+                      ? {
+                          ...candidate,
+                          synced: true,
+                          worldUrl: parsed.data.worldUrl ?? candidate.worldUrl,
+                        }
+                      : candidate,
+                  ),
+                },
+              }
+            : current,
+        );
+        setSyncStates((current) => ({
+          ...current,
+          [guild.id]: {
+            kind: 'success',
+            message: `${parsed.data.categoryCount} categories · ${parsed.data.channelCount} channels synced`,
+          },
+        }));
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setSyncStates((current) => ({
+          ...current,
+          [guild.id]: { kind: 'error', message: 'Could not reach Dmap. Try again.' },
+        }));
+      })
+      .finally(() => {
+        if (syncControllers.current.get(guild.id) === controller) {
+          syncControllers.current.delete(guild.id);
+        }
+      });
+  }, []);
+
   useEffect(() => loadSession(), [loadSession]);
+
+  useEffect(() => {
+    document.title = 'Discord worlds — Dmap';
+    return () => {
+      for (const controller of syncControllers.current.values()) controller.abort();
+      syncControllers.current.clear();
+    };
+  }, []);
 
   return (
     <div className="page-shell app-shell dashboard-page">
@@ -221,7 +402,7 @@ export function DashboardPage() {
           <p>Reading your Discord worlds…</p>
         </main>
       ) : state.kind === 'ready' ? (
-        <GuildPicker session={state.session} />
+        <GuildPicker session={state.session} syncStates={syncStates} onSync={syncGuild} />
       ) : state.kind === 'error' ? (
         <main className="dashboard-main dashboard-error" role="alert">
           <h1>Discord worlds are unavailable</h1>

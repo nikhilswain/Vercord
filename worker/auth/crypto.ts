@@ -61,5 +61,5 @@ export async function decryptSessionValue(
     await importSessionKey(secret),
     base64UrlToBytes(encrypted.ciphertext),
   );
-  return new TextDecoder('utf-8', { fatal: true }).decode(plaintext);
+  return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(plaintext);
 }
