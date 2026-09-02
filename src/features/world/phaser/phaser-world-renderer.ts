@@ -5,6 +5,7 @@ import type { MapRoomType } from '../../../domain/map/snapshot';
 import type { PresencePlayer } from '../../../domain/presence/protocol';
 import type { WorldCamera } from '../engine/camera';
 import type {
+  Direction,
   PlayerState,
   Point,
   WorldArea,
@@ -18,10 +19,17 @@ import type {
 
 const WORLD_ATLAS_KEY = 'dmap-world-atlas';
 const INTERIOR_ATLAS_KEY = 'dmap-interior-atlas';
+const FALLBACK_AVATAR_ATLAS_KEY = 'dmap-fallback-avatar-atlas';
 const AVATAR_KEY_PREFIX = 'dmap-avatar-layer';
 const MINIMAP_WIDTH = 152;
 const MINIMAP_HEIGHT = 102;
 const MINIMAP_MARGIN = 24;
+const FALLBACK_AVATAR_FRAMES: Record<Direction, number> = {
+  right: 23,
+  down: 24,
+  up: 25,
+  left: 26,
+};
 
 interface PlayerVisual {
   container: Phaser.GameObjects.Container;
@@ -99,6 +107,10 @@ export function preloadWorldAssets(scene: Phaser.Scene, theme: WorldTheme): void
   scene.load.spritesheet(WORLD_ATLAS_KEY, theme.atlasUrl, {
     frameWidth: theme.sourceTileSize,
     frameHeight: theme.sourceTileSize,
+  });
+  scene.load.spritesheet(FALLBACK_AVATAR_ATLAS_KEY, '/game-assets/kenney-urban/tiles.png', {
+    frameWidth: 16,
+    frameHeight: 16,
   });
 
   if (theme.interiorAtlas) scene.load.image(INTERIOR_ATLAS_KEY, theme.interiorAtlas.url);
@@ -607,8 +619,18 @@ export class PhaserWorldRenderer {
         children.push(sprite);
       });
     } else {
+      const fallbackAtlas = this.scene.textures.exists(FALLBACK_AVATAR_ATLAS_KEY)
+        ? FALLBACK_AVATAR_ATLAS_KEY
+        : WORLD_ATLAS_KEY;
       fallback = this.scene.add
-        .image(0, 9, WORLD_ATLAS_KEY, this.world.theme.tiles.player.down)
+        .image(
+          0,
+          9,
+          fallbackAtlas,
+          fallbackAtlas === FALLBACK_AVATAR_ATLAS_KEY
+            ? FALLBACK_AVATAR_FRAMES.down
+            : this.world.theme.tiles.player.down,
+        )
         .setOrigin(0.5, 1)
         .setDisplaySize(36, 36);
       children.push(fallback);
@@ -676,7 +698,11 @@ export class PhaserWorldRenderer {
         sprite.setFrame(row * columns + frame);
       });
     } else if (visual.fallback) {
-      visual.fallback.setFrame(this.world.theme.tiles.player[player.direction]);
+      visual.fallback.setFrame(
+        visual.fallback.texture.key === FALLBACK_AVATAR_ATLAS_KEY
+          ? FALLBACK_AVATAR_FRAMES[player.direction]
+          : this.world.theme.tiles.player[player.direction],
+      );
     }
   }
 

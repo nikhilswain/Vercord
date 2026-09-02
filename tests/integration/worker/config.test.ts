@@ -15,11 +15,17 @@ function validEnv(overrides: Partial<Env> = {}): Env {
     DISCORD_GUILD_ID: GUILD_ID,
     MAP_SLUG: 'test-map',
     SYNC_SECRET,
+    PUBLICATION_ALLOWLIST_JSON: '{"categoryIds":[],"channelIds":[]}',
     SNAPSHOT_ID_SECRET: ID_SECRET,
+    DISCORD_CLIENT_ID: '100000000000000002',
+    DISCORD_CLIENT_SECRET: 'test-client-secret-never-real',
+    AUTH_SESSION_SECRET: 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM',
     MAP_SNAPSHOTS: {
       get: async () => null,
       put: async () => undefined,
     } as unknown as KVNamespace,
+    AUTH_DB: {} as D1Database,
+    WORLD_PRESENCE: {} as Env['WORLD_PRESENCE'],
     ...overrides,
   };
 }
