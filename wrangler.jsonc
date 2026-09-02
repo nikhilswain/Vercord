@@ -3,7 +3,7 @@
   "name": "dmap",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-08-28",
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": false,
   "secrets": {
     "required": [
@@ -35,6 +35,8 @@
   "d1_databases": [
     {
       "binding": "AUTH_DB",
+      "database_name": "dmap-auth",
+      "database_id": "41db01a3-a80a-4fe0-abb4-439a1cf2f6b4",
     },
   ],
   "durable_objects": {

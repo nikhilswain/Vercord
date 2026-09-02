@@ -15,7 +15,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply AUTH_DB --remote",
     "build": "tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "pnpm build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "lint": "eslint .",
     "format": "prettier --write .",
