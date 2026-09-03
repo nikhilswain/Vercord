@@ -22,30 +22,32 @@ export const KENNEY_TINY_TOWN_THEME: WorldTheme = {
   worldTileSize: 48,
   avatar: {
     layers: AVATAR_IDS.map((id) => ({
-      id: `tiny-dungeon-${id}`,
-      url: `/game-assets/tiny-dungeon/avatars/${id}.png`,
+      id: `tiny-character-${id}`,
+      url: `/game-assets/tiny-characters/avatars/${id}.png`,
     })),
     variants: AVATAR_IDS.map((id) => ({
       id,
-      layerIds: [`tiny-dungeon-${id}`],
+      layerIds: [`tiny-character-${id}`],
     })),
     defaultVariantId: 'avatar-02',
-    frameSize: 16,
-    walkFrames: 2,
-    walkRows: {
+    frameWidth: 16,
+    frameHeight: 17,
+    directionColumns: {
       down: 0,
-      up: 1,
-      left: 2,
-      right: 3,
+      up: 2,
+      left: 3,
+      right: 1,
     },
-    idleRows: {
-      down: 0,
-      up: 1,
-      left: 2,
-      right: 3,
+    idleFrameRow: 0,
+    walkFrameRows: [0, 1, 0, 2],
+    flipX: {
+      down: false,
+      up: false,
+      left: false,
+      right: false,
     },
     renderSize: 48,
-    animationMs: 160,
+    animationMs: 120,
     collider: {
       width: 18,
       height: 20,

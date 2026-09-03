@@ -22,9 +22,30 @@ const textPortal: WorldPortal = {
 };
 
 describe('Kenney shipping theme', () => {
-  it('provides one CC0 Tiny Dungeon avatar sheet for every stable avatar id', () => {
+  it('maps the stable avatar ids to a balanced set of animated Tiny Characters sheets', () => {
     expect(KENNEY_TINY_TOWN_THEME.avatar?.variants.map(({ id }) => id)).toEqual(AVATAR_IDS);
-    expect(KENNEY_TINY_TOWN_THEME.avatar?.layers).toHaveLength(AVATAR_IDS.length);
+    expect(KENNEY_TINY_TOWN_THEME.avatar?.layers.map(({ url }) => url)).toEqual([
+      '/game-assets/tiny-characters/avatars/avatar-01.png',
+      '/game-assets/tiny-characters/avatars/avatar-02.png',
+      '/game-assets/tiny-characters/avatars/avatar-03.png',
+      '/game-assets/tiny-characters/avatars/avatar-04.png',
+      '/game-assets/tiny-characters/avatars/avatar-05.png',
+      '/game-assets/tiny-characters/avatars/avatar-06.png',
+      '/game-assets/tiny-characters/avatars/avatar-07.png',
+      '/game-assets/tiny-characters/avatars/avatar-08.png',
+      '/game-assets/tiny-characters/avatars/avatar-09.png',
+      '/game-assets/tiny-characters/avatars/avatar-10.png',
+      '/game-assets/tiny-characters/avatars/avatar-11.png',
+      '/game-assets/tiny-characters/avatars/avatar-12.png',
+    ]);
+    expect(KENNEY_TINY_TOWN_THEME.avatar).toMatchObject({
+      frameWidth: 16,
+      frameHeight: 17,
+      directionColumns: { down: 0, up: 2, left: 3, right: 1 },
+      idleFrameRow: 0,
+      walkFrameRows: [0, 1, 0, 2],
+      flipX: { down: false, up: false, left: false, right: false },
+    });
     expect(KENNEY_TINY_TOWN_THEME.avatar?.renderSize).toBe(48);
   });
 

@@ -11,6 +11,7 @@ import type {
   WorldTheme,
   WorldTileStamp,
 } from './types';
+import { resolveAvatarFrame } from './avatar-animation';
 
 interface RenderState {
   elapsed: number;
@@ -542,27 +543,28 @@ function drawPlayer(
   const bob = !hasAvatar && player.moving && !reduceMotion ? Math.sin(elapsed / 70) * 1.5 : 0;
 
   if (hasAvatar) {
-    const row = player.moving
-      ? avatar.walkRows[player.direction]
-      : avatar.idleRows[player.direction];
-    const frame =
-      player.moving && !reduceMotion
-        ? Math.floor(elapsed / avatar.animationMs) % avatar.walkFrames
-        : 0;
+    const frame = resolveAvatarFrame(avatar, player, elapsed, reduceMotion);
+    const renderHeight = Math.round((avatar.renderSize * avatar.frameHeight) / avatar.frameWidth);
     const renderX = Math.round(player.x - avatar.renderSize / 2);
-    const renderY = Math.round(player.y - avatar.renderSize + 9);
+    const renderY = Math.round(player.y - renderHeight + 9);
     avatarImages.forEach((layer) => {
+      ctx.save();
+      if (frame.flipX) {
+        ctx.translate(renderX * 2 + avatar.renderSize, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.drawImage(
         layer,
-        frame * avatar.frameSize,
-        row * avatar.frameSize,
-        avatar.frameSize,
-        avatar.frameSize,
+        frame.column * avatar.frameWidth,
+        frame.row * avatar.frameHeight,
+        avatar.frameWidth,
+        avatar.frameHeight,
         renderX,
         renderY,
         avatar.renderSize,
-        avatar.renderSize,
+        renderHeight,
       );
+      ctx.restore();
     });
   } else {
     drawSheetTile(

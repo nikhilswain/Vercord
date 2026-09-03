@@ -1,0 +1,28 @@
+Tiny Characters Set
+https://opengameart.org/content/tiny-characters-set
+
+Author: Fleurman
+Based on CC0 work by GrafxKid:
+https://opengameart.org/content/rpg-character-sprites
+
+License: Creative Commons Zero (CC0 1.0 Universal)
+The license notice is included as LICENSE.txt.
+
+The published 64x51 PNGs are unmodified 16x17 animated character sheets from
+the upstream pack. They use four direction columns (down, right, up, and left)
+and three animation rows. Dmap alternates the neutral first row between the two
+walking rows for a four-beat walk cycle.
+
+Stable Dmap avatar mapping:
+avatar-01 = Females/F_01.png
+avatar-02 = Males/M_01.png
+avatar-03 = Females/F_03.png
+avatar-04 = Males/M_03.png
+avatar-05 = Females/F_05.png
+avatar-06 = Males/M_05.png
+avatar-07 = Females/F_07.png
+avatar-08 = Males/M_07.png
+avatar-09 = Females/F_10.png
+avatar-10 = Males/M_10.png
+avatar-11 = Females/F_12.png
+avatar-12 = Males/M_12.png

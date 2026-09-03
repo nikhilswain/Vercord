@@ -69,10 +69,10 @@ pnpm deploy
 
 ## Game assets
 
-The repository ships the same CC0 Kenney art in development and production: Tiny Town for the
-outdoor world, Tiny Dungeon for avatars and room interiors, and RPG Urban Pack for the remaining
-legacy atlas. Source and license details are in `THIRD_PARTY_NOTICES.md` and beside each published
-asset set under `public/game-assets/`.
+The repository ships the same CC0 art in development and production: Kenney Tiny Town for the
+outdoor world, Kenney Tiny Dungeon for room interiors, Fleurman's Tiny Characters Set for animated
+avatars, and Kenney RPG Urban Pack for the remaining legacy atlas. Source and license details are in
+`THIRD_PARTY_NOTICES.md` and beside each published asset set under `public/game-assets/`.
 
 ## Useful commands
 

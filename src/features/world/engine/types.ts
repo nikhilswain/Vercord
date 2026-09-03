@@ -93,10 +93,12 @@ export interface WorldTheme {
       layerIds: string[];
     }>;
     defaultVariantId: AvatarId;
-    frameSize: number;
-    walkFrames: number;
-    walkRows: Record<Direction, number>;
-    idleRows: Record<Direction, number>;
+    frameWidth: number;
+    frameHeight: number;
+    directionColumns: Record<Direction, number>;
+    idleFrameRow: number;
+    walkFrameRows: number[];
+    flipX: Record<Direction, boolean>;
     renderSize: number;
     animationMs: number;
     collider: {

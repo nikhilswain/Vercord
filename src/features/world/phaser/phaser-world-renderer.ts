@@ -3,6 +3,7 @@ import * as Phaser from 'phaser';
 import type { AvatarId } from '../../../domain/avatar/identity';
 import type { MapRoomType } from '../../../domain/map/snapshot';
 import type { PresencePlayer } from '../../../domain/presence/protocol';
+import { resolveAvatarFrame } from '../engine/avatar-animation';
 import type { WorldCamera } from '../engine/camera';
 import type {
   Direction,
@@ -116,8 +117,8 @@ export function preloadWorldAssets(scene: Phaser.Scene, theme: WorldTheme): void
   if (theme.interiorAtlas) scene.load.image(INTERIOR_ATLAS_KEY, theme.interiorAtlas.url);
   theme.avatar?.layers.forEach(({ id, url }) => {
     scene.load.spritesheet(avatarLayerKey(id), url, {
-      frameWidth: theme.avatar!.frameSize,
-      frameHeight: theme.avatar!.frameSize,
+      frameWidth: theme.avatar!.frameWidth,
+      frameHeight: theme.avatar!.frameHeight,
     });
   });
 }
@@ -629,11 +630,12 @@ export class PhaserWorldRenderer {
       variant.layerIds.every((layerId) => this.scene.textures.exists(avatarLayerKey(layerId)));
 
     if (hasAvatar && avatar && variant) {
+      const renderHeight = Math.round((avatar.renderSize * avatar.frameHeight) / avatar.frameWidth);
       variant.layerIds.forEach((layerId) => {
         const sprite = this.scene.add
           .sprite(0, 9, avatarLayerKey(layerId), 0)
           .setOrigin(0.5, 1)
-          .setDisplaySize(avatar.renderSize, avatar.renderSize);
+          .setDisplaySize(avatar.renderSize, renderHeight);
         layers.push(sprite);
         children.push(sprite);
       });
@@ -702,19 +704,13 @@ export class PhaserWorldRenderer {
 
     const avatar = this.world.theme.avatar;
     if (avatar && visual.layers.length > 0) {
-      const row = player.moving
-        ? avatar.walkRows[player.direction]
-        : avatar.idleRows[player.direction];
-      const frame =
-        player.moving && !reduceMotion
-          ? Math.floor(elapsed / avatar.animationMs) % avatar.walkFrames
-          : 0;
+      const frame = resolveAvatarFrame(avatar, player, elapsed, reduceMotion);
       visual.layers.forEach((sprite) => {
         const source = this.scene.textures.get(sprite.texture.key).getSourceImage() as {
           width: number;
         };
-        const columns = Math.max(1, Math.floor(source.width / avatar.frameSize));
-        sprite.setFrame(row * columns + frame);
+        const columns = Math.max(1, Math.floor(source.width / avatar.frameWidth));
+        sprite.setFrame(frame.row * columns + frame.column).setFlipX(frame.flipX);
       });
     } else if (visual.fallback) {
       visual.fallback.setFrame(

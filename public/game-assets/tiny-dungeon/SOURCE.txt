@@ -5,10 +5,3 @@ License: Creative Commons Zero (CC0 1.0)
 The complete upstream license is included as LICENSE.txt.
 
 tiles.png is the upstream packed 16x16 tilemap.
-
-The avatar sheets are mechanical derivatives of the following upstream tiles:
-avatar-01..avatar-12 = 84, 85, 86, 87, 88, 109, 96, 97, 98, 99, 100, 112.
-
-Each avatar PNG is a 32x64 sheet of 16x16 frames. Rows are down, up, left,
-and right. Column two shifts the source up by one pixel to provide a compact
-two-step movement cycle; the right-facing row is mirrored horizontally.

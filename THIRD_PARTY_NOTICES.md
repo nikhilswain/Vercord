@@ -12,8 +12,15 @@
 
 - License: Creative Commons CC0 1.0 Universal
 - Upstream: https://kenney.nl/assets/tiny-dungeon
-- Included files: `public/game-assets/tiny-dungeon/tiles.png` and the derived avatar sheets under
-  `public/game-assets/tiny-dungeon/avatars/`
+- Included file: `public/game-assets/tiny-dungeon/tiles.png`
+
+### Tiny Characters Set
+
+- Author: Fleurman; based on CC0 work by GrafxKid
+- License: Creative Commons CC0 1.0 Universal
+- Upstream: https://opengameart.org/content/tiny-characters-set
+- Included files: selected animated character sheets under
+  `public/game-assets/tiny-characters/avatars/`
 
 ### Kenney RPG Urban Pack 1.0
 
