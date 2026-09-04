@@ -25,11 +25,13 @@ export function App({ pathname = window.location.pathname }: AppProps) {
     case 'demo':
       return <DemoMapPage />;
     case 'map':
-      return <DiscordMapPage slug={route.slug} />;
+      return <DiscordMapPage key={`map:${route.slug}`} slug={route.slug} />;
     case 'preview':
-      return <DiscordMapPage slug={route.slug} mode="local-preview" />;
+      return (
+        <DiscordMapPage key={`preview:${route.slug}`} slug={route.slug} mode="local-preview" />
+      );
     case 'world':
-      return <DiscordMapPage slug={route.guildId} mode="member" />;
+      return <DiscordMapPage key={`world:${route.guildId}`} slug={route.guildId} mode="member" />;
     default:
       return <NotFoundPage />;
   }

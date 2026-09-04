@@ -1,7 +1,6 @@
 import { pathToFileURL } from 'node:url';
 
 import { DiscordDomainError } from '../../src/domain/discord/errors';
-import { assertBotLeastPrivilege } from '../../src/domain/discord/permissions';
 import { parseDiscordSourceConfig } from '../../worker/config/schema';
 import { createDiscordRestClient } from '../../worker/discord/client';
 import { WorkerError } from '../../worker/errors';
@@ -12,7 +11,6 @@ async function main(): Promise<void> {
   const source = parseDiscordSourceConfig(process.env);
   const client = createDiscordRestClient({ botToken: source.botToken });
   const bundle = await client.fetchGuildSource(source.guildId);
-  assertBotLeastPrivilege(bundle);
   process.stdout.write(`${formatBotVisibleInventory(bundle)}\n`);
 }
 

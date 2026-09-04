@@ -8,3 +8,5 @@ SNAPSHOT_ID_SECRET=generate-a-32-byte-base64url-secret
 DISCORD_CLIENT_ID=enter-discord-application-id
 DISCORD_CLIENT_SECRET=enter-discord-oauth-client-secret
 AUTH_SESSION_SECRET=generate-a-different-32-byte-base64url-secret
+GATEWAY_BRIDGE_SECRET=generate-one-more-different-32-byte-base64url-secret
+DMAP_BRIDGE_URL=ws://localhost:5173/api/internal/discord-gateway

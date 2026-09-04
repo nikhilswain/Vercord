@@ -1,6 +1,6 @@
 import { GUILD_CATEGORY, OVERWRITE_ROLE } from './constants';
 import type { IdentifierFactory } from './identifiers';
-import { assertBotLeastPrivilege, selectBotVisibleChannels } from './permissions';
+import { selectBotVisibleChannels } from './permissions';
 import type { DiscordChannelSource, DiscordSourceBundle } from './source';
 import {
   parseGuildStructureSnapshot,
@@ -61,8 +61,6 @@ export async function normalizeGuildStructure(
   bundle: DiscordSourceBundle,
   options: NormalizeOptions,
 ): Promise<GuildStructureSnapshot> {
-  assertBotLeastPrivilege(bundle);
-
   const retainedChannels = selectBotVisibleChannels(bundle);
   const orders = siblingOrders(retainedChannels);
   const [guildKey, ownerKey, everyoneRoleKey, roles, channelKeyEntries] = await Promise.all([

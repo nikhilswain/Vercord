@@ -1,5 +1,7 @@
 export const ADMINISTRATOR = 1n << 3n;
 export const VIEW_CHANNEL = 1n << 10n;
+export const CONNECT = 1n << 20n;
+export const MOVE_MEMBERS = 1n << 24n;
 
 export const OVERWRITE_ROLE = 0 as const;
 export const OVERWRITE_MEMBER = 1 as const;

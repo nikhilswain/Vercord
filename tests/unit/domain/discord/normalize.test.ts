@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { ADMINISTRATOR } from '../../../../src/domain/discord/constants';
-import { DiscordDomainError } from '../../../../src/domain/discord/errors';
 import { createIdentifierFactory } from '../../../../src/domain/discord/identifiers';
 import {
   normalizeGuildStructure,
@@ -269,30 +268,12 @@ describe('bot-visible Discord structure normalization', () => {
     expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 
-  it('fails closed on ADMINISTRATOR before any identifier HMAC work', async () => {
+  it('accepts an Administrator bot and includes channels visible through its bypass', async () => {
     const bundle = structuredClone(createValidatedDiscordSourceFixture());
     roleById(bundle, TEST_IDS.botRole).permissions = ADMINISTRATOR.toString();
-    const identifiers: IdentifierFactory = {
-      for: async () => {
-        throw new Error('IDENTIFIER_FACTORY_CALLED');
-      },
-    };
 
-    let thrown: unknown;
-    try {
-      await normalize(bundle, identifiers);
-    } catch (error) {
-      thrown = error;
-    }
+    const snapshot = await normalize(bundle);
 
-    expect(thrown).toBeInstanceOf(DiscordDomainError);
-    expect(thrown).toMatchObject({
-      name: 'DiscordDomainError',
-      code: 'EXCESSIVE_BOT_PERMISSION',
-      message: 'EXCESSIVE_BOT_PERMISSION',
-    });
-    expect(JSON.stringify(thrown)).toBe(
-      '{"code":"EXCESSIVE_BOT_PERMISSION","name":"DiscordDomainError"}',
-    );
+    expect(snapshot.channels.map(({ label }) => label)).toContain('hidden');
   });
 });

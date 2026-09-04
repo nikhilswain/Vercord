@@ -1,5 +1,4 @@
-export type DiscordDomainErrorCode =
-  'DISCORD_SOURCE_INVALID' | 'SNAPSHOT_INVALID' | 'EXCESSIVE_BOT_PERMISSION';
+export type DiscordDomainErrorCode = 'DISCORD_SOURCE_INVALID' | 'SNAPSHOT_INVALID';
 
 export class DiscordDomainError extends Error {
   constructor(readonly code: DiscordDomainErrorCode) {

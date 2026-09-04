@@ -12,6 +12,7 @@ export default defineConfig({
           MAP_SLUG: 'test-map',
           SYNC_SECRET: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE',
           SNAPSHOT_ID_SECRET: 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI',
+          GATEWAY_BRIDGE_SECRET: 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM',
         },
       },
     }),

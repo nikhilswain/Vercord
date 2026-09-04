@@ -20,12 +20,14 @@ function validEnv(overrides: Partial<Env> = {}): Env {
     DISCORD_CLIENT_ID: '100000000000000002',
     DISCORD_CLIENT_SECRET: 'test-client-secret-never-real',
     AUTH_SESSION_SECRET: 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM',
+    GATEWAY_BRIDGE_SECRET: 'BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ',
     MAP_SNAPSHOTS: {
       get: async () => null,
       put: async () => undefined,
     } as unknown as KVNamespace,
     AUTH_DB: {} as D1Database,
     WORLD_PRESENCE: {} as Env['WORLD_PRESENCE'],
+    DISCORD_GATEWAY_BRIDGE: {} as Env['DISCORD_GATEWAY_BRIDGE'],
     ...overrides,
   };
 }

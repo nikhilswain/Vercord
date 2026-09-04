@@ -5,6 +5,7 @@ import {
   type PresencePlayer,
 } from '../../../domain/presence/protocol';
 import type { AvatarId } from '../../../domain/avatar/identity';
+import type { VoiceServiceStatus, VoiceState } from '../../../domain/voice/protocol';
 
 const SEND_INTERVAL_MS = 90;
 const RECONNECT_DELAYS_MS = [750, 1_500, 3_000, 5_000, 10_000] as const;
@@ -20,6 +21,8 @@ interface WorldPresenceCallbacks {
   onPlayers(players: readonly PresencePlayer[]): void;
   onSelfAvatar(avatarId: AvatarId): void;
   onState(state: WorldPresenceState): void;
+  onVoiceState(state: VoiceState): void;
+  onVoiceService(service: VoiceServiceStatus): void;
 }
 
 function socketUrl(guildId: string): string {
@@ -134,10 +137,18 @@ export class WorldPresenceClient {
           .filter((player) => player.id !== this.selfId)
           .map((player) => [player.id, player]),
       );
+      this.callbacks.onVoiceService(message.voiceService);
+      if (message.voiceState !== null) this.callbacks.onVoiceState(message.voiceState);
     } else if (message.type === 'player') {
       if (message.player.id !== this.selfId) this.players.set(message.player.id, message.player);
-    } else {
+    } else if (message.type === 'leave') {
       this.players.delete(message.id);
+    } else if (message.type === 'voice-state') {
+      this.callbacks.onVoiceState(message.state);
+      return;
+    } else {
+      this.callbacks.onVoiceService(message.service);
+      return;
     }
 
     this.emitPlayers();

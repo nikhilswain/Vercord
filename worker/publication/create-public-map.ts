@@ -1,5 +1,9 @@
 import type { IdentifierFactory } from '../../src/domain/discord/identifiers';
-import { ADMINISTRATOR, VIEW_CHANNEL } from '../../src/domain/discord/constants';
+import { VIEW_CHANNEL } from '../../src/domain/discord/constants';
+import {
+  computeSnapshotMemberChannelPermissions,
+  type SnapshotMemberPermissionOptions,
+} from '../../src/domain/discord/permissions';
 import type { GuildStructureSnapshot } from '../../src/domain/discord/snapshot';
 import {
   parseMapSnapshot,
@@ -16,14 +20,13 @@ interface PublicMapOptions {
   identifiers: IdentifierFactory;
 }
 
-export interface MemberMapOptions {
+export interface MemberMapOptions extends SnapshotMemberPermissionOptions {
   slug: string;
-  memberKey: string;
-  memberRoleKeys: ReadonlySet<string>;
-  isOwner: boolean;
 }
 
 const uncategorizedAreaKey = 'a_uncategorized';
+// Public labels exclude C0/C1 and bidirectional formatting controls.
+// eslint-disable-next-line no-control-regex
 const unsafePublicControls = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu;
 type SnapshotChannel = GuildStructureSnapshot['channels'][number];
 type SnapshotRoom = SnapshotChannel & { kind: MapRoom['type'] };
@@ -55,69 +58,6 @@ function toMapRoom(channel: SnapshotRoom, order: number): MapRoom {
 
 function isRoom(channel: SnapshotChannel): channel is SnapshotRoom {
   return channel.kind !== 'category';
-}
-
-function applyOverwrite(permissions: bigint, deny: bigint, allow: bigint): bigint {
-  return (permissions & ~deny) | allow;
-}
-
-function memberBasePermissions(
-  snapshot: GuildStructureSnapshot,
-  options: MemberMapOptions,
-): bigint {
-  const everyone = snapshot.roles.find(({ key }) => key === snapshot.guild.everyoneRoleKey);
-  if (everyone === undefined) throw new Error('SNAPSHOT_INVALID');
-
-  let permissions = BigInt(everyone.permissions);
-  for (const role of snapshot.roles) {
-    if (options.memberRoleKeys.has(role.key)) permissions |= BigInt(role.permissions);
-  }
-  return options.isOwner || (permissions & ADMINISTRATOR) === ADMINISTRATOR ? ~0n : permissions;
-}
-
-function memberCanView(
-  channel: SnapshotChannel,
-  snapshot: GuildStructureSnapshot,
-  options: MemberMapOptions,
-  basePermissions: bigint,
-): boolean {
-  if ((basePermissions & ADMINISTRATOR) === ADMINISTRATOR) return true;
-
-  let permissions = basePermissions;
-  const everyoneOverwrite = channel.overwrites.find(
-    ({ targetKey, targetType }) =>
-      targetType === 'role' && targetKey === snapshot.guild.everyoneRoleKey,
-  );
-  if (everyoneOverwrite !== undefined) {
-    permissions = applyOverwrite(
-      permissions,
-      BigInt(everyoneOverwrite.deny),
-      BigInt(everyoneOverwrite.allow),
-    );
-  }
-
-  let roleDeny = 0n;
-  let roleAllow = 0n;
-  for (const overwrite of channel.overwrites) {
-    if (overwrite.targetType === 'role' && options.memberRoleKeys.has(overwrite.targetKey)) {
-      roleDeny |= BigInt(overwrite.deny);
-      roleAllow |= BigInt(overwrite.allow);
-    }
-  }
-  permissions = applyOverwrite(permissions, roleDeny, roleAllow);
-
-  const memberOverwrite = channel.overwrites.find(
-    ({ targetKey, targetType }) => targetType === 'member' && targetKey === options.memberKey,
-  );
-  if (memberOverwrite !== undefined) {
-    permissions = applyOverwrite(
-      permissions,
-      BigInt(memberOverwrite.deny),
-      BigInt(memberOverwrite.allow),
-    );
-  }
-
-  return (permissions & VIEW_CHANNEL) === VIEW_CHANNEL;
 }
 
 function assembleMapSnapshot(
@@ -190,10 +130,13 @@ export function createMemberMapSnapshot(
   snapshot: GuildStructureSnapshot,
   options: MemberMapOptions,
 ): MapSnapshot {
-  const basePermissions = memberBasePermissions(snapshot, options);
   const selectedRooms = snapshot.channels
     .filter(isRoom)
-    .filter((channel) => memberCanView(channel, snapshot, options, basePermissions));
+    .filter(
+      (channel) =>
+        (computeSnapshotMemberChannelPermissions(snapshot, channel, options) & VIEW_CHANNEL) ===
+        VIEW_CHANNEL,
+    );
   return assembleMapSnapshot(snapshot, options.slug, selectedRooms, new Set());
 }
 

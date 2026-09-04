@@ -22,6 +22,7 @@ export default tseslint.config(
       '.worktrees/**',
       'playwright-report',
       'test-results',
+      'assets/**',
       'worker-configuration.d.ts',
     ],
   },

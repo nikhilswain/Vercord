@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { ADMINISTRATOR, VIEW_CHANNEL } from '../../../../src/domain/discord/constants';
-import { DiscordDomainError } from '../../../../src/domain/discord/errors';
+import { ADMINISTRATOR, CONNECT, VIEW_CHANNEL } from '../../../../src/domain/discord/constants';
 import {
-  assertBotLeastPrivilege,
   computeBasePermissions,
   computeChannelPermissions,
+  computeSnapshotMemberChannelPermissions,
   selectBotVisibleChannels,
 } from '../../../../src/domain/discord/permissions';
+import type { GuildStructureSnapshot } from '../../../../src/domain/discord/snapshot';
 import type {
   DiscordChannelSource,
   DiscordSourceBundle,
@@ -149,30 +149,66 @@ describe('Discord bot permissions', () => {
     expect(selectedIds).not.toContain(TEST_IDS.thread);
     expect(selectedIds).not.toContain(TEST_IDS.lastMessage);
   });
+});
 
-  it('rejects excessive bot permission with the exact value-free error', () => {
-    const bundle = structuredClone(createValidatedDiscordSourceFixture());
-    roleById(bundle, TEST_IDS.botRole).permissions = ADMINISTRATOR.toString();
+describe('snapshot member channel permissions', () => {
+  it('applies everyone, combined role, then member overwrites for VIEW_CHANNEL and CONNECT', () => {
+    const digest = 'A'.repeat(43);
+    const everyoneKey = `r_${digest}`;
+    const allowedKey = `r_${'B'.repeat(43)}`;
+    const deniedKey = `r_${'C'.repeat(43)}`;
+    const memberKey = `m_${digest}`;
+    const channel = {
+      key: `c_${digest}`,
+      kind: 'voice' as const,
+      discordType: 2,
+      label: 'Voice',
+      parentKey: null,
+      order: 0,
+      ageRestricted: false,
+      overwrites: [
+        {
+          targetKey: everyoneKey,
+          targetType: 'role' as const,
+          allow: '0',
+          deny: CONNECT.toString(),
+        },
+        {
+          targetKey: deniedKey,
+          targetType: 'role' as const,
+          allow: '0',
+          deny: VIEW_CHANNEL.toString(),
+        },
+        {
+          targetKey: allowedKey,
+          targetType: 'role' as const,
+          allow: (VIEW_CHANNEL | CONNECT).toString(),
+          deny: '0',
+        },
+        {
+          targetKey: memberKey,
+          targetType: 'member' as const,
+          allow: '0',
+          deny: CONNECT.toString(),
+        },
+      ],
+    };
+    const snapshot = {
+      guild: { everyoneRoleKey: everyoneKey },
+      roles: [
+        { key: everyoneKey, permissions: (VIEW_CHANNEL | CONNECT).toString() },
+        { key: allowedKey, permissions: '0' },
+        { key: deniedKey, permissions: '0' },
+      ],
+    } as GuildStructureSnapshot;
 
-    let thrown: unknown;
-    try {
-      assertBotLeastPrivilege(bundle);
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toBeInstanceOf(DiscordDomainError);
-    expect(thrown).toMatchObject({
-      name: 'DiscordDomainError',
-      code: 'EXCESSIVE_BOT_PERMISSION',
-      message: 'EXCESSIVE_BOT_PERMISSION',
+    const permissions = computeSnapshotMemberChannelPermissions(snapshot, channel, {
+      memberKey,
+      memberRoleKeys: new Set([allowedKey, deniedKey]),
+      isOwner: false,
     });
-    expect(JSON.stringify(thrown)).toBe(
-      '{"code":"EXCESSIVE_BOT_PERMISSION","name":"DiscordDomainError"}',
-    );
-  });
 
-  it('accepts a least-privilege bot without throwing', () => {
-    expect(() => assertBotLeastPrivilege(createValidatedDiscordSourceFixture())).not.toThrow();
+    expect(permissions & VIEW_CHANNEL).toBe(VIEW_CHANNEL);
+    expect(permissions & CONNECT).toBe(0n);
   });
 });

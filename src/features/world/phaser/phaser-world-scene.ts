@@ -155,6 +155,17 @@ export class PhaserWorldScene extends Phaser.Scene {
     else this.leaveRoom();
   }
 
+  public enterRoomByKey(roomKey: string): boolean {
+    if (!this.ready) return false;
+    if (this.currentRoom?.room.key === roomKey) return true;
+    const portal = this.campusWorld.portals.find(
+      (candidate) => candidate.destination === 'room' && candidate.room.key === roomKey,
+    );
+    if (portal === undefined) return false;
+    this.enterRoom(portal);
+    return true;
+  }
+
   public setRemotePlayers(players: readonly PresencePlayer[]): void {
     this.remotePlayers = players;
   }
@@ -438,8 +449,10 @@ export class PhaserWorldScene extends Phaser.Scene {
   }
 
   private enterRoom(portal: WorldPortal): void {
-    this.campusPlayer = { ...this.player };
-    this.campusZoom = this.worldCamera.zoom;
+    if (this.currentRoom === null) {
+      this.campusPlayer = { ...this.player };
+      this.campusZoom = this.worldCamera.zoom;
+    }
     this.currentRoom = portal;
     this.switchWorld(createRoomWorld(portal, this.campusWorld.theme), 'up');
     this.callbacks.onSceneChange(portal);

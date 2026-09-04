@@ -74,6 +74,10 @@ export class WorldEngine {
     this.scene?.interact();
   }
 
+  public enterRoomByKey(roomKey: string): boolean {
+    return this.scene?.enterRoomByKey(roomKey) ?? false;
+  }
+
   public setRemotePlayers(players: readonly PresencePlayer[]): void {
     this.scene?.setRemotePlayers(players);
   }

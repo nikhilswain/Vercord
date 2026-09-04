@@ -69,7 +69,7 @@ async function discordRequest(url: string, init: RequestInit): Promise<unknown> 
     if (contentType !== 'application/json') throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
     return (await response.json()) as unknown;
   } catch (error) {
-    if (controller.signal.aborted) throw new Error('AUTH_PROVIDER_TIMEOUT');
+    if (controller.signal.aborted) throw new Error('AUTH_PROVIDER_TIMEOUT', { cause: error });
     throw error;
   } finally {
     clearTimeout(timeout);

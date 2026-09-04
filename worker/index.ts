@@ -4,6 +4,7 @@ import { handleAdminSync } from './http/admin-sync';
 import { handleAuth } from './http/auth';
 import { jsonResponse } from './http/json-response';
 import { handleLocalPreviewMap } from './http/local-preview-map';
+import { handleInternalDiscordGateway } from './http/internal-discord-gateway';
 import { handlePublicMap } from './http/public-map';
 import { createConsoleSafeLogger, type SafeLogger } from './logging/safe-logger';
 import { createSingleFlight } from './sync/single-flight';
@@ -11,11 +12,13 @@ import { createSyncRunner } from './sync/create-sync-runner';
 import type { SyncSummary } from './sync/synchronize-guild';
 
 export { GuildPresence } from './presence/guild-presence';
+export { DiscordGatewayBridge } from './voice/discord-gateway-bridge';
 
 const HEALTH_PATH = '/api/health';
 const ADMIN_SYNC_PATH = '/api/admin/sync';
 const LOCAL_PREVIEW_MAP_PREFIX = '/api/preview/maps/';
 const PUBLIC_MAP_PREFIX = '/api/maps/';
+const INTERNAL_DISCORD_GATEWAY_PATH = '/api/internal/discord-gateway';
 
 export interface WorkerDependencies {
   runSync(env: Env): Promise<SyncSummary>;
@@ -48,6 +51,10 @@ export function createWorker(dependencies: Partial<WorkerDependencies> = {}): Ex
 
       if (pathname === ADMIN_SYNC_PATH) {
         return handleAdminSync(request, env, guardedSync);
+      }
+
+      if (pathname === INTERNAL_DISCORD_GATEWAY_PATH) {
+        return handleInternalDiscordGateway(request, env);
       }
 
       if (pathname.startsWith('/api/auth/')) {

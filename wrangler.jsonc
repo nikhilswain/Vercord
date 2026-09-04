@@ -16,6 +16,7 @@
       "DISCORD_CLIENT_ID",
       "DISCORD_CLIENT_SECRET",
       "AUTH_SESSION_SECRET",
+      "GATEWAY_BRIDGE_SECRET",
     ],
   },
   "assets": {
@@ -45,12 +46,20 @@
         "name": "WORLD_PRESENCE",
         "class_name": "GuildPresence",
       },
+      {
+        "name": "DISCORD_GATEWAY_BRIDGE",
+        "class_name": "DiscordGatewayBridge",
+      },
     ],
   },
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["GuildPresence"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["DiscordGatewayBridge"],
     },
   ],
 }

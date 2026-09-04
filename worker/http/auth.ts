@@ -1,6 +1,7 @@
 import { avatarIdForDiscordUser } from '../../src/domain/avatar/identity';
 import { DiscordDomainError } from '../../src/domain/discord/errors';
 import { createIdentifierFactory } from '../../src/domain/discord/identifiers';
+import { z } from 'zod';
 import { parseAuthConfig, type AuthConfig } from '../auth/config';
 import { clearCookie, readCookie, setCookie } from '../auth/cookies';
 import {
@@ -31,6 +32,9 @@ import { createKvPublicMapRepository } from '../storage/public-map-repository';
 import { synchronizePrivateGuild } from '../sync/synchronize-private-guild';
 import { createD1WorldRepository } from '../worlds/repository';
 import { jsonResponse } from './json-response';
+import { sendDiscordGatewayCommand } from '../voice/bridge-client';
+import { resolveMappedVoiceDestination } from '../voice/destination';
+import { publicVoiceErrorFor } from '../voice/public-errors';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
 const SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
@@ -42,17 +46,22 @@ const LOGOUT_PATH = '/api/auth/logout';
 const GUILD_SYNC_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/sync$/u;
 const GUILD_MAP_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/map$/u;
 const GUILD_PRESENCE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/presence$/u;
+const GUILD_VOICE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice$/u;
+const GUILD_VOICE_MOVE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/move$/u;
+const GUILD_VOICE_DISCONNECT_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/disconnect$/u;
 const WORLD_PAGE_PATH = /^\/world\/[1-9]\d{0,19}$/u;
 const MANAGE_GUILD = 1n << 5n;
 const ADMINISTRATOR = 1n << 3n;
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 const activeGuildSyncs = new Set<string>();
+const voiceMoveBodySchema = z.strictObject({
+  roomKey: z.string().regex(/^c_[A-Za-z0-9_-]{43}$/u),
+});
 
 const SYNC_STATUS_BY_CODE = {
   CONFIG_INVALID: 500,
   DISCORD_SOURCE_INVALID: 502,
   SNAPSHOT_INVALID: 500,
-  EXCESSIVE_BOT_PERMISSION: 422,
   DISCORD_UNAUTHORIZED: 502,
   DISCORD_FORBIDDEN: 502,
   DISCORD_NOT_FOUND: 502,
@@ -605,7 +614,8 @@ async function handleGuildPresence(request: Request, env: Env, guildId: string):
       decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),
     );
     const presenceId = await identifiers.for('presence', `${guildId}:${session.userId}`);
-    const stub = env.WORLD_PRESENCE.getByName(guildId);
+    const guildKey = await identifiers.for('guild', guildId);
+    const stub = env.WORLD_PRESENCE.getByName(guildKey);
     return stub.fetch(
       new Request('https://presence.dmap/connect', {
         headers: {
@@ -627,6 +637,114 @@ async function handleGuildPresence(request: Request, env: Env, guildId: string):
       return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
     }
     return authError('PRESENCE_UNAVAILABLE', 503);
+  }
+}
+
+type VoiceAction = 'query' | 'move' | 'disconnect';
+
+function voiceFailureReason(error: unknown): string {
+  if (!(error instanceof Error)) return 'UNKNOWN';
+  return /^[A-Z][A-Z0-9_]{0,63}$/u.test(error.message) ? error.message : error.name;
+}
+
+async function parseVoiceMoveBody(request: Request): Promise<{ roomKey: string } | null> {
+  if (request.headers.get('content-type')?.split(';', 1)[0]?.trim() !== 'application/json') {
+    return null;
+  }
+  const body = await request.text();
+  if (body.length > 1_024) return null;
+  try {
+    const parsed = voiceMoveBodySchema.safeParse(JSON.parse(body) as unknown);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleGuildVoice(
+  request: Request,
+  env: Env,
+  guildId: string,
+  action: VoiceAction,
+): Promise<Response> {
+  const expectedMethod = action === 'query' ? 'GET' : 'POST';
+  if (request.method !== expectedMethod) return authError('METHOD_NOT_ALLOWED', 405);
+  if (action !== 'query' && !sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
+
+  let authenticated: AuthenticatedSession | null = null;
+  try {
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (authenticated === null) return unauthenticatedResponse(request);
+    if (
+      typeof env.MAP_SNAPSHOTS?.get !== 'function' ||
+      typeof env.DISCORD_GATEWAY_BRIDGE?.getByName !== 'function'
+    ) {
+      return authError('CONFIG_INVALID', 500);
+    }
+
+    const { config, idHash, now, repository, session } = authenticated;
+    const world = await createD1WorldRepository(config.database).read(guildId);
+    if (world === null) return authError('WORLD_NOT_FOUND', 404);
+
+    const storedSnapshot = await createKvGuildStructureRepository(env.MAP_SNAPSHOTS).read(
+      world.mapSlug,
+    );
+    if (storedSnapshot.state === 'missing') return authError('WORLD_NOT_SYNCED', 404);
+    if (storedSnapshot.state === 'invalid') return authError('WORLD_SNAPSHOT_INVALID', 500);
+
+    let command:
+      | { type: 'voice-query'; guildId: string; userId: string }
+      | { type: 'move'; guildId: string; userId: string; roomKey: string }
+      | { type: 'disconnect'; guildId: string; userId: string };
+    if (action === 'move') {
+      const body = await parseVoiceMoveBody(request);
+      if (body === null) return authError('INVALID_REQUEST', 400);
+      const channel = resolveMappedVoiceDestination(storedSnapshot.snapshot, body.roomKey);
+      if (channel === null) {
+        return authError('VOICE_ROOM_NOT_FOUND', 409);
+      }
+      // The connected member's live destination permissions are enforced by the Gateway.
+      command = { type: 'move', guildId, userId: session.userId, roomKey: body.roomKey };
+    } else if (action === 'disconnect') {
+      command = { type: 'disconnect', guildId, userId: session.userId };
+    } else {
+      command = { type: 'voice-query', guildId, userId: session.userId };
+    }
+
+    const outcome = await sendDiscordGatewayCommand(env, command);
+    await repository.touchSession(idHash, now);
+    if (outcome.service === 'offline') {
+      return action === 'query'
+        ? noStoreJson({ service: 'offline', state: null })
+        : authError('VOICE_GATEWAY_UNAVAILABLE', 503);
+    }
+    if (outcome.service === 'timeout') return authError('VOICE_ACTION_TIMEOUT', 504);
+    if (!outcome.result.ok) {
+      const publicError = publicVoiceErrorFor(outcome.result.errorCode);
+      return authError(publicError.code, publicError.status);
+    }
+    return noStoreJson({ service: 'online', state: outcome.result.state });
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        service: 'dmap-worker',
+        event: 'voice_request_failed',
+        action,
+        reason: voiceFailureReason(error),
+      }),
+    );
+    if (isInvalidSessionError(error)) {
+      if (authenticated !== null) {
+        await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+      }
+      return unauthenticatedResponse(request);
+    }
+    if (isMembershipProviderError(error)) {
+      return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+    }
+    return action === 'query'
+      ? authError('VOICE_GATEWAY_UNAVAILABLE', 503)
+      : authError('VOICE_ACTION_FAILED', 502);
   }
 }
 
@@ -653,6 +771,21 @@ async function handleLogout(request: Request, env: Env): Promise<Response> {
 }
 
 export function handleAuth(request: Request, env: Env, pathname: string): Promise<Response> {
+  const guildVoiceMoveMatch = GUILD_VOICE_MOVE_PATH.exec(pathname);
+  if (guildVoiceMoveMatch !== null) {
+    return handleGuildVoice(request, env, guildVoiceMoveMatch[1]!, 'move');
+  }
+
+  const guildVoiceDisconnectMatch = GUILD_VOICE_DISCONNECT_PATH.exec(pathname);
+  if (guildVoiceDisconnectMatch !== null) {
+    return handleGuildVoice(request, env, guildVoiceDisconnectMatch[1]!, 'disconnect');
+  }
+
+  const guildVoiceMatch = GUILD_VOICE_PATH.exec(pathname);
+  if (guildVoiceMatch !== null) {
+    return handleGuildVoice(request, env, guildVoiceMatch[1]!, 'query');
+  }
+
   const guildPresenceMatch = GUILD_PRESENCE_PATH.exec(pathname);
   if (guildPresenceMatch !== null) {
     return handleGuildPresence(request, env, guildPresenceMatch[1]!);

@@ -10,6 +10,7 @@ export default defineConfig({
       'tests/unit/app/**/*.test.{ts,tsx}',
       'tests/unit/domain/map/**/*.test.ts',
       'tests/unit/domain/layout/**/*.test.ts',
+      'tests/unit/domain/voice/**/*.test.ts',
       'tests/client/**/*.test.{ts,tsx}',
     ],
     setupFiles: ['./tests/unit/setup.ts'],

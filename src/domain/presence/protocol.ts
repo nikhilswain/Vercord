@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { AVATAR_IDS } from '../avatar/identity';
+import { voiceServiceStatusSchema, voiceStateSchema } from '../voice/protocol';
 
 const directionSchema = z.enum(['down', 'left', 'right', 'up']);
 const sceneSchema = z.union([
@@ -37,6 +38,8 @@ export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
     selfId: presenceIdSchema,
     selfAvatarId: z.enum(AVATAR_IDS),
     players: z.array(presencePlayerSchema).max(200),
+    voiceService: voiceServiceStatusSchema,
+    voiceState: voiceStateSchema.nullable(),
   }),
   z.strictObject({
     type: z.literal('player'),
@@ -45,6 +48,14 @@ export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('leave'),
     id: presenceIdSchema,
+  }),
+  z.strictObject({
+    type: z.literal('voice-state'),
+    state: voiceStateSchema,
+  }),
+  z.strictObject({
+    type: z.literal('voice-service'),
+    service: voiceServiceStatusSchema,
   }),
 ]);
 

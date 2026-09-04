@@ -32,12 +32,14 @@ function validEnv(overrides: Partial<Env> = {}): Env {
     DISCORD_CLIENT_ID: '100000000000000002',
     DISCORD_CLIENT_SECRET: 'test-client-secret-never-real',
     AUTH_SESSION_SECRET: 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM',
+    GATEWAY_BRIDGE_SECRET: 'BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ',
     MAP_SNAPSHOTS: {
       get: async () => null,
       put: async () => undefined,
     } as unknown as KVNamespace,
     AUTH_DB: {} as D1Database,
     WORLD_PRESENCE: {} as Env['WORLD_PRESENCE'],
+    DISCORD_GATEWAY_BRIDGE: {} as Env['DISCORD_GATEWAY_BRIDGE'],
     ...overrides,
   };
 }
@@ -362,7 +364,6 @@ describe('protected manual synchronization route', () => {
     ['CONFIG_INVALID', 500],
     ['DISCORD_SOURCE_INVALID', 502],
     ['SNAPSHOT_INVALID', 500],
-    ['EXCESSIVE_BOT_PERMISSION', 422],
     ['DISCORD_UNAUTHORIZED', 502],
     ['DISCORD_FORBIDDEN', 502],
     ['DISCORD_NOT_FOUND', 502],
@@ -380,10 +381,8 @@ describe('protected manual synchronization route', () => {
     const failure =
       code === 'CONFIG_INVALID'
         ? new Error(code)
-        : ['DISCORD_SOURCE_INVALID', 'SNAPSHOT_INVALID', 'EXCESSIVE_BOT_PERMISSION'].includes(code)
-          ? new DiscordDomainError(
-              code as 'DISCORD_SOURCE_INVALID' | 'SNAPSHOT_INVALID' | 'EXCESSIVE_BOT_PERMISSION',
-            )
+        : ['DISCORD_SOURCE_INVALID', 'SNAPSHOT_INVALID'].includes(code)
+          ? new DiscordDomainError(code as 'DISCORD_SOURCE_INVALID' | 'SNAPSHOT_INVALID')
           : new WorkerError(code as WorkerErrorCode);
     const runSync = vi.fn<(env: Env) => Promise<SyncSummary>>().mockRejectedValue(failure);
     const logger = createLogger();

@@ -25,7 +25,6 @@ export function DiscordMapPage({ slug, mode = 'public' }: DiscordMapPageProps) {
 
   useEffect(() => {
     const controller = new AbortController();
-    setState({ kind: 'loading' });
 
     const endpoint = isMemberWorld
       ? `/api/auth/guilds/${encodeURIComponent(slug)}/map`

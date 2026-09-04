@@ -7,6 +7,7 @@ import {
   VIEW_CHANNEL,
 } from './constants';
 import { DiscordDomainError } from './errors';
+import type { GuildStructureSnapshot } from './snapshot';
 import type { DiscordChannelSource, DiscordSourceBundle } from './source';
 
 function applyOverwrite(permissions: bigint, deny: bigint, allow: bigint): bigint {
@@ -77,12 +78,6 @@ export function computeChannelPermissions(
   return permissions;
 }
 
-export function assertBotLeastPrivilege(bundle: DiscordSourceBundle): void {
-  if ((computeBasePermissions(bundle) & ADMINISTRATOR) === ADMINISTRATOR) {
-    throw new DiscordDomainError('EXCESSIVE_BOT_PERMISSION');
-  }
-}
-
 function canBotView(
   base: bigint,
   bundle: DiscordSourceBundle,
@@ -112,4 +107,74 @@ export function selectBotVisibleChannels(bundle: DiscordSourceBundle): DiscordCh
   const retainedIds = new Set([...visibleNonCategories.map(({ id }) => id), ...visibleCategoryIds]);
 
   return bundle.channels.filter(({ id }) => retainedIds.has(id));
+}
+
+export interface SnapshotMemberPermissionOptions {
+  memberKey: string;
+  memberRoleKeys: ReadonlySet<string>;
+  isOwner: boolean;
+}
+
+type SnapshotChannel = GuildStructureSnapshot['channels'][number];
+
+export function computeSnapshotMemberBasePermissions(
+  snapshot: GuildStructureSnapshot,
+  options: SnapshotMemberPermissionOptions,
+): bigint {
+  const everyone = snapshot.roles.find(({ key }) => key === snapshot.guild.everyoneRoleKey);
+  if (everyone === undefined) throw new Error('SNAPSHOT_INVALID');
+
+  let permissions = BigInt(everyone.permissions);
+  for (const role of snapshot.roles) {
+    if (options.memberRoleKeys.has(role.key)) permissions |= BigInt(role.permissions);
+  }
+  return options.isOwner || (permissions & ADMINISTRATOR) === ADMINISTRATOR ? ~0n : permissions;
+}
+
+export function computeSnapshotMemberChannelPermissions(
+  snapshot: GuildStructureSnapshot,
+  channel: SnapshotChannel,
+  options: SnapshotMemberPermissionOptions,
+): bigint {
+  let permissions = computeSnapshotMemberBasePermissions(snapshot, options);
+  if ((permissions & ADMINISTRATOR) === ADMINISTRATOR) return ~0n;
+
+  const everyoneOverwrite = channel.overwrites.find(
+    ({ targetKey, targetType }) =>
+      targetType === 'role' && targetKey === snapshot.guild.everyoneRoleKey,
+  );
+  if (everyoneOverwrite !== undefined) {
+    permissions = applyOverwrite(
+      permissions,
+      BigInt(everyoneOverwrite.deny),
+      BigInt(everyoneOverwrite.allow),
+    );
+  }
+
+  let roleDeny = 0n;
+  let roleAllow = 0n;
+  for (const overwrite of channel.overwrites) {
+    if (
+      overwrite.targetType === 'role' &&
+      overwrite.targetKey !== snapshot.guild.everyoneRoleKey &&
+      options.memberRoleKeys.has(overwrite.targetKey)
+    ) {
+      roleDeny |= BigInt(overwrite.deny);
+      roleAllow |= BigInt(overwrite.allow);
+    }
+  }
+  permissions = applyOverwrite(permissions, roleDeny, roleAllow);
+
+  const memberOverwrite = channel.overwrites.find(
+    ({ targetKey, targetType }) => targetType === 'member' && targetKey === options.memberKey,
+  );
+  if (memberOverwrite !== undefined) {
+    permissions = applyOverwrite(
+      permissions,
+      BigInt(memberOverwrite.deny),
+      BigInt(memberOverwrite.allow),
+    );
+  }
+
+  return permissions;
 }
