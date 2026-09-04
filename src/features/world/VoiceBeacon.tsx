@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { MapRoom } from '../../domain/map/snapshot';
 import type { WorldVoiceState } from '../../domain/voice/state';
@@ -8,6 +8,8 @@ export interface VoiceBeaconProps {
   state: WorldVoiceState;
   currentRoom: MapRoom | null;
   connectedRoom: MapRoom | null;
+  joinAppHref?: string | null;
+  joinWebHref?: string | null;
   onReturn(): void;
   onDisconnect(): Promise<string | null>;
   onDismissNotice(): void;
@@ -33,10 +35,54 @@ function isVoiceRoom(room: MapRoom | null): boolean {
   return room?.type === 'voice' || room?.type === 'stage';
 }
 
+function VoiceJoinLink({ appHref, webHref }: { appHref: string; webHref: string }) {
+  const [attemptedApp, setAttemptedApp] = useState(false);
+  const attemptTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (attemptTimer.current !== null) window.clearTimeout(attemptTimer.current);
+    },
+    [],
+  );
+
+  const markAppAttempt = () => {
+    if (attemptedApp || attemptTimer.current !== null) return;
+    // Let the native click follow the app href before React changes it.
+    // This only reveals the fallback; it never starts another navigation.
+    attemptTimer.current = window.setTimeout(() => {
+      attemptTimer.current = null;
+      setAttemptedApp(true);
+    }, 0);
+  };
+
+  return (
+    <a
+      className="voice-beacon__join"
+      href={attemptedApp ? webHref : appHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={
+        attemptedApp ? 'Use browser instead (opens a new tab)' : 'Join voice in the Discord app'
+      }
+      onClick={(event) => {
+        if (!event.defaultPrevented) markAppAttempt();
+      }}
+      onAuxClick={(event) => {
+        if (event.button === 1 && !event.defaultPrevented) markAppAttempt();
+      }}
+    >
+      {attemptedApp ? 'Use browser instead' : 'Join voice'}
+    </a>
+  );
+}
+
 export function VoiceBeacon({
   state,
   currentRoom,
   connectedRoom,
+  joinAppHref = null,
+  joinWebHref = null,
   onReturn,
   onDisconnect,
   onDismissNotice,
@@ -49,6 +95,8 @@ export function VoiceBeacon({
   const connected = channelKey !== null;
   const inConnectedRoom = connected && currentRoom?.key === channelKey;
   const inVoiceRoom = isVoiceRoom(currentRoom);
+  const canJoinInDiscord =
+    !connected && inVoiceRoom && joinAppHref !== null && joinWebHref !== null;
   const shouldShow =
     state.pending !== null ||
     state.error !== null ||
@@ -68,7 +116,9 @@ export function VoiceBeacon({
           : 'Still in call'
         : state.notice
           ? 'Voice disconnected'
-          : 'Voice room ready';
+          : currentRoom
+            ? `Join #${currentRoom.label} in Discord`
+            : 'Voice room ready';
   const callLabel = connectedRoom ? `#${connectedRoom.label}` : 'Discord voice';
   const flags = state.voiceState
     ? [
@@ -109,7 +159,9 @@ export function VoiceBeacon({
                   : connected
                     ? callLabel
                     : (state.notice ??
-                      'Join a voice channel in Discord first, then Dmap can move you.')}
+                      (currentRoom
+                        ? 'Open this channel in Discord, then press Join Voice. Dmap will detect the call automatically.'
+                        : 'Join a voice channel in Discord first, then Dmap can move you.'))}
           </span>
           {connected && flags.length > 0 ? (
             <span className="voice-beacon__flags">
@@ -125,6 +177,13 @@ export function VoiceBeacon({
           ) : null}
         </div>
         <div className="voice-beacon__actions">
+          {canJoinInDiscord && state.pending === null ? (
+            <VoiceJoinLink
+              key={`${joinAppHref}:${joinWebHref}`}
+              appHref={joinAppHref}
+              webHref={joinWebHref}
+            />
+          ) : null}
           {connectedRoom && !inConnectedRoom && state.pending === null ? (
             <button
               type="button"

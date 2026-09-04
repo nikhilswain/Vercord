@@ -8,7 +8,6 @@ import type { WorldCamera } from '../engine/camera';
 import type {
   Direction,
   PlayerState,
-  Point,
   WorldArea,
   WorldDefinition,
   WorldPortal,
@@ -130,7 +129,6 @@ export function primaryWorldAssetLoaded(scene: Phaser.Scene): boolean {
 export class PhaserWorldRenderer {
   private world: WorldDefinition;
   private playerVisual: PlayerVisual | null = null;
-  private routeGraphic: Phaser.GameObjects.Graphics | null = null;
   private portalVisuals = new Map<string, PortalVisual>();
   private remotePlayerVisuals = new Map<string, RemotePlayerVisual>();
   private minimap: Phaser.Cameras.Scene2D.Camera | null = null;
@@ -176,7 +174,6 @@ export class PhaserWorldRenderer {
       .forEach((prop) => this.addProp(prop, prop.y + prop.height));
     world.portals.forEach((portal) => this.addPortal(portal));
 
-    this.routeGraphic = this.scene.add.graphics().setDepth(-100);
     this.playerVisual = this.addPlayerVisual(player, 'you', 0x5c4bd8, this.playerAvatarId);
     this.minimapViewport = this.scene.add.graphics().setDepth(1_000_000);
     this.scene.cameras.main.ignore(this.minimapViewport);
@@ -201,8 +198,6 @@ export class PhaserWorldRenderer {
     player: PlayerState,
     elapsed: number,
     reduceMotion: boolean,
-    route: Point[],
-    routeTarget: Point | null,
     nearbyPortal: WorldPortal | null,
     camera: WorldCamera,
     remotePlayers: readonly PresencePlayer[],
@@ -211,7 +206,6 @@ export class PhaserWorldRenderer {
   ): void {
     this.updatePlayer(player, elapsed, reduceMotion);
     this.updateRemotePlayers(remotePlayers, presenceScene, elapsed, reduceMotion, deltaSeconds);
-    this.updateRoute(player, route, routeTarget);
     this.portalVisuals.forEach(({ activeMark }, key) => {
       activeMark.setVisible(key === nearbyPortal?.key);
     });
@@ -769,18 +763,6 @@ export class PhaserWorldRenderer {
       remote.visual.container.destroy(true);
       this.remotePlayerVisuals.delete(id);
     }
-  }
-
-  private updateRoute(player: PlayerState, route: Point[], target: Point | null): void {
-    const graphic = this.routeGraphic;
-    if (!graphic) return;
-    graphic.clear();
-    if (route.length === 0 || !target) return;
-    graphic.lineStyle(4, 0xc9c0ff, 0.68);
-    graphic.beginPath().moveTo(player.x, player.y);
-    route.forEach((point) => graphic.lineTo(point.x, point.y));
-    graphic.strokePath();
-    graphic.lineStyle(3, 0xc9c0ff, 1).strokeCircle(target.x, target.y, 10);
   }
 
   private configureCameras(): void {

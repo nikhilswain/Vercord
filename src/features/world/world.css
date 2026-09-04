@@ -429,8 +429,12 @@
 }
 
 .voice-beacon__actions button,
+.voice-beacon__actions a,
 .confirm-dialog__actions button {
+  display: inline-flex;
   min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: var(--radius-control);
   padding-inline: 0.75rem;
@@ -439,11 +443,22 @@
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 700;
+  text-decoration: none;
 }
 
 .voice-beacon__actions button:hover,
+.voice-beacon__actions a:hover,
 .confirm-dialog__actions button:hover {
   background: rgb(var(--color-route-violet-rgb) / 0.34);
+}
+
+.voice-beacon__actions .voice-beacon__join {
+  min-inline-size: 10rem;
+  white-space: nowrap;
+}
+
+.voice-beacon__actions .voice-beacon__join:active {
+  background: rgb(var(--color-route-violet-rgb) / 0.18);
 }
 
 .voice-beacon__actions button:disabled,

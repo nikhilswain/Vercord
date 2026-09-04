@@ -48,6 +48,15 @@ export function disconnectVoice(guildId: string): Promise<VoiceApiResponse> {
   return voiceRequest(guildId, '/disconnect', { method: 'POST' });
 }
 
+export function discordVoiceJoinHref(
+  guildId: string,
+  roomKey: string,
+  target: 'app' | 'web',
+): string {
+  const query = new URLSearchParams({ roomKey, target });
+  return `/api/auth/guilds/${encodeURIComponent(guildId)}/voice/join?${query.toString()}`;
+}
+
 export function voiceErrorMessage(error: unknown): string {
   const code = error instanceof VoiceApiError ? error.code : 'VOICE_UNAVAILABLE';
   switch (code) {

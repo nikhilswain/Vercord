@@ -1,6 +1,8 @@
 import { avatarIdForDiscordUser } from '../../src/domain/avatar/identity';
+import { CONNECT, VIEW_CHANNEL } from '../../src/domain/discord/constants';
 import { DiscordDomainError } from '../../src/domain/discord/errors';
 import { createIdentifierFactory } from '../../src/domain/discord/identifiers';
+import { computeSnapshotMemberChannelPermissions } from '../../src/domain/discord/permissions';
 import { z } from 'zod';
 import { parseAuthConfig, type AuthConfig } from '../auth/config';
 import { clearCookie, readCookie, setCookie } from '../auth/cookies';
@@ -33,7 +35,7 @@ import { synchronizePrivateGuild } from '../sync/synchronize-private-guild';
 import { createD1WorldRepository } from '../worlds/repository';
 import { jsonResponse } from './json-response';
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
-import { resolveMappedVoiceDestination } from '../voice/destination';
+import { resolveDiscordVoiceChannelId, resolveMappedVoiceDestination } from '../voice/destination';
 import { publicVoiceErrorFor } from '../voice/public-errors';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
@@ -49,14 +51,15 @@ const GUILD_PRESENCE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/presence$/u;
 const GUILD_VOICE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice$/u;
 const GUILD_VOICE_MOVE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/move$/u;
 const GUILD_VOICE_DISCONNECT_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/disconnect$/u;
+const GUILD_VOICE_JOIN_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/join$/u;
 const WORLD_PAGE_PATH = /^\/world\/[1-9]\d{0,19}$/u;
 const MANAGE_GUILD = 1n << 5n;
 const ADMINISTRATOR = 1n << 3n;
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 const activeGuildSyncs = new Set<string>();
-const voiceMoveBodySchema = z.strictObject({
-  roomKey: z.string().regex(/^c_[A-Za-z0-9_-]{43}$/u),
-});
+const roomKeySchema = z.string().regex(/^c_[A-Za-z0-9_-]{43}$/u);
+const voiceJoinTargetSchema = z.enum(['app', 'web']);
+const voiceMoveBodySchema = z.strictObject({ roomKey: roomKeySchema });
 
 const SYNC_STATUS_BY_CODE = {
   CONFIG_INVALID: 500,
@@ -748,6 +751,88 @@ async function handleGuildVoice(
   }
 }
 
+async function handleGuildVoiceJoin(
+  request: Request,
+  env: Env,
+  guildId: string,
+): Promise<Response> {
+  if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
+  const searchParams = new URL(request.url).searchParams;
+  const parsedRoomKey = roomKeySchema.safeParse(searchParams.get('roomKey'));
+  const parsedTarget = voiceJoinTargetSchema.safeParse(searchParams.get('target') ?? 'web');
+  if (!parsedRoomKey.success || !parsedTarget.success) return authError('INVALID_REQUEST', 400);
+
+  let authenticated: AuthenticatedSession | null = null;
+  try {
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (authenticated === null) return unauthenticatedResponse(request);
+    if (typeof env.MAP_SNAPSHOTS?.get !== 'function') {
+      return authError('CONFIG_INVALID', 500);
+    }
+
+    const { accessToken, config, idHash, now, repository, session } = authenticated;
+    const world = await createD1WorldRepository(config.database).read(guildId);
+    if (world === null) return authError('WORLD_NOT_FOUND', 404);
+
+    const [member, storedSnapshot] = await Promise.all([
+      createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId),
+      createKvGuildStructureRepository(env.MAP_SNAPSHOTS).read(world.mapSlug),
+    ]);
+    if (storedSnapshot.state === 'missing') return authError('WORLD_NOT_SYNCED', 404);
+    if (storedSnapshot.state === 'invalid') return authError('WORLD_SNAPSHOT_INVALID', 500);
+
+    const roomKey = parsedRoomKey.data;
+    const channel = resolveMappedVoiceDestination(storedSnapshot.snapshot, roomKey);
+    if (channel === null) return authError('VOICE_ROOM_NOT_FOUND', 404);
+
+    const identifiers = await createIdentifierFactory(
+      decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),
+    );
+    const [memberKey, memberRoleKeys] = await Promise.all([
+      identifiers.for('member', session.userId),
+      Promise.all(member.roleIds.map((roleId) => identifiers.for('role', roleId))),
+    ]);
+    const permissions = computeSnapshotMemberChannelPermissions(storedSnapshot.snapshot, channel, {
+      memberKey,
+      memberRoleKeys: new Set(memberRoleKeys),
+      isOwner: memberKey === storedSnapshot.snapshot.guild.ownerKey,
+    });
+    const requiredPermissions = VIEW_CHANNEL | CONNECT;
+    if ((permissions & requiredPermissions) !== requiredPermissions) {
+      return authError('VOICE_ROOM_FORBIDDEN', 403);
+    }
+
+    const sourceConfig = parseDiscordSourceConfig(env);
+    const rawChannels = await createDiscordRestClient({
+      botToken: sourceConfig.botToken,
+    }).fetchGuildChannels(guildId);
+    const channelId = await resolveDiscordVoiceChannelId(rawChannels, roomKey, identifiers);
+    if (channelId === null) return authError('VOICE_ROOM_NOT_FOUND', 404);
+
+    await repository.touchSession(idHash, now);
+    const discordChannelPath = `${encodeURIComponent(guildId)}/${encodeURIComponent(channelId)}`;
+    const response = redirectResponse(
+      parsedTarget.data === 'app'
+        ? `discord://-/channels/${discordChannelPath}`
+        : `https://discord.com/channels/${discordChannelPath}`,
+      302,
+    );
+    response.headers.set('vary', 'cookie');
+    return response;
+  } catch (error) {
+    if (isInvalidSessionError(error)) {
+      if (authenticated !== null) {
+        await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+      }
+      return unauthenticatedResponse(request);
+    }
+    if (isMembershipProviderError(error)) {
+      return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+    }
+    return authError('VOICE_JOIN_UNAVAILABLE', 503);
+  }
+}
+
 async function handleLogout(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') return authError('METHOD_NOT_ALLOWED', 405);
   const sessionId = readCookie(request, 'session');
@@ -771,6 +856,11 @@ async function handleLogout(request: Request, env: Env): Promise<Response> {
 }
 
 export function handleAuth(request: Request, env: Env, pathname: string): Promise<Response> {
+  const guildVoiceJoinMatch = GUILD_VOICE_JOIN_PATH.exec(pathname);
+  if (guildVoiceJoinMatch !== null) {
+    return handleGuildVoiceJoin(request, env, guildVoiceJoinMatch[1]!);
+  }
+
   const guildVoiceMoveMatch = GUILD_VOICE_MOVE_PATH.exec(pathname);
   if (guildVoiceMoveMatch !== null) {
     return handleGuildVoice(request, env, guildVoiceMoveMatch[1]!, 'move');

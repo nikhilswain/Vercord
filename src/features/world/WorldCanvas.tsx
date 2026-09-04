@@ -16,6 +16,7 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { VoiceBeacon } from './VoiceBeacon';
 import {
   disconnectVoice,
+  discordVoiceJoinHref,
   fetchVoiceState,
   isVoiceActionTimeout,
   moveVoice,
@@ -301,7 +302,7 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
         ref={canvasRef}
         className="world-canvas"
         tabIndex={0}
-        aria-label={`Playable map of ${snapshot.server.displayName}. Use W A S D or arrow keys to move, or click a destination.`}
+        aria-label={`Playable map of ${snapshot.server.displayName}. Use W A S D or arrow keys to move, or double-click or double-tap a destination.`}
       />
 
       {!ready && !assetError ? (
@@ -380,7 +381,7 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
           <kbd>Shift</kbd> sprint
         </span>
         <span>
-          <kbd>Click</kbd> walk
+          <kbd>Double-click</kbd> run
         </span>
         <span>
           <kbd>Drag</kbd> pan
@@ -402,6 +403,16 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
           state={voice}
           currentRoom={sceneRoom?.room ?? null}
           connectedRoom={connectedRoom}
+          joinAppHref={
+            sceneRoom && presenceGuildId
+              ? discordVoiceJoinHref(presenceGuildId, sceneRoom.room.key, 'app')
+              : null
+          }
+          joinWebHref={
+            sceneRoom && presenceGuildId
+              ? discordVoiceJoinHref(presenceGuildId, sceneRoom.room.key, 'web')
+              : null
+          }
           onReturn={() => {
             if (connectedRoom === null) return;
             suppressedRoomMoveRef.current = connectedRoom.key;

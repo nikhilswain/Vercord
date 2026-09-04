@@ -25,6 +25,9 @@ import {
 const WALK_SPEED = 150;
 const ROOM_WALK_SPEED = 75;
 const SPRINT_MULTIPLIER = 1.65;
+const AUTO_MOVE_SPEED_MULTIPLIER = 4;
+const DOUBLE_ACTIVATION_WINDOW_MS = 350;
+const DOUBLE_ACTIVATION_DISTANCE_PX = 32;
 
 export interface PhaserWorldCallbacks {
   onReady: () => void;
@@ -48,7 +51,6 @@ export class PhaserWorldScene extends Phaser.Scene {
   private elapsed = 0;
   private viewport = { width: 1, height: 1 };
   private route: Point[] = [];
-  private routeTarget: Point | null = null;
   private area: WorldArea | null = null;
   private nearbyPortal: WorldPortal | null = null;
   private previousZoom = -1;
@@ -58,6 +60,11 @@ export class PhaserWorldScene extends Phaser.Scene {
   private dragging = false;
   private pinchDistance: number | null = null;
   private pinchMidpoint: Point | null = null;
+  private lastNavigationActivation: {
+    point: Point;
+    pointerType: string;
+    timeStamp: number;
+  } | null = null;
   private ready = false;
   private cleanedUp = false;
   private remotePlayers: readonly PresencePlayer[] = [];
@@ -106,8 +113,6 @@ export class PhaserWorldScene extends Phaser.Scene {
       this.player,
       this.elapsed,
       this.reduceMotion,
-      this.route,
-      this.routeTarget,
       this.nearbyPortal,
       this.worldCamera,
       this.remotePlayers,
@@ -179,10 +184,10 @@ export class PhaserWorldScene extends Phaser.Scene {
     const input = this.movementInput.getMovement();
     let movementX = 0;
     let movementY = 0;
+    let remainingAutoMoveDistance: number | null = null;
 
     if (input.moving) {
       this.route = [];
-      this.routeTarget = null;
       movementX = input.x;
       movementY = input.y;
       this.worldCamera.follow(this.player, this.world.bounds);
@@ -194,10 +199,10 @@ export class PhaserWorldScene extends Phaser.Scene {
         const distance = Math.hypot(distanceX, distanceY);
         if (distance < 7) {
           this.route.shift();
-          if (this.route.length === 0) this.routeTarget = null;
         } else {
           movementX = distanceX / distance;
           movementY = distanceY / distance;
+          remainingAutoMoveDistance = distance;
         }
       }
     }
@@ -208,7 +213,17 @@ export class PhaserWorldScene extends Phaser.Scene {
 
     this.player.direction = this.directionFromVector(movementX, movementY);
     const baseSpeed = this.world.environment === 'interior' ? ROOM_WALK_SPEED : WALK_SPEED;
-    const speed = baseSpeed * (input.sprinting ? SPRINT_MULTIPLIER : 1);
+    const speed =
+      baseSpeed *
+      (remainingAutoMoveDistance === null
+        ? input.sprinting
+          ? SPRINT_MULTIPLIER
+          : 1
+        : AUTO_MOVE_SPEED_MULTIPLIER);
+    const moveDistance =
+      remainingAutoMoveDistance === null
+        ? speed * deltaSeconds
+        : Math.min(speed * deltaSeconds, remainingAutoMoveDistance);
     const collider = this.world.theme.avatar?.collider ?? {
       width: 18,
       height: 12,
@@ -223,8 +238,8 @@ export class PhaserWorldScene extends Phaser.Scene {
     };
     const next = resolveMovement(
       playerBox,
-      movementX * speed * deltaSeconds,
-      movementY * speed * deltaSeconds,
+      movementX * moveDistance,
+      movementY * moveDistance,
       this.world.colliders,
       this.world.bounds,
     );
@@ -310,7 +325,7 @@ export class PhaserWorldScene extends Phaser.Scene {
     if (event.code === 'KeyE' && !event.repeat) this.interact();
     if (event.code === 'Escape') {
       this.route = [];
-      this.routeTarget = null;
+      this.lastNavigationActivation = null;
       this.worldCamera.follow(this.player, this.world.bounds);
     }
     if (event.key === '+' || event.key === '=') this.zoomIn();
@@ -337,7 +352,7 @@ export class PhaserWorldScene extends Phaser.Scene {
     if (!this.dragging && distance >= 7) {
       this.dragging = true;
       this.route = [];
-      this.routeTarget = null;
+      this.lastNavigationActivation = null;
       this.game.canvas.classList.add('is-dragging');
     }
     if (this.dragging && this.pinchDistance === null) {
@@ -359,11 +374,30 @@ export class PhaserWorldScene extends Phaser.Scene {
     this.dragging = false;
     this.game.canvas.classList.remove('is-dragging');
     if (!shouldNavigate) return;
+
+    const activation = {
+      point: { x: event.clientX, y: event.clientY },
+      pointerType: event.pointerType,
+      timeStamp: event.timeStamp,
+    };
+    const previous = this.lastNavigationActivation;
+    this.lastNavigationActivation = activation;
+    if (
+      previous === null ||
+      previous.pointerType !== activation.pointerType ||
+      activation.timeStamp - previous.timeStamp < 0 ||
+      activation.timeStamp - previous.timeStamp > DOUBLE_ACTIVATION_WINDOW_MS ||
+      Math.hypot(activation.point.x - previous.point.x, activation.point.y - previous.point.y) >
+        DOUBLE_ACTIVATION_DISTANCE_PX
+    ) {
+      return;
+    }
+    this.lastNavigationActivation = null;
+
     const point = this.clientToScreen(event.clientX, event.clientY);
     const worldPoint = this.worldCamera.screenToWorld(point.x, point.y);
     const path = findPath(this.player, worldPoint, this.world.colliders, this.world.bounds);
     this.route = path;
-    this.routeTarget = path.length > 0 ? worldPoint : null;
     if (path.length > 0) this.worldCamera.follow(this.player, this.world.bounds);
   };
 
@@ -388,6 +422,7 @@ export class PhaserWorldScene extends Phaser.Scene {
     const second = event.touches.item(1);
     if (!first || !second) return;
     this.dragging = true;
+    this.lastNavigationActivation = null;
     this.pinchDistance = Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
     this.pinchMidpoint = {
       x: (first.clientX + second.clientX) / 2,
@@ -463,7 +498,7 @@ export class PhaserWorldScene extends Phaser.Scene {
     this.world = this.campusWorld;
     this.currentRoom = null;
     this.route = [];
-    this.routeTarget = null;
+    this.lastNavigationActivation = null;
     if (campusPlayer) Object.assign(this.player, campusPlayer);
     else Object.assign(this.player, this.campusWorld.spawn, { direction: 'down', moving: false });
     this.resetUiCache();
@@ -476,7 +511,7 @@ export class PhaserWorldScene extends Phaser.Scene {
   private switchWorld(world: WorldDefinition, direction: Direction): void {
     this.world = world;
     this.route = [];
-    this.routeTarget = null;
+    this.lastNavigationActivation = null;
     Object.assign(this.player, world.spawn, { direction, moving: false });
     this.resetUiCache();
     this.worldRenderer?.rebuild(this.world, this.player);

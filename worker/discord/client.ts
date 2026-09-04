@@ -8,6 +8,7 @@ import {
   validateDiscordSourceBundle,
 } from '../../src/domain/discord/source-schema';
 import type { DiscordSourceBundle } from '../../src/domain/discord/source';
+import type { DiscordChannelSource } from '../../src/domain/discord/source';
 import { WorkerError } from '../errors';
 import {
   DISCORD_MAX_RATE_LIMIT_MS,
@@ -35,6 +36,7 @@ export interface DiscordGuildSourceClient {
 
 export interface DiscordRestClient extends DiscordGuildSourceClient {
   fetchGuildIds(): Promise<string[]>;
+  fetchGuildChannels(guildId: string): Promise<DiscordChannelSource[]>;
 }
 
 function parseDiscordGuildIds(value: unknown): string[] {
@@ -233,5 +235,12 @@ export function createDiscordRestClient(options: {
     );
   }
 
-  return { fetchGuildIds, fetchGuildSource };
+  async function fetchGuildChannels(guildId: string): Promise<DiscordChannelSource[]> {
+    const deadline = dependencies.now() + DISCORD_SYNC_BUDGET_MS;
+    return parseDiscordChannels(
+      await requestJson(`/guilds/${encodeURIComponent(guildId)}/channels`, deadline),
+    );
+  }
+
+  return { fetchGuildIds, fetchGuildSource, fetchGuildChannels };
 }
