@@ -15,6 +15,7 @@ import {
 import {
   buildDiscordAuthorizeUrl,
   createDiscordOAuthClient,
+  DiscordOAuthRateLimitError,
   type DiscordOAuthGuild,
   type DiscordOAuthToken,
 } from '../auth/discord-oauth';
@@ -37,6 +38,10 @@ import { jsonResponse } from './json-response';
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
 import { resolveDiscordVoiceChannelId, resolveMappedVoiceDestination } from '../voice/destination';
 import { publicVoiceErrorFor } from '../voice/public-errors';
+import { changeChannel, readChannelState } from '../channels/service';
+import { readLiveStructure } from '../channels/live-structure';
+import { ChannelActionError } from '../channels/mutations';
+import { logChannelFailure } from '../channels/diagnostics';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
 const SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
@@ -47,6 +52,8 @@ const SESSION_PATH = '/api/auth/session';
 const LOGOUT_PATH = '/api/auth/logout';
 const GUILD_SYNC_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/sync$/u;
 const GUILD_MAP_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/map$/u;
+const GUILD_CHANNELS_PATH =
+  /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/channels(?:\/(c_[a-z0-9_-]{43}))?$/u;
 const GUILD_PRESENCE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/presence$/u;
 const GUILD_VOICE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice$/u;
 const GUILD_VOICE_MOVE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/move$/u;
@@ -590,6 +597,72 @@ async function handleGuildMap(request: Request, env: Env, guildId: string): Prom
   }
 }
 
+async function handleGuildChannels(
+  request: Request,
+  env: Env,
+  guildId: string,
+  roomKey: string | null,
+): Promise<Response> {
+  const allowedMethods = roomKey === null ? ['GET', 'POST'] : ['PATCH', 'DELETE'];
+  if (!allowedMethods.includes(request.method)) return authError('METHOD_NOT_ALLOWED', 405);
+  if (request.method !== 'GET' && !sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
+  let authenticated: AuthenticatedSession | null = null;
+  let stage = 'session';
+  try {
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (authenticated === null) return unauthenticatedResponse(request);
+    const { config, repository, session, accessToken, idHash, now } = authenticated;
+    stage = 'world';
+    const world = await createD1WorldRepository(config.database).read(guildId);
+    if (world === null) return authError('WORLD_NOT_FOUND', 404);
+    if (request.method === 'GET') {
+      stage = 'membership';
+      const member = await createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId);
+      const restricted =
+        member.pending ||
+        (member.communicationDisabledUntil !== null &&
+          Date.parse(member.communicationDisabledUntil) > Date.now());
+      stage = 'channel-state';
+      const result = await readChannelState(env, guildId, session.userId, member.roleIds);
+      if (restricted)
+        result.controls = { canCreateRoot: false, categories: [], manageableKeys: [] };
+      stage = 'session-touch';
+      await repository.touchSession(idHash, now);
+      const response = noStoreJson(result);
+      response.headers.set('vary', 'cookie');
+      return response;
+    }
+    // Touch before the external mutation; a later database failure must not disguise a successful write.
+    await repository.touchSession(idHash, now);
+    stage = 'mutation';
+    await changeChannel(
+      request,
+      env,
+      guildId,
+      session.userId,
+      () => createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId),
+      roomKey,
+    );
+    return noStoreJson({ status: 'applied' });
+  } catch (error) {
+    if (isInvalidSessionError(error)) {
+      if (authenticated !== null)
+        await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+      return unauthenticatedResponse(request);
+    }
+    if (isMembershipProviderError(error)) return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+    if (error instanceof ChannelActionError) return authError(error.code, error.status);
+    if (error instanceof DiscordOAuthRateLimitError) {
+      logChannelFailure(stage, error);
+      const response = authError('CHANNEL_RATE_LIMITED', 429);
+      response.headers.set('retry-after', String(error.retryAfterSeconds));
+      return response;
+    }
+    logChannelFailure(stage, error);
+    return authError('CHANNELS_UNAVAILABLE', 503);
+  }
+}
+
 async function handleGuildPresence(request: Request, env: Env, guildId: string): Promise<Response> {
   if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
   if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
@@ -689,12 +762,6 @@ async function handleGuildVoice(
     const world = await createD1WorldRepository(config.database).read(guildId);
     if (world === null) return authError('WORLD_NOT_FOUND', 404);
 
-    const storedSnapshot = await createKvGuildStructureRepository(env.MAP_SNAPSHOTS).read(
-      world.mapSlug,
-    );
-    if (storedSnapshot.state === 'missing') return authError('WORLD_NOT_SYNCED', 404);
-    if (storedSnapshot.state === 'invalid') return authError('WORLD_SNAPSHOT_INVALID', 500);
-
     let command:
       | { type: 'voice-query'; guildId: string; userId: string }
       | { type: 'move'; guildId: string; userId: string; roomKey: string }
@@ -702,7 +769,8 @@ async function handleGuildVoice(
     if (action === 'move') {
       const body = await parseVoiceMoveBody(request);
       if (body === null) return authError('INVALID_REQUEST', 400);
-      const channel = resolveMappedVoiceDestination(storedSnapshot.snapshot, body.roomKey);
+      const live = await readLiveStructure(env, guildId);
+      const channel = resolveMappedVoiceDestination(live.snapshot, body.roomKey);
       if (channel === null) {
         return authError('VOICE_ROOM_NOT_FOUND', 409);
       }
@@ -774,15 +842,13 @@ async function handleGuildVoiceJoin(
     const world = await createD1WorldRepository(config.database).read(guildId);
     if (world === null) return authError('WORLD_NOT_FOUND', 404);
 
-    const [member, storedSnapshot] = await Promise.all([
+    const [member, live] = await Promise.all([
       createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId),
-      createKvGuildStructureRepository(env.MAP_SNAPSHOTS).read(world.mapSlug),
+      readLiveStructure(env, guildId),
     ]);
-    if (storedSnapshot.state === 'missing') return authError('WORLD_NOT_SYNCED', 404);
-    if (storedSnapshot.state === 'invalid') return authError('WORLD_SNAPSHOT_INVALID', 500);
 
     const roomKey = parsedRoomKey.data;
-    const channel = resolveMappedVoiceDestination(storedSnapshot.snapshot, roomKey);
+    const channel = resolveMappedVoiceDestination(live.snapshot, roomKey);
     if (channel === null) return authError('VOICE_ROOM_NOT_FOUND', 404);
 
     const identifiers = await createIdentifierFactory(
@@ -792,21 +858,21 @@ async function handleGuildVoiceJoin(
       identifiers.for('member', session.userId),
       Promise.all(member.roleIds.map((roleId) => identifiers.for('role', roleId))),
     ]);
-    const permissions = computeSnapshotMemberChannelPermissions(storedSnapshot.snapshot, channel, {
+    const permissions = computeSnapshotMemberChannelPermissions(live.snapshot, channel, {
       memberKey,
       memberRoleKeys: new Set(memberRoleKeys),
-      isOwner: memberKey === storedSnapshot.snapshot.guild.ownerKey,
+      isOwner: memberKey === live.snapshot.guild.ownerKey,
     });
     const requiredPermissions = VIEW_CHANNEL | CONNECT;
     if ((permissions & requiredPermissions) !== requiredPermissions) {
       return authError('VOICE_ROOM_FORBIDDEN', 403);
     }
 
-    const sourceConfig = parseDiscordSourceConfig(env);
-    const rawChannels = await createDiscordRestClient({
-      botToken: sourceConfig.botToken,
-    }).fetchGuildChannels(guildId);
-    const channelId = await resolveDiscordVoiceChannelId(rawChannels, roomKey, identifiers);
+    const channelId = await resolveDiscordVoiceChannelId(
+      live.source.channels,
+      roomKey,
+      identifiers,
+    );
     if (channelId === null) return authError('VOICE_ROOM_NOT_FOUND', 404);
 
     await repository.touchSession(idHash, now);
@@ -856,6 +922,9 @@ async function handleLogout(request: Request, env: Env): Promise<Response> {
 }
 
 export function handleAuth(request: Request, env: Env, pathname: string): Promise<Response> {
+  const guildChannelsMatch = GUILD_CHANNELS_PATH.exec(pathname);
+  if (guildChannelsMatch !== null)
+    return handleGuildChannels(request, env, guildChannelsMatch[1]!, guildChannelsMatch[2] ?? null);
   const guildVoiceJoinMatch = GUILD_VOICE_JOIN_PATH.exec(pathname);
   if (guildVoiceJoinMatch !== null) {
     return handleGuildVoiceJoin(request, env, guildVoiceJoinMatch[1]!);

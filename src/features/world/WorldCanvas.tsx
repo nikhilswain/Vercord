@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
+import { RequestRetry } from '../../components/RequestRetry';
 import type { MapRoom, MapSnapshot } from '../../domain/map/snapshot';
+import type { ChannelControls } from '../../domain/channels/protocol';
+import { ChannelManager } from './ChannelManager';
+import type { ChannelRefreshReason, ChannelRefreshStatus } from './channel-refresh';
 import {
   INITIAL_WORLD_VOICE_STATE,
   reduceWorldVoiceState,
@@ -26,6 +30,12 @@ import {
 export interface WorldCanvasProps {
   snapshot: MapSnapshot;
   presenceGuildId?: string;
+  channelControls?: ChannelControls | null;
+  channelsStale?: boolean;
+  channelsRateLimited?: boolean;
+  channelRefreshStatus?: ChannelRefreshStatus;
+  onRefreshChannels?: () => Promise<boolean>;
+  onWorldInvalidated?: (reason: ChannelRefreshReason) => void;
 }
 
 const INITIAL_UI: WorldUiState = {
@@ -63,15 +73,24 @@ function ControlIcon({ children }: { children: string }) {
   return <span aria-hidden="true">{children}</span>;
 }
 
-export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
+export function WorldCanvas({
+  snapshot,
+  presenceGuildId,
+  channelControls = null,
+  channelsStale = false,
+  channelsRateLimited = false,
+  channelRefreshStatus,
+  onRefreshChannels,
+  onWorldInvalidated,
+}: WorldCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const locationRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<WorldEngine | null>(null);
   const world = useMemo(() => createVillageWorld(snapshot), [snapshot]);
-  const [readyWorld, setReadyWorld] = useState<typeof world | null>(null);
-  const [failedWorld, setFailedWorld] = useState<typeof world | null>(null);
-  const ready = readyWorld === world;
-  const assetError = failedWorld === world;
+  const latestWorld = useRef(world);
+  const [ready, setReady] = useState(false);
+  const [assetError, setAssetError] = useState(false);
   const [ui, setUi] = useState<WorldUiState>(INITIAL_UI);
   const [sceneRoom, setSceneRoom] = useState<WorldUiState['room']>(null);
   const [presence, setPresence] = useState<WorldPresenceState>(INITIAL_PRESENCE);
@@ -88,6 +107,27 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
   useEffect(() => {
     voiceRef.current = voice;
   }, [voice]);
+
+  useEffect(() => {
+    latestWorld.current = world;
+    engineRef.current?.updateWorld(world);
+  }, [world]);
+
+  useEffect(() => {
+    const location = locationRef.current;
+    const host = hostRef.current;
+    if (!location || !host) return;
+    const resize = () =>
+      host.style.setProperty(
+        '--world-location-bottom',
+        `${location.offsetTop + location.offsetHeight + 12}px`,
+      );
+    const observer = new ResizeObserver(resize);
+    observer.observe(location);
+    observer.observe(host);
+    resize();
+    return () => observer.disconnect();
+  }, []);
 
   const voiceRooms = useMemo(() => {
     const rooms = new Map<string, MapRoom>();
@@ -222,6 +262,7 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
           onPlayers: (players) => engineRef.current?.setRemotePlayers(players),
           onSelfAvatar: (avatarId) => engineRef.current?.setPlayerAvatar(avatarId),
           onState: setPresence,
+          onWorldInvalidated,
           onVoiceState: (state) => dispatchVoice({ type: 'voice-state', state }),
           onVoiceService: (service) => {
             dispatchVoice({ type: 'service', service });
@@ -229,13 +270,14 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
           },
         })
       : null;
-    const engine = new WorldEngine(canvas, world, {
-      onReady: () => setReadyWorld(world),
-      onAssetError: () => setFailedWorld(world),
+    const engine = new WorldEngine(canvas, latestWorld.current, {
+      onReady: () => setReady(true),
+      onAssetError: () => setAssetError(true),
       onUiChange: setUi,
-      onSceneChange: (room) => {
+      onSceneChange: (room, reason) => {
         sceneRoomRef.current = room;
         setSceneRoom(room);
+        if (reason === 'refresh') return;
         if (room?.room.type !== 'voice' && room?.room.type !== 'stage') return;
         if (suppressedRoomMoveRef.current === room.room.key) {
           suppressedRoomMoveRef.current = null;
@@ -260,7 +302,7 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
       engine.destroy();
       engineRef.current = null;
     };
-  }, [dispatchVoice, moveToVoiceRoom, presenceGuildId, reconcileVoice, world]);
+  }, [dispatchVoice, moveToVoiceRoom, presenceGuildId, reconcileVoice, onWorldInvalidated]);
 
   const connectedRoom =
     voice.voiceState?.channelKey === null || voice.voiceState?.channelKey === undefined
@@ -318,7 +360,7 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
         </div>
       ) : null}
 
-      <div className="world-location" aria-live="polite">
+      <div ref={locationRef} className="world-location" aria-live="polite">
         <span className="world-location-kicker">
           {sceneRoom ? 'Inside channel' : 'Now exploring'}
         </span>
@@ -344,6 +386,35 @@ export function WorldCanvas({ snapshot, presenceGuildId }: WorldCanvasProps) {
                 ? 'Connecting…'
                 : 'Reconnecting…'}
           </span>
+        ) : null}
+        {presenceGuildId && onRefreshChannels ? (
+          <ChannelManager
+            guildId={presenceGuildId}
+            snapshot={snapshot}
+            permissionsUnavailable={channelsStale}
+            rateLimited={channelsRateLimited}
+            refreshStatus={channelRefreshStatus}
+            controls={channelControls}
+            currentRoomKey={sceneRoom?.room.key ?? null}
+            onRefresh={onRefreshChannels}
+          />
+        ) : null}
+        {channelsStale ? (
+          <div className="world-location-meta">
+            <p role="status">
+              {channelsRateLimited
+                ? 'Discord is limiting channel requests. Controls are paused during the cooldown.'
+                : 'Channel sync unavailable. Controls are paused.'}
+            </p>
+            {onRefreshChannels ? (
+              <RequestRetry
+                retryAt={channelRefreshStatus?.retryAt ?? 0}
+                pending={channelRefreshStatus?.pending}
+                label="Refresh channels"
+                onRetry={onRefreshChannels}
+              />
+            ) : null}
+          </div>
         ) : null}
       </div>
 

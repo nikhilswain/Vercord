@@ -1,7 +1,31 @@
+import { hashOpaqueToken } from './crypto';
+
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10';
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/oauth2/authorize';
 const OAUTH_SCOPES = ['identify', 'guilds', 'guilds.members.read'] as const;
 const REQUEST_TIMEOUT_MS = 10_000;
+const membershipCooldowns = new Map<string, number>();
+
+export class DiscordOAuthRateLimitError extends Error {
+  public constructor(public readonly retryAfterSeconds: number) {
+    super('AUTH_PROVIDER_RATE_LIMITED');
+    this.name = 'DiscordOAuthRateLimitError';
+  }
+}
+
+async function readRateLimitDelay(response: Response): Promise<number> {
+  const header = response.headers.get('retry-after');
+  let seconds = header === null || header.trim() === '' ? NaN : Number(header);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    const body: unknown = await response.json().catch(() => null);
+    const value =
+      typeof body === 'object' && body !== null && 'retry_after' in body
+        ? body.retry_after
+        : undefined;
+    seconds = typeof value === 'number' ? value : NaN;
+  }
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(Math.min(seconds, 3_600)) : 10;
+}
 
 export interface DiscordOAuthToken {
   accessToken: string;
@@ -28,6 +52,8 @@ export interface DiscordOAuthGuild {
 
 export interface DiscordOAuthGuildMember {
   roleIds: string[];
+  pending: boolean;
+  communicationDisabledUntil: string | null;
 }
 
 interface DiscordOAuthClientOptions {
@@ -54,6 +80,8 @@ async function discordRequest(url: string, init: RequestInit): Promise<unknown> 
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(url, { ...init, signal: controller.signal });
+    if (response.status === 429)
+      throw new DiscordOAuthRateLimitError(await readRateLimitDelay(response));
     if (!response.ok) {
       const code =
         response.status === 401
@@ -162,7 +190,21 @@ function parseGuildMember(value: unknown): DiscordOAuthGuildMember {
   if (new Set(roleIds).size !== roleIds.length) {
     throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
   }
-  return { roleIds };
+  const until = record.communication_disabled_until;
+  if (
+    until !== undefined &&
+    until !== null &&
+    (typeof until !== 'string' || !Number.isFinite(Date.parse(until)))
+  ) {
+    throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
+  }
+  if (record.pending !== undefined && typeof record.pending !== 'boolean')
+    throw new Error('AUTH_PROVIDER_RESPONSE_INVALID');
+  return {
+    roleIds,
+    pending: record.pending === true,
+    communicationDisabledUntil: typeof until === 'string' ? until : null,
+  };
 }
 
 export function buildDiscordAuthorizeUrl(options: {
@@ -241,18 +283,43 @@ export function createDiscordOAuthClient(options: DiscordOAuthClientOptions) {
     },
 
     async fetchGuildMember(accessToken: string, guildId: string): Promise<DiscordOAuthGuildMember> {
-      return parseGuildMember(
-        await discordRequest(
-          `${DISCORD_API_BASE_URL}/users/@me/guilds/${encodeURIComponent(guildId)}/member`,
-          {
-            headers: {
-              Accept: 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-              'User-Agent': 'Dmap/0.1.0',
+      // Cache only the cooldown, never authorization data or request-bound promises. The
+      // channel, voice and presence endpoints share this Discord member-lookup bucket.
+      const key = await hashOpaqueToken(`${guildId}:${accessToken}`);
+      const retryAt = membershipCooldowns.get(key) ?? 0;
+      if (retryAt > Date.now())
+        throw new DiscordOAuthRateLimitError(Math.ceil((retryAt - Date.now()) / 1_000));
+      membershipCooldowns.delete(key);
+      try {
+        return parseGuildMember(
+          await discordRequest(
+            `${DISCORD_API_BASE_URL}/users/@me/guilds/${encodeURIComponent(guildId)}/member`,
+            {
+              headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+                'User-Agent': 'Dmap/0.1.0',
+              },
             },
-          },
-        ),
-      );
+          ),
+        );
+      } catch (error) {
+        if (error instanceof DiscordOAuthRateLimitError) {
+          // Bound the per-isolate cache without storing tokens or member details.
+          if (!membershipCooldowns.has(key) && membershipCooldowns.size >= 512) {
+            const oldest = membershipCooldowns.keys().next().value;
+            if (oldest !== undefined) membershipCooldowns.delete(oldest);
+          }
+          membershipCooldowns.set(
+            key,
+            Math.max(
+              membershipCooldowns.get(key) ?? 0,
+              Date.now() + error.retryAfterSeconds * 1_000,
+            ),
+          );
+        }
+        throw error;
+      }
     },
   };
 }

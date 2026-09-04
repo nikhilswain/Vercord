@@ -7,6 +7,17 @@ export interface MovementVector {
 
 type Direction = 'down' | 'left' | 'right' | 'up';
 
+export function worldInputBlocked(target: EventTarget | null = document.activeElement): boolean {
+  return (
+    document.querySelector('dialog[open]') !== null ||
+    (target instanceof HTMLElement &&
+      // HUD buttons keep focus after clicking/closing a dialog; they aren't text editors.
+      target.closest(
+        'input, textarea, select, [role="textbox"], [contenteditable]:not([contenteditable="false"])',
+      ) !== null)
+  );
+}
+
 export class WorldInput {
   private readonly pressed = new Set<Direction>();
   private readonly directionStack: Direction[] = [];
@@ -22,6 +33,7 @@ export class WorldInput {
   }
 
   public getMovement(): MovementVector {
+    if (worldInputBlocked()) this.reset();
     let x = 0;
     let y = 0;
     const keyboardDirection = this.directionStack[this.directionStack.length - 1];
@@ -48,18 +60,21 @@ export class WorldInput {
 
   public setVirtualAxis(x: number, y: number, sprinting = false): void {
     this.virtualAxis = { x, y };
-    if (sprinting) this.sprintDirection = Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : y > 0 ? 'down' : 'up';
+    if (sprinting)
+      this.sprintDirection =
+        Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : y > 0 ? 'down' : 'up';
     else if (this.pressed.size === 0) this.sprintDirection = null;
   }
 
   public destroy(): void {
+    this.reset();
     window.removeEventListener('keydown', this.handleKeyDown);
     window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('blur', this.reset);
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (event.defaultPrevented || event.isComposing || worldInputBlocked(event.target)) return;
     const direction = this.toDirection(event.code);
     if (direction) {
       event.preventDefault();
@@ -77,7 +92,7 @@ export class WorldInput {
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
     const direction = this.toDirection(event.code);
     if (direction) {
-      event.preventDefault();
+      if (!worldInputBlocked(event.target)) event.preventDefault();
       this.pressed.delete(direction);
       const index = this.directionStack.indexOf(direction);
       if (index >= 0) this.directionStack.splice(index, 1);

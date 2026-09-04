@@ -33,6 +33,7 @@ export const presencePlayerSchema = z.strictObject({
 });
 
 export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('world-invalidated') }),
   z.strictObject({
     type: z.literal('welcome'),
     selfId: presenceIdSchema,

@@ -1,0 +1,106 @@
+.channel-manager-trigger {
+  margin-top: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.3);
+  border-radius: var(--radius-control);
+  background: var(--color-chart-navy);
+  color: var(--color-map-white);
+  cursor: pointer;
+}
+
+.channel-manager {
+  width: min(34rem, calc(100vw - 1.5rem));
+}
+.channel-manager .confirm-dialog__panel {
+  max-height: calc(100dvh - 3rem);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.channel-manager h2 {
+  overflow-wrap: anywhere;
+}
+.channel-manager-body {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.channel-manager-body label {
+  color: var(--color-map-white);
+  font-weight: 600;
+}
+.channel-manager-body input,
+.channel-manager-body select {
+  min-width: 0;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.4);
+  border-radius: var(--radius-control);
+  background: var(--color-chart-navy);
+  color: var(--color-map-white);
+  font: inherit;
+}
+.channel-manager-body select {
+  cursor: pointer;
+  color-scheme: dark;
+}
+.channel-manager-body input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+.channel-manager-body button {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(var(--color-border-rgb) / 0.3);
+  border-radius: var(--radius-control);
+  background: var(--color-chart-navy);
+  color: var(--color-map-white);
+  font: inherit;
+  cursor: pointer;
+}
+.channel-manager-body .channel-manager-primary,
+.channel-manager .confirm-dialog__actions .channel-manager-primary {
+  background: var(--color-route-violet);
+  color: var(--color-void);
+}
+.channel-manager-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.channel-manager-body .channel-manager-delete {
+  margin-inline-start: auto;
+  color: var(--color-danger);
+}
+.channel-manager-notice {
+  margin-top: 1rem;
+  color: var(--color-success);
+  overflow-wrap: anywhere;
+}
+.channel-manager-trigger:hover,
+.channel-manager-body button:hover {
+  filter: brightness(1.15);
+}
+.channel-manager button:active {
+  filter: brightness(0.9);
+}
+.channel-manager button:disabled,
+.channel-manager input:disabled,
+.channel-manager select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+.channel-manager .confirm-dialog__actions {
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.channel-manager .confirm-dialog__actions button {
+  min-inline-size: 7.5rem;
+}
+
+@media (max-width: 44rem) {
+  .channel-manager .confirm-dialog__actions {
+    align-items: stretch;
+  }
+}

@@ -2,6 +2,9 @@ import { DurableObject } from 'cloudflare:workers';
 import { z } from 'zod';
 
 import { isAvatarId } from '../../src/domain/avatar/identity';
+import { LiveStructureCache } from '../channels/live-structure';
+import { logChannelFailure } from '../channels/diagnostics';
+import { snowflakeSchema } from '../../src/domain/discord/source-schema';
 import {
   clientPresenceMessageSchema,
   type PresencePlayer,
@@ -79,12 +82,14 @@ function playerFromAttachment(attachment: SocketAttachment): PresencePlayer {
 export class GuildPresence extends DurableObject<Env> {
   private voiceService: VoiceServiceStatus = 'offline';
   private voiceBridgeEpoch = 0;
+  private readonly liveStructure: LiveStructureCache;
 
   public constructor(
     private readonly state: DurableObjectState,
     env: Env,
   ) {
     super(state, env);
+    this.liveStructure = new LiveStructureCache(env);
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch] = await Promise.all([
         state.storage.get<VoiceServiceStatus>('voiceService'),
@@ -97,6 +102,27 @@ export class GuildPresence extends DurableObject<Env> {
 
   public async fetch(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
+    if (pathname === '/internal/channel-state') {
+      if (request.method !== 'POST') return new Response(null, { status: 405 });
+      try {
+        const text = await request.text();
+        if (text.length > 128) return new Response(null, { status: 413 });
+        const parsed = z.strictObject({ guildId: snowflakeSchema }).safeParse(JSON.parse(text));
+        if (!parsed.success) return new Response(null, { status: 400 });
+        return Response.json(await this.liveStructure.read(parsed.data.guildId), {
+          headers: { 'cache-control': 'no-store' },
+        });
+      } catch (error) {
+        logChannelFailure('live-structure', error);
+        return new Response(null, { status: 503 });
+      }
+    }
+    if (pathname === '/internal/channels-changed') {
+      if (request.method !== 'POST') return new Response(null, { status: 405 });
+      this.liveStructure.invalidate();
+      this.broadcast({ type: 'world-invalidated' });
+      return new Response(null, { status: 204 });
+    }
     if (pathname === '/internal/voice') return this.receiveVoice(request);
     if (pathname === '/internal/voice-service') return this.receiveVoiceService(request);
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
@@ -339,6 +365,10 @@ export class GuildPresence extends DurableObject<Env> {
       return new Response(null, { status: 204 });
     }
     await this.setVoiceService(parsed.data.service, parsed.data.bridgeEpoch);
+    if (parsed.data.service === 'online') {
+      this.liveStructure.invalidate();
+      this.broadcast({ type: 'world-invalidated' });
+    }
     return new Response(null, { status: 204 });
   }
 

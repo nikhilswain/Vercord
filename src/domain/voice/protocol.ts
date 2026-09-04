@@ -85,6 +85,11 @@ export const gatewayCommandResultSchema = z.discriminatedUnion('ok', [
 ]);
 
 export const gatewayBridgeMessageSchema = z.union([
+  z.strictObject({
+    type: z.literal('guild-structure-changed'),
+    guildKey: guildKeySchema,
+    serviceSessionId: sessionIdSchema,
+  }),
   bridgeHelloSchema,
   bridgeVoiceStateSchema,
   bridgeVoiceSnapshotSchema,

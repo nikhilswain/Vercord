@@ -39,6 +39,7 @@ export class DiscordVoiceService {
   private sendToBridge: BridgeSender = () => false;
   private bridgeAttached = false;
   private registrationTimer: NodeJS.Timeout | null = null;
+  private readonly structureTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   public constructor(private readonly config: GatewayConfig) {
     this.identifiersPromise = createIdentifierFactory(config.snapshotIdSecret);
@@ -51,6 +52,19 @@ export class DiscordVoiceService {
     });
     this.client.on(Events.GuildCreate, () => this.refreshBridgeRegistration());
     this.client.on(Events.GuildDelete, () => this.refreshBridgeRegistration());
+    this.client.on(Events.ChannelCreate, (channel) => this.queueStructureChange(channel.guild.id));
+    this.client.on(Events.ChannelDelete, (channel) => {
+      if ('guild' in channel) this.queueStructureChange(channel.guild.id);
+    });
+    this.client.on(Events.ChannelUpdate, (_previous, channel) => {
+      if ('guild' in channel) this.queueStructureChange(channel.guild.id);
+    });
+    this.client.on(Events.GuildRoleCreate, (role) => this.queueStructureChange(role.guild.id));
+    this.client.on(Events.GuildRoleDelete, (role) => this.queueStructureChange(role.guild.id));
+    this.client.on(Events.GuildRoleUpdate, (_previous, role) =>
+      this.queueStructureChange(role.guild.id),
+    );
+    this.client.on(Events.GuildUpdate, (_previous, guild) => this.queueStructureChange(guild.id));
     this.client.on(Events.Error, () => {
       console.error(JSON.stringify({ service: 'dmap-gateway', event: 'discord_error' }));
     });
@@ -63,6 +77,8 @@ export class DiscordVoiceService {
   }
 
   public stop(): void {
+    for (const timer of this.structureTimers.values()) clearTimeout(timer);
+    this.structureTimers.clear();
     if (this.registrationTimer !== null) clearTimeout(this.registrationTimer);
     this.registrationTimer = null;
     this.client.destroy();
@@ -88,6 +104,31 @@ export class DiscordVoiceService {
     return this.queue.run(`${command.guildId}:${command.userId}`, () =>
       this.executeCommand(command),
     );
+  }
+
+  private queueStructureChange(guildId: string): void {
+    if (this.structureTimers.has(guildId)) return;
+    this.structureTimers.set(
+      guildId,
+      setTimeout(() => {
+        this.structureTimers.delete(guildId);
+        void this.publishStructureChange(guildId).catch(() => {
+          console.error(
+            JSON.stringify({ service: 'dmap-gateway', event: 'structure_update_failed' }),
+          );
+        });
+      }, 500),
+    );
+  }
+
+  private async publishStructureChange(guildId: string): Promise<void> {
+    if (!this.bridgeAttached || !this.client.guilds.cache.has(guildId)) return;
+    const identifiers = await this.identifiersPromise;
+    this.sendToBridge({
+      type: 'guild-structure-changed',
+      guildKey: await identifiers.for('guild', guildId),
+      serviceSessionId: this.serviceSessionId,
+    });
   }
 
   private async executeCommand(command: GatewayCommand): Promise<GatewayCommandResult> {

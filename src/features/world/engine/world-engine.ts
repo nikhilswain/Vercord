@@ -13,7 +13,7 @@ export class WorldEngine {
 
   public constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly world: WorldDefinition,
+    private world: WorldDefinition,
     private readonly callbacks: PhaserWorldCallbacks,
   ) {}
 
@@ -54,6 +54,11 @@ export class WorldEngine {
     this.scene?.resize(this.viewport.width, this.viewport.height);
   }
 
+  public updateWorld(world: WorldDefinition): void {
+    this.world = world;
+    this.scene?.updateWorld(world);
+  }
+
   public zoomIn(): void {
     this.scene?.zoomIn();
   }
@@ -89,6 +94,7 @@ export class WorldEngine {
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.scene?.dispose();
     this.game?.destroy(false);
     this.game = null;
     this.scene = null;

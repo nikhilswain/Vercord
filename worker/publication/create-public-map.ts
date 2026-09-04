@@ -42,7 +42,7 @@ function publicKey(privateKey: string): string {
   return privateKey.toLowerCase();
 }
 
-function publicLabel(value: string, fallback: string): string {
+export function publicLabel(value: string, fallback: string): string {
   const sanitized = value.replace(unsafePublicControls, '').trim();
   return isSafeMapDisplayText(sanitized) ? sanitized : fallback;
 }

@@ -3,8 +3,8 @@ import * as Phaser from 'phaser';
 import type { AvatarId } from '../../../domain/avatar/identity';
 import type { ClientPresenceLocation, PresencePlayer } from '../../../domain/presence/protocol';
 import { WorldCamera } from '../engine/camera';
-import { containsPoint, resolveMovement } from '../engine/collision';
-import { WorldInput } from '../engine/input';
+import { containsPoint, overlaps, resolveMovement } from '../engine/collision';
+import { WorldInput, worldInputBlocked } from '../engine/input';
 import { findPath } from '../engine/pathfinding';
 import { createRoomWorld } from '../engine/room-world';
 import type {
@@ -33,7 +33,7 @@ export interface PhaserWorldCallbacks {
   onReady: () => void;
   onAssetError: () => void;
   onUiChange: (state: WorldUiState) => void;
-  onSceneChange: (room: WorldPortal | null) => void;
+  onSceneChange: (room: WorldPortal | null, reason?: 'refresh') => void;
   onPresenceMove?: (location: ClientPresenceLocation) => void;
 }
 
@@ -41,7 +41,7 @@ export class PhaserWorldScene extends Phaser.Scene {
   private readonly worldCamera = new WorldCamera();
   private readonly movementInput = new WorldInput();
   private readonly player: PlayerState;
-  private readonly campusWorld: WorldDefinition;
+  private campusWorld: WorldDefinition;
   private readonly reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private worldRenderer: PhaserWorldRenderer | null = null;
   private world: WorldDefinition;
@@ -81,10 +81,12 @@ export class PhaserWorldScene extends Phaser.Scene {
   }
 
   public preload(): void {
+    if (this.cleanedUp) return;
     preloadWorldAssets(this, this.world.theme);
   }
 
   public create(): void {
+    if (this.cleanedUp) return;
     if (!primaryWorldAssetLoaded(this)) {
       this.callbacks.onAssetError();
       return;
@@ -154,6 +156,12 @@ export class PhaserWorldScene extends Phaser.Scene {
     this.movementInput.setVirtualAxis(x, y, sprinting);
   }
 
+  public dispose(): void {
+    // React StrictMode/HMR can tear down a scene before preload/create has finished.
+    // Release global listeners now, not on Phaser's deferred destroy frame.
+    this.cleanup();
+  }
+
   public interact(): void {
     if (!this.nearbyPortal) return;
     if (this.nearbyPortal.destination === 'room') this.enterRoom(this.nearbyPortal);
@@ -175,6 +183,58 @@ export class PhaserWorldScene extends Phaser.Scene {
     this.remotePlayers = players;
   }
 
+  public updateWorld(world: WorldDefinition): void {
+    if (world === this.campusWorld) return;
+    const previousRoom = this.currentRoom;
+    const room =
+      previousRoom === null
+        ? null
+        : (world.portals.find(
+            (portal) => portal.destination === 'room' && portal.room.key === previousRoom.room.key,
+          ) ?? null);
+    this.campusWorld = world;
+    this.currentRoom = room;
+    this.world = room === null ? world : createRoomWorld(room, world.theme);
+    if (this.campusPlayer && !this.validPosition(this.campusPlayer, world)) {
+      Object.assign(this.campusPlayer, world.spawn, { moving: false });
+    }
+    if (previousRoom !== null && room === null) {
+      Object.assign(this.player, this.campusPlayer ?? world.spawn);
+    }
+    if (!this.validPosition(this.player, this.world)) Object.assign(this.player, this.world.spawn);
+    this.player.moving = false;
+    this.route = [];
+    this.lastNavigationActivation = null;
+    this.resetUiCache();
+    this.worldRenderer?.rebuild(this.world, this.player);
+    this.worldRenderer?.resize(this.viewport.width, this.viewport.height);
+    const zoom = previousRoom !== null && room === null ? this.campusZoom : this.worldCamera.zoom;
+    this.worldCamera.setZoomImmediately(zoom, this.player, this.world.bounds);
+    this.updateUiState();
+    // A structural refresh must never be interpreted as a request to move Discord voice.
+    this.callbacks.onSceneChange(room, 'refresh');
+  }
+
+  private validPosition(point: Point, world: WorldDefinition): boolean {
+    const collider = world.theme.avatar?.collider ?? {
+      width: 18,
+      height: 12,
+      offsetX: -9,
+      offsetY: -5,
+    };
+    const box = {
+      x: point.x + collider.offsetX,
+      y: point.y + collider.offsetY,
+      width: collider.width,
+      height: collider.height,
+    };
+    return (
+      containsPoint(world.bounds, box.x, box.y) &&
+      containsPoint(world.bounds, box.x + box.width, box.y + box.height) &&
+      !world.colliders.some((obstacle) => overlaps(box, obstacle))
+    );
+  }
+
   public setPlayerAvatar(avatarId: AvatarId): void {
     this.playerAvatarId = avatarId;
     this.worldRenderer?.setPlayerAvatar(avatarId, this.player);
@@ -182,6 +242,12 @@ export class PhaserWorldScene extends Phaser.Scene {
 
   private updateMovement(deltaSeconds: number): void {
     const input = this.movementInput.getMovement();
+    if (worldInputBlocked()) {
+      this.route = [];
+      this.lastNavigationActivation = null;
+      this.player.moving = false;
+      return;
+    }
     let movementX = 0;
     let movementY = 0;
     let remainingAutoMoveDistance: number | null = null;
@@ -306,8 +372,9 @@ export class PhaserWorldScene extends Phaser.Scene {
     this.cleanedUp = true;
     this.ready = false;
     this.movementInput.destroy();
-    const canvas = this.game.canvas;
+    const canvas = this.game?.canvas;
     window.removeEventListener('keydown', this.handleKeyDown);
+    if (!canvas) return;
     canvas.removeEventListener('pointerdown', this.handlePointerDown);
     window.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('pointerup', this.handlePointerUp);
@@ -320,8 +387,7 @@ export class PhaserWorldScene extends Phaser.Scene {
   };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
-      return;
+    if (event.defaultPrevented || event.isComposing || worldInputBlocked(event.target)) return;
     if (event.code === 'KeyE' && !event.repeat) this.interact();
     if (event.code === 'Escape') {
       this.route = [];

@@ -113,6 +113,13 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
       socket.close(1008, 'Unknown guild');
       return;
     }
+    if (message.type === 'guild-structure-changed') {
+      await this.env.WORLD_PRESENCE.getByName(message.guildKey).fetch(
+        'https://presence.dmap/internal/channels-changed',
+        { method: 'POST' },
+      );
+      return;
+    }
     await this.routeVoiceMessage(message, bridgeEpoch);
   }
 
@@ -255,7 +262,10 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
   }
 
   private async routeVoiceMessage(
-    message: Exclude<GatewayBridgeMessage, { type: 'hello' | 'command-result' }>,
+    message: Exclude<
+      GatewayBridgeMessage,
+      { type: 'hello' | 'command-result' | 'guild-structure-changed' }
+    >,
     bridgeEpoch: number,
   ): Promise<void> {
     const stub = this.env.WORLD_PRESENCE.getByName(message.guildKey);

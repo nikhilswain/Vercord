@@ -6,6 +6,7 @@ import {
 } from '../../../domain/presence/protocol';
 import type { AvatarId } from '../../../domain/avatar/identity';
 import type { VoiceServiceStatus, VoiceState } from '../../../domain/voice/protocol';
+import type { ChannelRefreshReason } from '../channel-refresh';
 
 const SEND_INTERVAL_MS = 90;
 const RECONNECT_DELAYS_MS = [750, 1_500, 3_000, 5_000, 10_000] as const;
@@ -23,6 +24,7 @@ interface WorldPresenceCallbacks {
   onState(state: WorldPresenceState): void;
   onVoiceState(state: VoiceState): void;
   onVoiceService(service: VoiceServiceStatus): void;
+  onWorldInvalidated?(reason: ChannelRefreshReason): void;
 }
 
 function socketUrl(guildId: string): string {
@@ -129,7 +131,12 @@ export class WorldPresenceClient {
     if (!parsed.success) return;
 
     const message = parsed.data;
+    if (message.type === 'world-invalidated') {
+      this.callbacks.onWorldInvalidated?.('change');
+      return;
+    }
     if (message.type === 'welcome') {
+      this.callbacks.onWorldInvalidated?.('reconnect');
       this.selfId = message.selfId;
       this.callbacks.onSelfAvatar(message.selfAvatarId);
       this.players = new Map(
