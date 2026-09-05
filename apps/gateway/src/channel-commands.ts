@@ -91,7 +91,7 @@ export class ChannelCommands {
     const correlation = { fingerprint, expiresAt: Number.POSITIVE_INFINITY, result };
     this.outcomes.set(command.requestId, correlation);
     void result.then((outcome) => {
-      if (context.dispatched) {
+      if (context.dispatched && outcome.type === 'channel-result') {
         recordGatewayOperation({
           operation: 'command_dispatch',
           outcome: outcome.result.status,
