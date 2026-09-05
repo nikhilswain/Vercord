@@ -1,23 +1,13 @@
-import {
-  channelMutationInputSchema,
-  channelStateSchema,
-  type ChannelState,
-} from '../../src/domain/channels/protocol';
-import { VIEW_CHANNEL } from '../../src/domain/discord/constants';
+import { channelMutationInputSchema, type ChannelState } from '../../src/domain/channels/protocol';
 import { createIdentifierFactory } from '../../src/domain/discord/identifiers';
 import {
   ChannelPolicyError,
-  MANAGE_CHANNELS,
-  hasChannelPermission,
-  isSupportedChannelType,
   prepareChannelMutation,
-  sourceForMember,
 } from '../../src/domain/discord/channel-policy';
-import { publicLabel } from '../../src/domain/map/labels';
 import { decodeBase64UrlSecret } from '../config/runtime';
 import type { DiscordOAuthGuildMember } from '../auth/discord-oauth';
 import { createDiscordRestClient } from '../discord/client';
-import { createMemberMapSnapshot } from '../publication/create-public-map';
+import { projectChannelState } from './projection';
 import { createD1WorldRepository } from '../worlds/repository';
 import { invalidateLiveStructure, readLiveStructure } from './live-structure';
 import { ChannelActionError, mutateDiscordChannel } from './mutations';
@@ -32,52 +22,12 @@ export async function readChannelState(
   const world = await createD1WorldRepository(env.AUTH_DB).read(guildId);
   if (world === null) throw new ChannelActionError('WORLD_NOT_FOUND', 404);
   const identifiers = await createIdentifierFactory(decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET));
-  const member = sourceForMember(source, {
-    userId,
-    roleIds,
-    pending: false,
-    communicationDisabledUntil: null,
-  });
-  const [memberKey, memberRoleKeys] = await Promise.all([
-    identifiers.for('member', userId),
-    Promise.all(roleIds.map((id) => identifiers.for('role', id))),
-  ]);
-  const projected = createMemberMapSnapshot(snapshot, {
+  return projectChannelState({
+    source,
+    snapshot,
     slug: world.mapSlug,
-    memberKey,
-    memberRoleKeys: new Set(memberRoleKeys),
-    isOwner: source.guild.ownerId === userId,
-  });
-  const visibleKeys = new Set(
-    projected.areas.flatMap((area) => area.rooms.map((room) => room.key)),
-  );
-  const required = VIEW_CHANNEL | MANAGE_CHANNELS;
-  const canCreate =
-    hasChannelPermission(member, null, MANAGE_CHANNELS) &&
-    hasChannelPermission(source, null, MANAGE_CHANNELS);
-  const categories: ChannelState['controls']['categories'] = [];
-  const manageableKeys: string[] = [];
-  for (const channel of source.channels) {
-    if (
-      !hasChannelPermission(member, channel, required) ||
-      !hasChannelPermission(source, channel, required)
-    )
-      continue;
-    const key = (await identifiers.for('channel', channel.id)).toLowerCase();
-    if (channel.type === 4 && canCreate)
-      categories.push({ key, label: publicLabel(channel.name, 'Discord area') });
-    else if (isSupportedChannelType(channel.type) && visibleKeys.has(key)) manageableKeys.push(key);
-  }
-  return channelStateSchema.parse({
-    snapshot: projected,
-    controls: {
-      canCreateRoot:
-        canCreate &&
-        hasChannelPermission(member, null, VIEW_CHANNEL) &&
-        hasChannelPermission(source, null, VIEW_CHANNEL),
-      categories,
-      manageableKeys,
-    },
+    identifiers,
+    member: { userId, roleIds, pending: false, communicationDisabledUntil: null },
   });
 }
 
