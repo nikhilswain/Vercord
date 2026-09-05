@@ -1,8 +1,7 @@
 import { avatarIdForDiscordUser } from '../../src/domain/avatar/identity';
-import { CONNECT, VIEW_CHANNEL } from '../../src/domain/discord/constants';
 import { DiscordDomainError } from '../../src/domain/discord/errors';
 import { createIdentifierFactory } from '../../src/domain/discord/identifiers';
-import { computeSnapshotMemberChannelPermissions } from '../../src/domain/discord/permissions';
+import type { ChannelMutationResult } from '../../src/domain/channels/protocol';
 import { z } from 'zod';
 import { parseAuthConfig, type AuthConfig } from '../auth/config';
 import { clearCookie, readCookie, setCookie } from '../auth/cookies';
@@ -15,7 +14,6 @@ import {
 import {
   buildDiscordAuthorizeUrl,
   createDiscordOAuthClient,
-  DiscordOAuthRateLimitError,
   type DiscordOAuthGuild,
   type DiscordOAuthToken,
 } from '../auth/discord-oauth';
@@ -36,12 +34,13 @@ import { synchronizePrivateGuild } from '../sync/synchronize-private-guild';
 import { createD1WorldRepository } from '../worlds/repository';
 import { jsonResponse } from './json-response';
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
-import { resolveDiscordVoiceChannelId, resolveMappedVoiceDestination } from '../voice/destination';
 import { publicVoiceErrorFor } from '../voice/public-errors';
-import { changeChannel, readChannelState } from '../channels/service';
-import { readLiveStructure } from '../channels/live-structure';
+import { changeChannel } from '../channels/service';
 import { ChannelActionError } from '../channels/mutations';
 import { logChannelFailure } from '../channels/diagnostics';
+import { WorldAccessError } from '../live-world/coordinator';
+import type { WorldActor } from '../live-world/session-access';
+import { readAuthorizedVoiceDestination, readAuthorizedWorld } from '../live-world/service';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
 const SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
@@ -111,6 +110,79 @@ function noStoreJson(body: unknown, status = 200): Response {
 
 function authError(code: string, status: number): Response {
   return noStoreJson({ error: { code } }, status);
+}
+
+function actorFor(authenticated: AuthenticatedSession, guildId: string): WorldActor {
+  return {
+    guildId,
+    userId: authenticated.session.userId,
+    sessionHash: authenticated.idHash,
+  };
+}
+
+function setRetryAfter(response: Response, retryAt: number | undefined): Response {
+  if (retryAt !== undefined && retryAt > Date.now()) {
+    response.headers.set(
+      'retry-after',
+      String(Math.max(1, Math.ceil((retryAt - Date.now()) / 1_000))),
+    );
+  }
+  return response;
+}
+
+function worldAccessResponse(error: WorldAccessError): Response {
+  return setRetryAfter(
+    noStoreJson(
+      {
+        error: {
+          code: error.code,
+          ...(error.retryAt === undefined ? {} : { retryAt: error.retryAt }),
+          ...(error.scope === undefined ? {} : { scope: error.scope }),
+        },
+      },
+      error.status,
+    ),
+    error.retryAt,
+  );
+}
+
+function mutationStatus(code: string): number {
+  if (
+    code === 'INVALID_REQUEST' ||
+    code === 'CHANNEL_LIMIT_REACHED' ||
+    code === 'CHANNEL_CHANGE_REJECTED'
+  )
+    return 400;
+  if (code === 'UNAUTHENTICATED') return 401;
+  if (
+    code === 'GUILD_MEMBERSHIP_REQUIRED' ||
+    code === 'CHANNEL_MEMBER_FORBIDDEN' ||
+    code === 'CHANNEL_BOT_FORBIDDEN'
+  )
+    return 403;
+  if (code === 'WORLD_NOT_FOUND' || code === 'CHANNEL_NOT_FOUND') return 404;
+  if (code === 'CHANNEL_CHANGED') return 409;
+  if (code === 'CHANNEL_RATE_LIMITED') return 429;
+  return 503;
+}
+
+function mutationResponse(result: ChannelMutationResult): Response {
+  if (result.status === 'applied') return noStoreJson(result);
+  const status = result.status === 'uncertain' ? 504 : mutationStatus(result.code);
+  const retryAt = result.status === 'rejected' ? result.retryAt : undefined;
+  return setRetryAfter(
+    noStoreJson(
+      {
+        error: {
+          code: result.code,
+          ...(retryAt === undefined ? {} : { retryAt }),
+        },
+        requestId: result.requestId,
+      },
+      status,
+    ),
+    retryAt,
+  );
 }
 
 function redirectResponse(location: string, status: 302 | 303, cookies: string[] = []): Response {
@@ -611,53 +683,45 @@ async function handleGuildChannels(
   try {
     authenticated = await resolveAuthenticatedSession(request, env);
     if (authenticated === null) return unauthenticatedResponse(request);
-    const { config, repository, session, accessToken, idHash, now } = authenticated;
+    const { config, repository, idHash, now } = authenticated;
     stage = 'world';
     const world = await createD1WorldRepository(config.database).read(guildId);
     if (world === null) return authError('WORLD_NOT_FOUND', 404);
+    const actor = actorFor(authenticated, guildId);
     if (request.method === 'GET') {
-      stage = 'membership';
-      const member = await createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId);
-      const restricted =
-        member.pending ||
-        (member.communicationDisabledUntil !== null &&
-          Date.parse(member.communicationDisabledUntil) > Date.now());
       stage = 'channel-state';
-      const result = await readChannelState(env, guildId, session.userId, member.roleIds);
-      if (restricted)
-        result.controls = { canCreateRoot: false, categories: [], manageableKeys: [] };
+      const result = await readAuthorizedWorld(env, actor);
       stage = 'session-touch';
       await repository.touchSession(idHash, now);
       const response = noStoreJson(result);
       response.headers.set('vary', 'cookie');
       return response;
     }
-    // Touch before the external mutation; a later database failure must not disguise a successful write.
-    await repository.touchSession(idHash, now);
     stage = 'mutation';
-    await changeChannel(
-      request,
-      env,
-      guildId,
-      session.userId,
-      () => createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId),
-      roomKey,
-    );
-    return noStoreJson({ status: 'applied' });
+    const result = await changeChannel(request, env, actor, roomKey, async () => {
+      // A later database failure must not disguise a successful external write.
+      stage = 'session-touch';
+      await repository.touchSession(idHash, now);
+      stage = 'mutation';
+    });
+    const response = mutationResponse(result);
+    response.headers.set('vary', 'cookie');
+    return response;
   } catch (error) {
     if (isInvalidSessionError(error)) {
       if (authenticated !== null)
         await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
       return unauthenticatedResponse(request);
     }
-    if (isMembershipProviderError(error)) return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
-    if (error instanceof ChannelActionError) return authError(error.code, error.status);
-    if (error instanceof DiscordOAuthRateLimitError) {
-      logChannelFailure(stage, error);
-      const response = authError('CHANNEL_RATE_LIMITED', 429);
-      response.headers.set('retry-after', String(error.retryAfterSeconds));
-      return response;
+    if (error instanceof WorldAccessError) {
+      if (error.code === 'UNAUTHENTICATED') {
+        if (authenticated !== null)
+          await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+        return unauthenticatedResponse(request);
+      }
+      return worldAccessResponse(error);
     }
+    if (error instanceof ChannelActionError) return authError(error.code, error.status);
     logChannelFailure(stage, error);
     return authError('CHANNELS_UNAVAILABLE', 503);
   }
@@ -665,10 +729,8 @@ async function handleGuildChannels(
 
 async function handleGuildPresence(request: Request, env: Env, guildId: string): Promise<Response> {
   if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
-  if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
-    return authError('WEBSOCKET_UPGRADE_REQUIRED', 426);
-  }
-  if (!sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
+  const websocketUpgrade = request.headers.get('upgrade')?.toLowerCase() === 'websocket';
+  if (websocketUpgrade && !sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
 
   let authenticated: AuthenticatedSession | null = null;
   try {
@@ -678,11 +740,8 @@ async function handleGuildPresence(request: Request, env: Env, guildId: string):
       return authError('CONFIG_INVALID', 500);
     }
 
-    const { accessToken, config, idHash, now, repository, session } = authenticated;
-    const [world] = await Promise.all([
-      createD1WorldRepository(config.database).read(guildId),
-      createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId),
-    ]);
+    const { config, idHash, now, repository, session } = authenticated;
+    const world = await createD1WorldRepository(config.database).read(guildId);
     if (world === null) return authError('WORLD_NOT_FOUND', 404);
 
     await repository.touchSession(idHash, now);
@@ -692,25 +751,31 @@ async function handleGuildPresence(request: Request, env: Env, guildId: string):
     const presenceId = await identifiers.for('presence', `${guildId}:${session.userId}`);
     const guildKey = await identifiers.for('guild', guildId);
     const stub = env.WORLD_PRESENCE.getByName(guildKey);
-    return stub.fetch(
+    const headers = new Headers({
+      'x-dmap-avatar-id': avatarIdForDiscordUser(session.userId),
+      'x-dmap-display-name': encodeURIComponent(session.displayName),
+      'x-dmap-presence-id': presenceId,
+      'x-dmap-guild-id': guildId,
+      'x-dmap-user-id': session.userId,
+      'x-dmap-session-hash': idHash,
+      'x-dmap-session-expires-at': String(session.sessionExpiresAt),
+    });
+    if (websocketUpgrade) headers.set('upgrade', 'websocket');
+    const response = await stub.fetch(
       new Request('https://presence.dmap/connect', {
-        headers: {
-          Upgrade: 'websocket',
-          'x-dmap-avatar-id': avatarIdForDiscordUser(session.userId),
-          'x-dmap-display-name': encodeURIComponent(session.displayName),
-          'x-dmap-presence-id': presenceId,
-        },
+        headers,
       }),
     );
+    if (websocketUpgrade) return response;
+    const publicResponse = new Response(response.body, response);
+    publicResponse.headers.set('vary', 'cookie');
+    return publicResponse;
   } catch (error) {
     if (isInvalidSessionError(error)) {
       if (authenticated !== null) {
         await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
       }
       return unauthenticatedResponse(request);
-    }
-    if (isMembershipProviderError(error)) {
-      return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
     }
     return authError('PRESENCE_UNAVAILABLE', 503);
   }
@@ -751,16 +816,14 @@ async function handleGuildVoice(
   try {
     authenticated = await resolveAuthenticatedSession(request, env);
     if (authenticated === null) return unauthenticatedResponse(request);
-    if (
-      typeof env.MAP_SNAPSHOTS?.get !== 'function' ||
-      typeof env.DISCORD_GATEWAY_BRIDGE?.getByName !== 'function'
-    ) {
+    if (typeof env.DISCORD_GATEWAY_BRIDGE?.getByName !== 'function') {
       return authError('CONFIG_INVALID', 500);
     }
 
     const { config, idHash, now, repository, session } = authenticated;
     const world = await createD1WorldRepository(config.database).read(guildId);
     if (world === null) return authError('WORLD_NOT_FOUND', 404);
+    const actor = actorFor(authenticated, guildId);
 
     let command:
       | { type: 'voice-query'; guildId: string; userId: string }
@@ -769,11 +832,7 @@ async function handleGuildVoice(
     if (action === 'move') {
       const body = await parseVoiceMoveBody(request);
       if (body === null) return authError('INVALID_REQUEST', 400);
-      const live = await readLiveStructure(env, guildId);
-      const channel = resolveMappedVoiceDestination(live.snapshot, body.roomKey);
-      if (channel === null) {
-        return authError('VOICE_ROOM_NOT_FOUND', 409);
-      }
+      await readAuthorizedVoiceDestination(env, actor, body.roomKey);
       // The connected member's live destination permissions are enforced by the Gateway.
       command = { type: 'move', guildId, userId: session.userId, roomKey: body.roomKey };
     } else if (action === 'disconnect') {
@@ -782,8 +841,9 @@ async function handleGuildVoice(
       command = { type: 'voice-query', guildId, userId: session.userId };
     }
 
+    if (action !== 'query') await repository.touchSession(idHash, now);
     const outcome = await sendDiscordGatewayCommand(env, command);
-    await repository.touchSession(idHash, now);
+    if (action === 'query') await repository.touchSession(idHash, now);
     if (outcome.service === 'offline') {
       return action === 'query'
         ? noStoreJson({ service: 'offline', state: null })
@@ -810,8 +870,15 @@ async function handleGuildVoice(
       }
       return unauthenticatedResponse(request);
     }
-    if (isMembershipProviderError(error)) {
-      return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+    if (error instanceof WorldAccessError) {
+      if (error.code === 'UNAUTHENTICATED') {
+        if (authenticated !== null)
+          await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+        return unauthenticatedResponse(request);
+      }
+      if (error.code === 'CHANNEL_NOT_FOUND') return authError('VOICE_ROOM_NOT_FOUND', 409);
+      if (error.code === 'CHANNEL_MEMBER_FORBIDDEN') return authError('VOICE_ROOM_FORBIDDEN', 403);
+      return worldAccessResponse(error);
     }
     return action === 'query'
       ? authError('VOICE_GATEWAY_UNAVAILABLE', 503)
@@ -834,46 +901,20 @@ async function handleGuildVoiceJoin(
   try {
     authenticated = await resolveAuthenticatedSession(request, env);
     if (authenticated === null) return unauthenticatedResponse(request);
-    if (typeof env.MAP_SNAPSHOTS?.get !== 'function') {
+    if (typeof env.WORLD_PRESENCE?.getByName !== 'function') {
       return authError('CONFIG_INVALID', 500);
     }
 
-    const { accessToken, config, idHash, now, repository, session } = authenticated;
+    const { config, idHash, now, repository } = authenticated;
     const world = await createD1WorldRepository(config.database).read(guildId);
     if (world === null) return authError('WORLD_NOT_FOUND', 404);
 
-    const [member, live] = await Promise.all([
-      createDiscordOAuthClient(config).fetchGuildMember(accessToken, guildId),
-      readLiveStructure(env, guildId),
-    ]);
-
     const roomKey = parsedRoomKey.data;
-    const channel = resolveMappedVoiceDestination(live.snapshot, roomKey);
-    if (channel === null) return authError('VOICE_ROOM_NOT_FOUND', 404);
-
-    const identifiers = await createIdentifierFactory(
-      decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),
-    );
-    const [memberKey, memberRoleKeys] = await Promise.all([
-      identifiers.for('member', session.userId),
-      Promise.all(member.roleIds.map((roleId) => identifiers.for('role', roleId))),
-    ]);
-    const permissions = computeSnapshotMemberChannelPermissions(live.snapshot, channel, {
-      memberKey,
-      memberRoleKeys: new Set(memberRoleKeys),
-      isOwner: memberKey === live.snapshot.guild.ownerKey,
-    });
-    const requiredPermissions = VIEW_CHANNEL | CONNECT;
-    if ((permissions & requiredPermissions) !== requiredPermissions) {
-      return authError('VOICE_ROOM_FORBIDDEN', 403);
-    }
-
-    const channelId = await resolveDiscordVoiceChannelId(
-      live.source.channels,
+    const { channelId } = await readAuthorizedVoiceDestination(
+      env,
+      actorFor(authenticated, guildId),
       roomKey,
-      identifiers,
     );
-    if (channelId === null) return authError('VOICE_ROOM_NOT_FOUND', 404);
 
     await repository.touchSession(idHash, now);
     const discordChannelPath = `${encodeURIComponent(guildId)}/${encodeURIComponent(channelId)}`;
@@ -892,8 +933,15 @@ async function handleGuildVoiceJoin(
       }
       return unauthenticatedResponse(request);
     }
-    if (isMembershipProviderError(error)) {
-      return authError('GUILD_MEMBERSHIP_REQUIRED', 403);
+    if (error instanceof WorldAccessError) {
+      if (error.code === 'UNAUTHENTICATED') {
+        if (authenticated !== null)
+          await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+        return unauthenticatedResponse(request);
+      }
+      if (error.code === 'CHANNEL_NOT_FOUND') return authError('VOICE_ROOM_NOT_FOUND', 404);
+      if (error.code === 'CHANNEL_MEMBER_FORBIDDEN') return authError('VOICE_ROOM_FORBIDDEN', 403);
+      return worldAccessResponse(error);
     }
     return authError('VOICE_JOIN_UNAVAILABLE', 503);
   }

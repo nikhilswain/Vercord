@@ -10,8 +10,6 @@ import {
   type WorldSync,
   type WorldView,
 } from '../../src/domain/channels/protocol';
-import { LiveStructureCache } from '../channels/live-structure';
-import { logChannelFailure } from '../channels/diagnostics';
 import { liveFrameSchema, LIVE_FRAME_MAX_BYTES } from '../../src/domain/discord/live-protocol';
 import { snowflakeSchema } from '../../src/domain/discord/source-schema';
 import {
@@ -160,7 +158,6 @@ function worldSyncMessage(sync: WorldSync): ServerPresenceMessage {
 export class GuildPresence extends DurableObject<Env> {
   private voiceService: VoiceServiceStatus = 'offline';
   private voiceBridgeEpoch = 0;
-  private readonly liveStructure: LiveStructureCache;
   private coordinator!: LiveWorldCoordinator;
   private restoration: Promise<void> | null = null;
   private readonly initialVoiceQueries = new Map<string, Promise<VoiceState | null>>();
@@ -170,7 +167,6 @@ export class GuildPresence extends DurableObject<Env> {
     env: Env,
   ) {
     super(state, env);
-    this.liveStructure = new LiveStructureCache(env);
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch] = await Promise.all([
         state.storage.get<VoiceServiceStatus>('voiceService'),
@@ -190,21 +186,6 @@ export class GuildPresence extends DurableObject<Env> {
 
   public async fetch(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
-    if (pathname === '/internal/channel-state') {
-      if (request.method !== 'POST') return new Response(null, { status: 405 });
-      try {
-        const text = await request.text();
-        if (text.length > 128) return new Response(null, { status: 413 });
-        const parsed = z.strictObject({ guildId: snowflakeSchema }).safeParse(JSON.parse(text));
-        if (!parsed.success) return new Response(null, { status: 400 });
-        return Response.json(await this.liveStructure.read(parsed.data.guildId), {
-          headers: { 'cache-control': 'no-store' },
-        });
-      } catch (error) {
-        logChannelFailure('live-structure', error);
-        return new Response(null, { status: 503 });
-      }
-    }
     if (pathname === '/internal/channels-changed') {
       if (request.method !== 'POST') return new Response(null, { status: 405 });
       // Protocol-v1 gateways still emit this. The v2 live owner advances only from live frames.
@@ -220,11 +201,11 @@ export class GuildPresence extends DurableObject<Env> {
     if (pathname !== '/connect') return new Response(null, { status: 404 });
     if (request.method !== 'GET') return new Response(null, { status: 405 });
     if (this.state.getWebSockets().length >= MAX_CONNECTIONS) {
-      return new Response('This world is full.', { status: 503 });
+      return this.worldError(new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503));
     }
 
     const admission = this.readAdmission(request);
-    if (admission === null) return new Response('Missing player identity.', { status: 401 });
+    if (admission === null) return this.worldError(new WorldAccessError('UNAUTHENTICATED', 401));
     this.startRestoration();
 
     let view: WorldView;
@@ -254,7 +235,7 @@ export class GuildPresence extends DurableObject<Env> {
     }
     if (this.state.getWebSockets().length >= MAX_CONNECTIONS) {
       await this.demoteFailedAdmission(admission);
-      return new Response('This world is full.', { status: 503 });
+      return this.worldError(new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503));
     }
 
     const pair = new WebSocketPair();
@@ -610,7 +591,7 @@ export class GuildPresence extends DurableObject<Env> {
       error instanceof WorldAccessError
         ? error
         : new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503);
-    return Response.json(
+    const response = Response.json(
       {
         error: {
           code: failure.code,
@@ -620,6 +601,13 @@ export class GuildPresence extends DurableObject<Env> {
       },
       { status: failure.status, headers: { 'cache-control': 'no-store' } },
     );
+    if (failure.retryAt !== undefined && failure.retryAt > Date.now()) {
+      response.headers.set(
+        'retry-after',
+        String(Math.max(1, Math.ceil((failure.retryAt - Date.now()) / 1_000))),
+      );
+    }
+    return response;
   }
 
   private startRestoration(): void {
