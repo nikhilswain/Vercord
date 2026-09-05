@@ -70,9 +70,10 @@ bot cannot connect your Discord client to voice after you disconnect.
 Install the application bot in each server you want Dmap to manage with the `Administrator`
 permission (`permissions=8`). This is an explicit convenience tradeoff: the server owner gets a
 single install choice instead of configuring private-channel overrides individually. The Gateway
-still uses only the standard `Guilds` and `Guild Voice States` intents; it does not need message
-content or the privileged guild-members intent. OAuth identifies the signed-in member, and the
-Gateway checks the connected member and destination immediately before every move.
+uses `Guilds`, `Guild Voice States`, `Guild Members`, `Guild Messages`, and `Message Content`.
+Enable the privileged Server Members and Message Content intents in the application portal. OAuth
+identifies the signed-in member, and the Gateway checks the member and bot's current channel
+permissions immediately before every voice, channel, or message action.
 
 ## Deploy
 

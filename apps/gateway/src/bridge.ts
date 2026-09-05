@@ -167,7 +167,9 @@ export class WorkerBridge {
     if (
       parsed.data.type === 'world-read' ||
       parsed.data.type === 'world-release' ||
-      parsed.data.type === 'channel-mutate'
+      parsed.data.type === 'channel-mutate' ||
+      parsed.data.type === 'message-read' ||
+      parsed.data.type === 'message-send'
     ) {
       const command = parsed.data;
       if (
@@ -182,23 +184,37 @@ export class WorkerBridge {
       try {
         result = await this.handlers.onLiveCommand(command);
       } catch {
-        result =
-          command.type === 'channel-mutate'
-            ? {
-                type: 'channel-result',
-                requestId: command.requestId,
-                read: null,
-                result: {
-                  status: 'uncertain',
-                  requestId: command.requestId,
-                  code: 'CHANNEL_ACTION_UNCERTAIN',
-                },
-              }
-            : {
-                type: 'live-error',
-                requestId: command.requestId,
-                error: { code: 'WORLD_SOURCE_UNAVAILABLE', status: 503 },
-              };
+        if (command.type === 'channel-mutate') {
+          result = {
+            type: 'channel-result',
+            requestId: command.requestId,
+            read: null,
+            result: {
+              status: 'uncertain',
+              requestId: command.requestId,
+              code: 'CHANNEL_ACTION_UNCERTAIN',
+            },
+          };
+        } else if (command.type === 'message-send') {
+          result = {
+            type: 'message-send-result',
+            requestId: command.requestId,
+            status: 'uncertain',
+            code: 'MESSAGE_ACTION_UNCERTAIN',
+          };
+        } else {
+          result = {
+            type: 'live-error',
+            requestId: command.requestId,
+            error: {
+              code:
+                command.type === 'message-read'
+                  ? 'MESSAGE_READ_FAILED'
+                  : 'WORLD_SOURCE_UNAVAILABLE',
+              status: 503,
+            },
+          };
+        }
       }
       this.sendOn(socket, {
         type: 'live-command-result',

@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { RequestRetry } from '../../components/RequestRetry';
 import type { MapRoom, MapSnapshot } from '../../domain/map/snapshot';
 import type { ChannelMutationResult, WorldSync, WorldView } from '../../domain/channels/protocol';
+import type { RoomMessage } from '../../domain/messages/protocol';
 import { ChannelManager } from './ChannelManager';
+import { RoomChat } from './RoomChat';
 import {
   INITIAL_WORLD_VOICE_STATE,
   reduceWorldVoiceState,
@@ -104,6 +106,7 @@ export function WorldCanvas({
   const [ui, setUi] = useState<WorldUiState>(INITIAL_UI);
   const [sceneRoom, setSceneRoom] = useState<WorldUiState['room']>(null);
   const [presence, setPresence] = useState<WorldPresenceState>(INITIAL_PRESENCE);
+  const [latestRoomMessage, setLatestRoomMessage] = useState<RoomMessage | null>(null);
   const [voice, dispatchVoiceState] = useReducer(reduceWorldVoiceState, INITIAL_WORLD_VOICE_STATE);
   const voiceRef = useRef(voice);
   const sceneRoomRef = useRef<WorldUiState['room']>(null);
@@ -114,6 +117,20 @@ export function WorldCanvas({
   const dispatchVoice = useCallback((action: WorldVoiceAction) => {
     voiceRef.current = reduceWorldVoiceState(voiceRef.current, action);
     dispatchVoiceState(action);
+  }, []);
+
+  const readRoomMessages = useCallback((roomKey: string) => {
+    const client = presenceClientRef.current;
+    return client
+      ? client.readMessages(roomKey)
+      : Promise.reject(new Error('Message connection is unavailable.'));
+  }, []);
+
+  const sendRoomMessage = useCallback((roomKey: string, content: string) => {
+    const client = presenceClientRef.current;
+    return client
+      ? client.sendMessage({ roomKey, content })
+      : Promise.reject(new Error('Message connection is unavailable.'));
   }, []);
 
   useEffect(() => {
@@ -284,6 +301,7 @@ export function WorldCanvas({
           onState: setPresence,
           onWorldView: (view) => presenceCallbacksRef.current.onWorldView?.(view),
           onWorldSync: (sync) => presenceCallbacksRef.current.onWorldSync?.(sync),
+          onRoomMessage: setLatestRoomMessage,
           recoverAdmission: (signal) => {
             const recover = presenceCallbacksRef.current.recoverAdmission;
             return recover
@@ -522,6 +540,20 @@ export function WorldCanvas({
       <VirtualJoystick
         onChange={(x, y, sprinting) => engineRef.current?.setVirtualAxis(x, y, sprinting)}
       />
+
+      {presenceGuildId &&
+      sceneRoom &&
+      (sceneRoom.room.type === 'text' || sceneRoom.room.type === 'announcement') ? (
+        <RoomChat
+          key={sceneRoom.room.key}
+          roomKey={sceneRoom.room.key}
+          roomLabel={sceneRoom.room.label}
+          connection={presence.connection}
+          liveMessage={latestRoomMessage}
+          readMessages={readRoomMessages}
+          sendMessage={sendRoomMessage}
+        />
+      ) : null}
 
       {presenceGuildId ? (
         <VoiceBeacon

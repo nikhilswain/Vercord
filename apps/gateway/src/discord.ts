@@ -9,6 +9,7 @@ import {
   Options,
   PermissionFlagsBits,
   type Guild,
+  type Message,
   type VoiceBasedChannel,
   type VoiceState as DiscordVoiceState,
 } from 'discord.js';
@@ -35,6 +36,7 @@ import { InteractiveRateLimit, InteractiveRest, interactiveRestOptions } from '.
 import { LiveStateError } from './member-state';
 import { liveFailureSchema } from '../../../src/domain/discord/live-protocol';
 import { DiscordLiveState } from './live-state';
+import { MessageCommands, toRoomMessage } from './message-commands';
 import { KeyedSerialQueue } from './serial-queue';
 
 type BridgeSender = (message: ServerBridgeMessage) => boolean;
@@ -46,6 +48,8 @@ export class DiscordVoiceService {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildVoiceStates,
       GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
     ],
     makeCache: Options.cacheWithLimits({
       ...Options.DefaultMakeCacheSettings,
@@ -59,6 +63,7 @@ export class DiscordVoiceService {
   public readonly liveState: Promise<DiscordLiveState>;
   private readonly interactiveRest = new InteractiveRest(this.client.rest);
   private readonly channelCommands: Promise<ChannelCommands>;
+  private readonly messageCommands: Promise<MessageCommands>;
   private readonly identifiersPromise: Promise<IdentifierFactory>;
   private readonly queue = new KeyedSerialQueue();
   public readonly serviceSessionId = crypto.randomUUID();
@@ -84,6 +89,9 @@ export class DiscordVoiceService {
     this.channelCommands = Promise.all([this.liveState, this.identifiersPromise]).then(
       ([state, identifiers]) => new ChannelCommands(state, this.interactiveRest, identifiers),
     );
+    this.messageCommands = this.identifiersPromise.then(
+      (identifiers) => new MessageCommands(this.client, identifiers),
+    );
     this.client.on(Events.VoiceStateUpdate, (_previous, current) => {
       void this.publishVoiceState(current).catch(() => {
         console.error(
@@ -106,6 +114,11 @@ export class DiscordVoiceService {
       this.queueStructureChange(role.guild.id),
     );
     this.client.on(Events.GuildUpdate, (_previous, guild) => this.queueStructureChange(guild.id));
+    this.client.on(Events.MessageCreate, (message) => {
+      void this.publishGuildMessage(message).catch(() => {
+        console.error(JSON.stringify({ service: 'dmap-gateway', event: 'message_publish_failed' }));
+      });
+    });
     this.client.on(Events.Error, () => {
       console.error(JSON.stringify({ service: 'dmap-gateway', event: 'discord_error' }));
     });
@@ -154,7 +167,7 @@ export class DiscordVoiceService {
       protocolVersion: 2,
       serviceSessionId: this.serviceSessionId,
       guildKeys,
-      capabilities: ['live-world-v1'],
+      capabilities: ['live-world-v1', 'message-v1'],
     });
     if (!helloSent) throw new Error('Worker bridge closed before initialization.');
     this.sendToBridge = send;
@@ -181,6 +194,13 @@ export class DiscordVoiceService {
 
   public async handleLiveCommand(command: LiveCommand): Promise<LiveCommandResult> {
     if (command.type === 'channel-mutate') return this.handleChannelCommand(command);
+    if (command.type === 'message-read' || command.type === 'message-send') {
+      const generation = this.bridgeGeneration;
+      return (await this.messageCommands).execute(
+        command,
+        () => this.bridgeAttached && generation === this.bridgeGeneration,
+      );
+    }
     try {
       const generation = this.bridgeGeneration;
       const live = await this.liveState;
@@ -298,6 +318,28 @@ export class DiscordVoiceService {
       identifiers.for('presence', `${state.guild.id}:${state.id}`),
     ]);
     this.sendToBridge({ type: 'voice-state', guildKey, presenceId, state: normalized });
+  }
+
+  private async publishGuildMessage(message: Message): Promise<void> {
+    if (
+      !this.bridgeAttached ||
+      !message.inGuild() ||
+      (message.channel.type !== ChannelType.GuildText &&
+        message.channel.type !== ChannelType.GuildAnnouncement)
+    ) {
+      return;
+    }
+    const identifiers = await this.identifiersPromise;
+    const [guildKey, roomKey] = await Promise.all([
+      identifiers.for('guild', message.guildId),
+      identifiers.for('channel', message.channelId),
+    ]);
+    this.sendToBridge({
+      type: 'guild-message',
+      guildKey,
+      serviceSessionId: this.serviceSessionId,
+      message: await toRoomMessage(message, roomKey.toLowerCase(), identifiers),
+    });
   }
 
   private async publishSnapshot(

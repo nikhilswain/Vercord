@@ -11,10 +11,12 @@ import {
   liveFrameSchema,
   liveReadSchema,
   type LiveCursor,
+  type LiveCommandResult,
   type LiveFrame,
   type LiveRead,
   type MemberRecord,
 } from '../../src/domain/discord/live-protocol';
+import type { MessageHistory, MessageSendInput } from '../../src/domain/messages/protocol';
 import { normalizeGuildStructure } from '../../src/domain/discord/normalize';
 import type { DiscordSourceBundle } from '../../src/domain/discord/source';
 import { projectChannelState } from '../channels/projection';
@@ -311,6 +313,63 @@ export class LiveWorldCoordinator {
       return { channelId: channel.id };
     }
     throw new WorldAccessError('CHANNEL_NOT_FOUND', 404);
+  }
+
+  public async readMessages(
+    actor: WorldActor,
+    subscriptionId: string,
+    roomKey: string,
+  ): Promise<MessageHistory> {
+    await this.read(actor, subscriptionId, 'connected');
+    await this.assertMessageRoom(actor, roomKey);
+    const result = await sendLiveCommand(this.env, {
+      type: 'message-read',
+      guildId: actor.guildId,
+      userId: actor.userId,
+      roomKey,
+    });
+    if (result.type === 'live-error') this.throwLiveFailure(result);
+    if (result.type !== 'message-history-result') throw new WorldAccessError();
+    return result.result;
+  }
+
+  public async sendMessage(
+    actor: WorldActor,
+    subscriptionId: string,
+    input: MessageSendInput,
+  ): Promise<Extract<LiveCommandResult, { type: 'message-send-result' }>> {
+    await this.read(actor, subscriptionId, 'connected');
+    await this.assertMessageRoom(actor, input.roomKey);
+    const result = await sendLiveCommand(this.env, {
+      type: 'message-send',
+      guildId: actor.guildId,
+      userId: actor.userId,
+      input,
+    });
+    if (result.type === 'live-error') this.throwLiveFailure(result);
+    if (result.type !== 'message-send-result') throw new WorldAccessError();
+    return result;
+  }
+
+  private async assertMessageRoom(actor: WorldActor, roomKey: string): Promise<void> {
+    const view = this.currentView(actor);
+    const room = view?.snapshot.areas
+      .flatMap((area) => area.rooms)
+      .find((candidate) => candidate.key === roomKey);
+    if (room === undefined || (room.type !== 'text' && room.type !== 'announcement')) {
+      throw new WorldAccessError('MESSAGE_CHANNEL_NOT_FOUND', 404);
+    }
+    await this.checkSession(actor);
+    if (this.currentView(actor) !== view) throw new WorldAccessError();
+  }
+
+  private throwLiveFailure(result: Extract<LiveCommandResult, { type: 'live-error' }>): never {
+    throw new WorldAccessError(
+      result.error.code,
+      result.error.status,
+      result.error.retryAt,
+      result.error.scope,
+    );
   }
 
   private bind(actor: WorldActor): void {

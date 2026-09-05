@@ -1,6 +1,7 @@
 .world-page {
   --layer-world-hud: 10;
   --layer-world-joystick: 12;
+  --layer-world-chat: 14;
   --layer-world-voice: 15;
   --layer-world-header: 20;
   --layer-world-loading: 30;

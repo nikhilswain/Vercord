@@ -1,5 +1,11 @@
 import type { AvatarId } from '../../../domain/avatar/identity';
 import type { WorldSync, WorldView } from '../../../domain/channels/protocol';
+import type {
+  MessageErrorCode,
+  MessageHistory,
+  MessageSendInput,
+  RoomMessage,
+} from '../../../domain/messages/protocol';
 import {
   serverPresenceMessageSchema,
   type ClientPresenceLocation,
@@ -15,6 +21,7 @@ import type {
 const SEND_INTERVAL_MS = 90;
 const MAX_INCOMING_MESSAGE_BYTES = 768 * 1_024;
 const RECONNECT_DELAYS_MS = [750, 1_500, 3_000, 5_000, 10_000] as const;
+const MESSAGE_REQUEST_TIMEOUT_MS = 10_000;
 
 export type WorldPresenceConnection = 'connecting' | 'online' | 'offline';
 
@@ -32,7 +39,19 @@ export interface WorldPresenceCallbacks {
   onVoiceSnapshot?(response: VoiceApiResponse): void;
   onWorldView?(view: WorldView): void;
   onWorldSync?(sync: WorldSync): void;
+  onRoomMessage?(message: RoomMessage): void;
   recoverAdmission?(signal: AbortSignal): Promise<WorldView>;
+}
+
+export type MessageSendOutcome =
+  | { status: 'applied'; message: RoomMessage }
+  | { status: 'uncertain'; code: 'MESSAGE_ACTION_UNCERTAIN' };
+
+export class MessageRequestError extends Error {
+  public constructor(public readonly code: MessageErrorCode) {
+    super(code);
+    this.name = 'MessageRequestError';
+  }
 }
 
 type RecoveryKind = 'admission' | 'socket';
@@ -125,6 +144,22 @@ export class WorldPresenceClient {
   private stopped = true;
   private readonly invalidFrameSockets = new WeakSet<WebSocket>();
   private readonly cooldownSockets = new WeakSet<WebSocket>();
+  private readonly pendingMessageReads = new Map<
+    string,
+    {
+      resolve(result: MessageHistory): void;
+      reject(error: MessageRequestError): void;
+      timeout: number;
+    }
+  >();
+  private readonly pendingMessageSends = new Map<
+    string,
+    {
+      resolve(result: MessageSendOutcome): void;
+      reject(error: MessageRequestError): void;
+      timeout: number;
+    }
+  >();
 
   public constructor(
     private readonly guildId: string,
@@ -178,7 +213,56 @@ export class WorldPresenceClient {
   public updateLocation(location: ClientPresenceLocation): void {
     this.latestLocation = location;
     if (sameLocation(this.lastSentLocation, location)) return;
+    if (this.lastSentLocation?.scene !== location.scene) {
+      this.clearSendTimer();
+      this.flushLocation();
+      return;
+    }
     this.scheduleSend();
+  }
+
+  public readMessages(roomKey: string): Promise<MessageHistory> {
+    const socket = this.socket;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new MessageRequestError('WORLD_SOURCE_UNAVAILABLE'));
+    }
+    const requestId = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        this.pendingMessageReads.delete(requestId);
+        reject(new MessageRequestError('MESSAGE_READ_FAILED'));
+      }, MESSAGE_REQUEST_TIMEOUT_MS);
+      this.pendingMessageReads.set(requestId, { resolve, reject, timeout });
+      try {
+        socket.send(JSON.stringify({ type: 'message-read', requestId, roomKey }));
+      } catch {
+        window.clearTimeout(timeout);
+        this.pendingMessageReads.delete(requestId);
+        reject(new MessageRequestError('WORLD_SOURCE_UNAVAILABLE'));
+      }
+    });
+  }
+
+  public sendMessage(input: MessageSendInput): Promise<MessageSendOutcome> {
+    const socket = this.socket;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new MessageRequestError('WORLD_SOURCE_UNAVAILABLE'));
+    }
+    const requestId = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        this.pendingMessageSends.delete(requestId);
+        resolve({ status: 'uncertain', code: 'MESSAGE_ACTION_UNCERTAIN' });
+      }, MESSAGE_REQUEST_TIMEOUT_MS);
+      this.pendingMessageSends.set(requestId, { resolve, reject, timeout });
+      try {
+        socket.send(JSON.stringify({ type: 'message-send', requestId, input }));
+      } catch {
+        window.clearTimeout(timeout);
+        this.pendingMessageSends.delete(requestId);
+        reject(new MessageRequestError('WORLD_SOURCE_UNAVAILABLE'));
+      }
+    });
   }
 
   public disconnect(): void {
@@ -198,6 +282,7 @@ export class WorldPresenceClient {
     }
     this.selfId = null;
     this.players.clear();
+    this.settlePendingMessages();
   }
 
   private openSocket(): void {
@@ -268,6 +353,43 @@ export class WorldPresenceClient {
     }
     if (message.type === 'world-sync') {
       this.handleWorldSync(socket, message.sync);
+      return;
+    }
+    if (message.type === 'message-history') {
+      const pending = this.pendingMessageReads.get(message.requestId);
+      if (pending !== undefined) {
+        window.clearTimeout(pending.timeout);
+        this.pendingMessageReads.delete(message.requestId);
+        pending.resolve(message.result);
+      }
+      return;
+    }
+    if (message.type === 'message-read-error') {
+      const pending = this.pendingMessageReads.get(message.requestId);
+      if (pending !== undefined) {
+        window.clearTimeout(pending.timeout);
+        this.pendingMessageReads.delete(message.requestId);
+        pending.reject(new MessageRequestError(message.code));
+      }
+      return;
+    }
+    if (message.type === 'message-send-result') {
+      const pending = this.pendingMessageSends.get(message.requestId);
+      if (pending !== undefined) {
+        window.clearTimeout(pending.timeout);
+        this.pendingMessageSends.delete(message.requestId);
+        if (message.status === 'rejected') {
+          pending.reject(new MessageRequestError(message.code));
+        } else if (message.status === 'applied') {
+          pending.resolve({ status: 'applied', message: message.message });
+        } else {
+          pending.resolve({ status: 'uncertain', code: message.code });
+        }
+      }
+      return;
+    }
+    if (message.type === 'room-message') {
+      this.callbacks.onRoomMessage?.(message.message);
       return;
     }
     if (message.type === 'welcome') {
@@ -375,6 +497,7 @@ export class WorldPresenceClient {
     this.selfId = null;
     this.transportOffline = true;
     this.clearSendTimer();
+    this.settlePendingMessages();
     const generation = this.generation;
     this.clearPlayers();
     if (this.stopped || generation !== this.generation) return;
@@ -556,6 +679,19 @@ export class WorldPresenceClient {
   private clearSendTimer(): void {
     if (this.sendTimer !== null) window.clearTimeout(this.sendTimer);
     this.sendTimer = null;
+  }
+
+  private settlePendingMessages(): void {
+    for (const pending of this.pendingMessageReads.values()) {
+      window.clearTimeout(pending.timeout);
+      pending.reject(new MessageRequestError('WORLD_SOURCE_UNAVAILABLE'));
+    }
+    this.pendingMessageReads.clear();
+    for (const pending of this.pendingMessageSends.values()) {
+      window.clearTimeout(pending.timeout);
+      pending.resolve({ status: 'uncertain', code: 'MESSAGE_ACTION_UNCERTAIN' });
+    }
+    this.pendingMessageSends.clear();
   }
 
   private clearPlayers(): void {

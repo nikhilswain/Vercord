@@ -65,6 +65,13 @@ function unavailable(command: LiveCommand, sent = false): LiveCommandResult {
         code: 'CHANNEL_ACTION_UNCERTAIN',
       },
     };
+  if (command.type === 'message-send' && sent)
+    return {
+      type: 'message-send-result',
+      requestId: command.requestId,
+      status: 'uncertain',
+      code: 'MESSAGE_ACTION_UNCERTAIN',
+    };
   return {
     type: 'live-error',
     requestId: command.requestId,
@@ -164,7 +171,11 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
           ? 'world-result'
           : command.type === 'world-release'
             ? 'release-result'
-            : 'channel-result';
+            : command.type === 'channel-mutate'
+              ? 'channel-result'
+              : command.type === 'message-read'
+                ? 'message-history-result'
+                : 'message-send-result';
       if (
         message.guildId !== command.guildId ||
         message.userId !== command.userId ||
@@ -173,7 +184,12 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
         (result.type === 'world-result' && !readMatches(result.result, command)) ||
         (result.type === 'channel-result' &&
           (result.result.requestId !== command.requestId ||
-            (result.read !== null && !readMatches(result.read, command))))
+            (result.read !== null && !readMatches(result.read, command)))) ||
+        (result.type === 'message-history-result' &&
+          (command.type !== 'message-read' || result.result.roomKey !== command.roomKey)) ||
+        (result.type === 'message-send-result' &&
+          (command.type !== 'message-send' ||
+            (result.status === 'applied' && result.message.roomKey !== command.input.roomKey)))
       ) {
         await this.rejectSocket(socket, 1008);
         return;
@@ -231,6 +247,17 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
           this.state.waitUntil(this.deactivate(socket));
           socket.close(1011, 'Live delivery unavailable');
         }
+      });
+      return;
+    }
+    if (message.type === 'guild-message') {
+      if (!this.supportsMessages(active)) {
+        await this.rejectSocket(socket, 1008);
+        return;
+      }
+      await this.post(message.guildKey, '/internal/message', {
+        bridgeEpoch: active.epoch,
+        message: message.message,
       });
       return;
     }
@@ -342,7 +369,13 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
       return new Response(null, { status: 413 });
     const socket = this.readySocket();
     const active = this.active;
-    if (socket !== null && active !== null && !this.supportsLive(active))
+    if (
+      socket !== null &&
+      active !== null &&
+      (!this.supportsLive(active) ||
+        ((command.type === 'message-read' || command.type === 'message-send') &&
+          !this.supportsMessages(active)))
+    )
       return Response.json({ error: { code: 'GATEWAY_UPDATE_REQUIRED' } }, { status: 503 });
     if (socket === null || active === null) return Response.json(unavailable(command));
     if (Date.now() - active.lastHeartbeat >= HEARTBEAT_STALE_MS) {
@@ -389,6 +422,9 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
   }
   private supportsLive(attachment: GatewayAttachment): boolean {
     return attachment.protocolVersion === 2 && attachment.capabilities.includes('live-world-v1');
+  }
+  private supportsMessages(attachment: GatewayAttachment): boolean {
+    return this.supportsLive(attachment) && attachment.capabilities.includes('message-v1');
   }
   private isActive(socket: WebSocket): boolean {
     const attachment = attachmentOf(socket);

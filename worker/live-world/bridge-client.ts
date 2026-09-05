@@ -63,5 +63,12 @@ export async function sendLiveCommand(env: Env, input: CommandInput): Promise<Li
         read: null,
         result: { status: 'uncertain', requestId, code: 'CHANNEL_ACTION_UNCERTAIN' },
       }
-    : { type: 'live-error', requestId, error: { code: 'WORLD_SOURCE_UNAVAILABLE', status: 503 } };
+    : command.type === 'message-send'
+      ? {
+          type: 'message-send-result',
+          requestId,
+          status: 'uncertain',
+          code: 'MESSAGE_ACTION_UNCERTAIN',
+        }
+      : { type: 'live-error', requestId, error: { code: 'WORLD_SOURCE_UNAVAILABLE', status: 503 } };
 }

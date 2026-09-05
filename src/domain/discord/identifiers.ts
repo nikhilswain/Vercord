@@ -6,6 +6,7 @@ const PREFIX = {
   role: 'r_',
   member: 'm_',
   presence: 'p_',
+  message: 'x_',
 } as const;
 
 export interface IdentifierFactory {
@@ -32,7 +33,8 @@ export async function createIdentifierFactory(secret: Uint8Array): Promise<Ident
       const identifier = crypto.subtle
         .sign('HMAC', key, encoder.encode(cacheKey))
         .then((digest) => `${PREFIX[kind]}${encodeBase64Url(new Uint8Array(digest))}`);
-      cache.set(cacheKey, identifier);
+      // Message IDs are effectively unbounded in a long-running gateway process.
+      if (kind !== 'message') cache.set(cacheKey, identifier);
       return identifier;
     },
   };

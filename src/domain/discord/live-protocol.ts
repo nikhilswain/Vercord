@@ -7,11 +7,21 @@ import {
 
 import {
   channelErrorCodeSchema,
+  channelKeySchema,
   channelMutationInputSchema,
   channelMutationResultSchema,
   type ChannelMutationInput,
   type ChannelMutationResult,
 } from '../channels/protocol';
+import {
+  messageErrorCodeSchema,
+  messageHistorySchema,
+  messageSendInputSchema,
+  roomMessageSchema,
+  type MessageHistory,
+  type MessageSendInput,
+  type RoomMessage,
+} from '../messages/protocol';
 import {
   discordSourceNameSchema,
   discordTimestampSchema,
@@ -123,10 +133,20 @@ export const liveCommandSchema = z.discriminatedUnion('type', [
     ...commandBase,
     input: channelMutationInputSchema,
   }),
+  z.strictObject({
+    type: z.literal('message-read'),
+    ...commandBase,
+    roomKey: channelKeySchema,
+  }),
+  z.strictObject({
+    type: z.literal('message-send'),
+    ...commandBase,
+    input: messageSendInputSchema,
+  }),
 ]);
 
 export const liveFailureSchema = z.strictObject({
-  code: channelErrorCodeSchema,
+  code: z.union([channelErrorCodeSchema, messageErrorCodeSchema]),
   status: z.number().int().min(100).max(599),
   retryAt: safeIntegerSchema.optional(),
   scope: z.enum(['admission', 'mutation']).optional(),
@@ -145,6 +165,25 @@ export const liveCommandResultSchema = z.discriminatedUnion('type', [
     result: channelMutationResultSchema,
     read: liveReadSchema.nullable(),
   }),
+  z.strictObject({
+    type: z.literal('message-history-result'),
+    requestId: requestIdSchema,
+    result: messageHistorySchema,
+  }),
+  z.discriminatedUnion('status', [
+    z.strictObject({
+      type: z.literal('message-send-result'),
+      requestId: requestIdSchema,
+      status: z.literal('applied'),
+      message: roomMessageSchema,
+    }),
+    z.strictObject({
+      type: z.literal('message-send-result'),
+      requestId: requestIdSchema,
+      status: z.literal('uncertain'),
+      code: z.literal('MESSAGE_ACTION_UNCERTAIN'),
+    }),
+  ]),
   z.strictObject({
     type: z.literal('live-error'),
     requestId: requestIdSchema,
@@ -169,7 +208,7 @@ export const liveFrameSchema = z.discriminatedUnion('type', [
 ]);
 
 export const LIVE_FRAME_MAX_BYTES = 768 * 1_024;
-export const LIVE_COMMAND_MAX_BYTES = 8 * 1_024;
+export const LIVE_COMMAND_MAX_BYTES = 16 * 1_024;
 export const LIVE_MUTATION_MAX_BYTES = 4 * 1_024;
 export const liveHelloSchema = z.strictObject({
   type: z.literal('hello'),
@@ -179,7 +218,10 @@ export const liveHelloSchema = z.strictObject({
     .array(guildKeySchema)
     .max(500)
     .refine((keys) => new Set(keys).size === keys.length),
-  capabilities: z.tuple([z.literal('live-world-v1')]),
+  capabilities: z.union([
+    z.tuple([z.literal('live-world-v1')]),
+    z.tuple([z.literal('live-world-v1'), z.literal('message-v1')]),
+  ]),
 });
 export const liveHeartbeatSchema = z.strictObject({
   type: z.literal('live-heartbeat'),
@@ -188,7 +230,13 @@ export const liveHeartbeatSchema = z.strictObject({
 // Correlation metadata stays private, including for outcomes without a read.
 export const liveResponseSchema = z.strictObject({
   type: z.literal('live-command-result'),
-  commandType: z.enum(['world-read', 'world-release', 'channel-mutate']),
+  commandType: z.enum([
+    'world-read',
+    'world-release',
+    'channel-mutate',
+    'message-read',
+    'message-send',
+  ]),
   guildId: snowflakeSchema,
   userId: snowflakeSchema,
   result: liveCommandResultSchema,
@@ -198,6 +246,12 @@ export const serverBridgeMessageSchema = z.union([
   liveHelloSchema,
   liveHeartbeatSchema,
   liveFrameSchema,
+  z.strictObject({
+    type: z.literal('guild-message'),
+    guildKey: guildKeySchema,
+    serviceSessionId: sessionIdSchema,
+    message: roomMessageSchema,
+  }),
   liveResponseSchema,
 ]);
 export const serverBridgeCommandSchema = z.union([gatewayCommandSchema, liveCommandSchema]);
@@ -208,6 +262,12 @@ export type ServerBridgeMessage =
   | LiveHello
   | LiveHeartbeat
   | LiveFrame
+  | {
+      type: 'guild-message';
+      guildKey: string;
+      serviceSessionId: string;
+      message: RoomMessage;
+    }
   | {
       type: 'live-command-result';
       commandType: LiveCommand['type'];
@@ -240,6 +300,8 @@ export type LiveCommand = {
   | { type: 'world-read'; subscriptionId: string; watch: 'lease' | 'connected' }
   | { type: 'world-release'; subscriptionId: string }
   | { type: 'channel-mutate'; input: ChannelMutationInput }
+  | { type: 'message-read'; roomKey: string }
+  | { type: 'message-send'; input: MessageSendInput }
 );
 export type LiveFailure = {
   code: string;
@@ -256,6 +318,14 @@ export type LiveCommandResult =
       result: ChannelMutationResult;
       read: LiveRead | null;
     }
+  | { type: 'message-history-result'; requestId: string; result: MessageHistory }
+  | { type: 'message-send-result'; requestId: string; status: 'applied'; message: RoomMessage }
+  | {
+      type: 'message-send-result';
+      requestId: string;
+      status: 'uncertain';
+      code: 'MESSAGE_ACTION_UNCERTAIN';
+    }
   | { type: 'live-error'; requestId: string; error: LiveFailure };
 export type LiveFrame = {
   serviceSessionId: string;
@@ -267,4 +337,11 @@ export type LiveFrame = {
   | { type: 'world-health'; ready: boolean }
 );
 
-export type { ChannelMutationInput, ChannelMutationResult, DiscordSourceBundle };
+export type {
+  ChannelMutationInput,
+  ChannelMutationResult,
+  DiscordSourceBundle,
+  MessageHistory,
+  MessageSendInput,
+  RoomMessage,
+};

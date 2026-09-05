@@ -557,6 +557,7 @@ export class PhaserWorldScene extends Phaser.Scene {
     this.currentRoom = portal;
     this.switchWorld(createRoomWorld(portal, this.campusWorld.theme), 'up');
     this.callbacks.onSceneChange(portal);
+    this.publishPresence();
   }
 
   private leaveRoom(): void {
@@ -572,6 +573,7 @@ export class PhaserWorldScene extends Phaser.Scene {
     this.worldRenderer?.resize(this.viewport.width, this.viewport.height);
     this.worldCamera.setZoomImmediately(this.campusZoom, this.player, this.world.bounds);
     this.callbacks.onSceneChange(null);
+    this.publishPresence();
   }
 
   private switchWorld(world: WorldDefinition, direction: Direction): void {

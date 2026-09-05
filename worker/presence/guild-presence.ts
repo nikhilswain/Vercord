@@ -11,6 +11,11 @@ import {
   type WorldView,
 } from '../../src/domain/channels/protocol';
 import { liveFrameSchema, LIVE_FRAME_MAX_BYTES } from '../../src/domain/discord/live-protocol';
+import {
+  messageErrorCodeSchema,
+  roomMessageSchema,
+  type MessageErrorCode,
+} from '../../src/domain/messages/protocol';
 import { snowflakeSchema } from '../../src/domain/discord/source-schema';
 import {
   clientPresenceMessageSchema,
@@ -30,8 +35,8 @@ import { sessionIsCurrent, type WorldActor } from '../live-world/session-access'
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
 
 const MAX_CONNECTIONS = 200;
-const MAX_MESSAGE_BYTES = 1_024;
-const MAX_INTERNAL_BODY_BYTES = 8 * 1_024;
+const MAX_MESSAGE_BYTES = 16 * 1_024;
+const MAX_INTERNAL_BODY_BYTES = 32 * 1_024;
 const WORLD_VIEW_EPOCH_KEY = 'worldViewEpoch';
 const digestSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/u);
 const subscriptionIdSchema = z.uuid();
@@ -57,6 +62,10 @@ const internalLiveFrameSchema = z.strictObject({
 const internalLiveServiceSchema = z.strictObject({
   bridgeEpoch: bridgeEpochSchema,
   service: z.enum(['online', 'offline']),
+});
+const internalRoomMessageSchema = z.strictObject({
+  bridgeEpoch: bridgeEpochSchema,
+  message: roomMessageSchema,
 });
 const internalWorldViewSchema = z.strictObject({
   actor: worldActorSchema,
@@ -193,6 +202,7 @@ export class GuildPresence extends DurableObject<Env> {
     }
     if (pathname === '/internal/live-frame') return this.receiveLiveFrame(request);
     if (pathname === '/internal/live-service') return this.receiveLiveService(request);
+    if (pathname === '/internal/message') return this.receiveRoomMessage(request);
     if (pathname === '/internal/world-view') return this.readWorldView(request);
     if (pathname === '/internal/world-mutate') return this.mutateWorld(request);
     if (pathname === '/internal/voice-destination') return this.readVoiceDestination(request);
@@ -300,7 +310,7 @@ export class GuildPresence extends DurableObject<Env> {
     }
   }
 
-  public webSocketMessage(socket: WebSocket, raw: string | ArrayBuffer): void {
+  public async webSocketMessage(socket: WebSocket, raw: string | ArrayBuffer): Promise<void> {
     if (typeof raw !== 'string') {
       socket.close(1003, 'Text messages only');
       return;
@@ -329,7 +339,12 @@ export class GuildPresence extends DurableObject<Env> {
       return;
     }
     const view = this.authorizeSocket(socket, previous);
-    if (view === null || !worldIncludesScene(view, parsed.data.scene)) return;
+    if (view === null) return;
+    if (parsed.data.type !== 'move') {
+      await this.handleMessageCommand(socket, previous, parsed.data);
+      return;
+    }
+    if (!worldIncludesScene(view, parsed.data.scene)) return;
     previous = attachmentOf(socket);
     if (previous === null) return;
     const now = Date.now();
@@ -356,6 +371,74 @@ export class GuildPresence extends DurableObject<Env> {
       },
       socket,
       next.scene,
+    );
+  }
+
+  private async handleMessageCommand(
+    socket: WebSocket,
+    attachment: SocketAttachment,
+    command: Exclude<z.infer<typeof clientPresenceMessageSchema>, { type: 'move' }>,
+  ): Promise<void> {
+    const roomKey = command.type === 'message-read' ? command.roomKey : command.input.roomKey;
+    if (attachment.scene !== `room:${roomKey}`) {
+      this.sendMessageFailure(socket, command.type, command.requestId, 'MESSAGE_MEMBER_FORBIDDEN');
+      return;
+    }
+    try {
+      const actor = actorFromAttachment(attachment);
+      if (command.type === 'message-read') {
+        const result = await this.coordinator.readMessages(
+          actor,
+          attachment.subscriptionId,
+          roomKey,
+        );
+        if (
+          attachmentOf(socket)?.scene === attachment.scene &&
+          socket.readyState === WebSocket.OPEN
+        ) {
+          this.send(socket, { type: 'message-history', requestId: command.requestId, result });
+        }
+        return;
+      }
+      const result = await this.coordinator.sendMessage(
+        actor,
+        attachment.subscriptionId,
+        command.input,
+      );
+      if (attachmentOf(socket)?.scene !== attachment.scene || socket.readyState !== WebSocket.OPEN)
+        return;
+      this.send(socket, {
+        type: 'message-send-result',
+        requestId: command.requestId,
+        ...(result.status === 'applied'
+          ? { status: 'applied' as const, message: result.message }
+          : { status: 'uncertain' as const, code: result.code }),
+      });
+    } catch (error) {
+      const parsedCode = messageErrorCodeSchema.safeParse(
+        error instanceof WorldAccessError ? error.code : 'WORLD_SOURCE_UNAVAILABLE',
+      );
+      this.sendMessageFailure(
+        socket,
+        command.type,
+        command.requestId,
+        parsedCode.success ? parsedCode.data : 'WORLD_SOURCE_UNAVAILABLE',
+      );
+    }
+  }
+
+  private sendMessageFailure(
+    socket: WebSocket,
+    commandType: 'message-read' | 'message-send',
+    requestId: string,
+    code: MessageErrorCode,
+  ): void {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    this.send(
+      socket,
+      commandType === 'message-read'
+        ? { type: 'message-read-error', requestId, code }
+        : { type: 'message-send-result', requestId, status: 'rejected', code },
     );
   }
 
@@ -555,6 +638,42 @@ export class GuildPresence extends DurableObject<Env> {
     this.startRestoration();
     await this.coordinator.service(parsed.data.service === 'online', parsed.data.bridgeEpoch);
     this.state.waitUntil(this.coordinator.pendingWork());
+    return new Response(null, { status: 204 });
+  }
+
+  private async receiveRoomMessage(request: Request): Promise<Response> {
+    if (request.method !== 'POST') return new Response(null, { status: 405 });
+    const value = await this.readJson(request, MAX_INTERNAL_BODY_BYTES);
+    const parsed = internalRoomMessageSchema.safeParse(value);
+    if (!parsed.success) return new Response(null, { status: 400 });
+    this.startRestoration();
+    if (parsed.data.bridgeEpoch !== this.voiceBridgeEpoch || this.voiceService !== 'online') {
+      return new Response(null, { status: 204 });
+    }
+
+    const scene = `room:${parsed.data.message.roomKey}`;
+    const encoded = JSON.stringify({
+      type: 'room-message',
+      message: parsed.data.message,
+    } satisfies ServerPresenceMessage);
+    for (const socket of this.state.getWebSockets()) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      const attachment = attachmentOf(socket);
+      if (
+        attachment === null ||
+        attachment.scene !== scene ||
+        !this.attachmentIsLocallyCurrent(attachment)
+      ) {
+        continue;
+      }
+      const view = this.coordinator.currentView(actorFromAttachment(attachment));
+      if (view === null || !worldIncludesScene(view, scene)) continue;
+      try {
+        socket.send(encoded);
+      } catch {
+        // The close/error callback owns cleanup.
+      }
+    }
     return new Response(null, { status: 204 });
   }
 
