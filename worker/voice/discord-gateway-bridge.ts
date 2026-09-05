@@ -1,155 +1,287 @@
 import { DurableObject } from 'cloudflare:workers';
-
+import { createIdentifierFactory } from '../../src/domain/discord/identifiers';
 import {
-  gatewayBridgeMessageSchema,
-  gatewayCommandSchema,
-  type GatewayBridgeMessage,
-  type GatewayCommandResult,
-} from '../../src/domain/voice/protocol';
+  LIVE_COMMAND_MAX_BYTES,
+  LIVE_FRAME_MAX_BYTES,
+  LIVE_MUTATION_MAX_BYTES,
+  liveCommandSchema,
+  serverBridgeMessageSchema,
+  type LiveCommand,
+  type LiveCommandResult,
+  type LiveRead,
+  type ServerBridgeMessage,
+} from '../../src/domain/discord/live-protocol';
+import { gatewayCommandSchema, type GatewayCommandResult } from '../../src/domain/voice/protocol';
+import { decodeBase64UrlSecret } from '../config/runtime';
 
-const MAX_MESSAGE_BYTES = 768 * 1_024;
 const COMMAND_TIMEOUT_MS = 8_000;
-
+const HEARTBEAT_STALE_MS = 75_000;
+const ACTIVE_KEY = 'active-bridge-v2';
+const EPOCH_KEY = 'bridge-epoch';
+const OFFLINE_KEY = 'undelivered-live-offline';
+const encoder = new TextEncoder();
 interface GatewayAttachment {
   ready: boolean;
+  epoch: number;
   serviceSessionId: string | null;
+  protocolVersion: 1 | 2;
+  capabilities: string[];
 }
-
-const ACTIVE_SESSION_KEY = 'active-service-session';
-const ACTIVE_GUILD_KEYS_KEY = 'active-guild-keys';
-const BRIDGE_EPOCH_KEY = 'bridge-epoch';
-
-interface PendingCommand {
-  resolve(result: CommandResolution): void;
+interface ActiveBridge extends GatewayAttachment {
+  guildKeys: string[];
+  lastHeartbeat: number;
+}
+interface PendingVoice {
+  epoch: number;
+  resolve(result: GatewayCommandResult | null): void;
   timeout: ReturnType<typeof setTimeout>;
 }
-
-type CommandResolution =
-  { kind: 'result'; result: GatewayCommandResult } | { kind: 'timeout' } | { kind: 'unavailable' };
-
+interface PendingLive {
+  epoch: number;
+  command: LiveCommand;
+  sent: boolean;
+  resolve(result: LiveCommandResult): void;
+  timeout: ReturnType<typeof setTimeout>;
+}
 function attachmentOf(socket: WebSocket): GatewayAttachment {
   const value = socket.deserializeAttachment() as Partial<GatewayAttachment> | null;
   return {
     ready: value?.ready === true,
-    serviceSessionId: typeof value?.serviceSessionId === 'string' ? value.serviceSessionId : null,
+    epoch: value?.epoch ?? -1,
+    serviceSessionId: value?.serviceSessionId ?? null,
+    protocolVersion: value?.protocolVersion === 2 ? 2 : 1,
+    capabilities: value?.capabilities ?? [],
   };
+}
+function unavailable(command: LiveCommand, sent = false): LiveCommandResult {
+  if (command.type === 'channel-mutate' && sent)
+    return {
+      type: 'channel-result',
+      requestId: command.requestId,
+      read: null,
+      result: {
+        status: 'uncertain',
+        requestId: command.requestId,
+        code: 'CHANNEL_ACTION_UNCERTAIN',
+      },
+    };
+  return {
+    type: 'live-error',
+    requestId: command.requestId,
+    error: { code: 'WORLD_SOURCE_UNAVAILABLE', status: 503 },
+  };
+}
+function readMatches(read: LiveRead, command: LiveCommand): boolean {
+  const userId = read.member.kind === 'present' ? read.member.member.userId : read.member.userId;
+  return (
+    read.guildId === command.guildId &&
+    read.source.guild.id === command.guildId &&
+    userId === command.userId
+  );
 }
 
 export class DiscordGatewayBridge extends DurableObject<Env> {
-  private readonly pending = new Map<string, PendingCommand>();
+  private readonly pending = new Map<string, PendingVoice>();
+  private readonly livePending = new Map<string, PendingLive>();
+  private readonly deliveries = new Map<string, Promise<void>>();
+  private active: ActiveBridge | null = null;
+  private epoch = 0;
+  private offline: Record<string, number> = {};
 
   public constructor(
     private readonly state: DurableObjectState,
     env: Env,
   ) {
     super(state, env);
+    void state.blockConcurrencyWhile(async () => {
+      this.active = (await state.storage.get<ActiveBridge>(ACTIVE_KEY)) ?? null;
+      this.epoch = (await state.storage.get<number>(EPOCH_KEY)) ?? 0;
+      this.offline = (await state.storage.get<Record<string, number>>(OFFLINE_KEY)) ?? {};
+    });
   }
-
   public async fetch(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
     if (pathname === '/connect') return this.acceptGateway(request);
     if (pathname === '/command') return this.command(request);
+    if (pathname === '/live-command') return this.liveCommand(request);
     return new Response(null, { status: 404 });
   }
-
   public async webSocketMessage(socket: WebSocket, raw: string | ArrayBuffer): Promise<void> {
-    if (typeof raw !== 'string' || raw.length > MAX_MESSAGE_BYTES) {
-      socket.close(typeof raw === 'string' ? 1009 : 1003, 'Invalid message');
+    if (typeof raw !== 'string' || encoder.encode(raw).byteLength > LIVE_FRAME_MAX_BYTES) {
+      await this.rejectSocket(socket, typeof raw === 'string' ? 1009 : 1003);
       return;
     }
-
     let value: unknown;
     try {
       value = JSON.parse(raw) as unknown;
     } catch {
-      socket.close(1007, 'Invalid message');
+      await this.rejectSocket(socket, 1007);
       return;
     }
-    const parsed = gatewayBridgeMessageSchema.safeParse(value);
+    const parsed = serverBridgeMessageSchema.safeParse(value);
     if (!parsed.success) {
-      socket.close(1007, 'Invalid message');
+      await this.rejectSocket(socket, 1007);
       return;
     }
-
     const message = parsed.data;
     if (message.type === 'hello') {
+      if (attachmentOf(socket).epoch >= 0 && !this.isActive(socket)) {
+        socket.close(1008, 'Gateway superseded');
+        return;
+      }
       await this.activate(socket, message);
       return;
     }
-    const attachment = attachmentOf(socket);
-    if (!attachment.ready) {
-      socket.close(1008, 'Hello required');
-      return;
-    }
-    const [activeSessionId, bridgeEpoch] = await Promise.all([
-      this.state.storage.get<string>(ACTIVE_SESSION_KEY),
-      this.state.storage.get<number>(BRIDGE_EPOCH_KEY),
-    ]);
-    if (attachment.serviceSessionId === null || attachment.serviceSessionId !== activeSessionId) {
+    if (!this.isActive(socket)) {
       socket.close(1008, 'Gateway superseded');
       return;
     }
-    if (bridgeEpoch === undefined) {
-      socket.close(1011, 'Bridge state unavailable');
+    const active = this.active!;
+    if (active.protocolVersion === 2 && Date.now() - active.lastHeartbeat >= HEARTBEAT_STALE_MS) {
+      await this.rejectSocket(socket, 1012);
       return;
     }
     if (message.type === 'command-result') {
       const pending = this.pending.get(message.requestId);
-      if (pending !== undefined) {
+      if (pending?.epoch === active.epoch) {
         clearTimeout(pending.timeout);
         this.pending.delete(message.requestId);
-        pending.resolve({ kind: 'result', result: message });
+        pending.resolve(message);
       }
       return;
     }
-    const messageSessionId =
-      message.type === 'voice-state' ? message.state.serviceSessionId : message.serviceSessionId;
-    if (messageSessionId !== attachment.serviceSessionId) {
-      socket.close(1008, 'Session mismatch');
+    if (message.type === 'live-command-result') {
+      if (!this.supportsLive(active)) {
+        await this.rejectSocket(socket, 1008);
+        return;
+      }
+      const pending = this.livePending.get(message.result.requestId);
+      if (pending === undefined || pending.epoch !== active.epoch) return;
+      const command = pending.command;
+      const result = message.result;
+      const expectedType =
+        command.type === 'world-read'
+          ? 'world-result'
+          : command.type === 'world-release'
+            ? 'release-result'
+            : 'channel-result';
+      if (
+        message.guildId !== command.guildId ||
+        message.userId !== command.userId ||
+        message.commandType !== command.type ||
+        (result.type !== 'live-error' && result.type !== expectedType) ||
+        (result.type === 'world-result' && !readMatches(result.result, command)) ||
+        (result.type === 'channel-result' &&
+          (result.result.requestId !== command.requestId ||
+            (result.read !== null && !readMatches(result.read, command))))
+      ) {
+        await this.rejectSocket(socket, 1008);
+        return;
+      }
+      // Once known, a confirmed write remains applied even if subsequent delivery fails.
+      clearTimeout(pending.timeout);
+      this.livePending.delete(result.requestId);
+      pending.resolve(result);
       return;
     }
-    const guildKeys = (await this.state.storage.get<string[]>(ACTIVE_GUILD_KEYS_KEY)) ?? [];
-    if (!guildKeys.includes(message.guildKey)) {
-      socket.close(1008, 'Unknown guild');
+    const sessionId =
+      message.type === 'voice-state' ? message.state.serviceSessionId : message.serviceSessionId;
+    if (sessionId !== active.serviceSessionId) {
+      await this.rejectSocket(socket, 1008);
+      return;
+    }
+    if (message.type === 'live-heartbeat') {
+      if (!this.supportsLive(active)) {
+        await this.rejectSocket(socket, 1008);
+        return;
+      }
+      active.lastHeartbeat = Date.now();
+      await this.state.storage.put(ACTIVE_KEY, active);
+      await this.scheduleAlarm();
+      return;
+    }
+    if (!active.guildKeys.includes(message.guildKey)) {
+      await this.rejectSocket(socket, 1008);
+      return;
+    }
+    if (
+      message.type === 'world-source' ||
+      message.type === 'world-member' ||
+      message.type === 'world-health'
+    ) {
+      if (!this.supportsLive(active)) {
+        await this.rejectSocket(socket, 1008);
+        return;
+      }
+      await this.ordered(message.guildKey, async () => {
+        if (!this.isActive(socket) || this.active?.epoch !== active.epoch) return;
+        try {
+          if (
+            message.type === 'world-source' &&
+            (await this.guildKey(message.source.guild.id)) !== message.guildKey
+          )
+            throw new Error('LIVE_GUILD_MISMATCH');
+          if (!this.isActive(socket) || this.active?.epoch !== active.epoch) return;
+          await this.post(message.guildKey, '/internal/live-frame', {
+            bridgeEpoch: active.epoch,
+            message,
+          });
+        } catch {
+          // Revoke synchronously before a later sequence is eligible in this lane.
+          this.state.waitUntil(this.deactivate(socket));
+          socket.close(1011, 'Live delivery unavailable');
+        }
+      });
       return;
     }
     if (message.type === 'guild-structure-changed') {
-      await this.env.WORLD_PRESENCE.getByName(message.guildKey).fetch(
-        'https://presence.dmap/internal/channels-changed',
-        { method: 'POST' },
-      );
+      await this.post(message.guildKey, '/internal/channels-changed');
       return;
     }
-    await this.routeVoiceMessage(message, bridgeEpoch);
+    await this.post(message.guildKey, '/internal/voice', { bridgeEpoch: active.epoch, message });
   }
-
   public async webSocketClose(socket: WebSocket): Promise<void> {
     await this.deactivate(socket);
   }
-
   public async webSocketError(socket: WebSocket): Promise<void> {
     await this.deactivate(socket);
   }
-
-  private acceptGateway(request: Request): Response {
-    if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
-      return new Response('Expected a WebSocket upgrade.', { status: 426 });
+  public async alarm(): Promise<void> {
+    const socket = this.readySocket();
+    if (
+      this.active?.protocolVersion === 2 &&
+      Date.now() - this.active.lastHeartbeat >= HEARTBEAT_STALE_MS
+    ) {
+      if (socket !== null) {
+        await this.deactivate(socket);
+        socket.close(1012, 'Live heartbeat expired');
+      } else await this.deactivateActive();
     }
-    const pair = new WebSocketPair();
-    const client = pair[0];
-    const server = pair[1];
-    this.state.acceptWebSocket(server);
-    server.serializeAttachment({
-      ready: false,
-      serviceSessionId: null,
-    } satisfies GatewayAttachment);
-    return new Response(null, { status: 101, webSocket: client });
+    await Promise.all(
+      Object.entries(this.offline).map(([guildKey, epoch]) =>
+        this.ordered(guildKey, () => this.deliverOffline(guildKey, epoch)),
+      ),
+    );
+    await this.scheduleAlarm();
   }
-
+  private acceptGateway(request: Request): Response {
+    if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket')
+      return new Response('Expected a WebSocket upgrade.', { status: 426 });
+    const pair = new WebSocketPair();
+    this.state.acceptWebSocket(pair[1]);
+    pair[1].serializeAttachment({
+      ready: false,
+      epoch: -1,
+      serviceSessionId: null,
+      protocolVersion: 1,
+      capabilities: [],
+    } satisfies GatewayAttachment);
+    return new Response(null, { status: 101, webSocket: pair[0] });
+  }
   private async command(request: Request): Promise<Response> {
     if (request.method !== 'POST') return new Response(null, { status: 405 });
     const body = await request.text();
-    if (body.length > 2_048) return new Response(null, { status: 413 });
+    if (encoder.encode(body).byteLength > 2_048) return new Response(null, { status: 413 });
     let value: unknown;
     try {
       value = JSON.parse(body) as unknown;
@@ -158,142 +290,288 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
     }
     const parsed = gatewayCommandSchema.safeParse(value);
     if (!parsed.success) return new Response(null, { status: 400 });
-
     const socket = this.readySocket();
-    if (socket === null)
+    if (
+      socket === null ||
+      this.pending.size + this.livePending.size >= 200 ||
+      this.pending.has(parsed.data.requestId) ||
+      this.livePending.has(parsed.data.requestId)
+    )
       return Response.json({ errorCode: 'GATEWAY_UNAVAILABLE' }, { status: 503 });
-
-    const resolution = await new Promise<CommandResolution>((resolve) => {
+    let timedOut = false;
+    const result = await new Promise<GatewayCommandResult | null>((resolve) => {
       const timeout = setTimeout(() => {
         this.pending.delete(parsed.data.requestId);
-        resolve({ kind: 'timeout' });
+        timedOut = true;
+        resolve(null);
       }, COMMAND_TIMEOUT_MS);
-      this.pending.set(parsed.data.requestId, { resolve, timeout });
+      this.pending.set(parsed.data.requestId, { resolve, timeout, epoch: this.active!.epoch });
       try {
         socket.send(JSON.stringify(parsed.data));
       } catch {
         clearTimeout(timeout);
         this.pending.delete(parsed.data.requestId);
-        resolve({ kind: 'unavailable' });
+        resolve(null);
       }
     });
-    if (resolution.kind === 'timeout') {
-      return Response.json({ errorCode: 'ACTION_TIMEOUT' }, { status: 504 });
-    }
-    if (resolution.kind === 'unavailable') {
-      return Response.json({ errorCode: 'GATEWAY_UNAVAILABLE' }, { status: 503 });
-    }
-    return Response.json(resolution.result, { headers: { 'cache-control': 'no-store' } });
+    if (result === null)
+      return Response.json(
+        { errorCode: timedOut ? 'ACTION_TIMEOUT' : 'GATEWAY_UNAVAILABLE' },
+        { status: timedOut ? 504 : 503 },
+      );
+    return Response.json(result, { headers: { 'cache-control': 'no-store' } });
   }
-
+  private async liveCommand(request: Request): Promise<Response> {
+    if (request.method !== 'POST') return new Response(null, { status: 405 });
+    const body = await request.text();
+    if (encoder.encode(body).byteLength > LIVE_COMMAND_MAX_BYTES)
+      return new Response(null, { status: 413 });
+    let value: unknown;
+    try {
+      value = JSON.parse(body) as unknown;
+    } catch {
+      return new Response(null, { status: 400 });
+    }
+    const parsed = liveCommandSchema.safeParse(value);
+    if (!parsed.success) return new Response(null, { status: 400 });
+    const command = parsed.data;
+    if (
+      command.type === 'channel-mutate' &&
+      encoder.encode(JSON.stringify(command.input)).byteLength > LIVE_MUTATION_MAX_BYTES
+    )
+      return new Response(null, { status: 413 });
+    const socket = this.readySocket();
+    const active = this.active;
+    if (socket !== null && active !== null && !this.supportsLive(active))
+      return Response.json({ error: { code: 'GATEWAY_UPDATE_REQUIRED' } }, { status: 503 });
+    if (socket === null || active === null) return Response.json(unavailable(command));
+    if (Date.now() - active.lastHeartbeat >= HEARTBEAT_STALE_MS) {
+      await this.rejectSocket(socket, 1012);
+      return Response.json(unavailable(command));
+    }
+    const guildKey = await this.guildKey(command.guildId);
+    if (
+      !this.isActive(socket) ||
+      this.active?.epoch !== active.epoch ||
+      !active.guildKeys.includes(guildKey) ||
+      command.expiresAt <= Date.now() ||
+      command.expiresAt > Date.now() + 6_000 ||
+      this.pending.size + this.livePending.size >= 200 ||
+      [...this.livePending.values()].filter(
+        (pending) => pending.command.guildId === command.guildId,
+      ).length >= 20 ||
+      this.pending.has(command.requestId) ||
+      this.livePending.has(command.requestId)
+    )
+      return Response.json(unavailable(command));
+    const result = await new Promise<LiveCommandResult>((resolve) => {
+      const pending: PendingLive = {
+        epoch: active.epoch,
+        command,
+        sent: false,
+        resolve,
+        timeout: setTimeout(() => {
+          this.livePending.delete(command.requestId);
+          resolve(unavailable(command, pending.sent));
+        }, COMMAND_TIMEOUT_MS),
+      };
+      this.livePending.set(command.requestId, pending);
+      try {
+        socket.send(JSON.stringify(command));
+        pending.sent = true;
+      } catch {
+        clearTimeout(pending.timeout);
+        this.livePending.delete(command.requestId);
+        resolve(unavailable(command));
+      }
+    });
+    return Response.json(result, { headers: { 'cache-control': 'no-store' } });
+  }
+  private supportsLive(attachment: GatewayAttachment): boolean {
+    return attachment.protocolVersion === 2 && attachment.capabilities.includes('live-world-v1');
+  }
+  private isActive(socket: WebSocket): boolean {
+    const attachment = attachmentOf(socket);
+    return (
+      this.active !== null &&
+      attachment.ready &&
+      attachment.epoch === this.active.epoch &&
+      attachment.serviceSessionId === this.active.serviceSessionId
+    );
+  }
   private readySocket(): WebSocket | null {
-    for (const socket of this.state.getWebSockets()) {
-      if (socket.readyState === WebSocket.OPEN && attachmentOf(socket).ready) return socket;
-    }
-    return null;
+    return (
+      this.state
+        .getWebSockets()
+        .find((socket) => socket.readyState === WebSocket.OPEN && this.isActive(socket)) ?? null
+    );
   }
-
   private async activate(
     socket: WebSocket,
-    message: Extract<GatewayBridgeMessage, { type: 'hello' }>,
+    message: Extract<ServerBridgeMessage, { type: 'hello' }>,
   ): Promise<void> {
-    const [storedGuildKeys, previousEpoch] = await Promise.all([
-      this.state.storage.get<string[]>(ACTIVE_GUILD_KEYS_KEY),
-      this.state.storage.get<number>(BRIDGE_EPOCH_KEY),
-    ]);
-    const previousGuildKeys = storedGuildKeys ?? [];
-    const bridgeEpoch = (previousEpoch ?? 0) + 1;
-    if (!Number.isSafeInteger(bridgeEpoch)) {
+    const previous = this.active;
+    const epoch = ++this.epoch;
+    if (!Number.isSafeInteger(epoch)) {
       socket.close(1011, 'Bridge generation exhausted');
       return;
     }
     this.failPendingCommands();
     for (const existing of this.state.getWebSockets()) {
       if (existing !== socket && attachmentOf(existing).ready) {
+        existing.serializeAttachment({ ...attachmentOf(existing), ready: false });
         existing.close(1012, 'Gateway replaced');
       }
     }
-    const attachment: GatewayAttachment = {
+    const active: ActiveBridge = {
       ready: true,
+      epoch,
       serviceSessionId: message.serviceSessionId,
+      protocolVersion: message.protocolVersion,
+      capabilities: message.protocolVersion === 2 ? message.capabilities : [],
+      guildKeys: message.guildKeys,
+      lastHeartbeat: Date.now(),
     };
-    socket.serializeAttachment(attachment);
-    await this.state.storage.put({
-      [ACTIVE_SESSION_KEY]: message.serviceSessionId,
-      [ACTIVE_GUILD_KEYS_KEY]: message.guildKeys,
-      [BRIDGE_EPOCH_KEY]: bridgeEpoch,
-    });
-    const nextGuildKeys = new Set(message.guildKeys);
-    const removedGuildKeys = previousGuildKeys.filter((guildKey) => !nextGuildKeys.has(guildKey));
-    await Promise.allSettled([
-      ...removedGuildKeys.map((guildKey) =>
-        this.sendServiceStatus(guildKey, 'offline', bridgeEpoch),
-      ),
-      ...message.guildKeys.map((guildKey) =>
-        this.sendServiceStatus(guildKey, 'online', bridgeEpoch),
-      ),
-    ]);
-  }
-
-  private async deactivate(socket: WebSocket): Promise<void> {
-    const attachment = attachmentOf(socket);
-    if (!attachment.ready || attachment.serviceSessionId === null) return;
-    const [activeSessionId, bridgeEpoch] = await Promise.all([
-      this.state.storage.get<string>(ACTIVE_SESSION_KEY),
-      this.state.storage.get<number>(BRIDGE_EPOCH_KEY),
-    ]);
-    if (activeSessionId !== attachment.serviceSessionId) return;
-    const replacement = this.state
-      .getWebSockets()
-      .some(
-        (candidate) =>
-          candidate !== socket &&
-          candidate.readyState === WebSocket.OPEN &&
-          attachmentOf(candidate).ready &&
-          attachmentOf(candidate).serviceSessionId === activeSessionId,
+    this.active = active;
+    socket.serializeAttachment(active);
+    // Reserve each guild's lane before awaiting storage or network operations.
+    const deliveries: Promise<unknown>[] = [];
+    if (previous !== null && this.supportsLive(previous)) {
+      for (const guildKey of previous.guildKeys) {
+        this.offline[guildKey] = previous.epoch;
+        deliveries.push(
+          this.ordered(guildKey, () => this.deliverOffline(guildKey, previous.epoch)),
+        );
+      }
+    }
+    for (const guildKey of new Set([...(previous?.guildKeys ?? []), ...active.guildKeys])) {
+      const service = active.guildKeys.includes(guildKey) ? 'online' : 'offline';
+      deliveries.push(
+        this.post(guildKey, '/internal/voice-service', { bridgeEpoch: epoch, service }).catch(
+          () => undefined,
+        ),
       );
-    if (replacement) return;
-    const guildKeys = (await this.state.storage.get<string[]>(ACTIVE_GUILD_KEYS_KEY)) ?? [];
-    await this.state.storage.delete([ACTIVE_SESSION_KEY, ACTIVE_GUILD_KEYS_KEY]);
-    await Promise.allSettled(
-      guildKeys.map((guildKey) => this.sendServiceStatus(guildKey, 'offline', bridgeEpoch ?? 0)),
-    );
+      if (this.supportsLive(active) && service === 'online')
+        deliveries.push(
+          this.ordered(guildKey, async () => {
+            if (!this.isActive(socket) || this.active?.epoch !== epoch) return;
+            try {
+              const missing = this.offline[guildKey];
+              if (missing !== undefined) {
+                await this.deliverOffline(guildKey, missing);
+                if (this.offline[guildKey] !== undefined) throw new Error('LIVE_DELIVERY_FAILED');
+              }
+              await this.post(guildKey, '/internal/live-service', {
+                bridgeEpoch: epoch,
+                service: 'online',
+              });
+            } catch {
+              this.state.waitUntil(this.deactivate(socket));
+              socket.close(1011, 'Live delivery unavailable');
+            }
+          }),
+        );
+    }
+    await this.state.storage.put({
+      [ACTIVE_KEY]: active,
+      [EPOCH_KEY]: epoch,
+      [OFFLINE_KEY]: this.offline,
+    });
+    await Promise.all(deliveries);
+    await this.scheduleAlarm();
+  }
+  private async rejectSocket(socket: WebSocket, code: number): Promise<void> {
+    const lost = this.deactivate(socket);
+    socket.close(code, 'Invalid or unavailable bridge');
+    await lost;
+  }
+  private deactivate(socket: WebSocket): Promise<void> {
+    if (!this.isActive(socket)) return Promise.resolve();
+    socket.serializeAttachment({ ...attachmentOf(socket), ready: false });
+    return this.deactivateActive();
+  }
+  private async deactivateActive(): Promise<void> {
+    const previous = this.active;
+    if (previous === null) return;
+    this.active = null;
     this.failPendingCommands();
-  }
-
-  private async routeVoiceMessage(
-    message: Exclude<
-      GatewayBridgeMessage,
-      { type: 'hello' | 'command-result' | 'guild-structure-changed' }
-    >,
-    bridgeEpoch: number,
-  ): Promise<void> {
-    const stub = this.env.WORLD_PRESENCE.getByName(message.guildKey);
-    await stub.fetch('https://presence.dmap/internal/voice', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ bridgeEpoch, message }),
+    const deliveries = previous.guildKeys.map((guildKey) => {
+      const voice = this.post(guildKey, '/internal/voice-service', {
+        bridgeEpoch: previous.epoch,
+        service: 'offline',
+      }).catch(() => undefined);
+      if (!this.supportsLive(previous)) return voice;
+      this.offline[guildKey] = previous.epoch;
+      return Promise.all([
+        voice,
+        this.ordered(guildKey, () => this.deliverOffline(guildKey, previous.epoch)),
+      ]);
     });
+    await this.state.storage.put({ [ACTIVE_KEY]: null, [OFFLINE_KEY]: this.offline });
+    await Promise.all(deliveries);
+    await this.scheduleAlarm();
   }
-
-  private async sendServiceStatus(
-    guildKey: string,
-    service: 'online' | 'offline',
-    bridgeEpoch: number,
-  ): Promise<void> {
-    const stub = this.env.WORLD_PRESENCE.getByName(guildKey);
-    await stub.fetch('https://presence.dmap/internal/voice-service', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ bridgeEpoch, service }),
-    });
+  private async deliverOffline(guildKey: string, epoch: number): Promise<void> {
+    if (this.offline[guildKey] !== epoch) return;
+    try {
+      await this.post(guildKey, '/internal/live-service', {
+        bridgeEpoch: epoch,
+        service: 'offline',
+      });
+      if (this.offline[guildKey] === epoch) delete this.offline[guildKey];
+    } catch {
+      /* Persist revocation for an alarm retry; never treat failure as delivered. */
+    }
+    await this.state.storage.put(OFFLINE_KEY, this.offline);
   }
-
+  private async scheduleAlarm(): Promise<void> {
+    const heartbeat =
+      this.active?.protocolVersion === 2
+        ? this.active.lastHeartbeat + HEARTBEAT_STALE_MS
+        : Infinity;
+    const retry = Object.keys(this.offline).length > 0 ? Date.now() + 25_000 : Infinity;
+    const next = Math.min(heartbeat, retry);
+    if (Number.isFinite(next)) await this.state.storage.setAlarm(Math.max(Date.now() + 1, next));
+    else await this.state.storage.deleteAlarm();
+  }
+  private ordered(guildKey: string, action: () => Promise<void>): Promise<void> {
+    const previous = this.deliveries.get(guildKey) ?? Promise.resolve();
+    const next = previous.then(action);
+    this.deliveries.set(guildKey, next);
+    void next
+      .finally(() => {
+        if (this.deliveries.get(guildKey) === next) this.deliveries.delete(guildKey);
+      })
+      .catch(() => undefined);
+    return next;
+  }
+  private async post(guildKey: string, path: string, body?: unknown): Promise<void> {
+    const response = await this.env.WORLD_PRESENCE.getByName(guildKey).fetch(
+      `https://presence.dmap${path}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      },
+    );
+    if (!response.ok) throw new Error('BRIDGE_DELIVERY_FAILED');
+  }
+  private async guildKey(guildId: string): Promise<string> {
+    const identifiers = await createIdentifierFactory(
+      decodeBase64UrlSecret(this.env.SNAPSHOT_ID_SECRET),
+    );
+    return identifiers.for('guild', guildId);
+  }
   private failPendingCommands(): void {
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timeout);
-      pending.resolve({ kind: 'unavailable' });
+      pending.resolve(null);
     }
     this.pending.clear();
+    for (const pending of this.livePending.values()) {
+      clearTimeout(pending.timeout);
+      pending.resolve(unavailable(pending.command, pending.sent));
+    }
+    this.livePending.clear();
   }
 }

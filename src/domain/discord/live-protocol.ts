@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  gatewayBridgeMessageSchema,
+  gatewayCommandSchema,
+  type GatewayBridgeMessage,
+} from '../voice/protocol';
 
 import {
   channelErrorCodeSchema,
@@ -162,6 +167,54 @@ export const liveFrameSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('world-member'), ...frameBase, member: memberRecordSchema }),
   z.strictObject({ type: z.literal('world-health'), ...frameBase, ready: z.boolean() }),
 ]);
+
+export const LIVE_FRAME_MAX_BYTES = 768 * 1_024;
+export const LIVE_COMMAND_MAX_BYTES = 8 * 1_024;
+export const LIVE_MUTATION_MAX_BYTES = 4 * 1_024;
+export const liveHelloSchema = z.strictObject({
+  type: z.literal('hello'),
+  protocolVersion: z.literal(2),
+  serviceSessionId: sessionIdSchema,
+  guildKeys: z
+    .array(guildKeySchema)
+    .max(500)
+    .refine((keys) => new Set(keys).size === keys.length),
+  capabilities: z.tuple([z.literal('live-world-v1')]),
+});
+export const liveHeartbeatSchema = z.strictObject({
+  type: z.literal('live-heartbeat'),
+  serviceSessionId: sessionIdSchema,
+});
+// Correlation metadata stays private, including for outcomes without a read.
+export const liveResponseSchema = z.strictObject({
+  type: z.literal('live-command-result'),
+  commandType: z.enum(['world-read', 'world-release', 'channel-mutate']),
+  guildId: snowflakeSchema,
+  userId: snowflakeSchema,
+  result: liveCommandResultSchema,
+});
+export const serverBridgeMessageSchema = z.union([
+  gatewayBridgeMessageSchema,
+  liveHelloSchema,
+  liveHeartbeatSchema,
+  liveFrameSchema,
+  liveResponseSchema,
+]);
+export const serverBridgeCommandSchema = z.union([gatewayCommandSchema, liveCommandSchema]);
+export type LiveHello = z.infer<typeof liveHelloSchema>;
+export type LiveHeartbeat = z.infer<typeof liveHeartbeatSchema>;
+export type ServerBridgeMessage =
+  | GatewayBridgeMessage
+  | LiveHello
+  | LiveHeartbeat
+  | LiveFrame
+  | {
+      type: 'live-command-result';
+      commandType: LiveCommand['type'];
+      guildId: string;
+      userId: string;
+      result: LiveCommandResult;
+    };
 
 export type MemberAccess = {
   userId: string;

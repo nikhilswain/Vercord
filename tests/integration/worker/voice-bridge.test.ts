@@ -69,6 +69,84 @@ describe('Discord Gateway bridge boundary', () => {
       ok: true,
       state: null,
     });
+    const live = await env.DISCORD_GATEWAY_BRIDGE.getByName('singleton').fetch(
+      'https://discord-gateway.dmap/live-command',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: 'world-read',
+          requestId: crypto.randomUUID(),
+          guildId: '100000000000000001',
+          userId: '100000000000000002',
+          expiresAt: Date.now() + 6_000,
+          subscriptionId: crypto.randomUUID(),
+          watch: 'lease',
+        }),
+      },
+    );
+    expect(live.status).toBe(503);
+    await expect(live.json()).resolves.toEqual({ error: { code: 'GATEWAY_UPDATE_REQUIRED' } });
     socket.close(1000, 'Test complete');
+  });
+
+  it('invalidates an old socket when v2 replaces it with the same service session', async () => {
+    const connect = async (): Promise<WebSocket> => {
+      const response = await SELF.fetch('https://dmap.test/api/internal/discord-gateway', {
+        headers: { Upgrade: 'websocket', Authorization: `Bearer ${GATEWAY_SECRET}` },
+      });
+      const socket = response.webSocket!;
+      socket.accept();
+      socket.send(
+        JSON.stringify({
+          type: 'hello',
+          protocolVersion: 2,
+          serviceSessionId: '916bd62d-9144-4fa2-8f18-4616e2746598',
+          guildKeys: [],
+          capabilities: ['live-world-v1'],
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return socket;
+    };
+    const first = await connect();
+    const received = nextMessage(first);
+    const pending = env.DISCORD_GATEWAY_BRIDGE.getByName('singleton').fetch(
+      'https://discord-gateway.dmap/command',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: 'disconnect',
+          requestId: crypto.randomUUID(),
+          guildId: '100000000000000001',
+          userId: '100000000000000002',
+        }),
+      },
+    );
+    await received;
+    const second = await connect();
+    const response = await pending;
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ errorCode: 'GATEWAY_UNAVAILABLE' });
+    const commandMessage = nextMessage(second);
+    const requestId = crypto.randomUUID();
+    const current = env.DISCORD_GATEWAY_BRIDGE.getByName('singleton').fetch(
+      'https://discord-gateway.dmap/command',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: 'disconnect',
+          requestId,
+          guildId: '100000000000000001',
+          userId: '100000000000000002',
+        }),
+      },
+    );
+    await commandMessage;
+    second.send(JSON.stringify({ type: 'command-result', requestId, ok: true, state: null }));
+    expect((await current).status).toBe(200);
+    second.close(1000, 'Test complete');
   });
 });

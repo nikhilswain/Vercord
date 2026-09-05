@@ -1,19 +1,26 @@
 import WebSocket, { type RawData } from 'ws';
 
+import { type GatewayCommand, type GatewayCommandResult } from '../../../src/domain/voice/protocol';
 import {
-  gatewayCommandSchema,
-  type GatewayBridgeMessage,
-  type GatewayCommand,
-  type GatewayCommandResult,
-} from '../../../src/domain/voice/protocol';
+  LIVE_COMMAND_MAX_BYTES,
+  LIVE_FRAME_MAX_BYTES,
+  LIVE_MUTATION_MAX_BYTES,
+  serverBridgeCommandSchema,
+  serverBridgeMessageSchema,
+  type LiveCommand,
+  type LiveCommandResult,
+  type ServerBridgeMessage,
+} from '../../../src/domain/discord/live-protocol';
 import type { GatewayConfig } from './config';
 
 const HEARTBEAT_INTERVAL_MS = 25_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
 interface WorkerBridgeHandlers {
-  onConnected(send: (message: GatewayBridgeMessage) => boolean): Promise<void>;
+  onConnected(send: (message: ServerBridgeMessage) => boolean): Promise<void>;
   onCommand(command: GatewayCommand): Promise<GatewayCommandResult>;
+  onLiveCommand(command: LiveCommand): Promise<LiveCommandResult>;
+  onDisconnected(): void;
 }
 
 export class WorkerBridge {
@@ -23,6 +30,7 @@ export class WorkerBridge {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private stopping = false;
   private awaitingPong = false;
+  private serviceSessionId: string | null = null;
 
   public constructor(
     private readonly config: GatewayConfig,
@@ -40,27 +48,59 @@ export class WorkerBridge {
     if (this.heartbeatTimer !== null) clearInterval(this.heartbeatTimer);
     this.reconnectTimer = null;
     this.heartbeatTimer = null;
-    this.socket?.close(1001, 'Gateway stopping');
-    this.socket = null;
+    if (this.socket !== null) {
+      const socket = this.socket;
+      this.disconnected(socket);
+      socket.close(1001, 'Gateway stopping');
+    }
   }
 
-  private send(message: GatewayBridgeMessage): boolean {
-    const socket = this.socket;
-    return socket === null ? false : this.sendOn(socket, message);
-  }
-
-  private sendOn(socket: WebSocket, message: GatewayBridgeMessage): boolean {
+  private sendOn(socket: WebSocket, message: ServerBridgeMessage): boolean {
     if (socket !== this.socket || socket.readyState !== WebSocket.OPEN) return false;
     try {
-      socket.send(JSON.stringify(message));
+      let body = JSON.stringify(message);
+      const overflow =
+        new TextEncoder().encode(body).byteLength > LIVE_FRAME_MAX_BYTES ||
+        !serverBridgeMessageSchema.safeParse(message).success;
+      if (
+        overflow &&
+        message.type === 'live-command-result' &&
+        message.result.type === 'channel-result' &&
+        message.result.result.status === 'applied'
+      ) {
+        message = { ...message, result: { ...message.result, read: null } };
+        body = JSON.stringify(message);
+      }
+      if (
+        new TextEncoder().encode(body).byteLength > LIVE_FRAME_MAX_BYTES ||
+        !serverBridgeMessageSchema.safeParse(message).success
+      ) {
+        this.disconnected(socket);
+        socket.close(1009, 'Invalid bridge payload');
+        return false;
+      }
+      socket.send(body);
+      if (overflow) {
+        // Preserve the confirmed outcome, then revoke the oversized source stream.
+        this.disconnected(socket);
+        socket.close(1009, 'Live source exceeds bridge limit');
+      }
+      if (message.type === 'hello') this.serviceSessionId = message.serviceSessionId;
       return true;
     } catch {
+      this.disconnected(socket);
+      socket.terminate();
       return false;
     }
   }
 
   private open(): void {
     if (this.stopping) return;
+    if (this.socket !== null) {
+      const previous = this.socket;
+      this.disconnected(previous);
+      previous.close(1012, 'Gateway replaced');
+    }
     const socket = new WebSocket(this.config.bridgeUrl, {
       headers: { Authorization: `Bearer ${this.config.bridgeSecret}` },
       handshakeTimeout: 10_000,
@@ -68,6 +108,7 @@ export class WorkerBridge {
     });
     this.socket = socket;
     socket.on('open', () => {
+      if (socket !== this.socket) return;
       this.awaitingPong = false;
       this.startHeartbeat(socket);
       void this.handlers
@@ -75,33 +116,97 @@ export class WorkerBridge {
         .then(() => {
           if (socket === this.socket) this.reconnectAttempt = 0;
         })
-        .catch(() => socket.close(1011, 'Initialization failed'));
+        .catch(() => {
+          this.disconnected(socket);
+          socket.close(1011, 'Initialization failed');
+        });
     });
     socket.on('message', (raw) => void this.receive(socket, raw));
     socket.on('pong', () => {
-      this.awaitingPong = false;
+      if (socket === this.socket) this.awaitingPong = false;
     });
-    socket.on('error', () => undefined);
-    socket.on('close', () => {
-      if (this.socket === socket) this.socket = null;
-      if (this.heartbeatTimer !== null) clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-      this.scheduleReconnect();
+    socket.on('error', () => {
+      this.disconnected(socket);
+      socket.terminate();
     });
+    socket.on('close', () => this.disconnected(socket));
+  }
+
+  private disconnected(socket: WebSocket): void {
+    if (socket !== this.socket) return;
+    this.socket = null;
+    this.serviceSessionId = null;
+    this.awaitingPong = false;
+    if (this.heartbeatTimer !== null) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+    this.handlers.onDisconnected();
+    this.scheduleReconnect();
   }
 
   private async receive(socket: WebSocket, raw: RawData): Promise<void> {
     if (socket !== this.socket) return;
+    if (new TextEncoder().encode(raw.toString()).byteLength > LIVE_COMMAND_MAX_BYTES) {
+      this.disconnected(socket);
+      socket.close(1009, 'Command too large');
+      return;
+    }
     let value: unknown;
     try {
       value = JSON.parse(raw.toString()) as unknown;
     } catch {
+      this.disconnected(socket);
       socket.close(1007, 'Invalid command');
       return;
     }
-    const parsed = gatewayCommandSchema.safeParse(value);
+    const parsed = serverBridgeCommandSchema.safeParse(value);
     if (!parsed.success) {
+      this.disconnected(socket);
       socket.close(1007, 'Invalid command');
+      return;
+    }
+    if (
+      parsed.data.type === 'world-read' ||
+      parsed.data.type === 'world-release' ||
+      parsed.data.type === 'channel-mutate'
+    ) {
+      const command = parsed.data;
+      if (
+        command.type === 'channel-mutate' &&
+        new TextEncoder().encode(JSON.stringify(command.input)).byteLength > LIVE_MUTATION_MAX_BYTES
+      ) {
+        this.disconnected(socket);
+        socket.close(1009, 'Mutation too large');
+        return;
+      }
+      let result: LiveCommandResult;
+      try {
+        result = await this.handlers.onLiveCommand(command);
+      } catch {
+        result =
+          command.type === 'channel-mutate'
+            ? {
+                type: 'channel-result',
+                requestId: command.requestId,
+                read: null,
+                result: {
+                  status: 'uncertain',
+                  requestId: command.requestId,
+                  code: 'CHANNEL_ACTION_UNCERTAIN',
+                },
+              }
+            : {
+                type: 'live-error',
+                requestId: command.requestId,
+                error: { code: 'WORLD_SOURCE_UNAVAILABLE', status: 503 },
+              };
+      }
+      this.sendOn(socket, {
+        type: 'live-command-result',
+        commandType: command.type,
+        guildId: command.guildId,
+        userId: command.userId,
+        result,
+      });
       return;
     }
     let result: GatewayCommandResult;
@@ -116,18 +221,22 @@ export class WorkerBridge {
         errorCode: 'DISCORD_ERROR',
       };
     }
-    if (socket === this.socket) this.send(result);
+    this.sendOn(socket, result);
   }
 
   private startHeartbeat(socket: WebSocket): void {
     if (this.heartbeatTimer !== null) clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = setInterval(() => {
+      if (socket !== this.socket) return;
       if (this.awaitingPong) {
+        this.disconnected(socket);
         socket.terminate();
         return;
       }
       this.awaitingPong = true;
       socket.ping();
+      if (this.serviceSessionId !== null)
+        this.sendOn(socket, { type: 'live-heartbeat', serviceSessionId: this.serviceSessionId });
     }, HEARTBEAT_INTERVAL_MS);
     this.heartbeatTimer.unref();
   }

@@ -17,6 +17,8 @@ async function main(): Promise<void> {
   const bridge = new WorkerBridge(config, {
     onConnected: (send) => discord.attachBridge(send),
     onCommand: (command) => discord.handleCommand(command),
+    onLiveCommand: (command) => discord.handleLiveCommand(command),
+    onDisconnected: () => discord.detachBridge(),
   });
   bridge.start();
 

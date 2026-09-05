@@ -29,7 +29,10 @@ export class ChannelCommands {
     private readonly identifiers: IdentifierFactory,
   ) {}
 
-  public execute(command: Command): Promise<LiveCommandResult> {
+  public execute(
+    command: Command,
+    isCurrent: () => boolean = () => true,
+  ): Promise<LiveCommandResult> {
     const now = Date.now();
     for (const [id, entry] of this.outcomes) if (entry.expiresAt <= now) this.outcomes.delete(id);
     const fingerprint = createHash('sha256')
@@ -77,7 +80,7 @@ export class ChannelCommands {
     this.pending += 1;
     this.lanes.set(command.guildId, lane);
     const execution = lane.tail
-      .then(() => this.run(command, controller.signal, deadline, context))
+      .then(() => this.run(command, controller.signal, deadline, context, isCurrent))
       .finally(() => {
         lane.count -= 1;
         this.pending -= 1;
@@ -98,11 +101,12 @@ export class ChannelCommands {
     signal: AbortSignal,
     deadline: number,
     context: DispatchContext,
+    isCurrent: () => boolean,
   ): Promise<LiveCommandResult> {
     let fence: MutationFence | undefined;
     try {
       signal.throwIfAborted();
-      if (Date.now() >= deadline) throw new LiveStateError();
+      if (Date.now() >= deadline || !isCurrent()) throw new LiveStateError();
       const continuity = this.state.current(command.guildId, command.userId).cursor.streamId;
       context.invalidateSource = () => this.state.invalidateMutation(command.guildId, continuity);
       await this.state.freshMember(command.guildId, command.userId, signal);
@@ -120,7 +124,7 @@ export class ChannelCommands {
       );
       const prepare = (read: LiveRead) => {
         signal.throwIfAborted();
-        if (Date.now() >= deadline || read.cursor.streamId !== continuity)
+        if (Date.now() >= deadline || !isCurrent() || read.cursor.streamId !== continuity)
           throw new LiveStateError();
         if (read.member.kind === 'absent')
           throw new ChannelPolicyError('GUILD_MEMBERSHIP_REQUIRED', 403);

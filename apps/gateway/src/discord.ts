@@ -18,7 +18,6 @@ import {
   type IdentifierFactory,
 } from '../../../src/domain/discord/identifiers';
 import {
-  type GatewayBridgeMessage,
   type GatewayCommand,
   type GatewayCommandErrorCode,
   type GatewayCommandResult,
@@ -29,13 +28,16 @@ import type {
   LiveCommand,
   LiveCommandResult,
   LiveFrame,
+  ServerBridgeMessage,
 } from '../../../src/domain/discord/live-protocol';
 import { ChannelCommands } from './channel-commands';
-import { InteractiveRest, interactiveRestOptions } from './interactive-rest';
+import { InteractiveRateLimit, InteractiveRest, interactiveRestOptions } from './interactive-rest';
+import { LiveStateError } from './member-state';
+import { liveFailureSchema } from '../../../src/domain/discord/live-protocol';
 import { DiscordLiveState } from './live-state';
 import { KeyedSerialQueue } from './serial-queue';
 
-type BridgeSender = (message: GatewayBridgeMessage) => boolean;
+type BridgeSender = (message: ServerBridgeMessage) => boolean;
 
 export class DiscordVoiceService {
   private readonly client = new Client({
@@ -59,11 +61,12 @@ export class DiscordVoiceService {
   private readonly channelCommands: Promise<ChannelCommands>;
   private readonly identifiersPromise: Promise<IdentifierFactory>;
   private readonly queue = new KeyedSerialQueue();
-  private readonly serviceSessionId = crypto.randomUUID();
+  public readonly serviceSessionId = crypto.randomUUID();
   private revision = 0;
   private sendToBridge: BridgeSender = () => false;
   private sendLiveToBridge: (frame: LiveFrame) => boolean = () => false;
   private bridgeAttached = false;
+  private bridgeGeneration = 0;
   private registrationTimer: NodeJS.Timeout | null = null;
   private readonly structureTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -128,24 +131,33 @@ export class DiscordVoiceService {
   }
 
   public detachBridge(): void {
+    this.bridgeGeneration += 1;
     this.bridgeAttached = false;
     this.sendToBridge = () => false;
     this.sendLiveToBridge = () => false;
+    if (this.registrationTimer !== null) clearTimeout(this.registrationTimer);
+    this.registrationTimer = null;
     void this.liveState.then((live) => live.detachBridge());
   }
 
   public async attachBridge(send: BridgeSender): Promise<void> {
+    const generation = ++this.bridgeGeneration;
     const identifiers = await this.identifiersPromise;
+    const live = await this.liveState;
     const guilds = [...this.client.guilds.cache.values()];
     const guildKeys = await Promise.all(guilds.map(({ id }) => identifiers.for('guild', id)));
+    if (generation !== this.bridgeGeneration) return;
+    live.detachBridge();
     const helloSent = send({
       type: 'hello',
-      protocolVersion: 1,
+      protocolVersion: 2,
       serviceSessionId: this.serviceSessionId,
       guildKeys,
+      capabilities: ['live-world-v1'],
     });
     if (!helloSent) throw new Error('Worker bridge closed before initialization.');
     this.sendToBridge = send;
+    this.attachLiveBridge(send);
     this.bridgeAttached = true;
     await Promise.all(guilds.map((guild) => this.publishSnapshot(guild, send)));
   }
@@ -159,7 +171,46 @@ export class DiscordVoiceService {
   public async handleChannelCommand(
     command: Extract<LiveCommand, { type: 'channel-mutate' }>,
   ): Promise<LiveCommandResult> {
-    return (await this.channelCommands).execute(command);
+    const generation = this.bridgeGeneration;
+    return (await this.channelCommands).execute(
+      command,
+      () => this.bridgeAttached && generation === this.bridgeGeneration,
+    );
+  }
+
+  public async handleLiveCommand(command: LiveCommand): Promise<LiveCommandResult> {
+    if (command.type === 'channel-mutate') return this.handleChannelCommand(command);
+    try {
+      const generation = this.bridgeGeneration;
+      const live = await this.liveState;
+      if (!this.bridgeAttached || generation !== this.bridgeGeneration) throw new LiveStateError();
+      if (command.type === 'world-release') {
+        live.release(command);
+        return { type: 'release-result', requestId: command.requestId };
+      }
+      return {
+        type: 'world-result',
+        requestId: command.requestId,
+        result: await live.read(command),
+      };
+    } catch (error) {
+      const failure = liveFailureSchema.safeParse(
+        error instanceof LiveStateError
+          ? {
+              code: error.code,
+              status: error.status,
+              ...(error instanceof InteractiveRateLimit
+                ? { retryAt: error.retryAt, scope: 'admission' }
+                : {}),
+            }
+          : null,
+      );
+      return {
+        type: 'live-error',
+        requestId: command.requestId,
+        error: failure.success ? failure.data : { code: 'WORLD_SOURCE_UNAVAILABLE', status: 503 },
+      };
+    }
   }
 
   private queueStructureChange(guildId: string): void {
