@@ -12,7 +12,7 @@ import type {
   LiveRead,
 } from '../../../src/domain/discord/live-protocol';
 import { InteractiveRateLimit, InteractiveRest, type DispatchContext } from './interactive-rest';
-import { DiscordLiveState, type MutationFence } from './live-state';
+import { DiscordLiveState, recordGatewayOperation, type MutationFence } from './live-state';
 import { LiveStateError } from './member-state';
 
 type Command = Extract<LiveCommand, { type: 'channel-mutate' }>;
@@ -90,7 +90,15 @@ export class ChannelCommands {
     lane.tail = execution.then(() => undefined);
     const correlation = { fingerprint, expiresAt: Number.POSITIVE_INFINITY, result };
     this.outcomes.set(command.requestId, correlation);
-    void result.then(() => {
+    void result.then((outcome) => {
+      if (context.dispatched) {
+        recordGatewayOperation({
+          operation: 'command_dispatch',
+          outcome: outcome.result.status,
+          reason: command.input.kind,
+          durationMs: Date.now() - now,
+        });
+      }
       correlation.expiresAt = Date.now() + 60_000;
     });
     return result;
@@ -109,7 +117,24 @@ export class ChannelCommands {
       if (Date.now() >= deadline || !isCurrent()) throw new LiveStateError();
       const continuity = this.state.current(command.guildId, command.userId).cursor.streamId;
       context.invalidateSource = () => this.state.invalidateMutation(command.guildId, continuity);
-      await this.state.freshMember(command.guildId, command.userId, signal);
+      const authorizationStartedAt = Date.now();
+      try {
+        await this.state.freshMember(command.guildId, command.userId, signal);
+        recordGatewayOperation({
+          operation: 'fresh_mutation_authorization',
+          outcome: 'completed',
+          reason: 'member_refreshed',
+          durationMs: Date.now() - authorizationStartedAt,
+        });
+      } catch (error) {
+        recordGatewayOperation({
+          operation: 'fresh_mutation_authorization',
+          outcome: 'failed',
+          reason: 'member_refresh_failed',
+          durationMs: Date.now() - authorizationStartedAt,
+        });
+        throw error;
+      }
       const initial = this.state.current(command.guildId, command.userId);
       const keys = new Map(
         await Promise.all(

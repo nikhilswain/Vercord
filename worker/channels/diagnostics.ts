@@ -1,6 +1,9 @@
 import { DiscordDomainError } from '../../src/domain/discord/errors';
 import { WorkerError } from '../errors';
 
+const channelFailureCounts = new Map<string, number>();
+const SAFE_OPERATIONS = new Set(['session', 'world', 'channel-state', 'session-touch', 'mutation']);
+
 /** Only stable codes, never exception text, provider bodies, credentials, or guild data. */
 export function channelFailureReason(error: unknown): string {
   if (error instanceof WorkerError || error instanceof DiscordDomainError) return error.code;
@@ -15,13 +18,25 @@ export function channelFailureReason(error: unknown): string {
   return 'UNEXPECTED_ERROR';
 }
 
-export function logChannelFailure(stage: string, error: unknown): void {
-  console.warn(
-    JSON.stringify({
-      service: 'dmap-worker',
-      event: 'channel_read_failed',
-      stage,
-      reason: channelFailureReason(error),
-    }),
-  );
+export function logChannelFailure(stage: string, error: unknown, durationMs = 0): void {
+  try {
+    const operation = SAFE_OPERATIONS.has(stage) ? stage : 'unknown';
+    const reason = channelFailureReason(error);
+    const key = `${operation}:${reason}`;
+    const count = (channelFailureCounts.get(key) ?? 0) + 1;
+    channelFailureCounts.set(key, count);
+    console.warn(
+      JSON.stringify({
+        service: 'dmap-worker',
+        event: 'channel_operation',
+        operation,
+        outcome: 'failed',
+        reason,
+        count,
+        durationMs: Math.max(0, Math.round(durationMs)),
+      }),
+    );
+  } catch {
+    // Diagnostics must never replace the public error response.
+  }
 }

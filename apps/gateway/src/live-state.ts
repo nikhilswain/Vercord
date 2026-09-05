@@ -26,6 +26,55 @@ import { sourceFromGuild } from './source-adapter';
 const MAX_GUILD_MEMBERS = 200;
 const MAX_MEMBERS = 5_000;
 const LEASE_MS = 60_000;
+type GatewayOperation =
+  | 'member_cache_miss'
+  | 'fresh_mutation_authorization'
+  | 'source_recovery'
+  | 'command_dispatch'
+  | 'duplicate_content_suppression';
+type GatewayOutcome = 'completed' | 'failed' | 'applied' | 'rejected' | 'uncertain' | 'suppressed';
+type GatewayReason =
+  | 'admission'
+  | 'source_recovery'
+  | 'cold_source'
+  | 'mutation_uncertainty'
+  | 'source_uncertainty'
+  | 'member_refreshed'
+  | 'member_refresh_failed'
+  | 'create'
+  | 'rename'
+  | 'delete'
+  | 'member_unchanged'
+  | 'source_unchanged'
+  | 'mutation_echo';
+const operationCounts = new Map<string, number>();
+
+/** Aggregate operational evidence only; all accepted values are closed, identifier-free enums. */
+export function recordGatewayOperation(input: {
+  operation: GatewayOperation;
+  outcome: GatewayOutcome;
+  reason: GatewayReason;
+  durationMs: number;
+}): void {
+  try {
+    const key = `${input.operation}:${input.outcome}:${input.reason}`;
+    const count = (operationCounts.get(key) ?? 0) + 1;
+    operationCounts.set(key, count);
+    console.info(
+      JSON.stringify({
+        service: 'dmap-gateway',
+        event: 'live_operation',
+        operation: input.operation,
+        outcome: input.outcome,
+        reason: input.reason,
+        count,
+        durationMs: Math.max(0, Math.round(input.durationMs)),
+      }),
+    );
+  } catch {
+    // Diagnostics must never affect authorization, delivery, or command results.
+  }
+}
 const memberPayloadSchema = z.object({
   guild_id: snowflakeSchema,
   user: z.object({ id: snowflakeSchema }),
@@ -135,7 +184,7 @@ export class DiscordLiveState {
     }
     await this.recover(command.guildId);
     this.assertOwned(state, command.userId, command.subscriptionId);
-    await this.members.get(command.guildId, command.userId);
+    await this.cachedMember(command.guildId, command.userId, 'admission');
     this.assertOwned(state, command.userId, command.subscriptionId);
     if (command.expiresAt <= Date.now()) throw new LiveStateError();
     return this.current(command.guildId, command.userId);
@@ -182,6 +231,13 @@ export class DiscordLiveState {
       throw new LiveStateError();
     if (state.recovery !== undefined) return state.recovery;
     if (state.ready) return;
+    const startedAt = Date.now();
+    const recoveryReason: GatewayReason =
+      state.source === undefined
+        ? 'cold_source'
+        : state.refreshChannels
+          ? 'mutation_uncertainty'
+          : 'source_uncertainty';
     const generation = state.generation;
     const recovery = (async () => {
       await state.keyPromise;
@@ -286,7 +342,7 @@ export class DiscordLiveState {
             const before = this.members.peek(guildId, userId);
             let record: MemberRecord;
             try {
-              record = await this.members.get(guildId, userId);
+              record = await this.cachedMember(guildId, userId, 'source_recovery');
             } catch (error) {
               this.assertRecovery(state, generation);
               if (state.watches.get(userId) !== watches) return;
@@ -305,9 +361,27 @@ export class DiscordLiveState {
       this.assertRecovery(state, generation);
       state.ready = true;
       this.emit(state, { type: 'world-health', ready: true });
-    })().finally(() => {
-      if (state.recovery === recovery) state.recovery = undefined;
-    });
+    })()
+      .then(() => {
+        recordGatewayOperation({
+          operation: 'source_recovery',
+          outcome: 'completed',
+          reason: recoveryReason,
+          durationMs: Date.now() - startedAt,
+        });
+      })
+      .catch((error: unknown) => {
+        recordGatewayOperation({
+          operation: 'source_recovery',
+          outcome: 'failed',
+          reason: recoveryReason,
+          durationMs: Date.now() - startedAt,
+        });
+        throw error;
+      })
+      .finally(() => {
+        if (state.recovery === recovery) state.recovery = undefined;
+      });
     state.recovery = recovery;
     return recovery;
   }
@@ -368,7 +442,15 @@ export class DiscordLiveState {
           throw new LiveStateError();
       }
       const current = source.channels.find((entry) => entry.id === channelId) ?? null;
-      if (JSON.stringify(current) === JSON.stringify(channel)) return;
+      if (JSON.stringify(current) === JSON.stringify(channel)) {
+        recordGatewayOperation({
+          operation: 'duplicate_content_suppression',
+          outcome: 'suppressed',
+          reason: 'mutation_echo',
+          durationMs: 0,
+        });
+        return;
+      }
       const conflict =
         fence === undefined
           ? state.cursor.sequence !== before.sequence
@@ -600,8 +682,15 @@ export class DiscordLiveState {
     if (
       content.type === 'world-member' &&
       JSON.stringify(state.publishedMembers.get(memberId!)) === JSON.stringify(content.member)
-    )
+    ) {
+      recordGatewayOperation({
+        operation: 'duplicate_content_suppression',
+        outcome: 'suppressed',
+        reason: 'member_unchanged',
+        durationMs: 0,
+      });
       return;
+    }
     const cursor = { streamId: state.cursor.streamId, sequence: state.cursor.sequence + 1 };
     let sent = false;
     try {
@@ -621,9 +710,46 @@ export class DiscordLiveState {
   }
 
   private replaceSource(state: GuildState, source: DiscordSourceBundle): void {
-    if (JSON.stringify(state.source) === JSON.stringify(source)) return;
+    if (JSON.stringify(state.source) === JSON.stringify(source)) {
+      recordGatewayOperation({
+        operation: 'duplicate_content_suppression',
+        outcome: 'suppressed',
+        reason: 'source_unchanged',
+        durationMs: 0,
+      });
+      return;
+    }
     state.source = source;
     this.emit(state, { type: 'world-source', source });
+  }
+
+  private async cachedMember(
+    guildId: string,
+    userId: string,
+    reason: 'admission' | 'source_recovery',
+  ): Promise<MemberRecord> {
+    if (this.members.peek(guildId, userId) !== undefined) {
+      return this.members.get(guildId, userId);
+    }
+    const startedAt = Date.now();
+    try {
+      const record = await this.members.get(guildId, userId);
+      recordGatewayOperation({
+        operation: 'member_cache_miss',
+        outcome: 'completed',
+        reason,
+        durationMs: Date.now() - startedAt,
+      });
+      return record;
+    } catch (error) {
+      recordGatewayOperation({
+        operation: 'member_cache_miss',
+        outcome: 'failed',
+        reason,
+        durationMs: Date.now() - startedAt,
+      });
+      throw error;
+    }
   }
 
   private withOverlays(
