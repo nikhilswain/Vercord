@@ -200,67 +200,68 @@ export class GuildPresence extends DurableObject<Env> {
     if (pathname === '/internal/voice-service') return this.receiveVoiceService(request);
     if (pathname !== '/connect') return new Response(null, { status: 404 });
     if (request.method !== 'GET') return new Response(null, { status: 405 });
+    const websocketUpgrade = request.headers.get('upgrade')?.toLowerCase() === 'websocket';
     if (this.state.getWebSockets().length >= MAX_CONNECTIONS) {
       return this.worldError(new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503));
     }
 
-    const admission = this.readAdmission(request);
+    const admission = this.readAdmission(request, websocketUpgrade);
     if (admission === null) return this.worldError(new WorldAccessError('UNAUTHENTICATED', 401));
     this.startRestoration();
 
     let view: WorldView;
     try {
-      view = await this.coordinator.read(
-        admission.actor,
-        admission.subscriptionId,
-        request.headers.get('upgrade')?.toLowerCase() === 'websocket' ? 'connected' : 'lease',
-      );
+      // A socket starts as an expiring lease. It is promoted only after the
+      // Durable Object has accepted, attached, and welcomed the WebSocket.
+      view = await this.coordinator.read(admission.actor, admission.subscriptionId, 'lease');
     } catch (error) {
+      if (websocketUpgrade) await this.releaseFailedAdmission(admission);
       return this.worldError(error);
     }
-    if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
+    if (!websocketUpgrade) {
       return Response.json({ view }, { headers: { 'cache-control': 'no-store' } });
     }
-    let voiceState = this.latestVoiceState(admission.presenceId, view);
-    if (voiceState === null) {
-      voiceState = await this.initialVoiceState(admission.actor, view);
-      if (
-        admission.sessionExpiresAt <= Math.floor(Date.now() / 1_000) ||
-        !(await sessionIsCurrent(this.env, admission.actor, Date.now())) ||
-        this.coordinator.currentView(admission.actor) !== view
-      ) {
-        await this.demoteFailedAdmission(admission);
-        return this.worldError(new WorldAccessError('UNAUTHENTICATED', 401));
-      }
-    }
-    if (this.state.getWebSockets().length >= MAX_CONNECTIONS) {
-      await this.demoteFailedAdmission(admission);
-      return this.worldError(new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503));
-    }
 
-    const pair = new WebSocketPair();
-    const client = pair[0];
-    const server = pair[1];
-    const attachment: SocketAttachment = {
-      id: admission.presenceId,
-      displayName: admission.displayName,
-      avatarId: admission.avatarId,
-      x: 0,
-      y: 0,
-      direction: 'down',
-      moving: false,
-      scene: 'exterior',
-      active: false,
-      lastMessageAt: 0,
-      seq: -1,
-      voiceState,
-      ...admission.actor,
-      sessionExpiresAt: admission.sessionExpiresAt,
-      subscriptionId: admission.subscriptionId,
-      viewVersion: view.version,
-    };
-
+    let admittedServer: WebSocket | null = null;
     try {
+      let voiceState = this.latestVoiceState(admission.presenceId, view);
+      if (voiceState === null) {
+        voiceState = await this.initialVoiceState(admission.actor, view);
+        if (
+          admission.sessionExpiresAt <= Math.floor(Date.now() / 1_000) ||
+          !(await sessionIsCurrent(this.env, admission.actor, Date.now())) ||
+          this.coordinator.currentView(admission.actor) !== view
+        ) {
+          throw new WorldAccessError('UNAUTHENTICATED', 401);
+        }
+      }
+      if (this.state.getWebSockets().length >= MAX_CONNECTIONS) {
+        throw new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503);
+      }
+
+      const pair = new WebSocketPair();
+      const client = pair[0];
+      const server = pair[1];
+      admittedServer = server;
+      const attachment: SocketAttachment = {
+        id: admission.presenceId,
+        displayName: admission.displayName,
+        avatarId: admission.avatarId,
+        x: 0,
+        y: 0,
+        direction: 'down',
+        moving: false,
+        scene: 'exterior',
+        active: false,
+        lastMessageAt: 0,
+        seq: -1,
+        voiceState,
+        ...admission.actor,
+        sessionExpiresAt: admission.sessionExpiresAt,
+        subscriptionId: admission.subscriptionId,
+        viewVersion: view.version,
+      };
+
       this.state.acceptWebSocket(server);
       server.serializeAttachment(attachment);
       this.send(server, {
@@ -272,11 +273,31 @@ export class GuildPresence extends DurableObject<Env> {
         voiceState: attachment.voiceState,
         worldView: view,
       });
-    } catch {
-      await this.demoteFailedAdmission(admission);
-      throw new Error('SOCKET_ADMISSION_FAILED');
+
+      const promotedView = await this.coordinator.read(
+        admission.actor,
+        admission.subscriptionId,
+        'connected',
+      );
+      if (
+        promotedView.version.epoch !== view.version.epoch ||
+        promotedView.version.revision !== view.version.revision
+      ) {
+        server.serializeAttachment({ ...attachment, viewVersion: promotedView.version });
+        this.send(server, { type: 'world-view', view: promotedView });
+      }
+      return new Response(null, { status: 101, webSocket: client });
+    } catch (error) {
+      if (admittedServer !== null) {
+        try {
+          admittedServer.close(1011, 'Socket admission failed');
+        } catch {
+          /* The pair may have failed before becoming closable. */
+        }
+      }
+      await this.releaseFailedAdmission(admission, admittedServer);
+      return this.worldError(error);
     }
-    return new Response(null, { status: 101, webSocket: client });
   }
 
   public webSocketMessage(socket: WebSocket, raw: string | ArrayBuffer): void {
@@ -453,7 +474,7 @@ export class GuildPresence extends DurableObject<Env> {
     return { ...state, channelKey: null };
   }
 
-  private readAdmission(request: Request): ConnectionAdmission | null {
+  private readAdmission(request: Request, socketOwner: boolean): ConnectionAdmission | null {
     const displayName = readIdentityHeader(request, 'x-dmap-display-name', 100);
     const avatarId = readIdentityHeader(request, 'x-dmap-avatar-id', 32);
     const presenceId = readIdentityHeader(request, 'x-dmap-presence-id', 64);
@@ -463,14 +484,12 @@ export class GuildPresence extends DurableObject<Env> {
         userId: snowflakeSchema,
         sessionHash: digestSchema,
         sessionExpiresAt: safeIntegerSchema,
-        subscriptionId: subscriptionIdSchema.optional(),
       })
       .safeParse({
         guildId: request.headers.get('x-dmap-guild-id'),
         userId: request.headers.get('x-dmap-user-id'),
         sessionHash: request.headers.get('x-dmap-session-hash'),
         sessionExpiresAt: this.readIntegerHeader(request, 'x-dmap-session-expires-at'),
-        subscriptionId: request.headers.get('x-dmap-subscription-id') ?? undefined,
       });
     if (
       displayName === null ||
@@ -490,8 +509,9 @@ export class GuildPresence extends DurableObject<Env> {
     return {
       actor,
       sessionExpiresAt: parsed.data.sessionExpiresAt,
-      subscriptionId:
-        parsed.data.subscriptionId ?? this.coordinator.subscriptionId(parsed.data.userId),
+      subscriptionId: socketOwner
+        ? crypto.randomUUID()
+        : this.coordinator.subscriptionId(parsed.data.userId),
       presenceId,
       displayName,
       avatarId,
@@ -761,8 +781,12 @@ export class GuildPresence extends DurableObject<Env> {
     );
   }
 
-  private async demoteFailedAdmission(admission: ConnectionAdmission): Promise<void> {
+  private async releaseFailedAdmission(
+    admission: ConnectionAdmission,
+    failedSocket: WebSocket | null = null,
+  ): Promise<void> {
     const retained = this.state.getWebSockets().some((socket) => {
+      if (socket === failedSocket) return false;
       if (socket.readyState !== WebSocket.OPEN) return false;
       const attachment = attachmentOf(socket);
       return (

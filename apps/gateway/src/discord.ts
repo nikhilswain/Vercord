@@ -78,6 +78,7 @@ export class DiscordVoiceService {
           serviceSessionId: this.serviceSessionId,
           readMember: (guildId, userId, signal) =>
             this.interactiveRest.member(guildId, userId, signal),
+          readSource: (path, signal) => this.interactiveRest.read(path, signal),
         }),
     );
     this.channelCommands = Promise.all([this.liveState, this.identifiersPromise]).then(

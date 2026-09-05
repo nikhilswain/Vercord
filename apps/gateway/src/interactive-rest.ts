@@ -61,6 +61,15 @@ export class InteractiveRest {
 
   public constructor(private readonly rest: REST) {}
 
+  public async read(path: `/${string}`, signal?: AbortSignal): Promise<unknown> {
+    this.assertCooldown(path);
+    try {
+      return await this.rest.get(path, { signal });
+    } catch (error) {
+      throw this.captureCooldown(path, error);
+    }
+  }
+
   public async member(
     guildId: string,
     userId: string,

@@ -113,6 +113,7 @@ type FrameContent =
   | { type: 'world-source'; source: DiscordSourceBundle }
   | { type: 'world-member'; member: MemberRecord }
   | { type: 'world-health'; ready: boolean };
+type SourceReader = (path: `/${string}`, signal?: AbortSignal) => Promise<unknown>;
 
 /** Owns authorization records only for bridge-owned watches; the Discord client is shared. */
 export class DiscordLiveState {
@@ -124,15 +125,23 @@ export class DiscordLiveState {
   private memberCount = 0;
   private stopped = false;
   private readonly serviceSessionId: string;
+  private readonly readSource: SourceReader;
 
   public constructor(
     private readonly client: Client,
     private readonly identifiers: IdentifierFactory,
     private readonly publish: (frame: LiveFrame) => boolean,
-    options: { serviceSessionId?: string; readMember?: MemberReader } = {},
+    options: {
+      serviceSessionId?: string;
+      readMember?: MemberReader;
+      readSource?: SourceReader;
+    } = {},
   ) {
     this.serviceSessionId = options.serviceSessionId ?? crypto.randomUUID();
     this.members = new MemberState(options.readMember ?? this.readMember.bind(this));
+    this.readSource =
+      options.readSource ??
+      ((path, signal) => this.client.rest.get(path, signal === undefined ? {} : { signal }));
     // discord.js exposes raw at runtime through its untyped EventEmitter overload.
     const rawListener = (packet: unknown): void => this.rawMember(packet);
     this.client.on(Events.Raw, rawListener);
@@ -246,7 +255,7 @@ export class DiscordLiveState {
         const botId = this.client.user?.id;
         if (botId === undefined) throw new LiveStateError();
         fallbackBotMember = parseDiscordBotMember(
-          await this.client.rest.get(Routes.guildMember(guildId, botId)),
+          await this.readSource(Routes.guildMember(guildId, botId)),
         );
       }
       let source: DiscordSourceBundle;
@@ -256,8 +265,8 @@ export class DiscordLiveState {
       } catch {
         // Do not mutate discord.js caches: a late REST response must not replace replayed events.
         const [rawGuild, rawChannels] = await Promise.all([
-          this.client.rest.get(Routes.guild(guildId)),
-          this.client.rest.get(Routes.guildChannels(guildId)),
+          this.readSource(Routes.guild(guildId)),
+          this.readSource(Routes.guildChannels(guildId)),
         ]);
         if (
           !Array.isArray(rawChannels) ||
@@ -297,9 +306,10 @@ export class DiscordLiveState {
         fetchedChannels = true;
       }
       if (state.refreshChannels && !fetchedChannels) {
-        const rawChannels = await this.client.rest.get(Routes.guildChannels(guildId), {
-          signal: AbortSignal.timeout(5_000),
-        });
+        const rawChannels = await this.readSource(
+          Routes.guildChannels(guildId),
+          AbortSignal.timeout(5_000),
+        );
         if (
           !Array.isArray(rawChannels) ||
           rawChannels.some(
@@ -497,7 +507,7 @@ export class DiscordLiveState {
       const bounded = signal === undefined ? deadline : AbortSignal.any([signal, deadline]);
       let channel: DiscordChannelSource | null;
       try {
-        const raw = await this.client.rest.get(Routes.channel(channelId), { signal: bounded });
+        const raw = await this.readSource(Routes.channel(channelId), bounded);
         if (typeof raw !== 'object' || raw === null || !('permission_overwrites' in raw))
           throw new LiveStateError();
         channel = parseDiscordChannels([raw])[0]!;
