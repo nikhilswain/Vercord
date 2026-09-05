@@ -25,7 +25,13 @@ import {
   type VoiceState,
 } from '../../../src/domain/voice/protocol';
 import type { GatewayConfig } from './config';
-import type { LiveFrame } from '../../../src/domain/discord/live-protocol';
+import type {
+  LiveCommand,
+  LiveCommandResult,
+  LiveFrame,
+} from '../../../src/domain/discord/live-protocol';
+import { ChannelCommands } from './channel-commands';
+import { InteractiveRest, interactiveRestOptions } from './interactive-rest';
 import { DiscordLiveState } from './live-state';
 import { KeyedSerialQueue } from './serial-queue';
 
@@ -33,6 +39,7 @@ type BridgeSender = (message: GatewayBridgeMessage) => boolean;
 
 export class DiscordVoiceService {
   private readonly client = new Client({
+    rest: interactiveRestOptions,
     intents: [
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildVoiceStates,
@@ -48,6 +55,8 @@ export class DiscordVoiceService {
     }),
   });
   public readonly liveState: Promise<DiscordLiveState>;
+  private readonly interactiveRest = new InteractiveRest(this.client.rest);
+  private readonly channelCommands: Promise<ChannelCommands>;
   private readonly identifiersPromise: Promise<IdentifierFactory>;
   private readonly queue = new KeyedSerialQueue();
   private readonly serviceSessionId = crypto.randomUUID();
@@ -64,7 +73,12 @@ export class DiscordVoiceService {
       (identifiers) =>
         new DiscordLiveState(this.client, identifiers, (frame) => this.sendLiveToBridge(frame), {
           serviceSessionId: this.serviceSessionId,
+          readMember: (guildId, userId, signal) =>
+            this.interactiveRest.member(guildId, userId, signal),
         }),
+    );
+    this.channelCommands = Promise.all([this.liveState, this.identifiersPromise]).then(
+      ([state, identifiers]) => new ChannelCommands(state, this.interactiveRest, identifiers),
     );
     this.client.on(Events.VoiceStateUpdate, (_previous, current) => {
       void this.publishVoiceState(current).catch(() => {
@@ -140,6 +154,12 @@ export class DiscordVoiceService {
     return this.queue.run(`${command.guildId}:${command.userId}`, () =>
       this.executeCommand(command),
     );
+  }
+
+  public async handleChannelCommand(
+    command: Extract<LiveCommand, { type: 'channel-mutate' }>,
+  ): Promise<LiveCommandResult> {
+    return (await this.channelCommands).execute(command);
   }
 
   private queueStructureChange(guildId: string): void {

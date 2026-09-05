@@ -36,6 +36,11 @@ const memberPayloadSchema = z.object({
 const memberIdentitySchema = memberPayloadSchema.pick({ guild_id: true, user: true });
 const memberResponseSchema = memberPayloadSchema.omit({ guild_id: true });
 type Watch = { connected: boolean; expiresAt: number };
+export type MutationFence = {
+  cursor: LiveCursor;
+  generation: number;
+  target: DiscordChannelSource | null;
+};
 type GuildState = {
   guildId: string;
   guildKey?: string;
@@ -50,6 +55,10 @@ type GuildState = {
   watches: Map<string, Map<string, Watch>>;
   overlays: Map<string, DiscordChannelSource | null>;
   publishedMembers: Map<string, MemberRecord>;
+  channelEvents: Map<string, number>;
+  channelEventFloor: number;
+  channelReads: Map<string, Promise<void>>;
+  refreshChannels: boolean;
 };
 type FrameContent =
   | { type: 'world-source'; source: DiscordSourceBundle }
@@ -185,6 +194,7 @@ export class DiscordLiveState {
         );
       }
       let source: DiscordSourceBundle;
+      let fetchedChannels = false;
       try {
         source = sourceFromGuild(guild, fallbackBotMember);
       } catch {
@@ -228,8 +238,36 @@ export class DiscordLiveState {
         source.channels.sort((a, b) => a.id.localeCompare(b.id));
         for (const channel of source.channels)
           channel.overwrites.sort((a, b) => a.id.localeCompare(b.id) || a.type - b.type);
+        fetchedChannels = true;
+      }
+      if (state.refreshChannels && !fetchedChannels) {
+        const rawChannels = await this.client.rest.get(Routes.guildChannels(guildId), {
+          signal: AbortSignal.timeout(5_000),
+        });
+        if (
+          !Array.isArray(rawChannels) ||
+          rawChannels.some(
+            (channel: unknown) =>
+              typeof channel !== 'object' ||
+              channel === null ||
+              !('permission_overwrites' in channel),
+          )
+        )
+          throw new LiveStateError();
+        source = validateDiscordSourceBundle(
+          { ...source, channels: parseDiscordChannels(rawChannels) },
+          guildId,
+        );
+        source.channels.sort((a, b) => a.id.localeCompare(b.id));
+        for (const channel of source.channels)
+          channel.overwrites.sort((a, b) => a.id.localeCompare(b.id) || a.type - b.type);
       }
       this.assertRecovery(state, generation);
+      if (state.refreshChannels) {
+        // A provider read supersedes response overlays retained before an unknown write.
+        state.overlays.clear();
+        state.refreshChannels = false;
+      }
       this.replaceSource(state, this.withOverlays(state, source));
       const recovered = new Map<string, Map<string, Watch>>();
       while (true) {
@@ -274,11 +312,33 @@ export class DiscordLiveState {
     return recovery;
   }
 
+  public captureMutation(guildId: string, mutation: PreparedChannelMutation): MutationFence {
+    const state = this.guilds.get(guildId);
+    if (state === undefined) throw new LiveStateError();
+    this.assertReady(state);
+    const id = mutation.method === 'POST' ? undefined : mutation.path.split('/').at(-1);
+    return {
+      cursor: { ...state.cursor },
+      generation: state.generation,
+      target: state.source!.channels.find((channel) => channel.id === id) ?? null,
+    };
+  }
+
+  public invalidateMutation(guildId: string, streamId: string): void {
+    const state = this.guilds.get(guildId);
+    if (state !== undefined && state.cursor.streamId === streamId) {
+      state.refreshChannels = true;
+      this.uncertain(state);
+    }
+  }
+
   public async reconcile(
     guildId: string,
     mutation: PreparedChannelMutation,
     response: unknown,
     before: LiveCursor,
+    fence?: MutationFence,
+    signal?: AbortSignal,
   ): Promise<void> {
     const state = this.guilds.get(guildId);
     if (state === undefined) throw new LiveStateError();
@@ -308,10 +368,19 @@ export class DiscordLiveState {
           throw new LiveStateError();
       }
       const current = source.channels.find((entry) => entry.id === channelId) ?? null;
-      if (state.cursor.sequence !== before.sequence) {
-        // A gateway event already advanced the world. Never install an older response.
-        if (JSON.stringify(current) === JSON.stringify(channel)) return;
-        throw new LiveStateError();
+      if (JSON.stringify(current) === JSON.stringify(channel)) return;
+      const conflict =
+        fence === undefined
+          ? state.cursor.sequence !== before.sequence
+          : state.channelEventFloor > fence.generation ||
+            (state.channelEvents.get(channelId) ?? 0) > fence.generation ||
+            (mutation.method !== 'POST' &&
+              JSON.stringify(current) !== JSON.stringify(fence.target));
+      if (conflict) {
+        // The event wins over this late write response. Read only the affected
+        // channel, with another event fence, to discover its final provider state.
+        await this.recoverChannel(state, channelId, signal);
+        return;
       }
       if (!state.overlays.has(channelId) && state.overlays.size >= 1_000) {
         throw new LiveStateError();
@@ -325,9 +394,59 @@ export class DiscordLiveState {
       this.assertReady(state);
     } catch {
       // The confirmed mutation remains applied; only source authority is unavailable.
+      if (fence !== undefined) state.refreshChannels = true;
       this.uncertain(state);
       throw new LiveStateError();
     }
+  }
+
+  private recoverChannel(
+    state: GuildState,
+    channelId: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const existing = state.channelReads.get(channelId);
+    if (existing !== undefined) return existing;
+    if (state.channelReads.size >= 20) return Promise.reject(new LiveStateError());
+    const generation = state.generation;
+    const streamId = state.cursor.streamId;
+    const recovery = (async () => {
+      const deadline = AbortSignal.timeout(2_000);
+      const bounded = signal === undefined ? deadline : AbortSignal.any([signal, deadline]);
+      let channel: DiscordChannelSource | null;
+      try {
+        const raw = await this.client.rest.get(Routes.channel(channelId), { signal: bounded });
+        if (typeof raw !== 'object' || raw === null || !('permission_overwrites' in raw))
+          throw new LiveStateError();
+        channel = parseDiscordChannels([raw])[0]!;
+        if (channel.id !== channelId) throw new LiveStateError();
+        channel.overwrites.sort((a, b) => a.id.localeCompare(b.id) || a.type - b.type);
+      } catch (error) {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 10003)
+          channel = null;
+        else throw error;
+      }
+      bounded.throwIfAborted();
+      this.assertReady(state);
+      if (state.cursor.streamId !== streamId) throw new LiveStateError();
+      if (
+        state.channelEventFloor > generation ||
+        (state.channelEvents.get(channelId) ?? 0) > generation
+      )
+        return; // A newer event already supplied the authoritative channel.
+      if (!state.overlays.has(channelId) && state.overlays.size >= 1_000)
+        throw new LiveStateError();
+      const overlays = new Map(state.overlays);
+      overlays.set(channelId, channel);
+      const candidate = this.withOverlays(state, state.source!, overlays);
+      state.overlays = overlays;
+      this.replaceSource(state, candidate);
+      this.assertReady(state);
+    })().finally(() => {
+      if (state.channelReads.get(channelId) === recovery) state.channelReads.delete(channelId);
+    });
+    state.channelReads.set(channelId, recovery);
+    return recovery;
   }
 
   /** Called on private bridge loss, before any replacement connection subscribes. */
@@ -371,6 +490,10 @@ export class DiscordLiveState {
       watches: new Map(),
       overlays: new Map(),
       publishedMembers: new Map(),
+      channelEvents: new Map(),
+      channelEventFloor: 0,
+      channelReads: new Map(),
+      refreshChannels: false,
     };
     state.keyPromise = this.identifiers.for('guild', guildId).then((key) => {
       state.guildKey = key;
@@ -524,7 +647,16 @@ export class DiscordLiveState {
     const guild = this.client.guilds.cache.get(guildId);
     if (state === undefined || guild === undefined) return;
     state.generation += 1;
-    if (channelId !== undefined) state.overlays.delete(channelId);
+    if (channelId !== undefined) {
+      state.overlays.delete(channelId);
+      state.channelEvents.delete(channelId);
+      state.channelEvents.set(channelId, state.generation);
+      if (state.channelEvents.size > 1_000) {
+        const oldest = state.channelEvents.entries().next().value!;
+        state.channelEventFloor = Math.max(state.channelEventFloor, oldest[1]);
+        state.channelEvents.delete(oldest[0]);
+      }
+    }
     try {
       this.replaceSource(
         state,
