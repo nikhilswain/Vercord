@@ -37,6 +37,7 @@ import { LiveStateError } from './member-state';
 import { liveFailureSchema } from '../../../src/domain/discord/live-protocol';
 import { DiscordLiveState } from './live-state';
 import { MessageCommands, toRoomMessage } from './message-commands';
+import { ManagedWebhookRelay } from './managed-webhook-relay';
 import { KeyedSerialQueue } from './serial-queue';
 
 type BridgeSender = (message: ServerBridgeMessage) => boolean;
@@ -62,6 +63,7 @@ export class DiscordVoiceService {
   });
   public readonly liveState: Promise<DiscordLiveState>;
   private readonly interactiveRest = new InteractiveRest(this.client.rest);
+  private readonly messageRelay = new ManagedWebhookRelay();
   private readonly channelCommands: Promise<ChannelCommands>;
   private readonly messageCommands: Promise<MessageCommands>;
   private readonly identifiersPromise: Promise<IdentifierFactory>;
@@ -90,7 +92,7 @@ export class DiscordVoiceService {
       ([state, identifiers]) => new ChannelCommands(state, this.interactiveRest, identifiers),
     );
     this.messageCommands = this.identifiersPromise.then(
-      (identifiers) => new MessageCommands(this.client, identifiers),
+      (identifiers) => new MessageCommands(this.client, identifiers, this.messageRelay),
     );
     this.client.on(Events.VoiceStateUpdate, (_previous, current) => {
       void this.publishVoiceState(current).catch(() => {
@@ -100,9 +102,13 @@ export class DiscordVoiceService {
       });
     });
     this.client.on(Events.GuildCreate, () => this.refreshBridgeRegistration());
-    this.client.on(Events.GuildDelete, () => this.refreshBridgeRegistration());
+    this.client.on(Events.GuildDelete, (guild) => {
+      this.messageRelay.invalidateGuild(guild.id);
+      this.refreshBridgeRegistration();
+    });
     this.client.on(Events.ChannelCreate, (channel) => this.queueStructureChange(channel.guild.id));
     this.client.on(Events.ChannelDelete, (channel) => {
+      this.messageRelay.invalidate(channel.id);
       if ('guild' in channel) this.queueStructureChange(channel.guild.id);
     });
     this.client.on(Events.ChannelUpdate, (_previous, channel) => {
@@ -132,6 +138,7 @@ export class DiscordVoiceService {
   }
 
   public stop(): void {
+    this.messageRelay.clear();
     void this.liveState.then((live) => live.stop());
     for (const timer of this.structureTimers.values()) clearTimeout(timer);
     this.structureTimers.clear();

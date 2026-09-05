@@ -23,6 +23,12 @@ import {
   type RoomMessage,
 } from '../../../src/domain/messages/protocol';
 import { dispatchContext, type DispatchContext } from './interactive-rest';
+import {
+  ManagedWebhookRateLimit,
+  ManagedWebhookRelay,
+  attributedContent,
+  safePersona,
+} from './managed-webhook-relay';
 
 type Command = Extract<LiveCommand, { type: 'message-read' | 'message-send' }>;
 type SendCommand = Extract<Command, { type: 'message-send' }>;
@@ -86,6 +92,7 @@ export class MessageCommands {
   public constructor(
     private readonly client: Client,
     private readonly identifiers: IdentifierFactory,
+    private readonly relay = new ManagedWebhookRelay(),
   ) {}
 
   public execute(command: Command, isCurrent: () => boolean): Promise<LiveCommandResult> {
@@ -157,17 +164,22 @@ export class MessageCommands {
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.ReadMessageHistory,
       ]);
-    const canSend =
+    const actorAllowed =
       !actor.pending &&
       !this.isTimedOut(actor) &&
       this.hasPermissions(channel, actor, [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
-      ]) &&
-      this.hasPermissions(channel, bot, [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
       ]);
+    const webhookAllowed = this.hasPermissions(channel, bot, [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.ManageWebhooks,
+    ]);
+    const fallbackAllowed = this.hasPermissions(channel, bot, [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+    ]);
+    const canSend = actorAllowed && (webhookAllowed || fallbackAllowed);
     this.assertCurrent(command, isCurrent);
 
     let messages: RoomMessage[] = [];
@@ -210,47 +222,94 @@ export class MessageCommands {
       [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
       'MESSAGE_MEMBER_FORBIDDEN',
     );
-    this.assertPermissions(
-      channel,
-      bot,
-      [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-      'MESSAGE_BOT_FORBIDDEN',
-    );
+    const webhookAllowed = this.hasPermissions(channel, bot, [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.ManageWebhooks,
+    ]);
+    const fallbackAllowed = this.hasPermissions(channel, bot, [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+    ]);
+    if (!webhookAllowed && !fallbackAllowed)
+      throw new MessageCommandError('MESSAGE_BOT_FORBIDDEN', 403);
 
-    const context: DispatchContext = {
-      requestId: command.requestId,
-      dispatched: false,
-      assertAllowed: () => this.assertCurrent(command, isCurrent),
-    };
+    const assertAllowed = () => this.assertCurrent(command, isCurrent);
+    if (webhookAllowed) {
+      const webhook = await this.relay.resolve({
+        channel,
+        botId: bot.id,
+        requestId: command.requestId,
+        assertAllowed,
+      });
+      if (webhook !== null) {
+        const context = this.dispatch(command.requestId, assertAllowed);
+        try {
+          const persona = safePersona(actor);
+          const message = await dispatchContext.run(context, () =>
+            webhook.send({
+              content: command.input.content,
+              username: persona.username,
+              avatarURL: persona.avatarURL,
+              allowedMentions: { parse: [] },
+            }),
+          );
+          return await this.applied(command, message);
+        } catch (error) {
+          const status = context.responseStatus;
+          if (status === 401 || status === 404) this.relay.invalidate(channel.id);
+          const mapped = this.mapDiscordError(error, 'MESSAGE_SEND_REJECTED');
+          if (mapped.status === 429) throw mapped;
+          const definitelyRejected =
+            !context.dispatched || (status !== undefined && status >= 400 && status < 500);
+          if (!definitelyRejected) return this.uncertain(command);
+          if (!fallbackAllowed) throw mapped;
+        }
+      }
+    }
+
+    if (!fallbackAllowed) throw new MessageCommandError('MESSAGE_BOT_FORBIDDEN', 403);
+    const context = this.dispatch(command.requestId, assertAllowed);
     try {
       const nonce = createHash('sha256').update(command.requestId).digest('base64url').slice(0, 25);
       const message = await dispatchContext.run(context, () =>
         channel.send({
-          content: command.input.content,
+          content: attributedContent(actor, command.input.content),
           allowedMentions: { parse: [] },
           nonce,
           enforceNonce: true,
         }),
       );
-      return {
-        type: 'message-send-result',
-        requestId: command.requestId,
-        status: 'applied',
-        message: await toRoomMessage(message, command.input.roomKey, this.identifiers),
-      };
+      return await this.applied(command, message);
     } catch (error) {
       const mapped = this.mapDiscordError(error, 'MESSAGE_SEND_REJECTED');
       const status = context.responseStatus;
       if (!context.dispatched || (status !== undefined && status >= 400 && status < 500)) {
         throw mapped;
       }
-      return {
-        type: 'message-send-result',
-        requestId: command.requestId,
-        status: 'uncertain',
-        code: 'MESSAGE_ACTION_UNCERTAIN',
-      };
+      return this.uncertain(command);
     }
+  }
+
+  private applied(command: SendCommand, message: Message<true>): Promise<LiveCommandResult> {
+    return toRoomMessage(message, command.input.roomKey, this.identifiers).then((normalized) => ({
+      type: 'message-send-result' as const,
+      requestId: command.requestId,
+      status: 'applied' as const,
+      message: normalized,
+    }));
+  }
+
+  private uncertain(command: SendCommand): LiveCommandResult {
+    return {
+      type: 'message-send-result',
+      requestId: command.requestId,
+      status: 'uncertain',
+      code: 'MESSAGE_ACTION_UNCERTAIN',
+    };
+  }
+
+  private dispatch(requestId: string, assertAllowed: () => void): DispatchContext {
+    return { requestId, dispatched: false, assertAllowed };
   }
 
   private guild(guildId: string): Guild {
@@ -346,6 +405,8 @@ export class MessageCommands {
     error: unknown,
     fallback: 'MESSAGE_READ_FAILED' | 'MESSAGE_SEND_REJECTED' | 'MESSAGE_BOT_FORBIDDEN',
   ): MessageCommandError {
+    if (error instanceof ManagedWebhookRateLimit)
+      return new MessageCommandError('MESSAGE_RATE_LIMITED', 429, error.retryAt);
     const status = this.discordStatus(error);
     if (status === 403) return new MessageCommandError('MESSAGE_BOT_FORBIDDEN', 403);
     if (status === 404) return new MessageCommandError('MESSAGE_CHANNEL_NOT_FOUND', 404);
