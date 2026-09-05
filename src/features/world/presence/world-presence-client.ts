@@ -135,6 +135,7 @@ export class WorldPresenceClient {
       this.callbacks.onWorldInvalidated?.('change');
       return;
     }
+    if (message.type === 'world-view' || message.type === 'world-sync') return;
     if (message.type === 'welcome') {
       this.callbacks.onWorldInvalidated?.('reconnect');
       this.selfId = message.selfId;

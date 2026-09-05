@@ -11,7 +11,7 @@ import {
   type MapRoom,
   type MapSnapshot,
 } from '../../src/domain/map/snapshot';
-import { isSafeMapDisplayText } from '../../src/domain/map/labels';
+import { publicLabel } from '../../src/domain/map/labels';
 import type { PublicationAllowlist } from '../config/schema';
 
 interface PublicMapOptions {
@@ -25,9 +25,6 @@ export interface MemberMapOptions extends SnapshotMemberPermissionOptions {
 }
 
 const uncategorizedAreaKey = 'a_uncategorized';
-// Public labels exclude C0/C1 and bidirectional formatting controls.
-// eslint-disable-next-line no-control-regex
-const unsafePublicControls = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu;
 type SnapshotChannel = GuildStructureSnapshot['channels'][number];
 type SnapshotRoom = SnapshotChannel & { kind: MapRoom['type'] };
 
@@ -42,10 +39,7 @@ function publicKey(privateKey: string): string {
   return privateKey.toLowerCase();
 }
 
-export function publicLabel(value: string, fallback: string): string {
-  const sanitized = value.replace(unsafePublicControls, '').trim();
-  return isSafeMapDisplayText(sanitized) ? sanitized : fallback;
-}
+export { publicLabel } from '../../src/domain/map/labels';
 
 function toMapRoom(channel: SnapshotRoom, order: number): MapRoom {
   return {

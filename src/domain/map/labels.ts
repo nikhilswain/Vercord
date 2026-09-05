@@ -34,6 +34,11 @@ export function isSafeMapDisplayText(value: string): boolean {
   );
 }
 
+export function publicLabel(value: string, fallback: string): string {
+  const sanitized = value.replace(FORBIDDEN_DISPLAY_CODE_POINT, '').trim();
+  return isSafeMapDisplayText(sanitized) ? sanitized : fallback;
+}
+
 export function truncateMapLabel(value: string, maximumScalars: number): string {
   const scalars = Array.from(value);
   return scalars.length <= maximumScalars

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { AVATAR_IDS } from '../avatar/identity';
+import { worldSyncSchema, worldViewSchema } from '../channels/protocol';
 import { voiceServiceStatusSchema, voiceStateSchema } from '../voice/protocol';
 
 const directionSchema = z.enum(['down', 'left', 'right', 'up']);
@@ -41,6 +42,7 @@ export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
     players: z.array(presencePlayerSchema).max(200),
     voiceService: voiceServiceStatusSchema,
     voiceState: voiceStateSchema.nullable(),
+    worldView: worldViewSchema.optional(),
   }),
   z.strictObject({
     type: z.literal('player'),
@@ -58,6 +60,8 @@ export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('voice-service'),
     service: voiceServiceStatusSchema,
   }),
+  z.strictObject({ type: z.literal('world-view'), view: worldViewSchema }),
+  z.strictObject({ type: z.literal('world-sync'), sync: worldSyncSchema }),
 ]);
 
 export type ClientPresenceMessage = z.infer<typeof clientPresenceMessageSchema>;
