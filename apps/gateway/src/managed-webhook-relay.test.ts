@@ -51,6 +51,14 @@ function input(channel: TextChannel) {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 function memberNamed(displayName: string, username = 'discord-user'): GuildMember {
   return {
     displayName,
@@ -133,6 +141,49 @@ it('discovers again after an ambiguous create before attempting another create',
 
   expect(await relay.resolve(input(channel))).toBeNull();
   expect(await relay.resolve(input(channel))).toBe(discovered);
+  expect(channel.fetchWebhooks).toHaveBeenCalledTimes(2);
+  expect(channel.createWebhook).toHaveBeenCalledTimes(1);
+});
+
+it('keeps replacement setup serialized and skips create when invalidated during discovery', async () => {
+  const relay = new ManagedWebhookRelay();
+  const firstFetch = deferred<Collection<string, Webhook<WebhookType.Incoming>>>();
+  const { channel, created } = channelFixture();
+  vi.mocked(channel.fetchWebhooks)
+    .mockImplementationOnce(() => firstFetch.promise)
+    .mockResolvedValue(new Collection());
+  const first = relay.resolve(input(channel));
+  await vi.waitFor(() => expect(channel.fetchWebhooks).toHaveBeenCalledTimes(1));
+
+  relay.invalidate(channel.id);
+  const replacement = relay.resolve(input(channel));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  expect(channel.fetchWebhooks).toHaveBeenCalledTimes(1);
+
+  firstFetch.resolve(new Collection());
+  expect(await first).toBeNull();
+  expect(await replacement).toBe(created);
+  expect(channel.fetchWebhooks).toHaveBeenCalledTimes(2);
+  expect(channel.createWebhook).toHaveBeenCalledTimes(1);
+});
+
+it('waits for an invalidated in-flight create before authoritative rediscovery', async () => {
+  const relay = new ManagedWebhookRelay();
+  const create = deferred<Webhook<WebhookType.Incoming>>();
+  const discovered = webhook('100000000000000013');
+  const { channel, created } = channelFixture([[], [discovered]]);
+  vi.mocked(channel.createWebhook).mockImplementationOnce(() => create.promise);
+  const first = relay.resolve(input(channel));
+  await vi.waitFor(() => expect(channel.createWebhook).toHaveBeenCalledTimes(1));
+
+  relay.invalidate(channel.id);
+  const replacement = relay.resolve(input(channel));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  expect(channel.fetchWebhooks).toHaveBeenCalledTimes(1);
+
+  create.resolve(created);
+  expect(await first).toBeNull();
+  expect(await replacement).toBe(discovered);
   expect(channel.fetchWebhooks).toHaveBeenCalledTimes(2);
   expect(channel.createWebhook).toHaveBeenCalledTimes(1);
 });

@@ -47,14 +47,21 @@ export class ManagedWebhookRelay {
     if (cached !== undefined) return Promise.resolve(cached.webhook);
 
     const current = this.setup.get(channelId);
-    if (current !== undefined) return current.promise;
+    if (current !== undefined) {
+      if (current.valid) return current.promise;
+      return current.promise.then(
+        () => this.resolve(input),
+        () => this.resolve(input),
+      );
+    }
 
     const flight: SetupFlight = {
       guildId: input.channel.guildId,
       promise: Promise.resolve(null),
       valid: true,
     };
-    flight.promise = this.discover(input)
+    const isValid = () => flight.valid && this.setup.get(channelId) === flight;
+    flight.promise = this.discover(input, isValid)
       .then((webhook) => {
         if (webhook === null || !flight.valid || this.setup.get(channelId) !== flight) return null;
         this.remember(channelId, input.channel.guildId, webhook);
@@ -71,30 +78,28 @@ export class ManagedWebhookRelay {
     this.cache.delete(channelId);
     const flight = this.setup.get(channelId);
     if (flight !== undefined) flight.valid = false;
-    this.setup.delete(channelId);
   }
 
   public invalidateGuild(guildId: string): void {
     for (const [channelId, relay] of this.cache)
       if (relay.guildId === guildId) this.cache.delete(channelId);
-    for (const [channelId, flight] of this.setup) {
+    for (const flight of this.setup.values()) {
       if (flight.guildId !== guildId) continue;
       flight.valid = false;
-      this.setup.delete(channelId);
     }
   }
 
   public clear(): void {
     this.cache.clear();
     for (const flight of this.setup.values()) flight.valid = false;
-    this.setup.clear();
   }
 
-  private async discover(input: ResolveRelayInput): Promise<Relay | null> {
+  private async discover(input: ResolveRelayInput, isValid: () => boolean): Promise<Relay | null> {
     try {
       input.assertAllowed();
       const webhooks = await input.channel.fetchWebhooks();
       input.assertAllowed();
+      if (!isValid()) return null;
       const existing = webhooks.find(
         (webhook): webhook is Relay =>
           webhook.type === WebhookType.Incoming &&
@@ -107,10 +112,14 @@ export class ManagedWebhookRelay {
       return null;
     }
 
+    if (!isValid()) return null;
     const context: DispatchContext = {
       requestId: input.requestId,
       dispatched: false,
-      assertAllowed: input.assertAllowed,
+      assertAllowed: () => {
+        input.assertAllowed();
+        if (!isValid()) throw new Error('Webhook setup invalidated');
+      },
     };
     try {
       return await dispatchContext.run(context, () =>
