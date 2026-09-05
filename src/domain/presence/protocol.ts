@@ -104,6 +104,7 @@ export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
       requestId: requestIdSchema,
       status: z.literal('rejected'),
       code: messageErrorCodeSchema,
+      retryAt: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
     }),
     z.strictObject({
       type: z.literal('message-send-result'),

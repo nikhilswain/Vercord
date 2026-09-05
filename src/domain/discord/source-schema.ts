@@ -93,17 +93,30 @@ const channelSchema = z
     name: discordSourceNameSchema,
     parent_id: snowflakeSchema.nullish().transform((value) => value ?? null),
     nsfw: z.boolean().optional().default(false),
+    rate_limit_per_user: z.number().int().min(0).max(21_600).optional().default(0),
     permission_overwrites: z.array(overwriteSchema).max(MAX_COLLECTION_SIZE).optional().default([]),
   })
-  .transform(({ id, type, position, name, parent_id, nsfw, permission_overwrites }) => ({
-    id,
-    type,
-    position,
-    name,
-    parentId: parent_id,
-    nsfw,
-    overwrites: permission_overwrites,
-  }));
+  .transform(
+    ({
+      id,
+      type,
+      position,
+      name,
+      parent_id,
+      nsfw,
+      rate_limit_per_user,
+      permission_overwrites,
+    }) => ({
+      id,
+      type,
+      position,
+      name,
+      parentId: parent_id,
+      nsfw,
+      rateLimitPerUser: rate_limit_per_user,
+      overwrites: permission_overwrites,
+    }),
+  );
 
 const channelsSchema = z.array(channelSchema).max(MAX_COLLECTION_SIZE);
 

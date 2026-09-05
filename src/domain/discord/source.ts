@@ -35,6 +35,7 @@ export interface DiscordChannelSource {
   name: string;
   parentId: Snowflake | null;
   nsfw: boolean;
+  rateLimitPerUser: number;
   overwrites: DiscordOverwriteSource[];
 }
 

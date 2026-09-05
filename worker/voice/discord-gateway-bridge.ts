@@ -255,9 +255,18 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
         await this.rejectSocket(socket, 1008);
         return;
       }
-      await this.post(message.guildKey, '/internal/message', {
-        bridgeEpoch: active.epoch,
-        message: message.message,
+      await this.ordered(message.guildKey, async () => {
+        if (!this.isActive(socket) || this.active?.epoch !== active.epoch) return;
+        try {
+          await this.post(message.guildKey, '/internal/message', {
+            bridgeEpoch: active.epoch,
+            message: message.message,
+            ...(message.slowmode === undefined ? {} : { slowmode: message.slowmode }),
+          });
+        } catch {
+          this.state.waitUntil(this.deactivate(socket));
+          socket.close(1011, 'Message delivery unavailable');
+        }
       });
       return;
     }
@@ -374,7 +383,8 @@ export class DiscordGatewayBridge extends DurableObject<Env> {
       active !== null &&
       (!this.supportsLive(active) ||
         ((command.type === 'message-read' || command.type === 'message-send') &&
-          !this.supportsMessages(active)))
+          !this.supportsMessages(active)) ||
+        (command.type === 'message-send' && !active.capabilities.includes('message-persona-v1')))
     )
       return Response.json({ error: { code: 'GATEWAY_UPDATE_REQUIRED' } }, { status: 503 });
     if (socket === null || active === null) return Response.json(unavailable(command));

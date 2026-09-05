@@ -73,7 +73,7 @@ function channel(
   nsfw = false,
   overwrites: DiscordSourceBundle['channels'][number]['overwrites'] = [],
 ): DiscordSourceBundle['channels'][number] {
-  return { id, type, position, name, parentId, nsfw, overwrites };
+  return { id, type, position, name, parentId, nsfw, rateLimitPerUser: 0, overwrites };
 }
 
 describe('escapeTerminalLabel', () => {

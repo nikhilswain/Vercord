@@ -48,7 +48,10 @@ export type MessageSendOutcome =
   | { status: 'uncertain'; code: 'MESSAGE_ACTION_UNCERTAIN' };
 
 export class MessageRequestError extends Error {
-  public constructor(public readonly code: MessageErrorCode) {
+  public constructor(
+    public readonly code: MessageErrorCode,
+    public readonly retryAt?: number,
+  ) {
     super(code);
     this.name = 'MessageRequestError';
   }
@@ -379,7 +382,7 @@ export class WorldPresenceClient {
         window.clearTimeout(pending.timeout);
         this.pendingMessageSends.delete(message.requestId);
         if (message.status === 'rejected') {
-          pending.reject(new MessageRequestError(message.code));
+          pending.reject(new MessageRequestError(message.code, message.retryAt));
         } else if (message.status === 'applied') {
           pending.resolve({ status: 'applied', message: message.message });
         } else {

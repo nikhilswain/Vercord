@@ -7,6 +7,20 @@ export const MESSAGE_HISTORY_LIMIT = 20;
 export const MESSAGE_CONTENT_MAX_LENGTH = 4_000;
 export const MESSAGE_SEND_MAX_LENGTH = 2_000;
 
+export type MessageSlowmodePolicy = {
+  actorKey: string;
+  roomKey: string;
+  intervalMs: number;
+  bypass: boolean;
+};
+
+// Server-only observation metadata; never part of RoomMessage.
+export const messageSlowmodeObservationSchema = z.strictObject({
+  actorKey: z.string().regex(/^m_[A-Za-z0-9_-]{43}$/u),
+  nextAllowedAt: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+});
+export type MessageSlowmodeObservation = z.infer<typeof messageSlowmodeObservationSchema>;
+
 const boundedCountSchema = z.number().int().nonnegative().max(100);
 const displayNameSchema = z
   .string()

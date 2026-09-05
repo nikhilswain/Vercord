@@ -14,6 +14,7 @@ import { liveFrameSchema, LIVE_FRAME_MAX_BYTES } from '../../src/domain/discord/
 import {
   messageErrorCodeSchema,
   roomMessageSchema,
+  messageSlowmodeObservationSchema,
   type MessageErrorCode,
 } from '../../src/domain/messages/protocol';
 import { snowflakeSchema } from '../../src/domain/discord/source-schema';
@@ -33,11 +34,19 @@ import {
 import { LiveWorldCoordinator, WorldAccessError } from '../live-world/coordinator';
 import { sessionIsCurrent, type WorldActor } from '../live-world/session-access';
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
+import { MemberSlowmode } from '../messages/member-slowmode';
 
 const MAX_CONNECTIONS = 200;
 const MAX_MESSAGE_BYTES = 16 * 1_024;
 const MAX_INTERNAL_BODY_BYTES = 32 * 1_024;
 const WORLD_VIEW_EPOCH_KEY = 'worldViewEpoch';
+const MESSAGE_COVERAGE_KEY = 'messageCoverage';
+type MessageCoverage = {
+  epoch: number;
+  online: boolean;
+  streamId: string | null;
+  sequence: number;
+};
 const digestSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/u);
 const subscriptionIdSchema = z.uuid();
 const safeIntegerSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -66,6 +75,7 @@ const internalLiveServiceSchema = z.strictObject({
 const internalRoomMessageSchema = z.strictObject({
   bridgeEpoch: bridgeEpochSchema,
   message: roomMessageSchema,
+  slowmode: messageSlowmodeObservationSchema.optional(),
 });
 const internalWorldViewSchema = z.strictObject({
   actor: worldActorSchema,
@@ -168,6 +178,13 @@ export class GuildPresence extends DurableObject<Env> {
   private voiceService: VoiceServiceStatus = 'offline';
   private voiceBridgeEpoch = 0;
   private coordinator!: LiveWorldCoordinator;
+  private readonly slowmode: MemberSlowmode;
+  private messageCoverage: MessageCoverage = {
+    epoch: 0,
+    online: false,
+    streamId: null,
+    sequence: -1,
+  };
   private restoration: Promise<void> | null = null;
   private readonly initialVoiceQueries = new Map<string, Promise<VoiceState | null>>();
 
@@ -176,14 +193,18 @@ export class GuildPresence extends DurableObject<Env> {
     env: Env,
   ) {
     super(state, env);
+    this.slowmode = new MemberSlowmode(state.storage);
     state.blockConcurrencyWhile(async () => {
-      const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch] = await Promise.all([
-        state.storage.get<VoiceServiceStatus>('voiceService'),
-        state.storage.get<number>('voiceBridgeEpoch'),
-        state.storage.get<number>(WORLD_VIEW_EPOCH_KEY),
-      ]);
+      const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch, messageCoverage] =
+        await Promise.all([
+          state.storage.get<VoiceServiceStatus>('voiceService'),
+          state.storage.get<number>('voiceBridgeEpoch'),
+          state.storage.get<number>(WORLD_VIEW_EPOCH_KEY),
+          state.storage.get<MessageCoverage>(MESSAGE_COVERAGE_KEY),
+        ]);
       this.voiceService = voiceService ?? 'offline';
       this.voiceBridgeEpoch = voiceBridgeEpoch ?? 0;
+      this.messageCoverage = messageCoverage ?? this.messageCoverage;
       const worldViewEpoch = (previousWorldViewEpoch ?? 0) + 1;
       if (!Number.isSafeInteger(worldViewEpoch)) throw new Error('WORLD_VIEW_EPOCH_EXHAUSTED');
       await state.storage.put(WORLD_VIEW_EPOCH_KEY, worldViewEpoch);
@@ -400,10 +421,13 @@ export class GuildPresence extends DurableObject<Env> {
         }
         return;
       }
-      const result = await this.coordinator.sendMessage(
+      const policy = await this.coordinator.messageSlowmodePolicy(
         actor,
         attachment.subscriptionId,
-        command.input,
+        roomKey,
+      );
+      const result = await this.slowmode.run(policy, () =>
+        this.coordinator.sendMessage(actor, attachment.subscriptionId, command.input),
       );
       if (attachmentOf(socket)?.scene !== attachment.scene || socket.readyState !== WebSocket.OPEN)
         return;
@@ -423,6 +447,7 @@ export class GuildPresence extends DurableObject<Env> {
         command.type,
         command.requestId,
         parsedCode.success ? parsedCode.data : 'WORLD_SOURCE_UNAVAILABLE',
+        error instanceof WorldAccessError ? error.retryAt : undefined,
       );
     }
   }
@@ -432,13 +457,20 @@ export class GuildPresence extends DurableObject<Env> {
     commandType: 'message-read' | 'message-send',
     requestId: string,
     code: MessageErrorCode,
+    retryAt?: number,
   ): void {
     if (socket.readyState !== WebSocket.OPEN) return;
     this.send(
       socket,
       commandType === 'message-read'
         ? { type: 'message-read-error', requestId, code }
-        : { type: 'message-send-result', requestId, status: 'rejected', code },
+        : {
+            type: 'message-send-result',
+            requestId,
+            status: 'rejected',
+            code,
+            ...(retryAt === undefined ? {} : { retryAt }),
+          },
     );
   }
 
@@ -608,6 +640,26 @@ export class GuildPresence extends DurableObject<Env> {
     return Number.isSafeInteger(parsed) ? parsed : null;
   }
 
+  public alarm(): Promise<void> {
+    return this.slowmode.prune();
+  }
+
+  private async trackMessageService(online: boolean, epoch: number): Promise<void> {
+    const previous = this.messageCoverage;
+    if (epoch < previous.epoch || (epoch === previous.epoch && !previous.online && online)) return;
+    if (epoch > previous.epoch) await this.slowmode.setCoverage(false);
+    if (epoch !== previous.epoch || online !== previous.online) {
+      await this.slowmode.setCoverage(online);
+      this.messageCoverage = {
+        epoch,
+        online,
+        streamId: epoch === previous.epoch ? previous.streamId : null,
+        sequence: epoch === previous.epoch ? previous.sequence : -1,
+      };
+      await this.state.storage.put(MESSAGE_COVERAGE_KEY, this.messageCoverage);
+    }
+  }
+
   private async readJson(request: Request, maximumBytes: number): Promise<unknown | null> {
     if (request.method !== 'POST') return null;
     const body = await request.text();
@@ -624,6 +676,25 @@ export class GuildPresence extends DurableObject<Env> {
     const value = await this.readJson(request, LIVE_FRAME_MAX_BYTES + 1_024);
     const parsed = internalLiveFrameSchema.safeParse(value);
     if (!parsed.success) return new Response(null, { status: 400 });
+    const { bridgeEpoch, message } = parsed.data;
+    if (bridgeEpoch > this.messageCoverage.epoch) await this.trackMessageService(true, bridgeEpoch);
+    if (bridgeEpoch === this.messageCoverage.epoch && this.messageCoverage.online) {
+      const coverage = this.messageCoverage;
+      if (
+        message.cursor.streamId !== coverage.streamId ||
+        message.cursor.sequence > coverage.sequence
+      ) {
+        if (coverage.streamId !== null && message.cursor.streamId !== coverage.streamId)
+          await this.slowmode.setCoverage(false);
+        if (message.type === 'world-health') await this.slowmode.setCoverage(message.ready);
+        this.messageCoverage = {
+          ...coverage,
+          streamId: message.cursor.streamId,
+          sequence: message.cursor.sequence,
+        };
+        await this.state.storage.put(MESSAGE_COVERAGE_KEY, this.messageCoverage);
+      }
+    }
     this.startRestoration();
     await this.coordinator.accept(parsed.data.message, parsed.data.bridgeEpoch);
     this.state.waitUntil(this.coordinator.pendingWork());
@@ -635,6 +706,7 @@ export class GuildPresence extends DurableObject<Env> {
     const value = await this.readJson(request, 1_024);
     const parsed = internalLiveServiceSchema.safeParse(value);
     if (!parsed.success) return new Response(null, { status: 400 });
+    await this.trackMessageService(parsed.data.service === 'online', parsed.data.bridgeEpoch);
     this.startRestoration();
     await this.coordinator.service(parsed.data.service === 'online', parsed.data.bridgeEpoch);
     this.state.waitUntil(this.coordinator.pendingWork());
@@ -647,8 +719,16 @@ export class GuildPresence extends DurableObject<Env> {
     const parsed = internalRoomMessageSchema.safeParse(value);
     if (!parsed.success) return new Response(null, { status: 400 });
     this.startRestoration();
-    if (parsed.data.bridgeEpoch !== this.voiceBridgeEpoch || this.voiceService !== 'online') {
+    if (parsed.data.bridgeEpoch !== this.messageCoverage.epoch || !this.messageCoverage.online) {
       return new Response(null, { status: 204 });
+    }
+
+    if (parsed.data.slowmode !== undefined) {
+      await this.slowmode.observe(
+        parsed.data.slowmode.actorKey,
+        parsed.data.message.roomKey,
+        parsed.data.slowmode.nextAllowedAt,
+      );
     }
 
     const scene = `room:${parsed.data.message.roomKey}`;

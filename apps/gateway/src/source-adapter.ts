@@ -41,6 +41,7 @@ export function sourceFromGuild(
         name: channel.name,
         parent_id: channel.parentId,
         nsfw: 'nsfw' in channel ? channel.nsfw : false,
+        rate_limit_per_user: 'rateLimitPerUser' in channel ? channel.rateLimitPerUser : 0,
         permission_overwrites: [...channel.permissionOverwrites.cache.values()]
           .sort(byId)
           .map((overwrite) => ({

@@ -5,7 +5,7 @@ import type {
   WorldView,
 } from '../../src/domain/channels/protocol';
 import { hasChannelPermission, sourceForMember } from '../../src/domain/discord/channel-policy';
-import { CONNECT, VIEW_CHANNEL } from '../../src/domain/discord/constants';
+import { BYPASS_SLOWMODE, CONNECT, VIEW_CHANNEL } from '../../src/domain/discord/constants';
 import { createIdentifierFactory } from '../../src/domain/discord/identifiers';
 import {
   liveFrameSchema,
@@ -16,7 +16,11 @@ import {
   type LiveRead,
   type MemberRecord,
 } from '../../src/domain/discord/live-protocol';
-import type { MessageHistory, MessageSendInput } from '../../src/domain/messages/protocol';
+import type {
+  MessageHistory,
+  MessageSendInput,
+  MessageSlowmodePolicy,
+} from '../../src/domain/messages/protocol';
 import { normalizeGuildStructure } from '../../src/domain/discord/normalize';
 import type { DiscordSourceBundle } from '../../src/domain/discord/source';
 import { projectChannelState } from '../channels/projection';
@@ -331,6 +335,34 @@ export class LiveWorldCoordinator {
     if (result.type === 'live-error') this.throwLiveFailure(result);
     if (result.type !== 'message-history-result') throw new WorldAccessError();
     return result.result;
+  }
+
+  public async messageSlowmodePolicy(
+    actor: WorldActor,
+    subscriptionId: string,
+    roomKey: string,
+  ): Promise<MessageSlowmodePolicy> {
+    await this.read(actor, subscriptionId, 'connected');
+    await this.assertMessageRoom(actor, roomKey);
+    const slot = this.members.get(actor.userId)!;
+    const source = this.source;
+    const sourceGeneration = this.sourceGeneration;
+    const memberGeneration = slot.generation;
+    if (!source || slot.record?.kind !== 'present') throw new WorldAccessError();
+    const actorSource = sourceForMember(source, slot.record.member);
+    const identifiers = await this.ids();
+    const actorKey = await identifiers.for('member', actor.userId);
+    for (const channel of source.channels) {
+      if ((await identifiers.for('channel', channel.id)).toLowerCase() !== roomKey) continue;
+      this.assertCurrent(slot, sourceGeneration, memberGeneration);
+      return {
+        actorKey,
+        roomKey,
+        intervalMs: channel.rateLimitPerUser * 1_000,
+        bypass: hasChannelPermission(actorSource, channel, BYPASS_SLOWMODE),
+      };
+    }
+    throw new WorldAccessError('MESSAGE_CHANNEL_NOT_FOUND', 404);
   }
 
   public async sendMessage(

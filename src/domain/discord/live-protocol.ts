@@ -18,6 +18,8 @@ import {
   messageHistorySchema,
   messageSendInputSchema,
   roomMessageSchema,
+  messageSlowmodeObservationSchema,
+  type MessageSlowmodeObservation,
   type MessageHistory,
   type MessageSendInput,
   type RoomMessage,
@@ -63,6 +65,8 @@ const discordSourceBundleSchema = z
           name: discordSourceNameSchema,
           parentId: snowflakeSchema.nullable(),
           nsfw: z.boolean(),
+          // Worker-first rollout only; sends require message-persona-v1.
+          rateLimitPerUser: z.number().int().min(0).max(21_600).default(0),
           overwrites: z
             .array(
               z.strictObject({
@@ -221,6 +225,7 @@ export const liveHelloSchema = z.strictObject({
   capabilities: z.union([
     z.tuple([z.literal('live-world-v1')]),
     z.tuple([z.literal('live-world-v1'), z.literal('message-v1')]),
+    z.tuple([z.literal('live-world-v1'), z.literal('message-v1'), z.literal('message-persona-v1')]),
   ]),
 });
 export const liveHeartbeatSchema = z.strictObject({
@@ -251,6 +256,7 @@ export const serverBridgeMessageSchema = z.union([
     guildKey: guildKeySchema,
     serviceSessionId: sessionIdSchema,
     message: roomMessageSchema,
+    slowmode: messageSlowmodeObservationSchema.optional(),
   }),
   liveResponseSchema,
 ]);
@@ -267,6 +273,7 @@ export type ServerBridgeMessage =
       guildKey: string;
       serviceSessionId: string;
       message: RoomMessage;
+      slowmode?: MessageSlowmodeObservation;
     }
   | {
       type: 'live-command-result';

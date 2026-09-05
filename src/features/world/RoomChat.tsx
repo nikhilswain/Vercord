@@ -44,6 +44,8 @@ function messageFailure(error: unknown): string {
     case 'MESSAGE_CHANNEL_NOT_FOUND':
       return 'This Discord channel no longer exists.';
     case 'MESSAGE_RATE_LIMITED':
+      if (error.retryAt !== undefined && error.retryAt > Date.now())
+        return `Try again in ${Math.ceil((error.retryAt - Date.now()) / 1_000)}s`;
       return 'Discord is limiting messages for a moment. Try again shortly.';
     case 'GATEWAY_UPDATE_REQUIRED':
       return 'The message gateway needs to be updated and restarted.';

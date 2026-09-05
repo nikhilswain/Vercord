@@ -36,7 +36,7 @@ import { InteractiveRateLimit, InteractiveRest, interactiveRestOptions } from '.
 import { LiveStateError } from './member-state';
 import { liveFailureSchema } from '../../../src/domain/discord/live-protocol';
 import { DiscordLiveState } from './live-state';
-import { MessageCommands, toRoomMessage } from './message-commands';
+import { MessageCommands, toMessageSlowmodeObservation, toRoomMessage } from './message-commands';
 import { ManagedWebhookRelay } from './managed-webhook-relay';
 import { KeyedSerialQueue } from './serial-queue';
 
@@ -122,6 +122,7 @@ export class DiscordVoiceService {
     this.client.on(Events.GuildUpdate, (_previous, guild) => this.queueStructureChange(guild.id));
     this.client.on(Events.MessageCreate, (message) => {
       void this.publishGuildMessage(message).catch(() => {
+        this.detachBridge();
         console.error(JSON.stringify({ service: 'dmap-gateway', event: 'message_publish_failed' }));
       });
     });
@@ -174,7 +175,7 @@ export class DiscordVoiceService {
       protocolVersion: 2,
       serviceSessionId: this.serviceSessionId,
       guildKeys,
-      capabilities: ['live-world-v1', 'message-v1'],
+      capabilities: ['live-world-v1', 'message-v1', 'message-persona-v1'],
     });
     if (!helloSent) throw new Error('Worker bridge closed before initialization.');
     this.sendToBridge = send;
@@ -341,12 +342,15 @@ export class DiscordVoiceService {
       identifiers.for('guild', message.guildId),
       identifiers.for('channel', message.channelId),
     ]);
-    this.sendToBridge({
+    const slowmode = await toMessageSlowmodeObservation(message, identifiers);
+    const delivered = this.sendToBridge({
       type: 'guild-message',
       guildKey,
       serviceSessionId: this.serviceSessionId,
       message: await toRoomMessage(message, roomKey.toLowerCase(), identifiers),
+      ...(slowmode === undefined ? {} : { slowmode }),
     });
+    if (!delivered && slowmode !== undefined) this.detachBridge();
   }
 
   private async publishSnapshot(

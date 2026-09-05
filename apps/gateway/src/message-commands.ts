@@ -21,6 +21,7 @@ import {
   roomMessageSchema,
   type MessageErrorCode,
   type RoomMessage,
+  type MessageSlowmodeObservation,
 } from '../../../src/domain/messages/protocol';
 import { dispatchContext, type DispatchContext } from './interactive-rest';
 import {
@@ -83,6 +84,19 @@ export async function toRoomMessage(
     attachmentCount: message.attachments.size,
     embedCount: message.embeds.length,
   });
+}
+
+export async function toMessageSlowmodeObservation(
+  message: Message<true>,
+  identifiers: IdentifierFactory,
+): Promise<MessageSlowmodeObservation | undefined> {
+  if (message.author.bot || message.webhookId !== null) return undefined;
+  const interval = 'rateLimitPerUser' in message.channel ? message.channel.rateLimitPerUser : 0;
+  if (!interval) return undefined;
+  return {
+    actorKey: await identifiers.for('member', message.author.id),
+    nextAllowedAt: message.createdTimestamp + interval * 1_000,
+  };
 }
 
 export class MessageCommands {
