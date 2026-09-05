@@ -8,6 +8,8 @@ import {
   type ChannelMutationResult,
 } from '../channels/protocol';
 import {
+  discordSourceNameSchema,
+  discordTimestampSchema,
   permissionStringSchema,
   snowflakeSchema,
   validateDiscordSourceBundle,
@@ -21,18 +23,12 @@ const sessionIdSchema = z.uuid();
 const subscriptionIdSchema = z.uuid();
 const digest = '[A-Za-z0-9_-]{43}';
 const guildKeySchema = z.string().regex(new RegExp(`^g_${digest}$`));
-const sourceNameSchema = z
-  .string()
-  .min(1)
-  .max(100)
-  .refine((value) => !/\p{Cc}/u.test(value));
-
 const discordSourceBundleSchema = z
   .strictObject({
     bot: z.strictObject({ id: snowflakeSchema }),
     guild: z.strictObject({
       id: snowflakeSchema,
-      name: sourceNameSchema,
+      name: discordSourceNameSchema,
       ownerId: snowflakeSchema,
       roles: z
         .array(z.strictObject({ id: snowflakeSchema, permissions: permissionStringSchema }))
@@ -49,7 +45,7 @@ const discordSourceBundleSchema = z
             .nonnegative()
             .refine((value) => value !== 1 && value !== 3),
           position: safeIntegerSchema,
-          name: sourceNameSchema,
+          name: discordSourceNameSchema,
           parentId: snowflakeSchema.nullable(),
           nsfw: z.boolean(),
           overwrites: z
@@ -78,7 +74,7 @@ export const memberAccessSchema = z.strictObject({
   userId: snowflakeSchema,
   roleIds: z.array(snowflakeSchema).max(MAX_COLLECTION_SIZE),
   pending: z.boolean(),
-  communicationDisabledUntil: z.string().max(100).nullable(),
+  communicationDisabledUntil: discordTimestampSchema.nullable(),
 });
 
 export const memberRecordSchema = z.discriminatedUnion('kind', [

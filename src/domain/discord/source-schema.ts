@@ -43,11 +43,15 @@ function hasUnpairedSurrogate(value: string): boolean {
   return false;
 }
 
-const nameSchema = z
+export const discordSourceNameSchema = z
   .string()
   .refine((value) => countCodePoints(value) >= 1 && countCodePoints(value) <= 100)
   .refine((value) => !/\p{Cc}/u.test(value))
   .refine((value) => !hasUnpairedSurrogate(value));
+
+export const discordTimestampSchema = z
+  .string()
+  .refine((value) => Number.isFinite(Date.parse(value)));
 
 const botSchema = z.object({ id: snowflakeSchema }).transform(({ id }) => ({ id }));
 
@@ -58,7 +62,7 @@ const roleSchema = z
 const guildSchema = z
   .object({
     id: snowflakeSchema,
-    name: nameSchema,
+    name: discordSourceNameSchema,
     owner_id: snowflakeSchema,
     roles: z.array(roleSchema).max(MAX_COLLECTION_SIZE),
   })
@@ -86,7 +90,7 @@ const channelSchema = z
       .nonnegative()
       .refine((type) => type !== 1 && type !== 3),
     position: z.number().int().nonnegative(),
-    name: nameSchema,
+    name: discordSourceNameSchema,
     parent_id: snowflakeSchema.nullish().transform((value) => value ?? null),
     nsfw: z.boolean().optional().default(false),
     permission_overwrites: z.array(overwriteSchema).max(MAX_COLLECTION_SIZE).optional().default([]),

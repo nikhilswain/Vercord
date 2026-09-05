@@ -54,10 +54,13 @@ export function prepareChannelMutation(input: {
   now: number;
 }): PreparedChannelMutation {
   const { source, member, channels, mutation, now } = input;
+  const disabledAt =
+    member.communicationDisabledUntil === null
+      ? null
+      : Date.parse(member.communicationDisabledUntil);
   if (
     member.pending ||
-    (member.communicationDisabledUntil !== null &&
-      Date.parse(member.communicationDisabledUntil) > now)
+    (disabledAt !== null && (!Number.isFinite(disabledAt) || disabledAt > now))
   ) {
     throw new ChannelPolicyError('CHANNEL_MEMBER_FORBIDDEN', 403);
   }

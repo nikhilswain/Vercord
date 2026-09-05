@@ -1,6 +1,10 @@
 // The public-label boundary must recognize literal C0 and C1 control ranges.
 // eslint-disable-next-line no-control-regex
 const FORBIDDEN_DISPLAY_CODE_POINT = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
+// Keep the validation regex non-global: RegExp#test with /g is stateful.
+// eslint-disable-next-line no-control-regex
+const FORBIDDEN_PUBLIC_LABEL_CODE_POINT =
+  /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu;
 
 export const MAP_AREA_LABEL_LIMIT = 24 as const;
 export const MAP_ROOM_LABEL_LIMIT = 18 as const;
@@ -35,7 +39,7 @@ export function isSafeMapDisplayText(value: string): boolean {
 }
 
 export function publicLabel(value: string, fallback: string): string {
-  const sanitized = value.replace(FORBIDDEN_DISPLAY_CODE_POINT, '').trim();
+  const sanitized = value.replace(FORBIDDEN_PUBLIC_LABEL_CODE_POINT, '').trim();
   return isSafeMapDisplayText(sanitized) ? sanitized : fallback;
 }
 
