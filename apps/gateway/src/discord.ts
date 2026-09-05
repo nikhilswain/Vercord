@@ -6,6 +6,7 @@ import {
   DiscordAPIError,
   Events,
   GatewayIntentBits,
+  Options,
   PermissionFlagsBits,
   type Guild,
   type VoiceBasedChannel,
@@ -24,25 +25,47 @@ import {
   type VoiceState,
 } from '../../../src/domain/voice/protocol';
 import type { GatewayConfig } from './config';
+import type { LiveFrame } from '../../../src/domain/discord/live-protocol';
+import { DiscordLiveState } from './live-state';
 import { KeyedSerialQueue } from './serial-queue';
 
 type BridgeSender = (message: GatewayBridgeMessage) => boolean;
 
 export class DiscordVoiceService {
   private readonly client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildVoiceStates,
+      GatewayIntentBits.GuildMembers,
+    ],
+    makeCache: Options.cacheWithLimits({
+      ...Options.DefaultMakeCacheSettings,
+      GuildMemberManager: {
+        maxSize: 200,
+        keepOverLimit: (member) => member.id === member.client.user?.id,
+      },
+      UserManager: { maxSize: 5_000, keepOverLimit: (user) => user.id === user.client.user?.id },
+    }),
   });
+  public readonly liveState: Promise<DiscordLiveState>;
   private readonly identifiersPromise: Promise<IdentifierFactory>;
   private readonly queue = new KeyedSerialQueue();
   private readonly serviceSessionId = crypto.randomUUID();
   private revision = 0;
   private sendToBridge: BridgeSender = () => false;
+  private sendLiveToBridge: (frame: LiveFrame) => boolean = () => false;
   private bridgeAttached = false;
   private registrationTimer: NodeJS.Timeout | null = null;
   private readonly structureTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   public constructor(private readonly config: GatewayConfig) {
     this.identifiersPromise = createIdentifierFactory(config.snapshotIdSecret);
+    this.liveState = this.identifiersPromise.then(
+      (identifiers) =>
+        new DiscordLiveState(this.client, identifiers, (frame) => this.sendLiveToBridge(frame), {
+          serviceSessionId: this.serviceSessionId,
+        }),
+    );
     this.client.on(Events.VoiceStateUpdate, (_previous, current) => {
       void this.publishVoiceState(current).catch(() => {
         console.error(
@@ -71,17 +94,30 @@ export class DiscordVoiceService {
   }
 
   public async start(): Promise<void> {
+    await this.liveState;
     const ready = once(this.client, Events.ClientReady);
     await this.client.login(this.config.botToken);
     await ready;
   }
 
   public stop(): void {
+    void this.liveState.then((live) => live.stop());
     for (const timer of this.structureTimers.values()) clearTimeout(timer);
     this.structureTimers.clear();
     if (this.registrationTimer !== null) clearTimeout(this.registrationTimer);
     this.registrationTimer = null;
     this.client.destroy();
+  }
+
+  public attachLiveBridge(send: (frame: LiveFrame) => boolean): void {
+    this.sendLiveToBridge = send;
+  }
+
+  public detachBridge(): void {
+    this.bridgeAttached = false;
+    this.sendToBridge = () => false;
+    this.sendLiveToBridge = () => false;
+    void this.liveState.then((live) => live.detachBridge());
   }
 
   public async attachBridge(send: BridgeSender): Promise<void> {
@@ -153,8 +189,10 @@ export class DiscordVoiceService {
 
       const channel = await this.resolveVoiceChannel(guild, command.roomKey);
       if (channel === null) return this.failure(command, 'CHANNEL_NOT_FOUND');
-      const member = current.member;
-      if (member === null) return this.failure(command, 'MEMBER_NOT_FOUND');
+      // The bounded cache may evict a voice participant; fetch only this genuine miss.
+      const member =
+        current.member ?? (await guild.members.fetch({ user: command.userId, cache: false }));
+      const me = guild.members.me ?? (await guild.members.fetchMe());
       const memberPermissions = channel.permissionsFor(member);
       if (
         memberPermissions === null ||
@@ -162,8 +200,7 @@ export class DiscordVoiceService {
       ) {
         return this.failure(command, 'MEMBER_FORBIDDEN');
       }
-      const me = guild.members.me;
-      const permissions = me === null ? null : channel.permissionsFor(me);
+      const permissions = channel.permissionsFor(me);
       if (
         permissions === null ||
         !permissions.has([
