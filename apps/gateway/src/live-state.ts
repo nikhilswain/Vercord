@@ -125,6 +125,7 @@ export class DiscordLiveState {
       state.delivering = true;
     }
     await this.recover(command.guildId);
+    this.assertOwned(state, command.userId, command.subscriptionId);
     await this.members.get(command.guildId, command.userId);
     this.assertOwned(state, command.userId, command.subscriptionId);
     if (command.expiresAt <= Date.now()) throw new LiveStateError();
@@ -234,7 +235,16 @@ export class DiscordLiveState {
       await Promise.all(
         userIds.map(async (userId) => {
           const before = this.members.peek(guildId, userId);
-          const record = await this.members.get(guildId, userId);
+          let record: MemberRecord;
+          try {
+            record = await this.members.get(guildId, userId);
+          } catch (error) {
+            // A closed watch is no longer a recovery obligation. Retained uncertain
+            // members still fail recovery, as do superseded guild generations.
+            this.assertRecovery(state, generation);
+            if (!state.watches.has(userId)) return;
+            throw error;
+          }
           this.assertRecovery(state, generation);
           if (state.watches.has(userId) && JSON.stringify(before) !== JSON.stringify(record)) {
             this.emit(state, { type: 'world-member', member: record });
@@ -261,43 +271,50 @@ export class DiscordLiveState {
     if (state === undefined) throw new LiveStateError();
     this.assertReady(state);
     if (state.cursor.streamId !== before.streamId) throw new LiveStateError();
-    const source = state.source!;
-    let channel: DiscordChannelSource | null;
-    let channelId: string;
-    if (mutation.method === 'DELETE') {
-      channelId = mutation.path.split('/').at(-1)!;
-      if (!snowflakeSchema.safeParse(channelId).success) throw new LiveStateError();
-      channel = null;
-    } else {
-      // The domain REST parser permits omitted overwrites; reconciliation must not.
-      if (
-        typeof response !== 'object' ||
-        response === null ||
-        !('permission_overwrites' in response)
-      ) {
-        this.uncertain(state);
+    try {
+      const source = state.source!;
+      let channel: DiscordChannelSource | null;
+      let channelId: string;
+      if (mutation.method === 'DELETE') {
+        channelId = mutation.path.split('/').at(-1)!;
+        if (!snowflakeSchema.safeParse(channelId).success) throw new LiveStateError();
+        channel = null;
+      } else {
+        // The domain REST parser permits omitted overwrites; reconciliation must not.
+        if (
+          typeof response !== 'object' ||
+          response === null ||
+          !('permission_overwrites' in response)
+        ) {
+          throw new LiveStateError();
+        }
+        channel = parseDiscordChannels([response])[0]!;
+        channel.overwrites.sort((a, b) => a.id.localeCompare(b.id) || a.type - b.type);
+        channelId = channel.id;
+        if (mutation.method === 'PATCH' && mutation.path !== `/channels/${channelId}`)
+          throw new LiveStateError();
+      }
+      const current = source.channels.find((entry) => entry.id === channelId) ?? null;
+      if (state.cursor.sequence !== before.sequence) {
+        // A gateway event already advanced the world. Never install an older response.
+        if (JSON.stringify(current) === JSON.stringify(channel)) return;
         throw new LiveStateError();
       }
-      channel = parseDiscordChannels([response])[0]!;
-      channel.overwrites.sort((a, b) => a.id.localeCompare(b.id) || a.type - b.type);
-      channelId = channel.id;
-      if (mutation.method === 'PATCH' && mutation.path !== `/channels/${channelId}`)
+      if (!state.overlays.has(channelId) && state.overlays.size >= 1_000) {
         throw new LiveStateError();
-    }
-    const current = source.channels.find((entry) => entry.id === channelId) ?? null;
-    if (state.cursor.sequence !== before.sequence) {
-      // A gateway event already advanced the world. Never install an older response.
-      if (JSON.stringify(current) === JSON.stringify(channel)) return;
+      }
+      const overlays = new Map(state.overlays);
+      overlays.set(channelId, channel);
+      const candidate = this.withOverlays(state, source, overlays);
+      // Commit only after parser, target identity, and combined relationships pass.
+      state.overlays = overlays;
+      this.replaceSource(state, candidate);
+      this.assertReady(state);
+    } catch {
+      // The confirmed mutation remains applied; only source authority is unavailable.
       this.uncertain(state);
       throw new LiveStateError();
     }
-    if (!state.overlays.has(channelId) && state.overlays.size >= 1_000) {
-      this.uncertain(state);
-      throw new LiveStateError();
-    }
-    state.overlays.set(channelId, channel);
-    this.replaceSource(state, this.withOverlays(state, source));
-    this.assertReady(state);
   }
 
   /** Called on private bridge loss, before any replacement connection subscribes. */
@@ -473,9 +490,13 @@ export class DiscordLiveState {
     this.emit(state, { type: 'world-source', source });
   }
 
-  private withOverlays(state: GuildState, source: DiscordSourceBundle): DiscordSourceBundle {
+  private withOverlays(
+    state: GuildState,
+    source: DiscordSourceBundle,
+    overlays: ReadonlyMap<string, DiscordChannelSource | null> = state.overlays,
+  ): DiscordSourceBundle {
     const channels = new Map(source.channels.map((channel) => [channel.id, channel]));
-    for (const [id, channel] of state.overlays) {
+    for (const [id, channel] of overlays) {
       if (channel === null) channels.delete(id);
       else channels.set(id, channel);
     }
