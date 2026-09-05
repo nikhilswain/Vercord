@@ -2,10 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import { Dialog } from '../../components/Dialog';
 import { RequestRetry } from '../../components/RequestRetry';
-import { channelNameSchema, type ChannelControls } from '../../domain/channels/protocol';
+import {
+  channelNameSchema,
+  type ChannelControls,
+  type ChannelMutationResult,
+} from '../../domain/channels/protocol';
 import type { MapSnapshot } from '../../domain/map/snapshot';
 import { ChannelApiError, channelErrorMessage, mutateChannel } from './channel-api';
-import type { ChannelRefreshStatus } from './channel-refresh';
 import './channel-manager.css';
 
 interface ChannelManagerProps {
@@ -14,9 +17,14 @@ interface ChannelManagerProps {
   controls: ChannelControls | null;
   permissionsUnavailable?: boolean;
   rateLimited?: boolean;
-  refreshStatus?: ChannelRefreshStatus;
+  refreshPending?: boolean;
+  retryAt?: number;
+  uncertainRequestId?: string | null;
+  canConfirmReconciled?: boolean;
   currentRoomKey: string | null;
+  onMutation(result: ChannelMutationResult): void;
   onRefresh(): Promise<boolean>;
+  onConfirmReconciled(): void;
 }
 
 type Editor = { kind: 'create' } | { kind: 'rename' | 'delete'; key: string; label: string };
@@ -27,9 +35,14 @@ export function ChannelManager({
   controls,
   permissionsUnavailable = false,
   rateLimited = false,
-  refreshStatus,
+  refreshPending = false,
+  retryAt = 0,
+  uncertainRequestId = null,
+  canConfirmReconciled = false,
   currentRoomKey,
+  onMutation,
   onRefresh,
+  onConfirmReconciled,
 }: ChannelManagerProps) {
   const [open, setOpen] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -44,7 +57,6 @@ export function ChannelManager({
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
-  const [uncertain, setUncertain] = useState(false);
   const [nameConflict, setNameConflict] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -67,6 +79,7 @@ export function ChannelManager({
           ? controls?.canCreateRoot
           : controls?.categories.some((category) => category.key === parentKey))
       : editor !== null && allowedKeys.has(editor.key));
+  const uncertaintyLocked = uncertainRequestId !== null;
 
   useEffect(() => {
     if (!open || busy) return;
@@ -93,7 +106,6 @@ export function ChannelManager({
     setEditor(null);
     setError(null);
     setFieldError(null);
-    setUncertain(false);
     setNameConflict(false);
   };
   const close = () => {
@@ -109,23 +121,20 @@ export function ChannelManager({
     setError(null);
     setFieldError(null);
     setNotice('');
-    setUncertain(false);
   };
-  const refresh = async (opening = false) => {
-    if (busyRef.current || refreshStatus?.pending || Date.now() < (refreshStatus?.retryAt ?? 0))
-      return;
+  const refresh = async () => {
+    if (busyRef.current || refreshPending || Date.now() < retryAt) return;
     busyRef.current = true;
     setBusy(true);
     setChecking(true);
     setError(null);
-    if (opening) setNotice('Checking channel permissions…');
     try {
       const refreshed = await onRefresh();
       if (refreshed) {
-        // A routine read must not discard a name/category the member is editing.
-        if (uncertain) resetEditor();
         setNotice(
-          opening ? '' : 'Channels refreshed. Check the result before making another change.',
+          uncertaintyLocked
+            ? 'Channels refreshed. Check the result before making another change.'
+            : 'Channels refreshed.',
         );
       } else {
         setNotice('');
@@ -141,7 +150,7 @@ export function ChannelManager({
     }
   };
   const submit = async () => {
-    if (busyRef.current || editor === null || !editorAllowed || uncertain) return;
+    if (busyRef.current || editor === null || !editorAllowed || uncertaintyLocked) return;
     const parsed = channelNameSchema.safeParse(name);
     if (editor.kind === 'delete' ? confirmation !== editor.label : !parsed.success) {
       setFieldError(
@@ -165,23 +174,33 @@ export function ChannelManager({
           : editor.kind === 'rename'
             ? { name: parsed.success ? parsed.data : name, expectedName: editor.label }
             : { expectedName: editor.label };
-      await mutateChannel(guildId, editor.kind === 'create' ? null : editor.key, method, body);
+      const result = await mutateChannel(
+        guildId,
+        editor.kind === 'create' ? null : editor.key,
+        method,
+        body,
+      );
+      onMutation(result);
       const verb =
         editor.kind === 'create' ? 'created' : editor.kind === 'rename' ? 'renamed' : 'deleted';
-      resetEditor();
-      setNotice(`Channel ${verb} in Discord. Refreshing the map…`);
-      const refreshed = await onRefresh();
-      setNotice(
-        refreshed
-          ? `Channel ${verb} in Discord.`
-          : `Channel ${verb} in Discord, but the map could not refresh. Do not repeat the change—use Refresh channels.`,
-      );
+      if (result.status === 'applied') {
+        resetEditor();
+        setNotice(
+          result.view === null
+            ? `Channel ${verb} in Discord. Waiting for map sync…`
+            : `Channel ${verb} in Discord.`,
+        );
+      } else if (result.status === 'uncertain') {
+        setError(null);
+      } else {
+        const rejection = new ChannelApiError(result.code, result.retryAt ?? 0, 'mutation');
+        setError(channelErrorMessage(rejection));
+        if (result.code === 'CHANNEL_CHANGED') setNameConflict(true);
+      }
     } catch (failure) {
       setError(channelErrorMessage(failure));
       if (failure instanceof ChannelApiError && failure.code === 'CHANNEL_CHANGED')
         setNameConflict(true);
-      if (failure instanceof ChannelApiError && failure.code === 'CHANNEL_ACTION_UNCERTAIN')
-        setUncertain(true);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -207,7 +226,6 @@ export function ChannelManager({
           resetEditor();
           setNotice('');
           setOpen(true);
-          void refresh(true);
         }}
       >
         Manage channels
@@ -231,15 +249,28 @@ export function ChannelManager({
             >
               {editor === null ? 'Close' : 'Cancel'}
             </button>
-            {editor !== null && !uncertain && (error !== null || !editorAllowed) ? (
+            {!uncertaintyLocked && editor !== null && (error !== null || !editorAllowed) ? (
               <RequestRetry
-                retryAt={refreshStatus?.retryAt ?? 0}
-                pending={busy || refreshStatus?.pending}
+                retryAt={retryAt}
+                pending={busy || refreshPending}
                 label="Refresh channels"
-                onRetry={() => refresh()}
+                onRetry={refresh}
               />
             ) : null}
-            {editor !== null && !uncertain ? (
+            {uncertaintyLocked && canConfirmReconciled ? (
+              <button
+                type="button"
+                className="channel-manager-primary"
+                disabled={busy}
+                onClick={() => {
+                  onConfirmReconciled();
+                  setError(null);
+                  setNotice('Result checked. You can make another change.');
+                }}
+              >
+                I checked the result
+              </button>
+            ) : !uncertaintyLocked && editor !== null ? (
               <button
                 form={formId}
                 type="submit"
@@ -260,10 +291,10 @@ export function ChannelManager({
               </button>
             ) : (
               <RequestRetry
-                retryAt={refreshStatus?.retryAt ?? 0}
-                pending={busy || refreshStatus?.pending}
+                retryAt={retryAt}
+                pending={busy || refreshPending}
                 label="Refresh channels"
-                onRetry={() => refresh()}
+                onRetry={refresh}
               />
             )}
           </>
@@ -272,6 +303,11 @@ export function ChannelManager({
         {notice ? (
           <p className="channel-manager-notice" role="status">
             {notice}
+          </p>
+        ) : null}
+        {uncertaintyLocked ? (
+          <p className="confirm-dialog__error" role="status">
+            Check Discord, then refresh before repeating this change.
           </p>
         ) : null}
         {permissionsUnavailable || controls === null || (editor !== null && !editorAllowed) ? (
@@ -371,7 +407,7 @@ export function ChannelManager({
                     setConfirmation(event.target.value);
                     setFieldError(null);
                   }}
-                  disabled={busy || uncertain}
+                  disabled={busy || uncertaintyLocked}
                   autoComplete="off"
                   aria-invalid={fieldError !== null}
                   aria-describedby={fieldError ? `${inputId}-error` : undefined}
@@ -388,7 +424,7 @@ export function ChannelManager({
                     setName(event.target.value);
                     setFieldError(null);
                   }}
-                  disabled={busy || uncertain}
+                  disabled={busy || uncertaintyLocked}
                   autoComplete="off"
                   aria-invalid={fieldError !== null}
                   aria-describedby={fieldError ? `${inputId}-error` : undefined}
@@ -399,7 +435,7 @@ export function ChannelManager({
                     <select
                       id={`${inputId}-type`}
                       value={type}
-                      disabled={busy || uncertain}
+                      disabled={busy || uncertaintyLocked}
                       onChange={(event) => setType(event.target.value as 'text' | 'voice')}
                     >
                       <option value="text">Text</option>
@@ -409,7 +445,7 @@ export function ChannelManager({
                     <select
                       id={`${inputId}-category`}
                       value={parentKey}
-                      disabled={busy || uncertain}
+                      disabled={busy || uncertaintyLocked}
                       onChange={(event) => setParentKey(event.target.value)}
                     >
                       {controls?.canCreateRoot ? <option value="">No category</option> : null}

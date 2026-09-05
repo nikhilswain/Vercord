@@ -11,7 +11,6 @@ import type {
   VoiceServiceStatus,
   VoiceState,
 } from '../../../domain/voice/protocol';
-import type { ChannelRefreshReason } from '../channel-refresh';
 
 const SEND_INTERVAL_MS = 90;
 const MAX_INCOMING_MESSAGE_BYTES = 768 * 1_024;
@@ -34,8 +33,6 @@ export interface WorldPresenceCallbacks {
   onWorldView?(view: WorldView): void;
   onWorldSync?(sync: WorldSync): void;
   recoverAdmission?(signal: AbortSignal): Promise<WorldView>;
-  /** @deprecated Kept until the page switches to the versioned world callbacks. */
-  onWorldInvalidated?(reason: ChannelRefreshReason): void;
 }
 
 type RecoveryKind = 'admission' | 'socket';

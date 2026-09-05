@@ -2,9 +2,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 
 import { RequestRetry } from '../../components/RequestRetry';
 import type { MapRoom, MapSnapshot } from '../../domain/map/snapshot';
-import type { ChannelControls } from '../../domain/channels/protocol';
+import type { ChannelMutationResult, WorldSync, WorldView } from '../../domain/channels/protocol';
 import { ChannelManager } from './ChannelManager';
-import type { ChannelRefreshReason, ChannelRefreshStatus } from './channel-refresh';
 import {
   INITIAL_WORLD_VOICE_STATE,
   reduceWorldVoiceState,
@@ -16,6 +15,7 @@ import { createVillageWorld } from './engine/village-world';
 import type { WorldUiState } from './engine/types';
 import { WorldEngine } from './engine/world-engine';
 import { WorldPresenceClient, type WorldPresenceState } from './presence/world-presence-client';
+import type { WorldClientState } from './world-state';
 import { VirtualJoystick } from './VirtualJoystick';
 import { VoiceBeacon } from './VoiceBeacon';
 import {
@@ -30,12 +30,14 @@ import {
 export interface WorldCanvasProps {
   snapshot: MapSnapshot;
   presenceGuildId?: string;
-  channelControls?: ChannelControls | null;
-  channelsStale?: boolean;
-  channelsRateLimited?: boolean;
-  channelRefreshStatus?: ChannelRefreshStatus;
+  worldState?: WorldClientState;
+  onlineResumeNonce?: number;
+  onWorldView?: (view: WorldView) => void;
+  onWorldSync?: (sync: WorldSync) => void;
+  onChannelMutation?: (result: ChannelMutationResult) => void;
   onRefreshChannels?: () => Promise<boolean>;
-  onWorldInvalidated?: (reason: ChannelRefreshReason) => void;
+  onConfirmReconciled?: () => void;
+  recoverAdmission?: (signal: AbortSignal) => Promise<WorldView>;
 }
 
 const INITIAL_UI: WorldUiState = {
@@ -76,17 +78,25 @@ function ControlIcon({ children }: { children: string }) {
 export function WorldCanvas({
   snapshot,
   presenceGuildId,
-  channelControls = null,
-  channelsStale = false,
-  channelsRateLimited = false,
-  channelRefreshStatus,
+  worldState,
+  onlineResumeNonce = 0,
+  onWorldView,
+  onWorldSync,
+  onChannelMutation,
   onRefreshChannels,
-  onWorldInvalidated,
+  onConfirmReconciled,
+  recoverAdmission,
 }: WorldCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<WorldEngine | null>(null);
+  const presenceClientRef = useRef<WorldPresenceClient | null>(null);
+  const presenceCallbacksRef = useRef({
+    onWorldView,
+    onWorldSync,
+    recoverAdmission,
+  });
   const world = useMemo(() => createVillageWorld(snapshot), [snapshot]);
   const latestWorld = useRef(world);
   const [ready, setReady] = useState(false);
@@ -99,10 +109,16 @@ export function WorldCanvas({
   const sceneRoomRef = useRef<WorldUiState['room']>(null);
   const observedVoiceChannelRef = useRef<string | null | undefined>(undefined);
   const suppressedRoomMoveRef = useRef<string | null>(null);
+  const receivedVoiceSnapshotRef = useRef(false);
+  const previousOnlineResumeNonceRef = useRef(onlineResumeNonce);
   const dispatchVoice = useCallback((action: WorldVoiceAction) => {
     voiceRef.current = reduceWorldVoiceState(voiceRef.current, action);
     dispatchVoiceState(action);
   }, []);
+
+  useEffect(() => {
+    presenceCallbacksRef.current = { onWorldView, onWorldSync, recoverAdmission };
+  }, [onWorldSync, onWorldView, recoverAdmission]);
 
   useEffect(() => {
     voiceRef.current = voice;
@@ -246,11 +262,15 @@ export function WorldCanvas({
 
   useEffect(() => {
     dispatchVoice({ type: 'reset' });
-    if (!presenceGuildId) return;
-    const controller = new AbortController();
-    void reconcileVoice(controller.signal);
-    return () => controller.abort();
-  }, [dispatchVoice, presenceGuildId, reconcileVoice]);
+    receivedVoiceSnapshotRef.current = false;
+    observedVoiceChannelRef.current = undefined;
+  }, [dispatchVoice, presenceGuildId]);
+
+  useEffect(() => {
+    if (previousOnlineResumeNonceRef.current === onlineResumeNonce) return;
+    previousOnlineResumeNonceRef.current = onlineResumeNonce;
+    presenceClientRef.current?.resume();
+  }, [onlineResumeNonce]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -262,11 +282,22 @@ export function WorldCanvas({
           onPlayers: (players) => engineRef.current?.setRemotePlayers(players),
           onSelfAvatar: (avatarId) => engineRef.current?.setPlayerAvatar(avatarId),
           onState: setPresence,
-          onWorldInvalidated,
+          onWorldView: (view) => presenceCallbacksRef.current.onWorldView?.(view),
+          onWorldSync: (sync) => presenceCallbacksRef.current.onWorldSync?.(sync),
+          recoverAdmission: (signal) => {
+            const recover = presenceCallbacksRef.current.recoverAdmission;
+            return recover
+              ? recover(signal)
+              : Promise.reject(new Error('World admission recovery is unavailable.'));
+          },
           onVoiceState: (state) => dispatchVoice({ type: 'voice-state', state }),
+          onVoiceSnapshot: (response) => {
+            receivedVoiceSnapshotRef.current = true;
+            dispatchVoice({ type: 'resolved', response });
+          },
           onVoiceService: (service) => {
             dispatchVoice({ type: 'service', service });
-            if (service === 'online') void reconcileVoice();
+            if (service === 'online' && !receivedVoiceSnapshotRef.current) void reconcileVoice();
           },
         })
       : null;
@@ -288,6 +319,7 @@ export function WorldCanvas({
       onPresenceMove: (location) => presenceClient?.updateLocation(location),
     });
     engineRef.current = engine;
+    presenceClientRef.current = presenceClient;
 
     const resize = () => engine.resize(host.clientWidth, host.clientHeight);
     const resizeObserver = new ResizeObserver(resize);
@@ -300,9 +332,10 @@ export function WorldCanvas({
       resizeObserver.disconnect();
       presenceClient?.disconnect();
       engine.destroy();
+      if (presenceClientRef.current === presenceClient) presenceClientRef.current = null;
       engineRef.current = null;
     };
-  }, [dispatchVoice, moveToVoiceRoom, presenceGuildId, reconcileVoice, onWorldInvalidated]);
+  }, [dispatchVoice, moveToVoiceRoom, presenceGuildId, reconcileVoice]);
 
   const connectedRoom =
     voice.voiceState?.channelKey === null || voice.voiceState?.channelKey === undefined
@@ -337,6 +370,18 @@ export function WorldCanvas({
     if (document.fullscreenElement) await document.exitFullscreen();
     else await host.requestFullscreen();
   };
+
+  const channelSync = worldState?.sync;
+  const channelSyncReady = channelSync?.state === 'ready';
+  const channelControls = channelSyncReady ? (worldState?.view?.controls ?? null) : null;
+  const channelsUnavailable = worldState !== undefined && !channelSyncReady;
+  const channelsRateLimited = channelSync?.state === 'cooldown';
+  const canManageChannels =
+    presenceGuildId !== undefined &&
+    worldState !== undefined &&
+    onChannelMutation !== undefined &&
+    onRefreshChannels !== undefined &&
+    onConfirmReconciled !== undefined;
 
   return (
     <div ref={hostRef} className="world-viewport">
@@ -387,29 +432,38 @@ export function WorldCanvas({
                 : 'Reconnecting…'}
           </span>
         ) : null}
-        {presenceGuildId && onRefreshChannels ? (
+        {canManageChannels ? (
           <ChannelManager
             guildId={presenceGuildId}
-            snapshot={snapshot}
-            permissionsUnavailable={channelsStale}
+            snapshot={worldState.view?.snapshot ?? snapshot}
+            permissionsUnavailable={channelsUnavailable}
             rateLimited={channelsRateLimited}
-            refreshStatus={channelRefreshStatus}
+            refreshPending={worldState.pending}
+            retryAt={worldState.retryAt}
+            uncertainRequestId={worldState.uncertainRequestId}
+            canConfirmReconciled={worldState.canConfirmReconciled}
             controls={channelControls}
             currentRoomKey={sceneRoom?.room.key ?? null}
+            onMutation={onChannelMutation}
             onRefresh={onRefreshChannels}
+            onConfirmReconciled={onConfirmReconciled}
           />
         ) : null}
-        {channelsStale ? (
+        {channelsUnavailable ? (
           <div className="world-location-meta">
             <p role="status">
               {channelsRateLimited
-                ? 'Discord is limiting channel requests. Controls are paused during the cooldown.'
-                : 'Channel sync unavailable. Controls are paused.'}
+                ? channelSync.scope === 'mutation'
+                  ? 'Discord is limiting channel changes. Controls are paused during the cooldown.'
+                  : 'Discord is limiting channel requests. Controls are paused during the cooldown.'
+                : channelSync?.state === 'offline'
+                  ? 'Channel sync is offline. Controls are paused.'
+                  : 'Channel sync unavailable. Controls are paused.'}
             </p>
             {onRefreshChannels ? (
               <RequestRetry
-                retryAt={channelRefreshStatus?.retryAt ?? 0}
-                pending={channelRefreshStatus?.pending}
+                retryAt={worldState.retryAt}
+                pending={worldState.pending}
                 label="Refresh channels"
                 onRetry={onRefreshChannels}
               />

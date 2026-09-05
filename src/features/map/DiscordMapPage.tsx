@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 
 import { AppHeader } from '../../components/AppHeader';
 import { RequestRetry } from '../../components/RequestRetry';
+import type { ChannelMutationResult, WorldSync, WorldView } from '../../domain/channels/protocol';
 import { mapSnapshotSchema, type MapSnapshot } from '../../domain/map/snapshot';
-import type { ChannelControls } from '../../domain/channels/protocol';
-import { ChannelApiError, fetchChannelState } from '../world/channel-api';
-import {
-  ChannelRefreshController,
-  type ChannelRefreshReason,
-  type ChannelRefreshResult,
-  type ChannelRefreshStatus,
-} from '../world/channel-refresh';
+import { fetchChannelState, fetchWorldAdmission } from '../world/channel-api';
 import { WorldCanvas } from '../world/WorldCanvas';
+import { WorldStateStore, type WorldClientState } from '../world/world-state';
 import '../world/world.css';
 
 interface DiscordMapPageProps {
@@ -28,93 +30,136 @@ type LoadState =
   | { kind: 'unavailable' };
 
 export function DiscordMapPage({ slug, mode = 'public' }: DiscordMapPageProps) {
-  const [state, setState] = useState<LoadState>({ kind: 'loading' });
-  const [controls, setControls] = useState<ChannelControls | null>(null);
-  const [stale, setStale] = useState(false);
-  const [rateLimited, setRateLimited] = useState(false);
-  const [refreshStatus, setRefreshStatus] = useState<ChannelRefreshStatus>({
-    retryAt: 0,
-    pending: false,
-  });
-  const refreshRef = useRef<() => Promise<boolean>>(async () => false);
-  const refresh = useCallback(() => refreshRef.current(), []);
-  const invalidateRef = useRef<(reason: ChannelRefreshReason) => void>(() => undefined);
-  const invalidate = useCallback(
-    (reason: ChannelRefreshReason) => invalidateRef.current(reason),
-    [],
+  return mode === 'member' ? (
+    <MemberDiscordMapPage key={slug} slug={slug} />
+  ) : (
+    <SnapshotMapPage slug={slug} mode={mode} />
   );
+}
+
+function MemberDiscordMapPage({ slug }: { slug: string }) {
+  const [store] = useState(() => new WorldStateStore((signal) => fetchChannelState(slug, signal)));
+  const worldState = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const lifecycleGeneration = useRef(0);
+  const [initializing, setInitializing] = useState(true);
+  const [onlineResumeNonce, setOnlineResumeNonce] = useState(0);
+
+  useEffect(() => {
+    const ownership = lifecycleGeneration;
+    const generation = ++ownership.current;
+    queueMicrotask(() => {
+      if (generation !== ownership.current) return;
+      void store.refresh().finally(() => {
+        if (generation === ownership.current) setInitializing(false);
+      });
+    });
+
+    return () => {
+      const cleanupGeneration = ++ownership.current;
+      queueMicrotask(() => {
+        if (cleanupGeneration === ownership.current) store.dispose();
+      });
+    };
+  }, [store]);
+
+  useEffect(() => {
+    const resume = () => setOnlineResumeNonce((nonce) => nonce + 1);
+    window.addEventListener('online', resume);
+    return () => window.removeEventListener('online', resume);
+  }, []);
+
+  const onWorldView = useCallback((view: WorldView) => store.accept(view), [store]);
+  const onWorldSync = useCallback((sync: WorldSync) => store.status(sync), [store]);
+  const onChannelMutation = useCallback(
+    (result: ChannelMutationResult) => store.mutation(result),
+    [store],
+  );
+  const refresh = useCallback(() => store.refresh(), [store]);
+  const confirmReconciled = useCallback(() => store.confirmReconciled(), [store]);
+  const recoverAdmission = useCallback(
+    (signal: AbortSignal) => fetchWorldAdmission(slug, signal),
+    [slug],
+  );
+
+  useMemberWorldTitle(worldState);
+
+  if (worldState.sync.state === 'denied') {
+    return worldState.sync.code === 'UNAUTHENTICATED' ? (
+      <WorldError
+        title="Sign in to enter this world"
+        message="Use a Discord account that belongs to this server."
+        href={`/api/auth/discord/start?return_to=${encodeURIComponent(`/world/${slug}`)}`}
+        action="Continue with Discord"
+      />
+    ) : (
+      <WorldError
+        title="This Discord world is private"
+        message="This Discord account is not a member of the server."
+        href="/dashboard"
+        action="Back to your worlds"
+      />
+    );
+  }
+
+  if (worldState.view !== null) {
+    return (
+      <WorldShell
+        context={worldState.view.snapshot.server.displayName}
+        status="Private Discord world"
+      >
+        <WorldCanvas
+          snapshot={worldState.view.snapshot}
+          presenceGuildId={slug}
+          worldState={worldState}
+          onlineResumeNonce={onlineResumeNonce}
+          onWorldView={onWorldView}
+          onWorldSync={onWorldSync}
+          onChannelMutation={onChannelMutation}
+          onRefreshChannels={refresh}
+          onConfirmReconciled={confirmReconciled}
+          recoverAdmission={recoverAdmission}
+        />
+      </WorldShell>
+    );
+  }
+
+  if (initializing || worldState.pending) return <WorldLoading />;
+
+  if (worldState.sync.state !== 'ready' && worldState.sync.code === 'WORLD_NOT_FOUND') {
+    return (
+      <WorldError
+        title="World not created"
+        message="A server manager needs to create and sync this world first."
+        href="/dashboard"
+        action="Back to your worlds"
+      />
+    );
+  }
+
+  const rateLimited = worldState.sync.state === 'cooldown';
+  return (
+    <WorldError
+      title={rateLimited ? 'Discord needs a short pause' : 'World unavailable'}
+      message={
+        rateLimited
+          ? 'Discord is temporarily limiting world admission. Wait for the countdown before trying again.'
+          : 'The Discord world could not be loaded right now. Please try again shortly.'
+      }
+      href="/dashboard"
+      action="Back to your worlds"
+      retry={
+        <RequestRetry retryAt={worldState.retryAt} pending={worldState.pending} onRetry={refresh} />
+      }
+    />
+  );
+}
+
+function SnapshotMapPage({ slug, mode }: { slug: string; mode: 'public' | 'local-preview' }) {
+  const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const isLocalPreview = mode === 'local-preview';
-  const isMemberWorld = mode === 'member';
 
   useEffect(() => {
     const controller = new AbortController();
-
-    if (isMemberWorld) {
-      const read = async (): Promise<ChannelRefreshResult> => {
-        try {
-          const result = await fetchChannelState(slug, controller.signal);
-          if (controller.signal.aborted) return false;
-          setState((previous) => {
-            // Timestamps change on revalidation; only rebuild the world for actual content changes.
-            const unchanged =
-              previous.kind === 'ready' &&
-              JSON.stringify([previous.snapshot.server, previous.snapshot.areas]) ===
-                JSON.stringify([result.snapshot.server, result.snapshot.areas]);
-            return unchanged ? previous : { kind: 'ready', snapshot: result.snapshot };
-          });
-          setControls(result.controls);
-          setStale(false);
-          setRateLimited(false);
-          return true;
-        } catch (error) {
-          if (controller.signal.aborted) return false;
-          setStale(true);
-          const code = error instanceof ChannelApiError ? error.code : '';
-          setRateLimited(code === 'CHANNEL_RATE_LIMITED');
-          if (['UNAUTHENTICATED', 'GUILD_MEMBERSHIP_REQUIRED', 'WORLD_NOT_FOUND'].includes(code)) {
-            setControls(null);
-          }
-          setState((previous) =>
-            code === 'UNAUTHENTICATED'
-              ? { kind: 'signed-out' }
-              : code === 'GUILD_MEMBERSHIP_REQUIRED'
-                ? { kind: 'forbidden' }
-                : code === 'WORLD_NOT_FOUND'
-                  ? { kind: 'not-found' }
-                  : previous.kind === 'ready'
-                    ? previous
-                    : { kind: 'unavailable' },
-          );
-          return error instanceof ChannelApiError && error.retryAfterMs > 0
-            ? { retryAfterMs: error.retryAfterMs }
-            : false;
-        }
-      };
-      const refreshController = new ChannelRefreshController(
-        read,
-        () => document.visibilityState === 'visible',
-        setRefreshStatus,
-      );
-      const onFocus = () => {
-        refreshController.notify('focus');
-      };
-      refreshRef.current = () => refreshController.refresh();
-      invalidateRef.current = (reason) => refreshController.notify(reason);
-      void refreshController.refresh();
-      window.addEventListener('focus', onFocus);
-      window.addEventListener('online', onFocus);
-      document.addEventListener('visibilitychange', onFocus);
-      return () => {
-        refreshController.dispose();
-        controller.abort();
-        window.removeEventListener('focus', onFocus);
-        window.removeEventListener('online', onFocus);
-        document.removeEventListener('visibilitychange', onFocus);
-        refreshRef.current = async () => false;
-        invalidateRef.current = () => undefined;
-      };
-    }
-
     const endpoint = `${isLocalPreview ? '/api/preview/maps/' : '/api/maps/'}${encodeURIComponent(slug)}`;
     void fetch(endpoint, {
       headers: { accept: 'application/json' },
@@ -140,138 +185,151 @@ export function DiscordMapPage({ slug, mode = 'public' }: DiscordMapPageProps) {
       });
 
     return () => controller.abort();
-  }, [isLocalPreview, isMemberWorld, slug]);
+  }, [isLocalPreview, slug]);
 
-  useEffect(() => {
-    if (state.kind === 'ready') {
-      document.title = `${state.snapshot.server.displayName} — Dmap`;
-    } else if (state.kind === 'signed-out') {
-      document.title = 'Sign in to enter — Dmap';
-    } else if (state.kind === 'forbidden') {
-      document.title = 'World access denied — Dmap';
-    } else if (state.kind === 'not-found') {
-      document.title = 'Discord world not found — Dmap';
-    } else if (state.kind === 'unavailable') {
-      document.title = rateLimited
-        ? 'Discord request cooldown — Dmap'
-        : 'Discord world unavailable — Dmap';
-    }
-  }, [state, rateLimited]);
+  useSnapshotWorldTitle(state);
 
-  if (state.kind === 'loading') {
+  if (state.kind === 'loading') return <WorldLoading />;
+  if (state.kind === 'ready') {
     return (
-      <div className="world-page">
-        <div className="world-loading" role="status">
-          <span className="world-loading-mark" aria-hidden="true" />
-          <p>Loading Discord world…</p>
-        </div>
-      </div>
+      <WorldShell
+        context={state.snapshot.server.displayName}
+        status={isLocalPreview ? 'Private local preview' : 'Published Discord world'}
+      >
+        <WorldCanvas snapshot={state.snapshot} />
+      </WorldShell>
     );
   }
 
-  if (state.kind !== 'ready') {
-    if (isMemberWorld && state.kind === 'unavailable') {
-      return (
-        <main className="world-demo-error world-request-error">
-          <div className="world-request-error__content">
-            <h1>{rateLimited ? 'Discord needs a short pause' : 'World unavailable'}</h1>
-            <p>
-              {rateLimited
-                ? 'Discord is temporarily limiting channel requests. This is not a server-permission error.'
-                : 'The Discord world could not be loaded right now. Please try again shortly.'}
-            </p>
-            {rateLimited ? (
-              <p>Wait for the countdown, then try again. No page reload needed.</p>
-            ) : null}
-            <RequestRetry
-              retryAt={refreshStatus.retryAt}
-              pending={refreshStatus.pending}
-              onRetry={refresh}
-            />
-            <a href="/dashboard">Back to your worlds</a>
-          </div>
-        </main>
-      );
-    }
-    const returnTo = `/world/${slug}`;
-    const title =
-      state.kind === 'signed-out'
-        ? 'Sign in to enter this world'
-        : state.kind === 'forbidden'
-          ? 'This Discord world is private'
-          : state.kind === 'not-found'
-            ? isLocalPreview
-              ? 'Preview not synced'
-              : isMemberWorld
-                ? 'World not created'
-                : 'World not published'
-            : 'World unavailable';
-    const message =
-      state.kind === 'signed-out'
-        ? 'Use a Discord account that belongs to this server.'
-        : state.kind === 'forbidden'
-          ? 'This Discord account is not a member of the server.'
-          : state.kind === 'not-found'
-            ? isLocalPreview
-              ? 'Sync this server from the dashboard, then refresh this page.'
-              : isMemberWorld
-                ? 'A server manager needs to create and sync this world first.'
-                : 'This Discord world has not been synced or has no public map yet.'
-            : 'The Discord world could not be loaded right now.';
-
-    return (
-      <main className="world-demo-error" role="alert">
-        <h1>{title}</h1>
-        <p>{message}</p>
-        <a
-          href={
-            state.kind === 'signed-out'
-              ? `/api/auth/discord/start?return_to=${encodeURIComponent(returnTo)}`
-              : state.kind === 'unavailable'
-                ? window.location.pathname
-                : isMemberWorld
-                  ? '/dashboard'
-                  : '/'
-          }
-        >
-          {state.kind === 'signed-out'
-            ? 'Continue with Discord'
-            : state.kind === 'unavailable'
-              ? 'Try again'
-              : isMemberWorld
-                ? 'Back to your worlds'
-                : 'Back to Dmap'}
-        </a>
-      </main>
-    );
-  }
+  const returnTo = `/world/${slug}`;
+  const title =
+    state.kind === 'signed-out'
+      ? 'Sign in to enter this world'
+      : state.kind === 'forbidden'
+        ? 'This Discord world is private'
+        : state.kind === 'not-found'
+          ? isLocalPreview
+            ? 'Preview not synced'
+            : 'World not published'
+          : 'World unavailable';
+  const message =
+    state.kind === 'signed-out'
+      ? 'Use a Discord account that belongs to this server.'
+      : state.kind === 'forbidden'
+        ? 'This Discord account is not a member of the server.'
+        : state.kind === 'not-found'
+          ? isLocalPreview
+            ? 'Sync this server from the dashboard, then refresh this page.'
+            : 'This Discord world has not been synced or has no public map yet.'
+          : 'The Discord world could not be loaded right now.';
 
   return (
+    <WorldError
+      title={title}
+      message={message}
+      href={
+        state.kind === 'signed-out'
+          ? `/api/auth/discord/start?return_to=${encodeURIComponent(returnTo)}`
+          : state.kind === 'unavailable'
+            ? window.location.pathname
+            : '/'
+      }
+      action={
+        state.kind === 'signed-out'
+          ? 'Continue with Discord'
+          : state.kind === 'unavailable'
+            ? 'Try again'
+            : 'Back to Dmap'
+      }
+    />
+  );
+}
+
+function useMemberWorldTitle(state: WorldClientState): void {
+  useEffect(() => {
+    if (state.sync.state === 'denied') {
+      document.title =
+        state.sync.code === 'UNAUTHENTICATED'
+          ? 'Sign in to enter — Dmap'
+          : 'World access denied — Dmap';
+    } else if (state.view !== null) {
+      document.title = `${state.view.snapshot.server.displayName} — Dmap`;
+    } else if (state.sync.state !== 'ready' && state.sync.code === 'WORLD_NOT_FOUND') {
+      document.title = 'Discord world not found — Dmap';
+    } else if (state.sync.state === 'cooldown') {
+      document.title = 'Discord request cooldown — Dmap';
+    } else {
+      document.title = 'Discord world unavailable — Dmap';
+    }
+  }, [state]);
+}
+
+function useSnapshotWorldTitle(state: LoadState): void {
+  useEffect(() => {
+    document.title =
+      state.kind === 'ready'
+        ? `${state.snapshot.server.displayName} — Dmap`
+        : state.kind === 'signed-out'
+          ? 'Sign in to enter — Dmap'
+          : state.kind === 'forbidden'
+            ? 'World access denied — Dmap'
+            : state.kind === 'not-found'
+              ? 'Discord world not found — Dmap'
+              : state.kind === 'unavailable'
+                ? 'Discord world unavailable — Dmap'
+                : document.title;
+  }, [state]);
+}
+
+function WorldLoading() {
+  return (
     <div className="world-page">
-      <AppHeader
-        context={state.snapshot.server.displayName}
-        status={
-          <span>
-            {isLocalPreview
-              ? 'Private local preview'
-              : isMemberWorld
-                ? 'Private Discord world'
-                : 'Published Discord world'}
-          </span>
-        }
-      />
-      <main className="world-main">
-        <WorldCanvas
-          snapshot={state.snapshot}
-          presenceGuildId={isMemberWorld ? slug : undefined}
-          channelControls={controls}
-          onRefreshChannels={refresh}
-          onWorldInvalidated={invalidate}
-          channelsStale={isMemberWorld && stale}
-          channelsRateLimited={rateLimited}
-          channelRefreshStatus={refreshStatus}
-        />
-      </main>
+      <div className="world-loading" role="status">
+        <span className="world-loading-mark" aria-hidden="true" />
+        <p>Loading Discord world…</p>
+      </div>
     </div>
+  );
+}
+
+function WorldShell({
+  context,
+  status,
+  children,
+}: {
+  context: string;
+  status: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="world-page">
+      <AppHeader context={context} status={<span>{status}</span>} />
+      <main className="world-main">{children}</main>
+    </div>
+  );
+}
+
+function WorldError({
+  title,
+  message,
+  href,
+  action,
+  retry,
+}: {
+  title: string;
+  message: string;
+  href: string;
+  action: string;
+  retry?: ReactNode;
+}) {
+  return (
+    <main className="world-demo-error world-request-error" role="alert">
+      <div className="world-request-error__content">
+        <h1>{title}</h1>
+        <p>{message}</p>
+        {retry}
+        <a href={href}>{action}</a>
+      </div>
+    </main>
   );
 }
