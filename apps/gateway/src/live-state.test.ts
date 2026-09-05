@@ -82,6 +82,44 @@ it('finishes remaining watches when another member releases during recovery', as
   }
 });
 
+it('hydrates a same-user replacement watch before shared recovery becomes ready', async () => {
+  const obsolete = deferred<MemberRecord>();
+  const replacement = deferred<MemberRecord>();
+  const otherMember = deferred<MemberRecord>();
+  const started = deferred<void>();
+  const replacementStarted = deferred<void>();
+  let memberReads = 0;
+  const live = fixture(async (_guildId, userId) => {
+    if (userId === '3') {
+      started.resolve();
+      return otherMember.promise;
+    }
+    memberReads += 1;
+    if (memberReads === 1) return obsolete.promise;
+    replacementStarted.resolve();
+    return replacement.promise;
+  });
+  try {
+    const leaving = command('2');
+    const leavingRead = live.read(leaving).catch((error: unknown) => error);
+    const remainingRead = live.read(command('3'));
+    await started.promise;
+    live.release({ ...leaving, type: 'world-release' });
+    const replacementRead = live.read(command('2'));
+    obsolete.resolve(present('2'));
+    otherMember.resolve(present('3'));
+    await replacementStarted.promise;
+    expect(() => live.current('1', '3')).toThrow(LiveStateError);
+    replacement.resolve({ kind: 'absent', userId: '2' });
+    expect(await leavingRead).toBeInstanceOf(LiveStateError);
+    expect((await remainingRead).member).toEqual(present('3'));
+    expect((await replacementRead).member).toEqual({ kind: 'absent', userId: '2' });
+    expect(live.current('1', '2').member).toEqual({ kind: 'absent', userId: '2' });
+  } finally {
+    live.stop();
+  }
+});
+
 it.each([
   ['malformed response', { id: '5', permission_overwrites: [] }],
   [

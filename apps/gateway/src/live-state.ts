@@ -231,26 +231,39 @@ export class DiscordLiveState {
       }
       this.assertRecovery(state, generation);
       this.replaceSource(state, this.withOverlays(state, source));
-      const userIds = [...state.watches.keys()];
-      await Promise.all(
-        userIds.map(async (userId) => {
-          const before = this.members.peek(guildId, userId);
-          let record: MemberRecord;
-          try {
-            record = await this.members.get(guildId, userId);
-          } catch (error) {
-            // A closed watch is no longer a recovery obligation. Retained uncertain
-            // members still fail recovery, as do superseded guild generations.
+      const recovered = new Map<string, Map<string, Watch>>();
+      while (true) {
+        this.assertRecovery(state, generation);
+        // A last close destroys this watch map and its member slot. Rewatching the
+        // same user creates a different obligation, even while an old read settles.
+        for (const [userId, watches] of recovered) {
+          if (state.watches.get(userId) !== watches) recovered.delete(userId);
+        }
+        const obligations = [...state.watches].filter(
+          ([userId, watches]) => recovered.get(userId) !== watches,
+        );
+        if (obligations.length === 0) break;
+        await Promise.all(
+          obligations.map(async ([userId, watches]) => {
+            const before = this.members.peek(guildId, userId);
+            let record: MemberRecord;
+            try {
+              record = await this.members.get(guildId, userId);
+            } catch (error) {
+              this.assertRecovery(state, generation);
+              if (state.watches.get(userId) !== watches) return;
+              throw error;
+            }
             this.assertRecovery(state, generation);
-            if (!state.watches.has(userId)) return;
-            throw error;
-          }
-          this.assertRecovery(state, generation);
-          if (state.watches.has(userId) && JSON.stringify(before) !== JSON.stringify(record)) {
-            this.emit(state, { type: 'world-member', member: record });
-          }
-        }),
-      );
+            if (state.watches.get(userId) !== watches) return;
+            recovered.set(userId, watches);
+            if (JSON.stringify(before) !== JSON.stringify(record)) {
+              this.emit(state, { type: 'world-member', member: record });
+            }
+          }),
+        );
+        // Hydrate replacements here: their public read is awaiting this recovery.
+      }
       this.assertRecovery(state, generation);
       state.ready = true;
       this.emit(state, { type: 'world-health', ready: true });
