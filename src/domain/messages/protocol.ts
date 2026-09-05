@@ -5,7 +5,7 @@ import { discordTimestampSchema } from '../discord/source-schema';
 
 export const MESSAGE_HISTORY_LIMIT = 20;
 export const MESSAGE_CONTENT_MAX_LENGTH = 4_000;
-export const MESSAGE_SEND_MAX_LENGTH = 2_000;
+export const MESSAGE_SEND_MAX_LENGTH = 1_900;
 
 export type MessageSlowmodePolicy = {
   actorKey: string;
