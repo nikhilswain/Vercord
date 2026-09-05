@@ -1,14 +1,20 @@
+import type { AvatarId } from '../../../domain/avatar/identity';
+import type { WorldSync, WorldView } from '../../../domain/channels/protocol';
 import {
   serverPresenceMessageSchema,
   type ClientPresenceLocation,
   type ClientPresenceMessage,
   type PresencePlayer,
 } from '../../../domain/presence/protocol';
-import type { AvatarId } from '../../../domain/avatar/identity';
-import type { VoiceServiceStatus, VoiceState } from '../../../domain/voice/protocol';
+import type {
+  VoiceApiResponse,
+  VoiceServiceStatus,
+  VoiceState,
+} from '../../../domain/voice/protocol';
 import type { ChannelRefreshReason } from '../channel-refresh';
 
 const SEND_INTERVAL_MS = 90;
+const MAX_INCOMING_MESSAGE_BYTES = 768 * 1_024;
 const RECONNECT_DELAYS_MS = [750, 1_500, 3_000, 5_000, 10_000] as const;
 
 export type WorldPresenceConnection = 'connecting' | 'online' | 'offline';
@@ -18,13 +24,26 @@ export interface WorldPresenceState {
   onlineCount: number;
 }
 
-interface WorldPresenceCallbacks {
+export interface WorldPresenceCallbacks {
   onPlayers(players: readonly PresencePlayer[]): void;
   onSelfAvatar(avatarId: AvatarId): void;
   onState(state: WorldPresenceState): void;
   onVoiceState(state: VoiceState): void;
   onVoiceService(service: VoiceServiceStatus): void;
+  onVoiceSnapshot?(response: VoiceApiResponse): void;
+  onWorldView?(view: WorldView): void;
+  onWorldSync?(sync: WorldSync): void;
+  recoverAdmission?(signal: AbortSignal): Promise<WorldView>;
+  /** @deprecated Kept until the page switches to the versioned world callbacks. */
   onWorldInvalidated?(reason: ChannelRefreshReason): void;
+}
+
+type RecoveryKind = 'admission' | 'socket';
+
+interface AdmissionFailure {
+  code: string;
+  retryAt: number;
+  scope?: 'admission' | 'mutation';
 }
 
 function socketUrl(guildId: string): string {
@@ -47,6 +66,47 @@ function sameLocation(left: ClientPresenceLocation | null, right: ClientPresence
   );
 }
 
+function isWithinIncomingLimit(raw: string): boolean {
+  if (raw.length > MAX_INCOMING_MESSAGE_BYTES) return false;
+  return new TextEncoder().encode(raw).byteLength <= MAX_INCOMING_MESSAGE_BYTES;
+}
+
+function admissionFailure(error: unknown): AdmissionFailure {
+  if (typeof error !== 'object' || error === null) {
+    return { code: 'WORLD_SOURCE_UNAVAILABLE', retryAt: 0, scope: 'admission' };
+  }
+  const candidate = error as { code?: unknown; retryAt?: unknown; scope?: unknown };
+  return {
+    code: typeof candidate.code === 'string' ? candidate.code : 'WORLD_SOURCE_UNAVAILABLE',
+    retryAt:
+      typeof candidate.retryAt === 'number' && Number.isFinite(candidate.retryAt)
+        ? candidate.retryAt
+        : 0,
+    scope:
+      candidate.scope === 'admission' || candidate.scope === 'mutation'
+        ? candidate.scope
+        : undefined,
+  };
+}
+
+function admissionFailureSync(failure: AdmissionFailure): WorldSync {
+  if (failure.code === 'UNAUTHENTICATED' || failure.code === 'GUILD_MEMBERSHIP_REQUIRED') {
+    return { state: 'denied', code: failure.code };
+  }
+  if (failure.retryAt > Date.now()) {
+    return {
+      state: 'cooldown',
+      scope: failure.scope ?? 'admission',
+      retryAt: failure.retryAt,
+      code: failure.code,
+    };
+  }
+  if (failure.code === 'GATEWAY_UPDATE_REQUIRED' || failure.code === 'WORLD_SOURCE_UNAVAILABLE') {
+    return { state: 'offline', code: failure.code };
+  }
+  return { state: 'recovering', code: failure.code };
+}
+
 export class WorldPresenceClient {
   private socket: WebSocket | null = null;
   private selfId: string | null = null;
@@ -56,9 +116,18 @@ export class WorldPresenceClient {
   private lastSentAt = 0;
   private sendTimer: number | null = null;
   private reconnectTimer: number | null = null;
+  private scheduledRecovery: RecoveryKind | null = null;
+  private recoveryController: AbortController | null = null;
   private reconnectAttempt = 0;
+  private serverRetryAt = 0;
+  private admissionAttempted = false;
+  private retryBlocked = false;
+  private transportOffline = false;
+  private generation = 0;
   private sequence = 0;
   private stopped = true;
+  private readonly invalidFrameSockets = new WeakSet<WebSocket>();
+  private readonly cooldownSockets = new WeakSet<WebSocket>();
 
   public constructor(
     private readonly guildId: string,
@@ -68,10 +137,45 @@ export class WorldPresenceClient {
   public connect(): void {
     if (!this.stopped) return;
     this.stopped = false;
+    this.transportOffline = false;
+    this.retryBlocked = false;
+    this.serverRetryAt = 0;
+    this.admissionAttempted = false;
+    this.reconnectAttempt = 0;
+    this.generation += 1;
+    const generation = this.generation;
     this.reconnectTimer = window.setTimeout(() => {
+      if (this.stopped || generation !== this.generation) return;
       this.reconnectTimer = null;
       this.openSocket();
     }, 0);
+  }
+
+  /** Allows Task 8's browser `online` event to resume a genuinely offline transport. */
+  public resume(): void {
+    if (
+      this.stopped ||
+      !this.transportOffline ||
+      this.socket !== null ||
+      this.recoveryController !== null ||
+      this.retryBlocked
+    ) {
+      return;
+    }
+    if (Date.now() < this.serverRetryAt) {
+      if (this.reconnectTimer === null) this.scheduleRecovery('admission');
+      return;
+    }
+
+    const scheduledRecovery = this.scheduledRecovery;
+    this.clearReconnectTimer();
+    if (scheduledRecovery === 'admission') {
+      this.beginAdmissionRecovery(true);
+    } else if (!this.admissionAttempted && this.callbacks.recoverAdmission) {
+      this.beginAdmissionRecovery(false);
+    } else {
+      this.openSocket();
+    }
   }
 
   public updateLocation(location: ClientPresenceLocation): void {
@@ -82,10 +186,12 @@ export class WorldPresenceClient {
 
   public disconnect(): void {
     this.stopped = true;
-    if (this.sendTimer !== null) window.clearTimeout(this.sendTimer);
-    if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
-    this.sendTimer = null;
-    this.reconnectTimer = null;
+    this.generation += 1;
+    this.clearSendTimer();
+    this.clearReconnectTimer();
+    this.recoveryController?.abort();
+    this.recoveryController = null;
+    this.transportOffline = false;
     const socket = this.socket;
     this.socket = null;
     if (socket?.readyState === WebSocket.CONNECTING) {
@@ -93,26 +199,46 @@ export class WorldPresenceClient {
     } else if (socket?.readyState === WebSocket.OPEN) {
       socket.close(1000, 'World left');
     }
+    this.selfId = null;
     this.players.clear();
   }
 
   private openSocket(): void {
-    if (this.stopped) return;
+    if (this.stopped || this.socket !== null || this.retryBlocked) return;
+    if (Date.now() < this.serverRetryAt) {
+      this.scheduleRecovery('admission');
+      return;
+    }
+    this.transportOffline = false;
+    const generation = this.generation;
     this.callbacks.onState({ connection: 'connecting', onlineCount: 0 });
-    const socket = new WebSocket(socketUrl(this.guildId));
+    if (this.stopped || generation !== this.generation || this.socket !== null) return;
+
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(socketUrl(this.guildId));
+    } catch {
+      this.handleSocketConstructionFailure();
+      return;
+    }
     this.socket = socket;
 
     socket.addEventListener('open', () => {
-      if (socket !== this.socket) return;
-      this.reconnectAttempt = 0;
+      if (this.stopped || socket !== this.socket) return;
       this.lastSentLocation = null;
       this.flushLocation();
     });
     socket.addEventListener('message', (event) => {
-      if (socket !== this.socket || typeof event.data !== 'string' || event.data.length > 128_000) {
+      if (this.stopped || socket !== this.socket) return;
+      if (typeof event.data !== 'string') {
+        this.rejectInvalidFrame(socket, 1003, 'Text messages only');
         return;
       }
-      this.handleMessage(event.data);
+      if (!isWithinIncomingLimit(event.data)) {
+        this.rejectInvalidFrame(socket, 1009, 'World message too large');
+        return;
+      }
+      this.handleMessage(socket, event.data);
     });
     socket.addEventListener('close', () => this.handleDisconnect(socket));
     socket.addEventListener('error', () => {
@@ -120,33 +246,65 @@ export class WorldPresenceClient {
     });
   }
 
-  private handleMessage(raw: string): void {
+  private handleMessage(socket: WebSocket, raw: string): void {
     let value: unknown;
     try {
       value = JSON.parse(raw) as unknown;
     } catch {
+      this.rejectInvalidFrame(socket, 1007, 'Invalid world message');
       return;
     }
     const parsed = serverPresenceMessageSchema.safeParse(value);
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      this.rejectInvalidFrame(socket, 1007, 'Invalid world message');
+      return;
+    }
 
     const message = parsed.data;
     if (message.type === 'world-invalidated') {
-      this.callbacks.onWorldInvalidated?.('change');
+      // Temporary wire compatibility only. Content-free invalidations must not issue a GET.
       return;
     }
-    if (message.type === 'world-view' || message.type === 'world-sync') return;
+    if (message.type === 'world-view') {
+      this.callbacks.onWorldView?.(message.view);
+      return;
+    }
+    if (message.type === 'world-sync') {
+      this.handleWorldSync(socket, message.sync);
+      return;
+    }
     if (message.type === 'welcome') {
-      this.callbacks.onWorldInvalidated?.('reconnect');
+      if (message.worldView === undefined) {
+        this.rejectInvalidFrame(socket, 1007, 'Missing world state');
+        return;
+      }
+
       this.selfId = message.selfId;
-      this.callbacks.onSelfAvatar(message.selfAvatarId);
       this.players = new Map(
         message.players
           .filter((player) => player.id !== this.selfId)
           .map((player) => [player.id, player]),
       );
-      this.callbacks.onVoiceService(message.voiceService);
-      if (message.voiceState !== null) this.callbacks.onVoiceState(message.voiceState);
+      this.reconnectAttempt = 0;
+      this.serverRetryAt = 0;
+      this.admissionAttempted = false;
+      this.retryBlocked = false;
+      this.callbacks.onWorldView?.(message.worldView);
+      if (this.stopped || socket !== this.socket) return;
+      this.callbacks.onWorldSync?.({ state: 'ready' });
+      if (this.stopped || socket !== this.socket) return;
+      this.callbacks.onSelfAvatar(message.selfAvatarId);
+      if (this.stopped || socket !== this.socket) return;
+      if (this.callbacks.onVoiceSnapshot) {
+        this.callbacks.onVoiceSnapshot({
+          service: message.voiceService,
+          state: message.voiceState,
+        });
+      } else {
+        this.callbacks.onVoiceService(message.voiceService);
+        if (this.stopped || socket !== this.socket) return;
+        if (message.voiceState !== null) this.callbacks.onVoiceState(message.voiceState);
+      }
     } else if (message.type === 'player') {
       if (message.player.id !== this.selfId) this.players.set(message.player.id, message.player);
     } else if (message.type === 'leave') {
@@ -159,26 +317,212 @@ export class WorldPresenceClient {
       return;
     }
 
+    if (this.stopped || socket !== this.socket) return;
     this.emitPlayers();
+    if (this.stopped || socket !== this.socket) return;
     this.callbacks.onState({ connection: 'online', onlineCount: this.players.size + 1 });
+  }
+
+  private handleWorldSync(socket: WebSocket, sync: WorldSync): void {
+    this.callbacks.onWorldSync?.(sync);
+    if (this.stopped || socket !== this.socket) return;
+
+    if (sync.state === 'ready') {
+      this.retryBlocked = false;
+      this.serverRetryAt = 0;
+      return;
+    }
+    if (sync.state === 'denied') {
+      this.retryBlocked = true;
+      this.clearReconnectTimer();
+      socket.close(1008, 'World access denied');
+      return;
+    }
+    if (sync.state === 'cooldown' && sync.scope === 'admission') {
+      this.serverRetryAt = sync.retryAt;
+      this.cooldownSockets.add(socket);
+      socket.close(1013, 'World admission cooldown');
+    }
+  }
+
+  private rejectInvalidFrame(socket: WebSocket, closeCode: number, reason: string): void {
+    if (socket !== this.socket) return;
+    this.invalidFrameSockets.add(socket);
+    this.callbacks.onWorldSync?.({
+      state: 'offline',
+      code: 'WORLD_SOURCE_UNAVAILABLE',
+    });
+    if (this.stopped || socket !== this.socket) return;
+    socket.close(closeCode, reason);
+  }
+
+  private handleSocketConstructionFailure(): void {
+    if (this.stopped) return;
+    const generation = this.generation;
+    this.transportOffline = true;
+    this.clearPlayers();
+    if (this.stopped || generation !== this.generation) return;
+    this.callbacks.onState({ connection: 'offline', onlineCount: 0 });
+    if (this.stopped || generation !== this.generation) return;
+    this.callbacks.onWorldSync?.({
+      state: 'recovering',
+      code: 'WORLD_SOURCE_UNAVAILABLE',
+    });
+    if (this.stopped || generation !== this.generation) return;
+    this.beginUntypedRecovery();
   }
 
   private handleDisconnect(socket: WebSocket): void {
     if (socket !== this.socket) return;
     this.socket = null;
     this.selfId = null;
-    this.players.clear();
-    this.callbacks.onPlayers([]);
-    if (this.stopped) return;
+    this.transportOffline = true;
+    this.clearSendTimer();
+    const generation = this.generation;
+    this.clearPlayers();
+    if (this.stopped || generation !== this.generation) return;
 
     this.callbacks.onState({ connection: 'offline', onlineCount: 0 });
-    const delay =
-      RECONNECT_DELAYS_MS[Math.min(this.reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)];
+    if (this.stopped || generation !== this.generation) return;
+    if (this.retryBlocked || this.reconnectTimer !== null || this.recoveryController !== null)
+      return;
+    if (this.cooldownSockets.has(socket)) {
+      this.scheduleRecovery('admission');
+      return;
+    }
+    if (this.invalidFrameSockets.has(socket)) {
+      this.scheduleRecovery('socket');
+      return;
+    }
+    this.callbacks.onWorldSync?.({
+      state: 'recovering',
+      code: 'WORLD_SOURCE_UNAVAILABLE',
+    });
+    if (this.stopped || generation !== this.generation) return;
+    this.beginUntypedRecovery();
+  }
+
+  private beginUntypedRecovery(): void {
+    if (!this.admissionAttempted && this.callbacks.recoverAdmission) {
+      this.beginAdmissionRecovery(false);
+      return;
+    }
+    this.scheduleRecovery('socket');
+  }
+
+  private beginAdmissionRecovery(force: boolean): void {
+    if (
+      this.stopped ||
+      this.socket !== null ||
+      this.recoveryController !== null ||
+      this.retryBlocked
+    ) {
+      return;
+    }
+    const recoverAdmission = this.callbacks.recoverAdmission;
+    if (!recoverAdmission) {
+      this.scheduleRecovery('socket');
+      return;
+    }
+    if (this.admissionAttempted && !force) {
+      this.scheduleRecovery('socket');
+      return;
+    }
+
+    this.admissionAttempted = true;
+    this.clearReconnectTimer();
+    const generation = this.generation;
+    const controller = new AbortController();
+    this.recoveryController = controller;
+    void Promise.resolve()
+      .then(() => recoverAdmission(controller.signal))
+      .then(
+        (view) => this.handleAdmissionSuccess(controller, generation, view),
+        (error: unknown) => this.handleAdmissionFailure(controller, generation, error),
+      );
+  }
+
+  private handleAdmissionSuccess(
+    controller: AbortController,
+    generation: number,
+    view: WorldView,
+  ): void {
+    if (!this.isCurrentRecovery(controller, generation)) return;
+    this.recoveryController = null;
+    this.serverRetryAt = 0;
+    this.retryBlocked = false;
+    this.callbacks.onWorldView?.(view);
+    if (this.stopped || generation !== this.generation || this.socket !== null) return;
+    this.callbacks.onWorldSync?.({ state: 'ready' });
+    if (this.stopped || generation !== this.generation || this.socket !== null) return;
+    this.openSocket();
+  }
+
+  private handleAdmissionFailure(
+    controller: AbortController,
+    generation: number,
+    error: unknown,
+  ): void {
+    if (!this.isCurrentRecovery(controller, generation)) return;
+    this.recoveryController = null;
+    const failure = admissionFailure(error);
+    const sync = admissionFailureSync(failure);
+    this.callbacks.onWorldSync?.(sync);
+    if (this.stopped || generation !== this.generation || this.socket !== null) return;
+
+    if (sync.state === 'denied') {
+      this.retryBlocked = true;
+      this.clearReconnectTimer();
+      return;
+    }
+    if (sync.state === 'cooldown' && sync.scope === 'admission') {
+      this.serverRetryAt = sync.retryAt;
+      this.scheduleRecovery('admission');
+      return;
+    }
+    this.scheduleRecovery('socket');
+  }
+
+  private isCurrentRecovery(controller: AbortController, generation: number): boolean {
+    return (
+      !controller.signal.aborted &&
+      controller === this.recoveryController &&
+      generation === this.generation &&
+      !this.stopped
+    );
+  }
+
+  private scheduleRecovery(kind: RecoveryKind): void {
+    if (
+      this.stopped ||
+      this.socket !== null ||
+      this.recoveryController !== null ||
+      this.retryBlocked
+    ) {
+      return;
+    }
+    this.clearReconnectTimer();
+    const base =
+      RECONNECT_DELAYS_MS[Math.min(this.reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)] ??
+      10_000;
+    const reconnectDelay = Math.round(base * (0.8 + Math.random() * 0.4));
+    const wait = Math.max(reconnectDelay, this.serverRetryAt - Date.now());
     this.reconnectAttempt += 1;
+    this.scheduledRecovery = kind;
+    const generation = this.generation;
     this.reconnectTimer = window.setTimeout(() => {
+      if (this.stopped || generation !== this.generation || this.socket !== null) return;
       this.reconnectTimer = null;
-      this.openSocket();
-    }, delay);
+      this.scheduledRecovery = null;
+      if (kind === 'admission') this.beginAdmissionRecovery(true);
+      else this.openSocket();
+    }, wait);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.scheduledRecovery = null;
   }
 
   private scheduleSend(): void {
@@ -210,6 +554,16 @@ export class WorldPresenceClient {
     socket.send(JSON.stringify(message));
     this.lastSentLocation = { ...location };
     this.lastSentAt = performance.now();
+  }
+
+  private clearSendTimer(): void {
+    if (this.sendTimer !== null) window.clearTimeout(this.sendTimer);
+    this.sendTimer = null;
+  }
+
+  private clearPlayers(): void {
+    this.players.clear();
+    this.callbacks.onPlayers([]);
   }
 
   private emitPlayers(): void {
