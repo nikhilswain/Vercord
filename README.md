@@ -39,7 +39,7 @@ deployment.
 3. In the Discord developer portal, register this exact local OAuth redirect:
 
    ```text
-   http://localhost:5173/api/auth/discord/callback
+   http://localhost:3000/api/auth/discord/callback
    ```
 
 4. Set `GATEWAY_BRIDGE_SECRET` to the same fresh 32-byte base64url value used by both processes.
@@ -58,7 +58,7 @@ deployment.
    pnpm gateway:dev
    ```
 
-6. Open `http://localhost:5173`, sign in with Discord, and sync a connected server from the
+6. Open `http://localhost:3000`, sign in with Discord, and sync a connected server from the
    dashboard. `pnpm discord:verify` can be used to inspect what the bot can see before syncing.
 
 To try voice movement, manually join any voice channel in the Discord client once, then enter a

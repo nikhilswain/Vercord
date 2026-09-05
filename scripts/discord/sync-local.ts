@@ -1,6 +1,6 @@
 import { parseSyncAuthConfig } from '../../worker/config/schema';
 
-const localOrigin = 'http://localhost:5173';
+const localOrigin = 'http://localhost:3000';
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 async function main(): Promise<void> {
