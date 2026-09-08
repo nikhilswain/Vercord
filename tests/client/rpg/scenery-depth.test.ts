@@ -52,3 +52,31 @@ describe('signpost approach', () => {
     expect(simulation.action).toBe('idle');
   });
 });
+
+describe('dungeon foreground walls', () => {
+  it.each([
+    ['nave passage', 896, 800, 864],
+    ['western archive', 256, 448, 512],
+    ['arrival chamber', 480, 928, 992],
+  ] as const)('keeps a traveler visible against the %s boundary', (_name, x, y, boundary) => {
+    const sample = getRpgSample('dungeon');
+    const simulation = new RpgSimulation(sample);
+    simulation.player = { x, y };
+    for (let frame = 0; frame < 90; frame++) {
+      simulation.tick(1 / 60, { x: 0, y: 1, moving: true, sprinting: true });
+    }
+    expect(simulation.action).toBe('idle');
+    expect(simulation.player.y).toBeLessThanOrEqual(boundary);
+    expect(simulation.player.y).toBeGreaterThan(boundary - 4);
+    const obscuringWalls = sample.stamps.filter(
+      (stamp) =>
+        stamp.texture === 'lpc-walls' &&
+        stamp.x < x + 9 &&
+        stamp.x + 32 > x - 9 &&
+        stamp.y < simulation.player.y &&
+        stamp.y + 32 > simulation.player.y - 48 &&
+        stamp.depth! > simulation.player.y,
+    );
+    expect(obscuringWalls).toEqual([]);
+  });
+});

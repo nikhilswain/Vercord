@@ -1,4 +1,5 @@
 import type { RpgSample } from '../types';
+import { addDungeonWalls } from './dungeon-walls';
 import {
   COLS,
   ROWS,
@@ -56,36 +57,11 @@ export function buildDungeon(): RpgSample {
         } else if ((x * 7 + y * 11) % 29 === 0) {
           ground(sample, 'lpc-grit', 3, x, y, -80, 0.32);
         }
-      } else {
-        const border = (
-          [
-            [1, 0],
-            [-1, 0],
-            [0, 1],
-            [0, -1],
-          ] as const
-        ).some(([dx, dy]) => floor.has(cell(x + dx, y + dy)));
-        if (border) {
-          for (let level = 0; level < 3; level++) {
-            object(sample, 'lpc-walls', (3 + level) * 6 + ((x + y) % 3), x, y - 2 + level, y + 1);
-          }
-        }
       }
     }
   }
 
-  // Merge contiguous solid cells into row spans to keep movement collision checks small.
-  for (let y = 0; y < ROWS; y++) {
-    let start: number | null = null;
-    for (let x = 0; x <= COLS; x++) {
-      if (x < COLS && !floor.has(cell(x, y))) {
-        start ??= x;
-      } else if (start !== null) {
-        block(sample, start, y, x - start, 1);
-        start = null;
-      }
-    }
-  }
+  addDungeonWalls(sample, floor);
 
   // Paired columns establish the nave's scale and leave a generous central aisle.
   for (const [x, y] of [
