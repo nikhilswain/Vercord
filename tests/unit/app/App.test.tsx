@@ -5,6 +5,10 @@ vi.mock('../../../src/features/world/WorldCanvas', () => ({
   WorldCanvas: () => null,
 }));
 
+vi.mock('../../../src/features/rpg/RpgDemoPage', () => ({
+  RpgDemoPage: () => null,
+}));
+
 import { App } from '../../../src/app/App';
 
 afterEach(() => {

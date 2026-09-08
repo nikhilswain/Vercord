@@ -45,7 +45,33 @@
 The 3D village, furniture, trees, and fallback explorers are authored procedurally in this
 repository. No scenery from the linked Poly Pizza bundle is included.
 
+## 2D RPG sample art
+
+### LPC Revised characters and scenery
+
+- Curated by Eliza Wyatt (DeathsDarling), pinned to revision
+  `f07f7f5892e67c932c68f70bb04472f2c64e46bc` of [ElizaWy/LPC](https://github.com/ElizaWy/LPC).
+- Selected files use OpenGameArt Attribution 3.0 (OGA-BY 3.0).
+- Character art: Stephen Challener (Redshrike), Eliza Wyatt (DeathsDarling), with additional
+  upstream credits preserved. [Character credits](public/game-assets/lpc-characters/CREDITS.txt),
+  [license](public/game-assets/lpc-characters/LICENSE.txt), and
+  [per-file manifest](public/game-assets/lpc-characters/manifest.json).
+- Scenery: Lanea Zimmerman (Sharm), Eliza Wyatt (DeathsDarling), Hyptosis and BlueCarrot16.
+  [Scenery credits](public/game-assets/lpc-world/CREDITS.md),
+  [license](public/game-assets/lpc-world/OGA-BY-3.0.txt), and
+  [per-file manifest](public/game-assets/lpc-world/manifest.json).
+- Original sheets are unchanged. Portraits are derived composites of the same character layers;
+  map layouts, collision geometry and dialogue are authored in this repository.
+
 ## Fonts
+
+### Pixelify Sans
+
+- Author: The Pixelify Sans Project Authors
+- License: SIL Open Font License 1.1
+- Upstream: [Google Fonts source](https://github.com/google/fonts/tree/main/ofl/pixelifysans)
+- Included font and [license notice](public/game-assets/rpg-ui/OFL.txt) under
+  `public/game-assets/rpg-ui/`.
 
 ### @fontsource-variable/inter 5.3.0
 

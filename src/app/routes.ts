@@ -2,6 +2,7 @@ export type AppRoute =
   | { kind: 'home'; title: 'Dmap — Your Discord world' }
   | { kind: 'dashboard'; title: 'Your Discord worlds — Dmap' }
   | { kind: 'demo'; title: 'Northstar Commons — Dmap' }
+  | { kind: 'rpg-demo'; title: 'Willowmere — Dmap' }
   | { kind: 'map'; title: 'Discord world — Dmap'; slug: string }
   | { kind: 'preview'; title: 'Local Discord preview — Dmap'; slug: string }
   | { kind: 'world'; title: 'Private Discord world — Dmap'; guildId: string }
@@ -23,6 +24,7 @@ export function resolveAppRoute(pathname: string): AppRoute {
     return { kind: 'dashboard', title: 'Your Discord worlds — Dmap' };
   }
   if (path === '/map/demo') return { kind: 'demo', title: 'Northstar Commons — Dmap' };
+  if (path === '/play/demo') return { kind: 'rpg-demo', title: 'Willowmere — Dmap' };
   const worldMatch = path?.match(worldPathPattern);
   if (worldMatch?.[1]) {
     return {

@@ -1,0 +1,1327 @@
+{
+  "pack": "LPC Revised \u2014 dressed character subset",
+  "repository": "https://github.com/ElizaWy/LPC",
+  "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+  "imported": "2026-09-08",
+  "license": "OGA-BY-3.0",
+  "licenseUrl": "https://static.opengameart.org/OGA-BY-3.0.txt",
+  "licenseFile": "LICENSE.txt",
+  "sourceEvidence": [
+    {
+      "url": "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+      "note": "The attribution instructions explicitly offer OGA-BY 3.0 for assets by Lanea Zimmerman and Stephen Challener, despite the aggregate CC-BY-SA/GPL badges."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "note": "Idle and walk are by Stephen Challener and Eliza Wyatt; run is by Eliza Wyatt. Aggregate body and clothing contributor notices are retained, including contributors to unused jump frames."
+    }
+  ],
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "directions": ["up", "left", "down", "right"],
+  "collisionFootprint": {
+    "width": 18,
+    "height": 12,
+    "origin": "feet"
+  },
+  "rendering": "Unscaled runtime Phaser layers: body, head, pants, shirt, boots, hair. Global game textures are shared by characters.",
+  "appearances": [
+    {
+      "id": "rowan",
+      "name": "Rowan",
+      "layers": ["body", "head", "pants", "shirt", "boots", "hair"],
+      "portrait": "rowan/portrait.png"
+    },
+    {
+      "id": "ash",
+      "name": "Ash",
+      "layers": ["body", "head", "pants", "shirt", "boots", "hair"],
+      "portrait": "ash/portrait.png"
+    }
+  ],
+  "assets": [
+    {
+      "file": "rowan/body-idle.png",
+      "title": "Body 02 - Masculine, Thin",
+      "appearance": "rowan",
+      "layer": "body",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Body/Body%2002%20-%20Masculine%2C%20Thin/Honey/Idle.png",
+      "upstreamPath": "Characters/Body/Body 02 - Masculine, Thin/Honey/Idle.png",
+      "sha256": "8859c60f9686ea2ca36cb4d85f7fca0f22cd47c33074b521cae3e3e6990342ae",
+      "bytes": 7015,
+      "authors": [
+        "Stephen Challener (Redshrike)",
+        "Durrani",
+        "Eliza Wyatt (DeathsDarling)",
+        "BenCreating"
+      ],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [18, 32, 46, 62],
+        "frameHeightRange": [28, 30]
+      }
+    },
+    {
+      "file": "rowan/body-walk.png",
+      "title": "Body 02 - Masculine, Thin",
+      "appearance": "rowan",
+      "layer": "body",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Body/Body%2002%20-%20Masculine%2C%20Thin/Honey/Walk.png",
+      "upstreamPath": "Characters/Body/Body 02 - Masculine, Thin/Honey/Walk.png",
+      "sha256": "f746314b3f10d3ba43303a4e46d84454b82f13df1f200c203a3eba84e98bfced",
+      "bytes": 19111,
+      "authors": [
+        "Stephen Challener (Redshrike)",
+        "Durrani",
+        "Eliza Wyatt (DeathsDarling)",
+        "BenCreating"
+      ],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [17, 33, 47, 64],
+        "frameHeightRange": [28, 30]
+      }
+    },
+    {
+      "file": "rowan/body-run.png",
+      "title": "Body 02 - Masculine, Thin",
+      "appearance": "rowan",
+      "layer": "body",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Body/Body%2002%20-%20Masculine%2C%20Thin/Honey/Run.png",
+      "upstreamPath": "Characters/Body/Body 02 - Masculine, Thin/Honey/Run.png",
+      "sha256": "75feb26e51fa6721aae8e219bd719f1c64484b337e883610e442189d3d92ff9d",
+      "bytes": 21580,
+      "authors": [
+        "Stephen Challener (Redshrike)",
+        "Durrani",
+        "Eliza Wyatt (DeathsDarling)",
+        "BenCreating"
+      ],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [17, 27, 47, 62],
+        "frameHeightRange": [26, 35]
+      }
+    },
+    {
+      "file": "rowan/head-idle.png",
+      "title": "Head 02 - Masculine",
+      "appearance": "rowan",
+      "layer": "head",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Head/Head%2002%20-%20Masculine/Honey/Idle.png",
+      "upstreamPath": "Characters/Head/Head 02 - Masculine/Honey/Idle.png",
+      "sha256": "171f2dd6b13b26c6af88d80f3aa5f33e761237440c4b87c568f7b152466cfb96",
+      "bytes": 4591,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [22, 16, 42, 36],
+        "frameHeightRange": [17, 19]
+      }
+    },
+    {
+      "file": "rowan/head-walk.png",
+      "title": "Head 02 - Masculine",
+      "appearance": "rowan",
+      "layer": "head",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Head/Head%2002%20-%20Masculine/Honey/Walk.png",
+      "upstreamPath": "Characters/Head/Head 02 - Masculine/Honey/Walk.png",
+      "sha256": "f2f163073adbf09d80f2e00eec64e7d3eb6dd74332abb3907b753bbaee8d8e25",
+      "bytes": 7254,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [22, 17, 42, 37],
+        "frameHeightRange": [17, 19]
+      }
+    },
+    {
+      "file": "rowan/head-run.png",
+      "title": "Head 02 - Masculine",
+      "appearance": "rowan",
+      "layer": "head",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Head/Head%2002%20-%20Masculine/Honey/Run.png",
+      "upstreamPath": "Characters/Head/Head 02 - Masculine/Honey/Run.png",
+      "sha256": "631bf3298ad489877e04e5b35c8c6cfcc33f186cac9e44fcc5a62f75c381dd05",
+      "bytes": 8292,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 12, 43, 37],
+        "frameHeightRange": [17, 19]
+      }
+    },
+    {
+      "file": "rowan/pants-idle.png",
+      "title": "Pants 03 - Pants",
+      "appearance": "rowan",
+      "layer": "pants",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Legs/Pants%2003%20-%20Pants/Charcoal/Idle.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal/Idle.png",
+      "sha256": "1bfc4fed4cc4d664af9cde6ed35e3ef6542c0f089298de8277045eafab96d96c",
+      "bytes": 3830,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [24, 44, 40, 58],
+        "frameHeightRange": [11, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/pants-walk.png",
+      "title": "Pants 03 - Pants",
+      "appearance": "rowan",
+      "layer": "pants",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Legs/Pants%2003%20-%20Pants/Charcoal/Walk.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal/Walk.png",
+      "sha256": "3fd8159bbf3df35480df09cba228ca7e3ec55ee8e3a2781848373ac781d7a6ab",
+      "bytes": 10184,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [23, 45, 41, 60],
+        "frameHeightRange": [11, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/pants-run.png",
+      "title": "Pants 03 - Pants",
+      "appearance": "rowan",
+      "layer": "pants",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Legs/Pants%2003%20-%20Pants/Charcoal/Run.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal/Run.png",
+      "sha256": "84bd3d8ebe9fe87d2366b697826714fda2d5f0f271706b871db7c28d1a331ff8",
+      "bytes": 12765,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 39, 43, 58],
+        "frameHeightRange": [12, 16]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/shirt-idle.png",
+      "title": "Shirt 01 - Longsleeve Shirt",
+      "appearance": "rowan",
+      "layer": "shirt",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Torso/Shirt%2001%20-%20Longsleeve%20Shirt/Teal/Idle.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Teal/Idle.png",
+      "sha256": "7e963382453c2e27ea578f8491df23e30abd1352f4abbee0704b617655805a3c",
+      "bytes": 5071,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [18, 32, 46, 47],
+        "frameHeightRange": [13, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/shirt-walk.png",
+      "title": "Shirt 01 - Longsleeve Shirt",
+      "appearance": "rowan",
+      "layer": "shirt",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Torso/Shirt%2001%20-%20Longsleeve%20Shirt/Teal/Walk.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Teal/Walk.png",
+      "sha256": "131de33f6f3efbf2c122841787bd088872c6d1d15a3aea184a67d31538214e99",
+      "bytes": 11966,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [18, 33, 46, 50],
+        "frameHeightRange": [13, 17]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/shirt-run.png",
+      "title": "Shirt 01 - Longsleeve Shirt",
+      "appearance": "rowan",
+      "layer": "shirt",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Torso/Shirt%2001%20-%20Longsleeve%20Shirt/Teal/Run.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Teal/Run.png",
+      "sha256": "d8d572ef3474a6ffd23a315104dd415906898504e53f63eb002bce160b2fd06d",
+      "bytes": 13561,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 27, 43, 47],
+        "frameHeightRange": [11, 15]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/boots-idle.png",
+      "title": "Shoes 02 - Boots",
+      "appearance": "rowan",
+      "layer": "boots",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Feet/Shoes%2002%20-%20Boots/Leather/Idle.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Leather/Idle.png",
+      "sha256": "e2339ace196ed8170a9ad9361cce3a984ca04322a05c2656157512734c071793",
+      "bytes": 2614,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [23, 51, 41, 62],
+        "frameHeightRange": [10, 11]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/boots-walk.png",
+      "title": "Shoes 02 - Boots",
+      "appearance": "rowan",
+      "layer": "boots",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Feet/Shoes%2002%20-%20Boots/Leather/Walk.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Leather/Walk.png",
+      "sha256": "cf09efccdc373b5871d3ac1dcc8eddaef78dd258d512ff3da4426830b374e8df",
+      "bytes": 9177,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 50, 43, 64],
+        "frameHeightRange": [9, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/boots-run.png",
+      "title": "Shoes 02 - Boots",
+      "appearance": "rowan",
+      "layer": "boots",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Feet/Shoes%2002%20-%20Boots/Leather/Run.png",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Leather/Run.png",
+      "sha256": "8ddb0127be215510c6a78cc58005da68d7e8d77d531a8444e0d26f63f9e439eb",
+      "bytes": 11431,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [17, 45, 47, 62],
+        "frameHeightRange": [10, 16]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "rowan/hair-idle.png",
+      "title": "Short 02 - Parted",
+      "appearance": "rowan",
+      "layer": "hair",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Short%2002%20-%20Parted/Chestnut/Idle.png",
+      "upstreamPath": "Characters/Hair/Short 02 - Parted/Chestnut/Idle.png",
+      "sha256": "c342fcf2ea13b883720d0d0c1cb1906dd467c6c2d54f907ae30c42dc04d09678",
+      "bytes": 4850,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [21, 14, 43, 37],
+        "frameHeightRange": [15, 20]
+      },
+      "inheritedCredits": ["Stephen Challener (Redshrike)"]
+    },
+    {
+      "file": "rowan/hair-walk.png",
+      "title": "Short 02 - Parted",
+      "appearance": "rowan",
+      "layer": "hair",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Short%2002%20-%20Parted/Chestnut/Walk.png",
+      "upstreamPath": "Characters/Hair/Short 02 - Parted/Chestnut/Walk.png",
+      "sha256": "3ddf510ae3c39fc0342e08743bcb95d26cc0ed8b66bc4340e2bd84b62c9fc999",
+      "bytes": 7850,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 15, 43, 38],
+        "frameHeightRange": [15, 20]
+      },
+      "inheritedCredits": ["Stephen Challener (Redshrike)"]
+    },
+    {
+      "file": "rowan/hair-run.png",
+      "title": "Short 02 - Parted",
+      "appearance": "rowan",
+      "layer": "hair",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Short%2002%20-%20Parted/Chestnut/Run.png",
+      "upstreamPath": "Characters/Hair/Short 02 - Parted/Chestnut/Run.png",
+      "sha256": "83bdc46c20efc8b9c5bc1af091a9ba4d7c4d0242534c7d91419b3905642bb082",
+      "bytes": 8971,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [19, 11, 45, 34],
+        "frameHeightRange": [15, 20]
+      },
+      "inheritedCredits": ["Stephen Challener (Redshrike)"]
+    },
+    {
+      "file": "ash/body-idle.png",
+      "title": "Body 01 - Feminine, Thin",
+      "appearance": "ash",
+      "layer": "body",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Body/Body%2001%20-%20Feminine%2C%20Thin/Bronze/Idle.png",
+      "upstreamPath": "Characters/Body/Body 01 - Feminine, Thin/Bronze/Idle.png",
+      "sha256": "325f40a9a19d6af34d5c7bfd9c60aa6ae29c5e079aaffe3aa61177dd0a34c0ab",
+      "bytes": 7241,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [18, 32, 46, 62],
+        "frameHeightRange": [28, 30]
+      }
+    },
+    {
+      "file": "ash/body-walk.png",
+      "title": "Body 01 - Feminine, Thin",
+      "appearance": "ash",
+      "layer": "body",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Body/Body%2001%20-%20Feminine%2C%20Thin/Bronze/Walk.png",
+      "upstreamPath": "Characters/Body/Body 01 - Feminine, Thin/Bronze/Walk.png",
+      "sha256": "d96d547198910e730d53c432c9f144e4dceed8bcf7169ba410707bbbe3a61033",
+      "bytes": 19487,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [17, 33, 47, 64],
+        "frameHeightRange": [28, 30]
+      }
+    },
+    {
+      "file": "ash/body-run.png",
+      "title": "Body 01 - Feminine, Thin",
+      "appearance": "ash",
+      "layer": "body",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Body/Body%2001%20-%20Feminine%2C%20Thin/Bronze/Run.png",
+      "upstreamPath": "Characters/Body/Body 01 - Feminine, Thin/Bronze/Run.png",
+      "sha256": "e51ea8fbe155c36d478c1bc55bec0f254c84fba93b1068f5f62d512e0f2dcb9e",
+      "bytes": 21578,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [17, 27, 47, 62],
+        "frameHeightRange": [26, 35]
+      }
+    },
+    {
+      "file": "ash/head-idle.png",
+      "title": "Head 01 - Feminine",
+      "appearance": "ash",
+      "layer": "head",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Head/Head%2001%20-%20Feminine/Bronze/Idle.png",
+      "upstreamPath": "Characters/Head/Head 01 - Feminine/Bronze/Idle.png",
+      "sha256": "1435b12c9346ea5c60ec9fcec398df3f92b40f99db9d9fc1793e537067edb554",
+      "bytes": 3616,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [22, 16, 42, 36],
+        "frameHeightRange": [17, 19]
+      }
+    },
+    {
+      "file": "ash/head-walk.png",
+      "title": "Head 01 - Feminine",
+      "appearance": "ash",
+      "layer": "head",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Head/Head%2001%20-%20Feminine/Bronze/Walk.png",
+      "upstreamPath": "Characters/Head/Head 01 - Feminine/Bronze/Walk.png",
+      "sha256": "61fe6809de97c1a0b2058f464e24460f76baf5c4f984fa71d6ea72341dba0706",
+      "bytes": 6296,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [22, 17, 42, 37],
+        "frameHeightRange": [17, 19]
+      }
+    },
+    {
+      "file": "ash/head-run.png",
+      "title": "Head 01 - Feminine",
+      "appearance": "ash",
+      "layer": "head",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Head/Head%2001%20-%20Feminine/Bronze/Run.png",
+      "upstreamPath": "Characters/Head/Head 01 - Feminine/Bronze/Run.png",
+      "sha256": "d46ebe829360a2db4ba781016bdf87a93a46d201deb2b977cf7b86337ef718bb",
+      "bytes": 7156,
+      "authors": ["Stephen Challener (Redshrike)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 12, 43, 37],
+        "frameHeightRange": [17, 19]
+      }
+    },
+    {
+      "file": "ash/pants-idle.png",
+      "title": "Pants 03 - Pants",
+      "appearance": "ash",
+      "layer": "pants",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Legs/Pants%2003%20-%20Pants/Midnight/Idle.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Midnight/Idle.png",
+      "sha256": "232b2be3003b54013c87eeb7d72852de3a7e6211e09470db9f0af62082a8f449",
+      "bytes": 3938,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [24, 44, 40, 58],
+        "frameHeightRange": [11, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/pants-walk.png",
+      "title": "Pants 03 - Pants",
+      "appearance": "ash",
+      "layer": "pants",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Legs/Pants%2003%20-%20Pants/Midnight/Walk.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Midnight/Walk.png",
+      "sha256": "bb77ee096e03ab266f98ed6c812d5fb6237cda8c0d8e3cbdc28c547875ce0978",
+      "bytes": 10281,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [23, 45, 41, 60],
+        "frameHeightRange": [11, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/pants-run.png",
+      "title": "Pants 03 - Pants",
+      "appearance": "ash",
+      "layer": "pants",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Legs/Pants%2003%20-%20Pants/Midnight/Run.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Midnight/Run.png",
+      "sha256": "e1100d669b43ea4fe96c8eff1ef2ff13f434287c446860bd5c2e63f3173d5771",
+      "bytes": 13081,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 39, 43, 58],
+        "frameHeightRange": [12, 16]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/shirt-idle.png",
+      "title": "Shirt 01 - Longsleeve Shirt",
+      "appearance": "ash",
+      "layer": "shirt",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Torso/Shirt%2001%20-%20Longsleeve%20Shirt/Ochre/Idle.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Ochre/Idle.png",
+      "sha256": "ce73997ff0717a3d3251db3ce4194715d91a7285f6a5afa0bf23f8b4392696ba",
+      "bytes": 5227,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [18, 32, 46, 47],
+        "frameHeightRange": [13, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/shirt-walk.png",
+      "title": "Shirt 01 - Longsleeve Shirt",
+      "appearance": "ash",
+      "layer": "shirt",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Torso/Shirt%2001%20-%20Longsleeve%20Shirt/Ochre/Walk.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Ochre/Walk.png",
+      "sha256": "f5fbfde43393c0b1b2ab839355c6ee5aae4ce952dfd5820b399656a001aad402",
+      "bytes": 12883,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [18, 33, 46, 50],
+        "frameHeightRange": [13, 17]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/shirt-run.png",
+      "title": "Shirt 01 - Longsleeve Shirt",
+      "appearance": "ash",
+      "layer": "shirt",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Torso/Shirt%2001%20-%20Longsleeve%20Shirt/Ochre/Run.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Ochre/Run.png",
+      "sha256": "9331d1db31a51212edd282fdaa6c0f8faaa623235cb1af971af21ed2e5f32a62",
+      "bytes": 15106,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 27, 43, 47],
+        "frameHeightRange": [11, 15]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/boots-idle.png",
+      "title": "Shoes 02 - Boots",
+      "appearance": "ash",
+      "layer": "boots",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Feet/Shoes%2002%20-%20Boots/Coffee/Idle.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Feet/Shoes 02 - Boots/Coffee/Idle.png",
+      "sha256": "3cb137267617fc0a62dee0d16938402fcb1a30cb1fdb9c07d5d54b874c825c91",
+      "bytes": 2539,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [23, 51, 41, 62],
+        "frameHeightRange": [10, 11]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/boots-walk.png",
+      "title": "Shoes 02 - Boots",
+      "appearance": "ash",
+      "layer": "boots",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Feet/Shoes%2002%20-%20Boots/Coffee/Walk.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Feet/Shoes 02 - Boots/Coffee/Walk.png",
+      "sha256": "16bb28a31396a096a80440b024e76bf7f55f7ab4218c0488b49c4282282bd6de",
+      "bytes": 8902,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [21, 50, 43, 64],
+        "frameHeightRange": [9, 14]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/boots-run.png",
+      "title": "Shoes 02 - Boots",
+      "appearance": "ash",
+      "layer": "boots",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Feet/Shoes%2002%20-%20Boots/Coffee/Run.png",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Feet/Shoes 02 - Boots/Coffee/Run.png",
+      "sha256": "4a6652c85808c09dbb821b3a2dee16e6044f20240b5a045089338959df2f7f0e",
+      "bytes": 11007,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [17, 45, 47, 62],
+        "frameHeightRange": [10, 16]
+      },
+      "inheritedCredits": [
+        "Stephen Challener (Redshrike)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Durrani",
+        "BenCreating"
+      ]
+    },
+    {
+      "file": "ash/hair-idle.png",
+      "title": "Medium 02 - Curly",
+      "appearance": "ash",
+      "layer": "hair",
+      "action": "idle",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2002%20-%20Curly/Black/Idle.png",
+      "upstreamPath": "Characters/Hair/Medium 02 - Curly/Black/Idle.png",
+      "sha256": "5f0ddca313cababd0f12f92ffb8eecee23153e89a37e14113612bcd42f10e229",
+      "bytes": 7505,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 192,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "unionBounds": [18, 13, 48, 40],
+        "frameHeightRange": [22, 24]
+      },
+      "inheritedCredits": ["Stephen Challener (Redshrike)"]
+    },
+    {
+      "file": "ash/hair-walk.png",
+      "title": "Medium 02 - Curly",
+      "appearance": "ash",
+      "layer": "hair",
+      "action": "walk",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2002%20-%20Curly/Black/Walk.png",
+      "upstreamPath": "Characters/Hair/Medium 02 - Curly/Black/Walk.png",
+      "sha256": "850a051a66f88d480e22de309d47c6b869db5b069526648d6dbf327ef67cf369",
+      "bytes": 10715,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [18, 14, 48, 42],
+        "frameHeightRange": [22, 24]
+      },
+      "inheritedCredits": ["Stephen Challener (Redshrike)"]
+    },
+    {
+      "file": "ash/hair-run.png",
+      "title": "Medium 02 - Curly",
+      "appearance": "ash",
+      "layer": "hair",
+      "action": "run",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2002%20-%20Curly/Black/Run.png",
+      "upstreamPath": "Characters/Hair/Medium 02 - Curly/Black/Run.png",
+      "sha256": "72dfb8e56b9595da09a0191baea4c22fd425cd3b3d1ad62d3988ae87ad515e0a",
+      "bytes": 17908,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt",
+      "provenance": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+      ],
+      "modifications": "None. Original PNG, unchanged.",
+      "width": 512,
+      "height": 256,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "unionBounds": [16, 10, 50, 38],
+        "frameHeightRange": [21, 25]
+      },
+      "inheritedCredits": ["Stephen Challener (Redshrike)"]
+    }
+  ],
+  "validation": {
+    "nonemptyLayers": "Every 64x64 frame in each of 36 sheets has nontransparent pixels, for every direction and action.",
+    "framesInspected": 912
+  },
+  "feetAnchor": {
+    "x": 32,
+    "y": 62,
+    "unit": "native frame pixels",
+    "note": "Ground reference equals the common idle sole baseline. Walk toes can extend to y=64; run raises the feet. Preserve these authored animation offsets."
+  },
+  "frameLayout": {
+    "width": 64,
+    "height": 64,
+    "columnStride": 64,
+    "rowStride": 64,
+    "directionRows": {
+      "up": 0,
+      "left": 1,
+      "down": 2,
+      "right": 3
+    },
+    "idleColumns": 3,
+    "walkColumns": 8,
+    "runColumns": 8
+  },
+  "bodyAndHeadVisibleHeight": {
+    "idle": [44, 46],
+    "walk": [44, 46],
+    "run": [43, 50],
+    "unit": "native pixels, excluding hair/clothes"
+  },
+  "animationCoverage": {
+    "idle": "All six layers, all four directions, three frames per direction.",
+    "walk": "All six layers, all four directions, eight frames per direction.",
+    "run": "Dedicated run sheets for all six layers, all four directions, eight frames per direction. No walk fallback."
+  },
+  "derivedAssets": [
+    {
+      "file": "rowan/portrait.png",
+      "title": "Rowan appearance portrait",
+      "sha256": "ec300be4f8cd5e6b32c478f01bed710507cafd4b3e45ce1a0f2d11ec097cf31d",
+      "bytes": 1234,
+      "width": 40,
+      "height": 40,
+      "license": "OGA-BY-3.0",
+      "derivedFrom": [
+        "rowan/body-idle.png",
+        "rowan/head-idle.png",
+        "rowan/pants-idle.png",
+        "rowan/shirt-idle.png",
+        "rowan/boots-idle.png",
+        "rowan/hair-idle.png"
+      ],
+      "modifications": "Browser Canvas 2D layers, in manifest appearance order, cropped from source rectangle x=12, y=136, width=40, height=40 (front idle frame 0). No recoloring or resampling.",
+      "authors": [
+        "BenCreating",
+        "Durrani",
+        "Eliza Wyatt (DeathsDarling)",
+        "Stephen Challener (Redshrike)"
+      ]
+    },
+    {
+      "file": "ash/portrait.png",
+      "title": "Ash appearance portrait",
+      "sha256": "07fb5f11334481b490d852b432d3595e8a9fde214b53c6e0edfdb047e19607d6",
+      "bytes": 1469,
+      "width": 40,
+      "height": 40,
+      "license": "OGA-BY-3.0",
+      "derivedFrom": [
+        "ash/body-idle.png",
+        "ash/head-idle.png",
+        "ash/pants-idle.png",
+        "ash/shirt-idle.png",
+        "ash/boots-idle.png",
+        "ash/hair-idle.png"
+      ],
+      "modifications": "Browser Canvas 2D layers, in manifest appearance order, cropped from source rectangle x=12, y=136, width=40, height=40 (front idle frame 0). No recoloring or resampling.",
+      "authors": [
+        "BenCreating",
+        "Durrani",
+        "Eliza Wyatt (DeathsDarling)",
+        "Stephen Challener (Redshrike)"
+      ]
+    }
+  ]
+}

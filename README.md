@@ -15,6 +15,28 @@ implementation notes, validation, and current limits.
 
 ## What works
 
+### 2D RPG samples
+
+On `feat/2d-rpg-samples`, open `/play/demo` for Willowmere or
+`/play/demo?theme=dungeon` for The Lantern Vault. These are fixed local art/interaction samples:
+taller dressed characters with idle, walk and run animations, NPC dialogue, landmark interactions,
+and themed HUDs. Move with WASD/arrows, hold Shift to run, double-click/tap to walk, and press E
+near a character or landmark. Touch controls, appearance selection and a map are available in the HUD.
+
+The implementation lives in `src/features/rpg/`: `sample-worlds` owns scene data, `simulation`
+owns movement and interactions, `character` owns layered animation, `sample-renderer` owns scenery,
+`rpg-scene` connects Phaser to those modules, and `RpgDemoPage` owns React UI. Static ground is baked
+once per scene load; collision checks use a spatial index; HUD state is deduplicated and capped at
+10 updates per second. Textures are shared across characters and theme changes.
+
+This first milestone does not connect to Discord or save server worlds. The next milestone will
+generate and persist one versioned map per server per theme; revisits must reuse that map. Owner
+editing remains future scope. The existing 2D and Three.js demos remain at `/map/demo`.
+
+Imported LPC art and font notices are linked in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+### Connected world
+
 - Discord OAuth sign-in and guild access discovery
 - Admin/owner dashboard with explicit guild synchronization
 - Safe map projection from Discord categories and channels

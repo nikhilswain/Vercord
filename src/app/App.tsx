@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { DashboardPage } from '../features/auth/DashboardPage';
 import { DemoMapPage } from '../features/map/DemoMapPage';
 import { DiscordMapPage } from '../features/map/DiscordMapPage';
+import { RpgDemoPage } from '../features/rpg/RpgDemoPage';
 import { HomePage } from './HomePage';
 import { NotFoundPage } from './NotFoundPage';
 import { resolveAppRoute } from './routes';
@@ -14,8 +15,9 @@ export interface AppProps {
 export function App({ pathname = window.location.pathname }: AppProps) {
   const route = resolveAppRoute(pathname);
   useEffect(() => {
-    document.title = route.title;
-  }, [route.title]);
+    // The sample page owns its title as in-game theme travel changes the location.
+    if (route.kind !== 'rpg-demo') document.title = route.title;
+  }, [route.kind, route.title]);
 
   switch (route.kind) {
     case 'home':
@@ -24,6 +26,8 @@ export function App({ pathname = window.location.pathname }: AppProps) {
       return <DashboardPage />;
     case 'demo':
       return <DemoMapPage />;
+    case 'rpg-demo':
+      return <RpgDemoPage />;
     case 'map':
       return <DiscordMapPage key={`map:${route.slug}`} slug={route.slug} />;
     case 'preview':

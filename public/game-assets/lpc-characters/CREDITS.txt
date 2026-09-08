@@ -1,0 +1,75 @@
+LPC Revised — Dmap dressed character sample
+===========================================
+
+Source repository: https://github.com/ElizaWy/LPC
+Pinned revision: f07f7f5892e67c932c68f70bb04472f2c64e46bc
+Imported: 2026-09-08
+Selected license: OGA-BY 3.0
+Full license: LICENSE.txt
+License publisher: https://static.opengameart.org/OGA-BY-3.0.txt
+Per-file source URLs, SHA-256 hashes, recipes, frames, and validation: manifest.json
+
+Rowan appearance
+----------------
+Body 02 - Masculine, Thin / Honey and Head 02 - Masculine / Honey.
+Shirt 01 - Longsleeve Shirt / Teal, Pants 03 - Pants / Charcoal,
+Shoes 02 - Boots / Leather, Short 02 - Parted hair / Chestnut.
+The body-specific clothing uses the Masculine, Thin source variant.
+
+Ash appearance
+--------------
+Body 01 - Feminine, Thin / Bronze and Head 01 - Feminine / Bronze.
+Shirt 01 - Longsleeve Shirt / Ochre, Pants 03 - Pants / Midnight,
+Shoes 02 - Boots / Coffee, Medium 02 - Curly hair / Black.
+The body-specific clothing uses the Feminine, Thin source variant.
+
+Body and head credits
+---------------------
+Stephen Challener (Redshrike), Eliza Wyatt (DeathsDarling).
+The Body 02 entry additionally credits Durrani and BenCreating; those aggregate
+notices are retained although their jump animation is outside this import.
+Original LPC body/head designs by Stephen Challener; edits, recolors, heads and
+animated idle by Eliza Wyatt. Walking by Stephen Challener, edited by Eliza
+Wyatt. Running by Eliza Wyatt.
+Original source:
+https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+Pinned per-entry declarations: upstream-characters-credits.txt
+
+Clothing credits
+----------------
+Shirt 01, Pants 03, Shoes 02: original art by Eliza Wyatt (DeathsDarling).
+The source notice credits the underlying body and animations to Stephen
+Challener (Redshrike), Eliza Wyatt (DeathsDarling), Durrani and BenCreating.
+Pinned per-entry declarations: upstream-clothing-credits.txt
+
+Hair credits
+------------
+Short 02 - Parted and Medium 02 - Curly: original art by Eliza Wyatt
+(DeathsDarling). The source notice credits the underlying LPC body to
+Stephen Challener (Redshrike).
+Pinned per-entry declarations: upstream-hair-credits.txt
+
+License provenance
+------------------
+Every selected entry in the pinned local credits declares OGA-BY 3.0.
+The original LPC base-assets page also explicitly offers OGA-BY 3.0 for work
+by Stephen Challener and Lanea Zimmerman, despite its aggregate CC-BY-SA/GPL
+badges. That statement applies to the selected base body/head contributor.
+No unrelated LPC asset is covered by this subset declaration.
+
+Modifications and rendering
+---------------------------
+All 36 imported animation PNGs are unchanged original files. Dmap places
+body, head, pants, shirt, boots and hair in six synchronized Phaser layers.
+The game and NPCs share these appearances and the game-owned texture cache.
+Each portrait.png is a derived 40x40 transparent image: Canvas 2D composition
+of its six front idle frame-zero layers, cropped from the source sheets at
+x=12, y=136, width=40, height=40, with no recoloring or resampling.
+Portraits retain the same credits and OGA-BY 3.0 license.
+
+Frame dimensions: 64x64. Feet anchor: x=32, y=62 native pixels.
+Direction rows: up, left, down, right. Idle: 3 frames per direction.
+Walk and dedicated run: 8 frames per direction, all six layers present.
+Body/head silhouette: 44–46px for idle/walk, 43–50px during the run cycle.
+Collision footprint: 18x12 pixels around the feet; the 64x64 transparent
+frame canvas is not the collision body.

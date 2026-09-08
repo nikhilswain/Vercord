@@ -17,7 +17,11 @@ export function DemoMapPage() {
     <div className="world-page">
       <AppHeader
         context={demoMapFixtureResult.snapshot.server.displayName}
-        status={<span>Playable demo · local data</span>}
+        status={
+          <span>
+            Playable demo · local data · <a href="/play/demo">2D RPG preview</a>
+          </span>
+        }
       />
       <main className="world-main">
         <WorldCanvas snapshot={demoMapFixtureResult.snapshot} />

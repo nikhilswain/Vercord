@@ -1,0 +1,544 @@
+{
+  "title": "LPC Revised — Willowmere and The Lantern Vault scenery",
+  "repository": "https://github.com/ElizaWy/LPC",
+  "commit": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+  "license": "OGA-BY-3.0",
+  "licenseFile": "OGA-BY-3.0.txt",
+  "creditsFile": "CREDITS.md",
+  "modifications": "Original PNG files are byte-for-byte copies. Frames are selected at runtime without altering source files. Dmap authored the scene layout, collision footprints, and dialogue. Original artists retain their artwork rights.",
+  "provenance": {
+    "baseAssets": "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+    "baseAssetsLicenseNote": "The source attribution instructions explicitly permit Lanea Zimmerman and Stephen Challener assets under OGA-BY 3.0 despite the page-level license badge. The pinned per-file declarations are retained in the accompanying credits files.",
+    "houseComponents": [
+      "Brick Wall Block Edging",
+      "Brick Wall A",
+      "Siding, Plain",
+      "Doorframe A (32x48px and 32x64px)",
+      "Stone Windows A",
+      "Ornamental Windows A",
+      "Short Steps A",
+      "Brick Chimney A",
+      "Hipped Shingle Roof A",
+      "Flat Shingle Roof A",
+      "Gable Shingle Roof A"
+    ],
+    "houseComponentNotices": [
+      "credits-structure-walls.txt",
+      "credits-structure-doors.txt",
+      "credits-structure-windows.txt",
+      "credits-structure-stairs.txt",
+      "credits-structure-roofing.txt"
+    ]
+  },
+  "geometry": {
+    "nativeTileSize": 32,
+    "frameCoordinates": "Top-left source pixels; uniform sheets use zero-based row-major numeric frames.",
+    "positioning": "Stamps use top-left origin. Negative depth means ground. Upright stamps sort by their authored world-space foot baseline. Tree colliders cover trunks, not leaves; masonry and water colliders match non-walkable ground, with the bridge deck left open.",
+    "animation": "Scenery is static. No implied environment animation coverage. All frame selections and exact per-stamp collision footprints are in src/features/rpg/sample-worlds.ts."
+  },
+  "files": [
+    {
+      "file": "terrain-summer.png",
+      "title": "terrain_summer",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/terrain_summer.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/Credits.txt",
+      "notices": "credits-terrain.txt",
+      "sha256": "1251a6ea556330190ccb1e3af166eb69fbec4b7a3f7d51c1f54728abd75bd752",
+      "bytes": 71578,
+      "width": 512,
+      "height": 832,
+      "frames": {
+        "uniformWidth": 32,
+        "uniformHeight": 32
+      }
+    },
+    {
+      "file": "trees-summer.png",
+      "title": "trees_summer",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/trees_summer.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/Credits.txt",
+      "notices": "credits-terrain.txt",
+      "sha256": "c00e3728ea975c05b77972e3bff1162ddb7eebcaf626046d1f0c81c6824af674",
+      "bytes": 46291,
+      "width": 512,
+      "height": 576,
+      "frames": {
+        "oak": {
+          "x": 128,
+          "y": 16,
+          "width": 96,
+          "height": 112
+        },
+        "oldOak": {
+          "x": 224,
+          "y": 16,
+          "width": 96,
+          "height": 112
+        },
+        "tallOak": {
+          "x": 320,
+          "y": 16,
+          "width": 96,
+          "height": 128
+        },
+        "pine": {
+          "x": 224,
+          "y": 384,
+          "width": 96,
+          "height": 128
+        }
+      }
+    },
+    {
+      "file": "flowers.png",
+      "title": "flowers",
+      "artists": [
+        "Lanea Zimmerman (Sharm)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Hyptosis",
+        "BlueCarrot16"
+      ],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/flowers.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/Credits.txt",
+      "notices": "credits-terrain.txt",
+      "sha256": "e698d0db83e5238ea3fcc8783f1294b70312e2170a8856cb5a99ca40e7f6cddb",
+      "bytes": 30094,
+      "width": 352,
+      "height": 160,
+      "frames": {
+        "uniformWidth": 32,
+        "uniformHeight": 32
+      }
+    },
+    {
+      "file": "rocks.png",
+      "title": "Rocks, Grasslands",
+      "artists": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/Rocks%2C%20Grasslands.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Terrain/Credits.txt",
+      "notices": "credits-terrain.txt",
+      "sha256": "615a67744c0c57d14d009ced1ea4fab34b24560ad9c08812da7eb01f80082c1b",
+      "bytes": 29365,
+      "width": 192,
+      "height": 384,
+      "frames": {
+        "large": {
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 96
+        },
+        "medium": {
+          "x": 64,
+          "y": 64,
+          "width": 64,
+          "height": 32
+        },
+        "small": {
+          "x": 128,
+          "y": 64,
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "file": "brick-house-a.png",
+      "title": "Brick House A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Structures/Brick%20House%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Structures/Credits.txt",
+      "notices": "credits-structure-structures.txt",
+      "sha256": "6396c0c396fec2956ff5617df20a2061fc1650c4f585ac41962f12634c9150c1",
+      "bytes": 7940,
+      "width": 256,
+      "height": 224,
+      "frames": {
+        "uniformWidth": 256,
+        "uniformHeight": 224
+      }
+    },
+    {
+      "file": "brick-house-b.png",
+      "title": "Brick House B",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Structures/Brick%20House%20B.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Structures/Credits.txt",
+      "notices": "credits-structure-structures.txt",
+      "sha256": "bfac6cbb375bcd775b3e184f5ba31bae03287e58a26b97af72b386bbbfba0259",
+      "bytes": 4764,
+      "width": 192,
+      "height": 192,
+      "frames": {
+        "uniformWidth": 192,
+        "uniformHeight": 192
+      }
+    },
+    {
+      "file": "paneled-house-a.png",
+      "title": "Paneled House A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Structures/Paneled%20House%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Structures/Credits.txt",
+      "notices": "credits-structure-structures.txt",
+      "sha256": "576434a3c3079259e8a503827e54a2eed1bd9ee8beae48f060c634d13ea2cdac",
+      "bytes": 3545,
+      "width": 160,
+      "height": 160,
+      "frames": {
+        "uniformWidth": 160,
+        "uniformHeight": 160
+      }
+    },
+    {
+      "file": "jagged-walls.png",
+      "title": "Jagged Stone Walls",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Walls/Jagged%20Stone%20Walls.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Walls/Credits.txt",
+      "notices": "credits-structure-walls.txt",
+      "sha256": "1ee2577aeda6bac783dad9ce986c6f754ee7b5f9f4aa2451691e146ed37fa12a",
+      "bytes": 5523,
+      "width": 192,
+      "height": 288,
+      "frames": {
+        "uniformWidth": 32,
+        "uniformHeight": 32
+      }
+    },
+    {
+      "file": "diamond-floor.png",
+      "title": "Diamond Tile B",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Floor/Diamond%20Tile%20B.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Floor/Credits.txt",
+      "notices": "credits-structure-floor.txt",
+      "sha256": "e04fa0fc35cf08eb4e19a0d9bf7fe1e356a7e2b92fa3a3edfb622217c03b8957",
+      "bytes": 7672,
+      "width": 288,
+      "height": 128,
+      "frames": {
+        "uniformWidth": 32,
+        "uniformHeight": 32
+      }
+    },
+    {
+      "file": "stone-floor.png",
+      "title": "Tile B",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Floor/Tile%20B.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Floor/Credits.txt",
+      "notices": "credits-structure-floor.txt",
+      "sha256": "57bdf4da621ec0cf7e8996e8bdbe2767e4c7f81a4cf7f59091b8358d2ce7db65",
+      "bytes": 1078,
+      "width": 128,
+      "height": 128,
+      "frames": {
+        "uniformWidth": 32,
+        "uniformHeight": 32
+      }
+    },
+    {
+      "file": "gritty-dirt.png",
+      "title": "Gritty Dirt",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Floor/Gritty%20Dirt.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Floor/Credits.txt",
+      "notices": "credits-structure-floor.txt",
+      "sha256": "54dc6fff9802f358ece4512fbfe4c2721e71ab53be7933dc65f9ee5a8bec2ccc",
+      "bytes": 3019,
+      "width": 64,
+      "height": 64,
+      "frames": {
+        "uniformWidth": 32,
+        "uniformHeight": 32
+      }
+    },
+    {
+      "file": "wood-bridge.png",
+      "title": "Wood Bridge A - Rails",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Bridges/Wood%20Bridge%20A%20-%20Rails.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Bridges/Credits.txt",
+      "notices": "credits-structure-bridges.txt",
+      "sha256": "e390086ef0a6c02799006cc0a63ad6554e1fd90cb9f2c623bfd0c6c1b33fad1a",
+      "bytes": 13743,
+      "width": 320,
+      "height": 384,
+      "frames": {
+        "deck": {
+          "x": 32,
+          "y": 96,
+          "width": 32,
+          "height": 80
+        },
+        "left": {
+          "x": 0,
+          "y": 96,
+          "width": 32,
+          "height": 80
+        },
+        "right": {
+          "x": 64,
+          "y": 96,
+          "width": 32,
+          "height": 80
+        }
+      }
+    },
+    {
+      "file": "stone-pillars.png",
+      "title": "Stone Pillar A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Pillars/Stone%20Pillar%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Pillars/Credits.txt",
+      "notices": "credits-structure-pillars.txt",
+      "sha256": "9fa1c4e00ca64ab47834b9ada4eee4dd21d675a90b257eb84bb8d0a1bc2c2b11",
+      "bytes": 20711,
+      "width": 288,
+      "height": 384,
+      "frames": {
+        "slate": {
+          "x": 192,
+          "y": 0,
+          "width": 32,
+          "height": 96
+        },
+        "pale": {
+          "x": 96,
+          "y": 0,
+          "width": 32,
+          "height": 96
+        },
+        "broken": {
+          "x": 192,
+          "y": 288,
+          "width": 32,
+          "height": 96
+        }
+      }
+    },
+    {
+      "file": "signs.png",
+      "title": "Sign Backgrounds A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Signs/Sign%20Backgrounds%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Signs/Credits.txt",
+      "notices": "credits-structure-signs.txt",
+      "sha256": "9508252c25b2d3640decbb19a32d59617d81d33a80a1c253d7256db18a9b6123",
+      "bytes": 794,
+      "width": 64,
+      "height": 64,
+      "frames": {
+        "oak": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "file": "arched-doorway.png",
+      "title": "Arched Doorway A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Doors/64x64px%20Arched%20Doors/Arched%20Doorway%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Doors/Credits.txt",
+      "notices": "credits-structure-doors.txt",
+      "sha256": "8d714e1f33e4f7a91d1b52ffc555bc400043dd934c53e1a8c456adc7ebb1a595",
+      "bytes": 3093,
+      "width": 160,
+      "height": 288,
+      "frames": {
+        "stone": {
+          "x": 0,
+          "y": 96,
+          "width": 160,
+          "height": 96
+        }
+      }
+    },
+    {
+      "file": "door-48.png",
+      "title": "12 Panel Door A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Doors/32x48px%20Doors/12%20Panel%20Door%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Doors/Credits.txt",
+      "notices": "credits-structure-doors.txt",
+      "sha256": "6618554708d2f3a56079bc2c9bc6b3ea68ec479c7649531614611a68bab643e6",
+      "bytes": 53094,
+      "width": 896,
+      "height": 768,
+      "frames": {
+        "closed": {
+          "x": 224,
+          "y": 16,
+          "width": 32,
+          "height": 48
+        }
+      }
+    },
+    {
+      "file": "door-64.png",
+      "title": "15 Panel Door A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Doors/32x64px%20Doors/15%20Panel%20Door%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Doors/Credits.txt",
+      "notices": "credits-structure-doors.txt",
+      "sha256": "9976d8a675105414a9894f11399a11eba4b194e31b75bccc92fe2132ebcb615f",
+      "bytes": 61040,
+      "width": 896,
+      "height": 1024,
+      "frames": {
+        "closed": {
+          "x": 224,
+          "y": 32,
+          "width": 32,
+          "height": 64
+        }
+      }
+    },
+    {
+      "file": "cement-stairs.png",
+      "title": "Cement Stairs A",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Stairs/Cement%20Stairs%20A.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Stairs/Credits.txt",
+      "notices": "credits-structure-stairs.txt",
+      "sha256": "334bd35c6483202cb727a6819439f9809cc756134fc79dd37a746a236a60b192",
+      "bytes": 4886,
+      "width": 160,
+      "height": 128,
+      "frames": {
+        "down": {
+          "x": 0,
+          "y": 64,
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "file": "dungeon-elements.png",
+      "title": "Dungeon Elements",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Small%20Items/Dungeon%20Elements.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Small%20Items/Credits.txt",
+      "notices": "credits-objects-small-items.txt",
+      "sha256": "8ea088abd1737d70eed2993c0394e6d625a358e88271f829127f0c6d34c7d894",
+      "bytes": 2543,
+      "width": 64,
+      "height": 128,
+      "frames": {
+        "ivy": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 64
+        },
+        "web": {
+          "x": 32,
+          "y": 0,
+          "width": 32,
+          "height": 64
+        },
+        "coins": {
+          "x": 0,
+          "y": 96,
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "file": "chests.png",
+      "title": "Chest",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Chest.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Credits.txt",
+      "notices": "credits-objects-furniture.txt",
+      "sha256": "4a2982eccfdae791240e69125537071cd2d4406d7a516d8e0914c8a0589c1f7e",
+      "bytes": 4556,
+      "width": 128,
+      "height": 96,
+      "frames": {
+        "bronze": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        "iron": {
+          "x": 96,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "file": "shelves.png",
+      "title": "Shelf",
+      "artists": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Shelf.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Credits.txt",
+      "notices": "credits-objects-furniture.txt",
+      "sha256": "7e2bed1a15206af3d3024c8caedcf6809566024bf849911c9bd40ccdbf7ca01e",
+      "bytes": 1735,
+      "width": 224,
+      "height": 96,
+      "frames": {
+        "low": {
+          "x": 0,
+          "y": 0,
+          "width": 96,
+          "height": 32
+        }
+      }
+    },
+    {
+      "file": "wall-lights.png",
+      "title": "Lighting, Wall",
+      "artists": ["Lanea Zimmerman (Sharm)", "Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Wall%20Items/Lighting%2C%20Wall.png",
+      "pinnedCredits": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Wall%20Items/Credits.txt",
+      "notices": "credits-objects-wall-items.txt",
+      "sha256": "33ec7027db9abe6e0725dae83d309abc7f34f34d0086639ea13d311fc708fc83",
+      "bytes": 2844,
+      "width": 192,
+      "height": 64,
+      "frames": {
+        "flame": {
+          "x": 64,
+          "y": 16,
+          "width": 32,
+          "height": 48
+        }
+      }
+    }
+  ]
+}
