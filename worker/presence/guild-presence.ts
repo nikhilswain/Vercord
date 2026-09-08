@@ -35,9 +35,9 @@ import { LiveWorldCoordinator, WorldAccessError } from '../live-world/coordinato
 import { sessionIsCurrent, type WorldActor } from '../live-world/session-access';
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
 import { MemberSlowmode } from '../messages/member-slowmode';
-import { worldThemeIdSchema } from '../../src/domain/world/protocol';
+import { worldThemeIdSchema, streetSelectionSchema } from '../../src/domain/world/protocol';
 import { WorldInstanceStore } from '../worlds/instance-store';
-import { projectWorldBindings } from '../worlds/bindings';
+import { TownStore } from '../worlds/town-store';
 import { WorldSaveError } from '../worlds/save-error';
 
 const MAX_CONNECTIONS = 200;
@@ -71,6 +71,7 @@ const worldActorSchema = z.strictObject({
 const internalRpgWorldSchema = z.strictObject({
   actor: worldActorSchema,
   theme: worldThemeIdSchema,
+  street: streetSelectionSchema,
 });
 const internalLiveFrameSchema = z.strictObject({
   bridgeEpoch: bridgeEpochSchema,
@@ -188,6 +189,7 @@ export class GuildPresence extends DurableObject<Env> {
   private coordinator!: LiveWorldCoordinator;
   private readonly slowmode: MemberSlowmode;
   private readonly worldInstances: WorldInstanceStore;
+  private readonly towns: TownStore;
   private messageCoverage: MessageCoverage = {
     epoch: 0,
     online: false,
@@ -204,6 +206,7 @@ export class GuildPresence extends DurableObject<Env> {
     super(state, env);
     this.slowmode = new MemberSlowmode(state.storage);
     this.worldInstances = new WorldInstanceStore(env.AUTH_DB);
+    this.towns = new TownStore(env.AUTH_DB);
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch, messageCoverage] =
         await Promise.all([
@@ -774,25 +777,31 @@ export class GuildPresence extends DurableObject<Env> {
       await this.readJson(request, MAX_INTERNAL_BODY_BYTES),
     );
     if (!parsed.success) return new Response(null, { status: 400 });
-    const { actor, theme } = parsed.data;
+    const { actor, theme, street } = parsed.data;
     try {
       const subscriptionId = this.coordinator.subscriptionId(actor.userId);
       // Membership is checked before reserving any persistent map.
-      await this.coordinator.read(actor, subscriptionId);
+      const initial = await this.coordinator.read(actor, subscriptionId);
       const saved = await this.worldInstances.load(actor.guildId, theme);
+      const town = await this.towns.prepare(saved, initial.snapshot, street);
       const view = await this.coordinator.read(actor, subscriptionId);
       if (!(await sessionIsCurrent(this.env, actor, Date.now())))
         throw new WorldAccessError('UNAUTHENTICATED', 401);
       if (this.coordinator.currentView(actor) !== view) throw new WorldAccessError();
-      return Response.json(
-        {
-          ...saved,
-          server: view.snapshot.server,
-          bindings: projectWorldBindings(saved.document, view.snapshot),
-        },
-        { headers: { 'cache-control': 'no-store' } },
-      );
+      return Response.json(town.project(view.snapshot), {
+        headers: { 'cache-control': 'no-store' },
+      });
     } catch (error) {
+      console.warn(
+        JSON.stringify({
+          service: 'dmap',
+          event: 'town_load_failed',
+          code:
+            error instanceof WorldSaveError || error instanceof WorldAccessError
+              ? error.code
+              : 'WORLD_SOURCE_UNAVAILABLE',
+        }),
+      );
       return this.worldError(
         error instanceof WorldSaveError ? new WorldAccessError(error.code, error.status) : error,
       );

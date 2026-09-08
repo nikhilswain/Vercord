@@ -1,7 +1,9 @@
 import { Dialog } from '../../components/Dialog';
-import type { SavedWorldResponse } from '../../domain/world/protocol';
+import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
 import { RPG_APPEARANCES } from './character';
 import { RpgIcon } from './RpgIcon';
+import { RpgSceneMap } from './RpgSceneMap';
+import { RpgTownMap } from './RpgTownMap';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgSample, RpgThemeId, RpgUiState } from './types';
 
@@ -20,71 +22,16 @@ interface Props {
   appearance: string;
   ui: RpgUiState;
   sample: RpgSample;
-  server?: { guildId: string; bindings: SavedWorldResponse['bindings'] };
+  server?: {
+    guildId: string;
+    displayName: string;
+    bindings: SavedWorldResponse['bindings'];
+    town?: WorldTown;
+    onStreet(street: string): void;
+  };
   onClose(): void;
   onTheme(destination: RpgDestination): void;
   onAppearance(id: string): void;
-}
-
-function SceneMap({
-  theme,
-  ui,
-  sample,
-  server,
-}: Pick<Props, 'theme' | 'ui' | 'sample' | 'server'>) {
-  const { bounds } = sample;
-  return (
-    <>
-      <svg
-        className="rpg-map"
-        viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`}
-        role="img"
-        aria-label={`${sample.name}, landmarks and your current position`}
-      >
-        <rect {...bounds} fill={RPG_THEMES[theme].map.ground} />
-        {sample.colliders.map((box, index) => (
-          <rect key={index} {...box} fill={RPG_THEMES[theme].map.obstacle} />
-        ))}
-        {sample.landmarks.map((landmark, index) => (
-          <g key={landmark.id} transform={`translate(${landmark.x},${landmark.y})`}>
-            <circle r="27" fill="#efe3be" stroke="#392d23" strokeWidth="5" />
-            <text textAnchor="middle" dy="11" fontSize="32" fontWeight="700" fill="#30291f">
-              {index + 1}
-            </text>
-          </g>
-        ))}
-        <circle
-          className="rpg-map-player"
-          cx={ui.position.x}
-          cy={ui.position.y}
-          r="15"
-          fill="#ffd278"
-          stroke="#30291f"
-          strokeWidth="6"
-        />
-      </svg>
-      <p className="rpg-muted">The gold dot is you. Landmarks are numbered below.</p>
-      <ol className="rpg-landmarks">
-        {sample.landmarks.map((landmark) => (
-          <li key={landmark.id}>
-            {landmark.name}
-            {server?.bindings
-              .find((binding) => binding.landmarkId === landmark.id)
-              ?.rooms.map((room) => (
-                <span className="rpg-room-label" key={room.key}>
-                  {room.label} <small>{room.type === 'unsupported' ? 'room' : room.type}</small>
-                </span>
-              ))}
-          </li>
-        ))}
-      </ol>
-      {server && (
-        <p className="rpg-muted">
-          Visit <a href={`/world/${server.guildId}`}>connected rooms</a> for Discord chat and voice.
-        </p>
-      )}
-    </>
-  );
 }
 
 export function RpgPanels({
@@ -107,7 +54,7 @@ export function RpgPanels({
   return (
     <Dialog
       open={panel !== null}
-      title={panel ? titles[panel] : ''}
+      title={panel === 'map' && server?.town ? 'Your town' : panel ? titles[panel] : ''}
       className="rpg-dialog"
       onClose={onClose}
       footer={
@@ -123,12 +70,25 @@ export function RpgPanels({
       >
         <RpgIcon name="close" />
       </button>
-      {panel === 'map' && <SceneMap theme={theme} ui={ui} sample={sample} server={server} />}
+      {panel === 'map' &&
+        (server?.town ? (
+          <RpgTownMap
+            theme={theme}
+            ui={ui}
+            sample={sample}
+            town={server.town}
+            displayName={server.displayName}
+            onStreet={server.onStreet}
+          />
+        ) : (
+          <RpgSceneMap theme={theme} ui={ui} sample={sample} bindings={server?.bindings} />
+        ))}
       {panel === 'guide' && (
         <>
           <p>
-            Take the paths at your own pace. Approach {place.guide} to hear a little about this
-            place.
+            {server?.town && theme !== 'dungeon'
+              ? 'The Map lists your town’s neighborhoods and streets. Follow the paths to named channel houses, or read the town-square sign to visit the square.'
+              : `Take the paths at your own pace. Approach ${place.guide} to hear a little about this place.`}
           </p>
           <dl className="rpg-controls-list">
             <div>

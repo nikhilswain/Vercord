@@ -5,6 +5,54 @@ import { parseWorldDocument } from './document';
 
 export const worldThemeIdSchema = z.enum(['village', 'norse']);
 const label = z.string().min(1).max(200).refine(isSafeMapDisplayText);
+const key = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/u);
+const townRoom = z.strictObject({
+  key,
+  label,
+  type: z.enum(MAP_ROOM_TYPES),
+  landmarkId: z.string().regex(/^house:[0-5]$/u),
+});
+export const streetSelectionSchema = z.union([z.literal('square'), z.uuid()]).optional();
+export type StreetSelection = z.infer<typeof streetSelectionSchema>;
+export const worldTownSchema = z
+  .strictObject({
+    activeStreetId: z.uuid().nullable(),
+    districts: z
+      .array(
+        z.strictObject({
+          key,
+          label,
+          streets: z
+            .array(
+              z.strictObject({
+                id: z.uuid(),
+                number: z.number().int().positive().max(2000),
+                rooms: z.array(townRoom).max(6),
+              }),
+            )
+            .max(1000),
+        }),
+      )
+      .max(100),
+  })
+  .superRefine((town, context) => {
+    const streets = town.districts.flatMap((district) => district.streets);
+    const rooms = streets.flatMap((street) => street.rooms);
+    if (
+      rooms.length > 1000 ||
+      new Set(rooms.map((room) => room.key)).size !== rooms.length ||
+      new Set(streets.map((street) => street.id)).size !== streets.length ||
+      new Set(town.districts.map((district) => district.key)).size !== town.districts.length ||
+      streets.some(
+        (street) =>
+          new Set(street.rooms.map((room) => room.landmarkId)).size !== street.rooms.length,
+      ) ||
+      (town.activeStreetId !== null && !streets.some((street) => street.id === town.activeStreetId))
+    ) {
+      context.addIssue({ code: 'custom', message: 'Invalid town directory' });
+    }
+  });
+export type WorldTown = z.infer<typeof worldTownSchema>;
 
 export const worldBindingsSchema = z
   .array(
@@ -36,6 +84,7 @@ export const savedWorldViewSchema = z.strictObject({
   createdAt: z.number().int().nonnegative(),
   server: z.strictObject({ displayName: label }),
   bindings: worldBindingsSchema,
+  town: worldTownSchema.optional(),
 });
 
 export const savedWorldResponseSchema = savedWorldViewSchema.extend({

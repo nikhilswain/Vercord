@@ -13,7 +13,7 @@ import { decodeBase64UrlSecret } from '../config/runtime';
 import { WorldAccessError } from './coordinator';
 import type { WorldActor } from './session-access';
 import type { WorldThemeId } from '../../src/domain/world/document';
-import { savedWorldViewSchema } from '../../src/domain/world/protocol';
+import { savedWorldViewSchema, type StreetSelection } from '../../src/domain/world/protocol';
 
 const worldErrorSchema = z.strictObject({
   error: z.strictObject({
@@ -75,8 +75,13 @@ export async function readAuthorizedWorld(env: Env, actor: WorldActor): Promise<
   return parsed.data.view;
 }
 
-export async function readAuthorizedSavedWorld(env: Env, actor: WorldActor, theme: WorldThemeId) {
-  const value = await callWorldOwner(env, actor, '/internal/rpg-world', { actor, theme });
+export async function readAuthorizedSavedWorld(
+  env: Env,
+  actor: WorldActor,
+  theme: WorldThemeId,
+  street?: StreetSelection,
+) {
+  const value = await callWorldOwner(env, actor, '/internal/rpg-world', { actor, theme, street });
   const parsed = savedWorldViewSchema.safeParse(value);
   if (!parsed.success) throw new WorldAccessError('WORLD_SAVE_INVALID', 409);
   return parsed.data;

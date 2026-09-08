@@ -4,6 +4,7 @@ import type { Point } from '../world/engine/types';
 import { preloadRpgCharacters, RpgCharacter } from './character';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
+import { renderTownSignage } from './town-signage';
 import type { RpgCallbacks, RpgSample, RpgUiState } from './types';
 
 export class RpgScene extends Phaser.Scene {
@@ -14,6 +15,7 @@ export class RpgScene extends Phaser.Scene {
   private avatar: RpgCharacter | null = null;
   private npcs: RpgCharacter[] = [];
   private labels: Phaser.GameObjects.Text[] = [];
+  private signage: Phaser.GameObjects.Container[] = [];
   private marker: Phaser.GameObjects.Graphics | null = null;
   private playerMarker: Phaser.GameObjects.Ellipse | null = null;
   private appearance = 'rowan';
@@ -148,7 +150,9 @@ export class RpgScene extends Phaser.Scene {
         lines: target.lines,
         appearance: target.appearance,
       });
-    } else if (target.destination) this.callbacks.onTravel(target.destination);
+    } else if (target.id === 'town-square' && this.simulation.sample.townSquareNavigation)
+      this.callbacks.onStreet?.('square');
+    else if (target.destination) this.callbacks.onTravel(target.destination);
     else
       this.callbacks.onDialogue({
         name: target.name,
@@ -197,6 +201,7 @@ export class RpgScene extends Phaser.Scene {
     this.clearVisuals();
     const sample = this.simulation.sample;
     this.scenery = new RpgSampleRenderer(this, sample);
+    this.signage = renderTownSignage(this, sample.signage ?? []);
     const player = this.simulation.player;
     this.playerMarker = this.add
       .ellipse(player.x, player.y - 1, 27, 11)
@@ -236,6 +241,8 @@ export class RpgScene extends Phaser.Scene {
     this.npcs = [];
     this.labels.forEach((label) => label.destroy());
     this.labels = [];
+    this.signage.forEach((label) => label.destroy());
+    this.signage = [];
     this.marker?.destroy();
     this.marker = null;
     this.playerMarker?.destroy();

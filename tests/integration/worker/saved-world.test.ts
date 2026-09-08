@@ -2,6 +2,7 @@ import { env } from 'cloudflare:test';
 import { beforeEach, expect, it } from 'vitest';
 import { createWorker } from '../../../worker';
 import migration from '../../../migrations/0003_world_instances.sql?raw';
+import townMigration from '../../../migrations/0004_world_neighborhoods.sql?raw';
 import authMigration from '../../../migrations/0001_auth.sql?raw';
 import { createD1AuthRepository } from '../../../worker/auth/repository';
 import { encryptSessionValue, hashOpaqueToken } from '../../../worker/auth/crypto';
@@ -12,6 +13,7 @@ import { createWorldInstanceRepository } from '../../../worker/worlds/instance-r
 import { projectWorldBindings } from '../../../worker/worlds/bindings';
 import type { MapSnapshot } from '../../../src/domain/map/snapshot';
 import { savedWorldResponseSchema } from '../../../src/domain/world/protocol';
+import { TownStore } from '../../../worker/worlds/town-store';
 
 const guildId = '100000000000000001';
 const sessionSecret = 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM';
@@ -21,12 +23,14 @@ beforeEach(async () => {
     'CREATE TABLE IF NOT EXISTS worlds (guild_id TEXT PRIMARY KEY,map_slug TEXT UNIQUE,visibility TEXT,created_at INTEGER,updated_at INTEGER,last_synced_at INTEGER)',
   );
   // Exercise the actual production migration, including its uniqueness and document-size constraints.
-  for (const statement of migration
+  for (const statement of (migration + '\n' + townMigration)
     .split(';')
     .map((value) => value.trim())
     .filter(Boolean))
     await env.AUTH_DB.prepare(statement).run();
-  await env.AUTH_DB.exec('DELETE FROM world_instances');
+  await env.AUTH_DB.exec(
+    'DELETE FROM world_channel_addresses; DELETE FROM world_streets; DELETE FROM world_instances',
+  );
   await createD1WorldRepository(env.AUTH_DB).recordSync(guildId, 'saved-world-test', 0);
 });
 
@@ -226,4 +230,205 @@ it('projects only authorized channel bindings without changing geometry or other
     first.find((anchor) => anchor.rooms.some((room) => room.key === 'c_common'))?.landmarkId,
   );
   expect(JSON.stringify(saved.document)).toBe(before);
+});
+
+function townSnapshot(count = 8): MapSnapshot {
+  return {
+    schemaVersion: 1,
+    slug: 'saved-world-test',
+    generatedAt: new Date().toISOString(),
+    server: { displayName: 'Bramblewatch' },
+    areas: [
+      {
+        key: 'a_common',
+        label: 'Around the hearth',
+        order: 0,
+        rooms: Array.from({ length: count }, (_, index) => ({
+          key: `c_room_${index}`,
+          label: `gathering-${index}`,
+          type: index % 2 ? 'voice' : 'text',
+          order: index,
+        })),
+      },
+    ],
+  };
+}
+
+it('concurrent town visits allocate unique permanent houses and save only the active street', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot(14);
+  const visits = await Promise.all(
+    Array.from({ length: 4 }, async () =>
+      (await new TownStore(env.AUTH_DB).prepare(square, snapshot)).project(snapshot),
+    ),
+  );
+  expect(new Set(visits.map((visit) => visit.checksum)).size).toBe(1);
+  expect(
+    visits.every((visit) => JSON.stringify(visit.town) === JSON.stringify(visits[0]!.town)),
+  ).toBe(true);
+  const district = visits[0]!.town.districts[0]!;
+  expect(district.streets.map((street) => street.rooms.length)).toEqual([6, 6, 2]);
+  expect(
+    visits[0]!.document.scenes.overworld.landmarks.filter((landmark) =>
+      landmark.id.startsWith('house:'),
+    ),
+  ).toHaveLength(6);
+  expect(
+    await env.AUTH_DB.prepare(
+      'SELECT COUNT(*) AS count FROM world_streets WHERE document_json IS NOT NULL',
+    ).first('count'),
+  ).toBe(1);
+  expect(
+    await env.AUTH_DB.prepare('SELECT COUNT(*) AS count FROM world_channel_addresses').first(
+      'count',
+    ),
+  ).toBe(14);
+  expect((await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village')).checksum).toBe(
+    square.checksum,
+  );
+});
+
+it('keeps house and street coordinates through rename, reorder, channel additions and theme separation', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'norse');
+  const snapshot = townSnapshot();
+  const store = new TownStore(env.AUTH_DB);
+  const first = (await store.prepare(square, snapshot)).project(snapshot);
+  const home = first.town.districts[0]!.streets[0]!.rooms[0]!;
+  const changed = townSnapshot(15);
+  changed.areas[0]!.label = 'Hearth & harbour';
+  changed.areas[0]!.rooms[0]!.label = 'renamed-港';
+  changed.areas[0]!.rooms.reverse();
+  changed.areas[0]!.rooms.forEach((room, index) => (room.order = index));
+  const second = (
+    await new TownStore(env.AUTH_DB).prepare(square, changed, first.town.activeStreetId!)
+  ).project(changed);
+  expect(second.checksum).toBe(first.checksum);
+  expect(second.document).toEqual(first.document);
+  expect(second.town.districts[0]!.label).toBe('Hearth & harbour');
+  const sameHome = second.bindings
+    .flatMap((binding) =>
+      binding.rooms.map((room) => ({ ...room, landmarkId: binding.landmarkId })),
+    )
+    .find((room) => room.key === home.key)!;
+  expect(sameHome.landmarkId).toBe(home.landmarkId);
+  expect(sameHome.label).toBe('renamed-港');
+  expect(JSON.stringify(second.document)).not.toContain('renamed-港');
+  const village = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  await expect(store.prepare(village, snapshot, first.town.activeStreetId!)).rejects.toMatchObject({
+    status: 403,
+  });
+});
+
+it('projects fresh category/channel permissions and refuses a street after its last visible room is revoked', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const full = townSnapshot();
+  full.areas[0]!.rooms[1]!.label = 'private-staff-room';
+  const store = new TownStore(env.AUTH_DB);
+  const prepared = await store.prepare(square, full);
+  const all = prepared.project(full);
+  const filtered = structuredClone(full);
+  filtered.areas[0]!.rooms = [filtered.areas[0]!.rooms[0]!];
+  const visible = prepared.project(filtered);
+  expect(visible.document).toEqual(all.document);
+  expect(JSON.stringify(visible)).not.toContain('private-staff-room');
+  expect(JSON.stringify(visible)).not.toContain('c_room_1');
+  expect(visible.town.districts[0]!.streets).toHaveLength(1);
+  expect(visible.bindings).toHaveLength(1);
+  await expect(
+    store.prepare(square, filtered, all.town.districts[0]!.streets[1]!.id),
+  ).rejects.toMatchObject({ status: 403 });
+  expect(() => prepared.project({ ...filtered, areas: [] })).toThrow();
+});
+
+it('saves overflow streets once and does not overwrite a corrupt saved street', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot();
+  const store = new TownStore(env.AUTH_DB);
+  const first = (await store.prepare(square, snapshot)).project(snapshot);
+  const streetId = first.town.districts[0]!.streets[1]!.id;
+  const next = (await store.prepare(square, snapshot, streetId)).project(snapshot);
+  expect(next.town.activeStreetId).toBe(streetId);
+  expect(next.checksum).not.toBe(first.checksum);
+  expect(next.bindings).toHaveLength(2);
+  expect(
+    (await new TownStore(env.AUTH_DB).prepare(square, snapshot, streetId)).project(snapshot)
+      .document,
+  ).toEqual(next.document);
+  await env.AUTH_DB.prepare("UPDATE world_streets SET checksum = 'corrupt' WHERE street_id = ?")
+    .bind(streetId)
+    .run();
+  await expect(store.prepare(square, snapshot, streetId)).rejects.toMatchObject({
+    code: 'WORLD_SAVE_INVALID',
+  });
+  expect(
+    await env.AUTH_DB.prepare('SELECT checksum FROM world_streets WHERE street_id = ?')
+      .bind(streetId)
+      .first('checksum'),
+  ).toBe('corrupt');
+});
+
+it('retains the original square for empty guilds and explicit square travel', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const store = new TownStore(env.AUTH_DB);
+  for (const snapshot of [townSnapshot(0), townSnapshot()]) {
+    const view = (await store.prepare(square, snapshot, 'square')).project(snapshot);
+    expect(view.town.activeStreetId).toBeNull();
+    expect(view.checksum).toBe(square.checksum);
+    expect(view.document).toEqual(square.document);
+  }
+  const empty = townSnapshot(0);
+  expect((await store.prepare(square, empty)).project(empty).town.activeStreetId).toBeNull();
+});
+
+it('retains category-specific addresses when a channel moves away and back', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot(1);
+  const store = new TownStore(env.AUTH_DB);
+  const first = (await store.prepare(square, snapshot)).project(snapshot);
+  const moved = structuredClone(snapshot);
+  moved.areas[0]!.key = 'a_garden';
+  moved.areas[0]!.label = 'Garden';
+  const second = (await store.prepare(square, moved)).project(moved);
+  expect(second.town.activeStreetId).not.toBe(first.town.activeStreetId);
+  expect(second.town.districts[0]!.label).toBe('Garden');
+  const restored = (await store.prepare(square, snapshot)).project(snapshot);
+  expect(restored.town).toEqual(first.town);
+  expect(restored.document).toEqual(first.document);
+  expect(
+    await env.AUTH_DB.prepare('SELECT COUNT(*) AS count FROM world_channel_addresses').first(
+      'count',
+    ),
+  ).toBe(2);
+});
+
+it('supports the full directory limit with bounded SQL batches and one generated street', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot(0);
+  snapshot.areas = Array.from({ length: 100 }, (_, area) => ({
+    key: `a_${area}`,
+    label: `Neighborhood ${area}`,
+    order: area,
+    rooms: Array.from({ length: 10 }, (_, room) => ({
+      key: `c_${area}_${room}`,
+      label: `channel-${area}-${room}`,
+      type: 'text' as const,
+      order: room,
+    })),
+  }));
+  const view = (await new TownStore(env.AUTH_DB).prepare(square, snapshot)).project(snapshot);
+  expect(view.town.districts).toHaveLength(100);
+  expect(
+    view.town.districts.flatMap((district) => district.streets.flatMap((street) => street.rooms)),
+  ).toHaveLength(1000);
+  expect(
+    savedWorldResponseSchema.safeParse({
+      ...view,
+      player: { displayName: 'Traveler', memberKey: `m_${'a'.repeat(43)}` },
+    }).success,
+  ).toBe(true);
+  expect(
+    await env.AUTH_DB.prepare(
+      'SELECT COUNT(*) AS count FROM world_streets WHERE document_json IS NOT NULL',
+    ).first('count'),
+  ).toBe(1);
 });

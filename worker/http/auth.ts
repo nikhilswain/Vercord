@@ -45,7 +45,7 @@ import {
   readAuthorizedVoiceDestination,
   readAuthorizedWorld,
 } from '../live-world/service';
-import { worldThemeIdSchema } from '../../src/domain/world/protocol';
+import { worldThemeIdSchema, streetSelectionSchema } from '../../src/domain/world/protocol';
 import { publicLabel } from '../../src/domain/map/labels';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
@@ -627,6 +627,10 @@ async function handleGuildRpg(
   if (!sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
   const parsedTheme = worldThemeIdSchema.safeParse(theme);
   if (!parsedTheme.success) return authError('NOT_FOUND', 404);
+  const parsedStreet = streetSelectionSchema.safeParse(
+    new URL(request.url).searchParams.get('street') ?? undefined,
+  );
+  if (!parsedStreet.success) return authError('NOT_FOUND', 404);
   let authenticated: AuthenticatedSession | null = null;
   try {
     authenticated = await resolveAuthenticatedSession(request, env);
@@ -638,6 +642,7 @@ async function handleGuildRpg(
       env,
       actorFor(authenticated, guildId),
       parsedTheme.data,
+      parsedStreet.data,
     );
     const identifiers = await createIdentifierFactory(
       decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { SavedWorldResponse } from '../../domain/world/protocol';
+import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
 import { Dialog } from '../../components/Dialog';
 import { VirtualJoystick } from '../world/VirtualJoystick';
 import { RPG_APPEARANCES } from './character';
@@ -22,12 +22,15 @@ interface Props {
   sample: RpgSample;
   samples: readonly RpgSample[];
   worldKey: string;
+  navigationKey?: string;
   onTravel(destination: RpgDestination): void;
   server?: {
     guildId: string;
     displayName: string;
     playerName: string;
     bindings: SavedWorldResponse['bindings'];
+    town?: WorldTown;
+    onStreet(street: string): void;
   };
   pendingState?: ReactNode;
 }
@@ -37,6 +40,7 @@ export function RpgPlayPage({
   sample,
   samples,
   worldKey,
+  navigationKey,
   onTravel,
   server,
   pendingState,
@@ -73,6 +77,14 @@ export function RpgPlayPage({
     setLine(0);
     setSpeech(dialogue);
   }, []);
+  const selectStreet = useCallback(
+    (street: string) => {
+      server?.onStreet(street);
+      setSpeech(null);
+      setPanel(null);
+    },
+    [server],
+  );
   const { hostRef, canvasRef, runtimeRef, canvasKey, status, retry } = useRpgGame({
     sample,
     samples,
@@ -82,8 +94,27 @@ export function RpgPlayPage({
     onUi: setUi,
     onDialogue: talk,
     onTravel: travel,
+    onStreet: server ? selectStreet : undefined,
   });
   const suspended = Boolean(pendingState) || status !== 'ready';
+  const [overlayOwner, setOverlayOwner] = useState({
+    sample,
+    navigationKey,
+    canvasKey,
+    pending: Boolean(pendingState),
+  });
+  if (
+    overlayOwner.sample !== sample ||
+    overlayOwner.navigationKey !== navigationKey ||
+    overlayOwner.canvasKey !== canvasKey ||
+    overlayOwner.pending !== Boolean(pendingState)
+  ) {
+    // Reset before React commits: Back/refresh must never reopen another street's dialogue.
+    setOverlayOwner({ sample, navigationKey, canvasKey, pending: Boolean(pendingState) });
+    setPanel(null);
+    setSpeech(null);
+    setLine(0);
+  }
   const advance = useCallback(() => {
     if (speech && line < speech.lines.length - 1) setLine((value) => value + 1);
     else setSpeech(null);
@@ -152,8 +183,16 @@ export function RpgPlayPage({
           >
             {RPG_THEMES[theme].label} · {server?.displayName ?? 'Local preview'}
           </span>
-          <h1>{sample.name}</h1>
-          <p>{ui.theme === theme ? ui.place : sample.subtitle}</p>
+          <h1 title={sample.name} className={server?.town ? 'rpg-town-location' : undefined}>
+            {sample.name}
+          </h1>
+          <p title={sample.subtitle}>
+            {server?.town && theme !== 'dungeon'
+              ? sample.subtitle
+              : ui.theme === theme
+                ? ui.place
+                : sample.subtitle}
+          </p>
         </header>
         {status === 'ready' && ui.nearby && !panel && !speech && (
           <button
@@ -242,19 +281,19 @@ export function RpgPlayPage({
           </div>
         ))}
       <RpgPanels
-        panel={pendingState ? null : panel}
+        panel={suspended ? null : panel}
         theme={theme}
         world={world}
         appearance={appearance}
         ui={ui}
         sample={sample}
-        server={server}
+        server={server ? { ...server, onStreet: selectStreet } : undefined}
         onClose={() => setPanel(null)}
         onTheme={travel}
         onAppearance={(id) => setAppearances((current) => ({ ...current, [world]: id }))}
       />
       <Dialog
-        open={!pendingState && speech !== null}
+        open={!suspended && speech !== null}
         title={speech?.name ?? ''}
         className="rpg-dialog rpg-dialog--speech"
         onClose={() => setSpeech(null)}

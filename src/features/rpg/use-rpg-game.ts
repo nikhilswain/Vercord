@@ -12,19 +12,21 @@ interface Options {
   onUi(state: RpgUiState): void;
   onDialogue(dialogue: RpgDialogue): void;
   onTravel(destination: RpgDestination): void;
+  onStreet?(street: string): void;
 }
 
 let previousTeardown: Promise<void> = Promise.resolve();
 
 /** Owns the React/Phaser boundary, including Strict Mode, sizing and retry cleanup. */
 export function useRpgGame(options: Options) {
-  const { sample, samples, worldKey, appearance, blocked, onUi, onDialogue, onTravel } = options;
+  const { sample, samples, worldKey, appearance, blocked, onUi, onDialogue, onTravel, onStreet } =
+    options;
   const sceneKey = `${worldKey}/${sample.id}`;
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<RpgRuntime | null>(null);
   const settings = useRef({ sample, samples, sceneKey, appearance, blocked });
-  const callbacks = useRef({ onUi, onDialogue, onTravel });
+  const callbacks = useRef({ onUi, onDialogue, onTravel, onStreet });
   const positions = useRef(new Map<string, Point>());
   const [attempt, setAttempt] = useState(0);
   const runtimeKey = `${worldKey}:${attempt}`;
@@ -34,8 +36,8 @@ export function useRpgGame(options: Options) {
 
   useEffect(() => {
     settings.current = { sample, samples, sceneKey, appearance, blocked: inputBlocked };
-    callbacks.current = { onUi, onDialogue, onTravel };
-  }, [sample, samples, sceneKey, appearance, inputBlocked, onUi, onDialogue, onTravel]);
+    callbacks.current = { onUi, onDialogue, onTravel, onStreet };
+  }, [sample, samples, sceneKey, appearance, inputBlocked, onUi, onDialogue, onTravel, onStreet]);
   useEffect(() => runtimeRef.current?.setScene(sample, sceneKey), [sample, sceneKey]);
   useEffect(() => runtimeRef.current?.setAppearance(appearance), [appearance]);
   useEffect(() => runtimeRef.current?.setInputBlocked(inputBlocked), [inputBlocked]);
@@ -64,6 +66,7 @@ export function useRpgGame(options: Options) {
           onUi: (state) => active && callbacks.current.onUi(state),
           onDialogue: (dialogue) => active && callbacks.current.onDialogue(dialogue),
           onTravel: (next) => active && callbacks.current.onTravel(next),
+          onStreet: (next) => active && callbacks.current.onStreet?.(next),
         },
         current.samples,
         current.sceneKey,

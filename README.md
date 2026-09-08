@@ -45,9 +45,16 @@ remain at `/map/demo`.
 ### Saved server towns
 
 After signing in and syncing a connected server, choose **Explore town** on its dashboard card.
-`/play/:guildId` opens its saved village; `?theme=norse` opens its saved Norse town. The menu and
-dungeon portals preserve the current server and return settlement. The guide NPC and scenery belong
-to the game; the signed-in Discord member is the traveler.
+`/play/:guildId` opens its saved village; `?theme=norse` opens its saved Norse town. Each Discord
+category has a neighborhood, and each permitted channel has a labeled house. The Map panel lists
+categories and streets; channel signs also appear on the houses in the canvas. Each street has six
+physical homes, with additional streets for larger categories. Unlabeled homes remain ordinary
+scenery. The signed-in Discord member is the traveler; NPCs and scenery belong to the game.
+
+First entry opens the first permitted street. Use the Map panel to visit another neighborhood or
+the original **Town square**, or follow the square sign on a street. `?street=<streetId>` preserves
+a street in a link; `?street=square` opens the original square. Dungeon travel returns to the same
+street, while changing overworld theme selects that theme's own saved neighborhood.
 
 Each server has one map per overworld theme. First entry reserves a unique D1 `world_instances` row,
 assembles authored landmark plots around connected roads, validates movement clearances, then saves
@@ -56,11 +63,19 @@ Simultaneous visits converge on the same saved output. Reloads, Discord syncs, c
 permission differences never move its terrain or buildings. The existing Lantern Vault is saved
 alongside each town; procedural dungeon topology remains a later addition.
 
+The additive `0004_world_neighborhoods.sql` migration stores category/channel house addresses and
+versioned street documents separately from the original square. Addresses are allocated atomically;
+renames, sorting and new channels never move existing houses. A channel moved between categories
+uses an address in its new neighborhood; its former address is retained for a move back. Street
+geometry is generated only on first entry and then reused. Released street generator v1 and its
+content must remain pinned for interrupted initialization to resume consistently.
+
 Membership is checked through the existing guild coordinator before initialization and again before
-returning the saved map. Only authorized channel names appear in landmark directories; channel
-bindings are projected separately from shared geometry. The **Open connected rooms** link retains the
-existing live presence, voice and chat experience. Those live spatial systems are not yet attached
-to the new RPG scene coordinates.
+returning the saved map. Category and channel names are projected from current permissions separately
+from shared geometry. Revoked street access fails closed. The **Open connected rooms** link retains
+the existing live presence, voice and chat experience. Those live spatial systems are not yet attached
+to the new RPG scene coordinates; houses currently identify channel locations only. Additional NPCs
+and theme-specific animals remain later work.
 
 `src/domain/world/` owns renderer-independent documents, generation, validation and the pinned v1
 content catalog; `worker/worlds/` owns storage and channel binding projection. The RPG adapter loads

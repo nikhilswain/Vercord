@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RpgPlayPage } from './RpgPlayPage';
 import { readRpgRoute, resolveRpgTravel, RPG_THEMES, writeRpgRoute } from './themes';
 import type { RpgDestination } from './types';
+import { presentTownScene } from './town-presentation';
 import { useSavedRpgWorld, type SavedRpgStatus } from './use-saved-rpg-world';
 import './rpg.css';
 
@@ -36,18 +37,28 @@ function SavedWorldGate({
   status,
   themeName,
   onRetry,
+  onSquare,
 }: {
   status: SavedRpgStatus;
   themeName: string;
   onRetry(): void;
+  onSquare?: () => void;
 }) {
   const failure = status !== 'loading' && status !== 'ready' ? failures[status] : null;
   return (
     <div className="rpg-state" role={failure ? 'alert' : 'status'}>
       <div className="rpg-frame">
         <span className="rpg-kicker">Dmap</span>
-        <h1>{failure?.title ?? 'Opening your town…'}</h1>
-        <p>{failure?.message ?? `Getting ${themeName} ready for you.`}</p>
+        <h1>
+          {onSquare && failure && status !== 'signed-out'
+            ? 'This street could not open'
+            : (failure?.title ?? 'Opening your town…')}
+        </h1>
+        <p>
+          {onSquare && failure && status !== 'signed-out'
+            ? 'The street may be unavailable or your access may have changed. You can return to the town square.'
+            : (failure?.message ?? `Getting ${themeName} ready for you.`)}
+        </p>
         <div className="rpg-state-actions">
           {status === 'signed-out' ? (
             <a
@@ -65,6 +76,11 @@ function SavedWorldGate({
               </button>
             )
           )}
+          {onSquare && failure && status !== 'signed-out' && (
+            <button className="rpg-button" onClick={onSquare}>
+              Go to town square
+            </button>
+          )}
           <a href="/dashboard">Choose another server</a>
         </div>
       </div>
@@ -78,19 +94,31 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     revision: 0,
   }));
   const { route, revision } = navigation;
-  const { data, status, retry } = useSavedRpgWorld(guildId, route.world, revision);
+  const { data, status, retry } = useSavedRpgWorld(guildId, route.world, revision, route.street);
   useEffect(() => {
     if (!data) document.title = 'Your server town — Dmap';
   }, [data]);
-  const travel = useCallback((destination: RpgDestination) => {
-    setNavigation((current) => {
-      const next = resolveRpgTravel(current.route, destination);
-      return {
+  const travel = useCallback(
+    (destination: RpgDestination) => {
+      const next = resolveRpgTravel(navigation.route, destination);
+      const url = writeRpgRoute(new URL(location.href), next);
+      if (url.href !== location.href) history.pushState(history.state, '', url);
+      setNavigation({
         route: next,
-        revision: current.revision + (current.route.world === next.world ? 0 : 1),
-      };
-    });
-  }, []);
+        revision: navigation.revision + (navigation.route.world === next.world ? 0 : 1),
+      });
+    },
+    [navigation],
+  );
+  const selectStreet = useCallback(
+    (street: string) => {
+      const next = { ...navigation.route, theme: navigation.route.world, street };
+      const url = writeRpgRoute(new URL(location.href), next);
+      if (url.href !== location.href) history.pushState(history.state, '', url);
+      setNavigation({ route: next, revision: navigation.revision + 1 });
+    },
+    [navigation],
+  );
   useEffect(() => {
     history.replaceState(history.state, '', writeRpgRoute(new URL(location.href), route));
   }, [route]);
@@ -103,10 +131,25 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
   }, []);
-  const samples = useMemo(() => (data ? Object.values(data.document.scenes) : []), [data]);
+  const samples = useMemo(
+    () =>
+      data
+        ? Object.values(data.document.scenes).map((scene) =>
+            data.town ? presentTownScene(scene, data.server.displayName, data.town) : scene,
+          )
+        : [],
+    [data],
+  );
   const gate =
     status === 'ready' ? undefined : (
-      <SavedWorldGate status={status} themeName={RPG_THEMES[route.theme].name} onRetry={retry} />
+      <SavedWorldGate
+        status={status}
+        themeName={RPG_THEMES[route.theme].name}
+        onRetry={retry}
+        onSquare={
+          route.street && route.street !== 'square' ? () => selectStreet('square') : undefined
+        }
+      />
     );
   if (!data)
     return (
@@ -114,20 +157,22 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
         {gate}
       </main>
     );
-  const sample =
-    route.theme === 'dungeon' ? data.document.scenes.dungeon : data.document.scenes.overworld;
+  const sample = samples.find((scene) => scene.id === route.theme) ?? samples[0]!;
   return (
     <RpgPlayPage
       route={route}
       sample={sample}
       samples={samples}
-      worldKey={data.document.worldId}
+      worldKey={`${data.document.worldId}/${data.town?.activeStreetId ?? 'square'}`}
+      navigationKey={`${guildId}/${route.theme}/${route.street ?? ''}/${revision}`}
       onTravel={travel}
       server={{
         guildId,
         displayName: data.server.displayName,
         playerName: data.player.displayName,
         bindings: data.bindings,
+        town: data.town,
+        onStreet: selectStreet,
       }}
       pendingState={gate}
     />

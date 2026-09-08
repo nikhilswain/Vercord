@@ -2,6 +2,7 @@ import { cloudflareTest } from '@cloudflare/vitest-plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  cacheDir: 'node_modules/.vite-worker-tests',
   plugins: [
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },

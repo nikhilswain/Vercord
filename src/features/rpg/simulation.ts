@@ -152,7 +152,13 @@ export class RpgSimulation {
         ui: {
           id: target.id,
           label: target.name,
-          action: 'lines' in target ? 'Talk' : target.kind === 'portal' ? 'Explore' : 'Read',
+          action:
+            'lines' in target
+              ? 'Talk'
+              : target.kind === 'portal' ||
+                  (target.id === 'town-square' && this.sample.townSquareNavigation)
+                ? 'Explore'
+                : 'Read',
         },
       };
     }

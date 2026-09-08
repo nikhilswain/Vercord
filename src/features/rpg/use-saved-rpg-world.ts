@@ -10,16 +10,19 @@ interface RequestState {
   status: SavedRpgStatus;
 }
 
-function responseStatus(status: number, payload: unknown): SavedRpgStatus {
-  const code =
-    typeof payload === 'object' &&
+function responseCode(payload: unknown): unknown {
+  return typeof payload === 'object' &&
     payload !== null &&
     'error' in payload &&
     typeof payload.error === 'object' &&
     payload.error !== null &&
     'code' in payload.error
-      ? payload.error.code
-      : null;
+    ? payload.error.code
+    : null;
+}
+
+function responseStatus(status: number, payload: unknown): SavedRpgStatus {
+  const code = responseCode(payload);
   if (status === 401) return 'signed-out';
   if (status === 403) return 'forbidden';
   if (status === 404) return 'missing';
@@ -29,9 +32,14 @@ function responseStatus(status: number, payload: unknown): SavedRpgStatus {
 }
 
 /** Retains the last scene only for runtime ownership; callers cover it until this request succeeds. */
-export function useSavedRpgWorld(guildId: string, world: RpgWorldId, travelRevision = 0) {
+export function useSavedRpgWorld(
+  guildId: string,
+  world: RpgWorldId,
+  travelRevision = 0,
+  street?: string,
+) {
   const [attempt, setAttempt] = useState(0);
-  const key = `${guildId}:${world}:${travelRevision}:${attempt}`;
+  const key = JSON.stringify([guildId, world, street, travelRevision, attempt]);
   const [request, setRequest] = useState<RequestState | null>(null);
   const [data, setData] = useState<SavedWorldResponse | null>(null);
   const status = request?.key === key ? request.status : 'loading';
@@ -39,13 +47,18 @@ export function useSavedRpgWorld(guildId: string, world: RpgWorldId, travelRevis
 
   useEffect(() => {
     const controller = new AbortController();
+    let sourceRetries = 0;
+    let retryTimeout: ReturnType<typeof setTimeout> | undefined;
     const timeout = setTimeout(() => {
       setRequest({ key, status: 'unavailable' });
+      clearTimeout(retryTimeout);
       controller.abort();
     }, 25_000);
-    queueMicrotask(() => {
+    const requestWorld = () => {
       if (controller.signal.aborted) return;
-      void fetch(`/api/auth/guilds/${encodeURIComponent(guildId)}/rpg/${world}`, {
+      let retryScheduled = false;
+      const query = street === undefined ? '' : `?${new URLSearchParams({ street })}`;
+      void fetch(`/api/auth/guilds/${encodeURIComponent(guildId)}/rpg/${world}${query}`, {
         method: 'POST',
         headers: { accept: 'application/json' },
         credentials: 'same-origin',
@@ -56,11 +69,29 @@ export function useSavedRpgWorld(guildId: string, world: RpgWorldId, travelRevis
           const payload: unknown = await response.json().catch(() => null);
           if (controller.signal.aborted) return;
           if (!response.ok) {
+            if (
+              response.status === 503 &&
+              responseCode(payload) === 'WORLD_SOURCE_UNAVAILABLE' &&
+              sourceRetries < 2
+            ) {
+              // The idempotent town POST may briefly wait for its source to recover.
+              // Keep one deadline and the loading gate throughout both bounded retries.
+              retryScheduled = true;
+              retryTimeout = setTimeout(requestWorld, 400 * 2 ** sourceRetries);
+              sourceRetries += 1;
+              return;
+            }
             setRequest({ key, status: responseStatus(response.status, payload) });
             return;
           }
           const parsed = savedWorldResponseSchema.safeParse(payload);
-          if (!parsed.success || parsed.data.document.themeId !== world) {
+          if (
+            !parsed.success ||
+            parsed.data.document.themeId !== world ||
+            (street !== undefined &&
+              (!parsed.data.town ||
+                parsed.data.town.activeStreetId !== (street === 'square' ? null : street)))
+          ) {
             setRequest({ key, status: 'invalid' });
             return;
           }
@@ -70,13 +101,17 @@ export function useSavedRpgWorld(guildId: string, world: RpgWorldId, travelRevis
         .catch(() => {
           if (!controller.signal.aborted) setRequest({ key, status: 'unavailable' });
         })
-        .finally(() => clearTimeout(timeout));
-    });
+        .finally(() => {
+          if (!retryScheduled) clearTimeout(timeout);
+        });
+    };
+    queueMicrotask(requestWorld);
     return () => {
       clearTimeout(timeout);
+      clearTimeout(retryTimeout);
       controller.abort();
     };
-  }, [guildId, world, key]);
+  }, [guildId, world, street, key]);
 
   return { data, status, retry };
 }

@@ -20,9 +20,104 @@ const payload = (themeId: RpgWorldId) => ({
   player: { displayName: 'A traveler', memberKey: `m_${'a'.repeat(43)}` },
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe('saved town requests', () => {
+  it('keeps the map blocked through two short source-recovery retries before success', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const unavailable = () =>
+      Response.json({ error: { code: 'WORLD_SOURCE_UNAVAILABLE' } }, { status: 503 });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(unavailable())
+      .mockResolvedValueOnce(unavailable())
+      .mockResolvedValueOnce(Response.json(payload('village')));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, unmount } = renderHook(() => useSavedRpgWorld('123', 'village'), { wrapper });
+    await act(async () => {});
+    expect(result.current.status).toBe('loading');
+    expect(result.current.data).toBeNull();
+    await act(async () => vi.advanceTimersByTimeAsync(399));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe('loading');
+    await act(async () => vi.advanceTimersByTimeAsync(799));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.current.status).toBe('ready');
+    unmount();
+  });
+
+  it('stops source-recovery retries after two attempts', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(
+          Response.json({ error: { code: 'WORLD_SOURCE_UNAVAILABLE' } }, { status: 503 }),
+        ),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, unmount } = renderHook(() => useSavedRpgWorld('123', 'village'));
+    await act(async () => {});
+    await act(async () => vi.advanceTimersByTimeAsync(5000));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.current.status).toBe('unavailable');
+    expect(result.current.data).toBeNull();
+    unmount();
+  });
+
+  it('cancels a scheduled source retry on navigation and unmount', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(
+          Response.json({ error: { code: 'WORLD_SOURCE_UNAVAILABLE' } }, { status: 503 }),
+        ),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, rerender, unmount } = renderHook(
+      ({ guild }) => useSavedRpgWorld(guild, 'village'),
+      { initialProps: { guild: '123' } },
+    );
+    await act(async () => {});
+    const firstSignal = fetchMock.mock.calls[0]![1].signal as AbortSignal;
+    rerender({ guild: '456' });
+    await act(async () => {});
+    expect(firstSignal.aborted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe('loading');
+    unmount();
+    expect((fetchMock.mock.calls[1]![1].signal as AbortSignal).aborted).toBe(true);
+    await act(async () => vi.advanceTimersByTimeAsync(5000));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    [403, 'WORLD_SOURCE_UNAVAILABLE', 'forbidden'],
+    [503, 'WORLD_SAVE_INVALID', 'invalid'],
+    [503, 'WORLD_VERSION_UNSUPPORTED', 'invalid'],
+    [503, 'UNAVAILABLE', 'unavailable'],
+  ] as const)('does not automatically retry HTTP %s / %s', async (status, code, expected) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(Response.json({ error: { code } }, { status })));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, unmount } = renderHook(() => useSavedRpgWorld('123', 'village'));
+    await act(async () => {});
+    await act(async () => vi.advanceTimersByTimeAsync(5000));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe(expected);
+    unmount();
+  });
+
   it('aborts superseded requests and ignores late responses across theme and server changes', async () => {
     const requests: Array<{ resolve(response: Response): void; signal: AbortSignal }> = [];
     const fetchMock = vi.fn(
@@ -73,6 +168,48 @@ describe('saved town requests', () => {
     expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.status).toBe('ready'));
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks stale or mismatched street responses while retaining the previous runtime under the gate', async () => {
+    const first = '030748f2-3d55-4cf6-a1d3-fc123e05e820';
+    const second = '8706967c-ff10-4224-93a7-51a753e8fe09';
+    const streetPayload = (activeStreetId: string) => ({
+      ...payload('village'),
+      town: {
+        activeStreetId,
+        districts: [
+          {
+            key: 'd_one',
+            label: 'Garden',
+            streets: [first, second].map((id, index) => ({ id, number: index + 1, rooms: [] })),
+          },
+        ],
+      },
+    });
+    let finish: (response: Response) => void = () => {};
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(streetPayload(first)))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, rerender } = renderHook(
+      ({ street }) => useSavedRpgWorld('123', 'village', 0, street),
+      { initialProps: { street: first } },
+    );
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    rerender({ street: second });
+    expect(result.current.status).toBe('loading');
+    expect(result.current.data?.town?.activeStreetId).toBe(first);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/auth/guilds/123/rpg/village?street=${second}`);
+    await act(async () => finish(Response.json(streetPayload(first))));
+    expect(result.current.status).toBe('invalid');
+    expect(result.current.data?.town?.activeStreetId).toBe(first);
   });
 
   it.each([

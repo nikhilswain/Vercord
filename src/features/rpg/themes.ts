@@ -61,6 +61,7 @@ export const RPG_WORLD_IDS: readonly RpgWorldId[] = ['village', 'norse'];
 export interface RpgRoute {
   theme: RpgThemeId;
   world: RpgWorldId;
+  street?: string;
 }
 
 export function readRpgRoute(search: string): RpgRoute {
@@ -70,13 +71,18 @@ export function readRpgRoute(search: string): RpgRoute {
     requested === 'norse' || requested === 'dungeon' ? requested : 'village';
   const world =
     theme === 'dungeon' ? (params.get('from') === 'norse' ? 'norse' : 'village') : theme;
-  return { theme, world };
+  const street = params.get('street');
+  return { theme, world, ...(street !== null ? { street } : {}) };
 }
 
 export function resolveRpgTravel(route: RpgRoute, destination: RpgDestination): RpgRoute {
-  if (destination === 'return') return { theme: route.world, world: route.world };
-  if (destination === 'dungeon') return { theme: destination, world: route.world };
-  return { theme: destination, world: destination };
+  if (destination === 'return') return { ...route, theme: route.world };
+  if (destination === 'dungeon') return { ...route, theme: destination };
+  return {
+    theme: destination,
+    world: destination,
+    ...(destination === route.world && route.street !== undefined ? { street: route.street } : {}),
+  };
 }
 
 export function writeRpgRoute(url: URL, route: RpgRoute): URL {
@@ -85,5 +91,7 @@ export function writeRpgRoute(url: URL, route: RpgRoute): URL {
   if (route.theme === 'dungeon' && route.world === 'norse')
     url.searchParams.set('from', route.world);
   else url.searchParams.delete('from');
+  if (route.street === undefined) url.searchParams.delete('street');
+  else url.searchParams.set('street', route.street);
   return url;
 }

@@ -1,9 +1,10 @@
 import type {
   Point,
   RpgDestination,
-  RpgSample,
+  RpgSample as SavedRpgSample,
   RpgThemeId,
 } from '../../domain/world/content/v1/types';
+import type { MapRoomType } from '../../domain/map/snapshot';
 
 // Renderer and generator share one scene contract; UI/runtime messages stay local to this feature.
 export type {
@@ -12,11 +13,23 @@ export type {
   RpgDirection,
   RpgLandmark,
   RpgNpc,
-  RpgSample,
   RpgStamp,
   RpgTexture,
   RpgThemeId,
 } from '../../domain/world/content/v1/types';
+
+/** Runtime-only annotations. Saved geometry is never generated or rewritten by the browser. */
+export interface RpgSceneLabel extends Point {
+  text: string;
+  detail?: string;
+  roomType?: MapRoomType;
+  maxWidth: number;
+}
+
+export interface RpgSample extends SavedRpgSample {
+  signage?: RpgSceneLabel[];
+  townSquareNavigation?: boolean;
+}
 
 export interface RpgNearby {
   id: string;
@@ -45,6 +58,7 @@ export interface RpgCallbacks {
   onUi(state: RpgUiState): void;
   onDialogue(dialogue: RpgDialogue): void;
   onTravel(destination: RpgDestination): void;
+  onStreet?(street: string): void;
 }
 
 export interface RpgRuntime {
