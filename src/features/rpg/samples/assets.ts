@@ -63,7 +63,7 @@ export const RPG_TEXTURES: RpgTexture[] = [
       broken: rect(192, 288, 32, 96),
     },
   },
-  { key: 'lpc-sign', url: `${ASSETS}signs.png`, frames: { oak: rect(0, 0, 32, 32) } },
+  { key: 'rpg-signpost', url: '/game-assets/rpg-props/signpost.svg' },
   { key: 'lpc-arch', url: `${ASSETS}arched-doorway.png`, frames: { stone: rect(0, 96, 160, 96) } },
   { key: 'lpc-stairs', url: `${ASSETS}cement-stairs.png`, frames: { down: rect(0, 64, 32, 32) } },
   {

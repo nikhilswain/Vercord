@@ -1,0 +1,21 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="32"
+  height="40"
+  viewBox="0 0 32 40"
+  shape-rendering="crispEdges"
+>
+  <!-- Original Dmap pixel artwork. The post's ground anchor is (16, 38). -->
+  <path fill="#30251f" opacity=".24" d="M8 35h17v2h3v2H7v-2H5v-1h3z" />
+  <path fill="#483426" d="M12 15h8v22h-2v1h-5v-2h-1z" />
+  <path fill="#93643d" d="M14 18h4v18h-4z" />
+  <path fill="#c18a51" d="M14 19h1v15h-1z" />
+  <path fill="#65432d" d="M17 23h1v13h-1z" />
+  <path fill="#443026" d="M3 3h26v2h1v16h-2v1H3v-2H2V5h1z" />
+  <path fill="#aa7545" d="M4 5h24v14H4z" />
+  <path fill="#cd985b" d="M4 5h24v2H4z" />
+  <path fill="#744a31" d="M4 18h24v2H4zM4 12h24v1H4z" />
+  <path fill="#bc8952" d="M5 14h22v1H5zM7 7h3v1H7zM21 16h5v1h-5z" />
+  <path fill="#edd5a0" d="M9 9h14v1H9zM9 15h10v1H9z" />
+  <path fill="#523c2d" d="M5 8h1v1H5zM26 8h1v1h-1zM5 16h1v1H5zM26 16h1v1h-1z" />
+</svg>

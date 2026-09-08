@@ -356,12 +356,8 @@
       "width": 64,
       "height": 64,
       "frames": {
-        "oak": {
-          "x": 0,
-          "y": 0,
-          "width": 32,
-          "height": 32
-        }
+        "uniformWidth": 64,
+        "uniformHeight": 64
       }
     },
     {

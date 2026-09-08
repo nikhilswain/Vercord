@@ -20,7 +20,7 @@ implementation notes, validation, and current limits.
 On `feat/2d-rpg-samples`, open `/play/demo` for Willowmere or
 `/play/demo?theme=dungeon` for The Lantern Vault. These are fixed local art/interaction samples:
 taller dressed characters with idle, walk and run animations, NPC dialogue, landmark interactions,
-and themed HUDs. Move with WASD/arrows, hold Shift to run, double-click/tap to walk, and press E
+and themed HUDs. Move with WASD/arrows, hold Shift to run, double-click/tap to auto-run faster, and press E
 near a character or landmark. Touch controls, appearance selection and a map are available in the HUD.
 
 The implementation lives in `src/features/rpg/`: `sample-worlds` owns scene data, `simulation`

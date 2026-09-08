@@ -34,3 +34,21 @@ describe('gathering hall approach', () => {
     }
   });
 });
+
+describe('signpost approach', () => {
+  it.each([
+    ['village', 835.2, 672],
+    ['village', 1104, 896],
+    ['dungeon', 768, 384],
+    ['dungeon', 272, 928],
+  ] as const)('stops in front of the %s sign at %s, %s', (theme, x, baseline) => {
+    const simulation = new RpgSimulation(getRpgSample(theme));
+    simulation.player = { x, y: baseline + 64 };
+    for (let frame = 0; frame < 60; frame++) {
+      simulation.tick(1 / 60, { x: 0, y: -1, moving: true, sprinting: true });
+    }
+    expect(simulation.player.y).toBeLessThan(baseline + 32);
+    expect(simulation.player.y).toBeGreaterThan(baseline);
+    expect(simulation.action).toBe('idle');
+  });
+});

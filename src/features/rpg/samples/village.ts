@@ -9,6 +9,7 @@ import {
   ground,
   object,
   block,
+  signpost,
   type TilePoint,
 } from './builder';
 
@@ -247,8 +248,8 @@ export function buildVillage(): RpgSample {
   }
   object(sample, 'lpc-arch', 'stone', 34.5, 23, 26);
   object(sample, 'lpc-dungeon-details', 'ivy', 34, 23.6, 26.1);
-  object(sample, 'lpc-sign', 'oak', 25.6, 20.1, 21);
-  object(sample, 'lpc-sign', 'oak', 34, 27, 28);
+  const crossroads = signpost(sample, 26.1, 21);
+  signpost(sample, 34.5, 28);
 
   sample.npcs.push({
     id: 'mira',
@@ -267,7 +268,7 @@ export function buildVillage(): RpgSample {
     {
       id: 'willowmere-sign',
       name: 'Willowmere crossroads',
-      ...at(25.8, 21.1),
+      ...crossroads,
       radius: 64,
       kind: 'sign',
       description:

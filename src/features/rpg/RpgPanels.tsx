@@ -111,7 +111,7 @@ export function RpgPanels({ panel, theme, appearance, ui, onClose, onTheme, onAp
               </dd>
             </div>
             <div>
-              <dt>Walk to a place</dt>
+              <dt>Auto-run to a place</dt>
               <dd>Double-click or double-tap the ground</dd>
             </div>
             <div>

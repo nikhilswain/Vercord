@@ -170,9 +170,9 @@ const manifest = {
         bytes: bytes.length,
         width: bytes.readUInt32BE(16),
         height: bytes.readUInt32BE(20),
-        frames: texture.frames ?? {
-          uniformWidth: texture.frameWidth ?? bytes.readUInt32BE(16),
-          uniformHeight: texture.frameHeight ?? bytes.readUInt32BE(20),
+        frames: texture?.frames ?? {
+          uniformWidth: texture?.frameWidth ?? bytes.readUInt32BE(16),
+          uniformHeight: texture?.frameHeight ?? bytes.readUInt32BE(20),
         },
       };
     }),

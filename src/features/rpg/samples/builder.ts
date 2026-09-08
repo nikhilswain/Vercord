@@ -71,3 +71,18 @@ export function object(
 export function block(sample: RpgSample, x: number, y: number, width: number, height: number) {
   sample.colliders.push(rect(x * TILE, y * TILE, width * TILE, height * TILE));
 }
+
+/** Place a sign by its feet; art, depth, collision and reading point share that anchor. */
+export function signpost(sample: RpgSample, x: number, y: number): Point {
+  const base = at(x, y);
+  // The 32×40 sprite's post meets the ground at (16, 38).
+  sample.stamps.push({
+    texture: 'rpg-signpost',
+    x: base.x - 16,
+    y: base.y - 38,
+    depth: base.y,
+  });
+  sample.colliders.push(rect(base.x - 5, base.y - 6, 10, 6));
+  // Read from in front of the post, outside its solid base and line-of-sight checks.
+  return { x: base.x, y: base.y + 20 };
+}

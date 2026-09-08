@@ -9,6 +9,7 @@ import {
   ground,
   object,
   block,
+  signpost,
   type TileArea,
 } from './builder';
 
@@ -137,11 +138,11 @@ export function buildDungeon(): RpgSample {
   object(sample, 'lpc-dungeon-details', 'web', 12, 4, 6.1);
   object(sample, 'lpc-dungeon-details', 'web', 41, 22, 24.1);
   object(sample, 'lpc-dungeon-details', 'ivy', 4, 13, 16);
-  object(sample, 'lpc-sign', 'oak', 23.5, 11, 12);
+  const naveSign = signpost(sample, 24, 12);
   for (let x = 9; x <= 11; x++) {
     for (let y = 28; y <= 30; y++) ground(sample, 'lpc-stairs', 'down', x, y, -30);
   }
-  object(sample, 'lpc-sign', 'oak', 8, 28, 29);
+  signpost(sample, 8.5, 29);
 
   sample.npcs.push({
     id: 'oren',
@@ -180,11 +181,11 @@ export function buildDungeon(): RpgSample {
     {
       id: 'lantern-nave',
       name: 'The lantern nave',
-      ...at(24, 12.5),
+      ...naveSign,
       radius: 72,
       kind: 'sign',
       description:
-        'Keep a light for those who follow. The words have been cut into the stone so many times that the first inscription is almost gone.',
+        'Keep a light for those who follow. The words on this old sign echo an inscription cut into the stone beneath it, almost worn away by passing feet.',
     },
     {
       id: 'reliquary',

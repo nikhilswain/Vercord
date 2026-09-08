@@ -7,6 +7,7 @@ import type { RpgAction, RpgDirection, RpgLandmark, RpgNearby, RpgNpc, RpgSample
 export const RPG_FEET = { width: 18, height: 12, offsetX: -9, offsetY: -12 };
 const WALK_SPEED = 108;
 const RUN_SPEED = 174;
+const AUTO_RUN_SPEED = 240;
 
 export function directionToward(from: Point, to: Point): RpgDirection {
   const dx = to.x - from.x;
@@ -57,6 +58,7 @@ export class RpgSimulation {
     const dt = Math.min(0.05, Math.max(0, delta));
     let dx = movement.x;
     let dy = movement.y;
+    let autoRunning = false;
     let travel = (movement.sprinting ? RUN_SPEED : WALK_SPEED) * dt;
     if (movement.moving) this.route = [];
     else {
@@ -68,9 +70,10 @@ export class RpgSimulation {
       }
       const target = this.route[0];
       if (target) {
+        autoRunning = true;
         dx = target.x - this.player.x;
         dy = target.y - this.player.y;
-        travel = Math.min(travel, Math.hypot(dx, dy));
+        travel = Math.min(AUTO_RUN_SPEED * dt, Math.hypot(dx, dy));
       }
     }
     const length = Math.hypot(dx, dy);
@@ -96,7 +99,7 @@ export class RpgSimulation {
     const next = { x: result.x - RPG_FEET.offsetX, y: result.y - RPG_FEET.offsetY };
     const moved = Math.hypot(next.x - this.player.x, next.y - this.player.y) > 0.01;
     this.direction = directionToward({ x: 0, y: 0 }, { x: dx, y: dy });
-    this.action = moved ? (movement.sprinting ? 'run' : 'walk') : 'idle';
+    this.action = moved ? (autoRunning || movement.sprinting ? 'run' : 'walk') : 'idle';
     this.player = next;
     if (!moved && !movement.moving) this.stop();
   }
