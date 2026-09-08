@@ -109,6 +109,7 @@ export class WorkerBridge {
     this.socket = socket;
     socket.on('open', () => {
       if (socket !== this.socket) return;
+      console.info(JSON.stringify({ service: 'dmap-gateway', event: 'bridge_connected' }));
       this.awaitingPong = false;
       this.startHeartbeat(socket);
       void this.handlers
@@ -126,6 +127,13 @@ export class WorkerBridge {
       if (socket === this.socket) this.awaitingPong = false;
     });
     socket.on('error', () => {
+      console.error(
+        JSON.stringify({
+          service: 'dmap-gateway',
+          event: 'bridge_connection_failed',
+          origin: new URL(this.config.bridgeUrl).origin,
+        }),
+      );
       this.disconnected(socket);
       socket.terminate();
     });

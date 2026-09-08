@@ -12,7 +12,9 @@ async function main(): Promise<void> {
   }
   const config = parseGatewayConfig(process.env);
   const discord = new DiscordVoiceService(config);
+  console.info(JSON.stringify({ service: 'dmap-gateway', event: 'discord_connecting' }));
   await discord.start();
+  console.info(JSON.stringify({ service: 'dmap-gateway', event: 'discord_ready' }));
 
   const bridge = new WorkerBridge(config, {
     onConnected: (send) => discord.attachBridge(send),
@@ -21,6 +23,13 @@ async function main(): Promise<void> {
     onDisconnected: () => discord.detachBridge(),
   });
   bridge.start();
+  console.info(
+    JSON.stringify({
+      service: 'dmap-gateway',
+      event: 'bridge_connecting',
+      origin: new URL(config.bridgeUrl).origin,
+    }),
+  );
 
   const shutdown = (): void => {
     bridge.stop();

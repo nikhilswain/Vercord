@@ -132,6 +132,18 @@ deployment.
 6. Open `http://localhost:3000`, sign in with Discord, and sync a connected server from the
    dashboard. `pnpm discord:verify` can be used to inspect what the bot can see before syncing.
 
+If you use another port, for example `pnpm dev --port 3002 --strictPort`, register
+`http://localhost:3002/api/auth/discord/callback` in Discord and set
+`DMAP_BRIDGE_URL=ws://localhost:3002/api/internal/discord-gateway` in `.dev.vars`. Restart the
+Gateway after changing that URL; its logs should show `discord_ready` and `bridge_connected`.
+The server list can load even when the Gateway is disconnected, but opening a town needs it.
+
+Run one Vite dev server per checkout: multiple instances share the dependency cache. If requests
+fail with a missing file under `node_modules/.vite`, stop the extra instances and restart the app
+with `pnpm dev --port 3002 --strictPort --force` (using your chosen port). This rebuilds the
+dependency cache without changing saved maps. Use **Explore town** or `/play/:guildId` for saved
+RPG towns; `/world/:guildId` opens the older connected world.
+
 To try voice movement, manually join any voice channel in the Discord client once, then enter a
 mapped voice room in Dmap. Dmap can move or disconnect an existing Discord voice connection, but a
 bot cannot connect your Discord client to voice after you disconnect.
