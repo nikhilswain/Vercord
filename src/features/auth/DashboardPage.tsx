@@ -257,6 +257,11 @@ function GuildPicker({
                   {guild.synced ? ' · Map synced' : ''}
                   {guild.published ? ' · Public world live' : ''}
                 </p>
+                {guild.connected && guild.synced && (
+                  <a className="guild-town-link" href={`/play/${guild.id}`}>
+                    Explore town
+                  </a>
+                )}
               </div>
               <GuildAction guild={guild} onSync={onSync} syncState={syncStates[guild.id]} />
             </li>

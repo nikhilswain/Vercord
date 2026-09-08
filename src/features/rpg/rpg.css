@@ -60,6 +60,17 @@
 .rpg-page a {
   -webkit-tap-highlight-color: transparent;
 }
+
+.rpg-room-label {
+  display: block;
+  color: var(--rpg-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.rpg-room-label small {
+  font-size: 0.75rem;
+}
 .rpg-page button {
   font: inherit;
   cursor: pointer;
@@ -78,6 +89,10 @@
 }
 .rpg-page h1,
 .rpg-page h2,
+.rpg-identity > span {
+  min-width: 0;
+  max-width: 240px;
+}
 .rpg-identity strong {
   font-family: 'Pixelify Sans', monospace;
   font-weight: 500;
@@ -165,6 +180,10 @@
   display: block;
   font-size: 25px;
   line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .rpg-identity small {
   display: block;
@@ -179,6 +198,7 @@
   width: 266px;
   padding: 12px 20px;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 .rpg-kicker {
   font-size: 9px;
@@ -186,6 +206,15 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--rpg-muted);
+}
+
+.rpg-kicker--server {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0.025em;
 }
 .rpg-location h1 {
   font-size: 30px;
@@ -322,6 +351,7 @@
   max-width: 440px;
   padding: 28px;
 }
+.rpg-state h1,
 .rpg-state h2 {
   font-size: 30px;
   margin: 10px 0;

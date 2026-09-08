@@ -9,6 +9,10 @@ vi.mock('../../../src/features/rpg/RpgDemoPage', () => ({
   RpgDemoPage: () => null,
 }));
 
+vi.mock('../../../src/features/rpg/RpgSavedPage', () => ({
+  RpgSavedPage: () => null,
+}));
+
 import { App } from '../../../src/app/App';
 
 afterEach(() => {

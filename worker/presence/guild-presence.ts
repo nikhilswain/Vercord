@@ -35,6 +35,10 @@ import { LiveWorldCoordinator, WorldAccessError } from '../live-world/coordinato
 import { sessionIsCurrent, type WorldActor } from '../live-world/session-access';
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
 import { MemberSlowmode } from '../messages/member-slowmode';
+import { worldThemeIdSchema } from '../../src/domain/world/protocol';
+import { WorldInstanceStore } from '../worlds/instance-store';
+import { projectWorldBindings } from '../worlds/bindings';
+import { WorldSaveError } from '../worlds/save-error';
 
 const MAX_CONNECTIONS = 200;
 const MAX_MESSAGE_BYTES = 16 * 1_024;
@@ -63,6 +67,10 @@ const worldActorSchema = z.strictObject({
   guildId: snowflakeSchema,
   userId: snowflakeSchema,
   sessionHash: digestSchema,
+});
+const internalRpgWorldSchema = z.strictObject({
+  actor: worldActorSchema,
+  theme: worldThemeIdSchema,
 });
 const internalLiveFrameSchema = z.strictObject({
   bridgeEpoch: bridgeEpochSchema,
@@ -179,6 +187,7 @@ export class GuildPresence extends DurableObject<Env> {
   private voiceBridgeEpoch = 0;
   private coordinator!: LiveWorldCoordinator;
   private readonly slowmode: MemberSlowmode;
+  private readonly worldInstances: WorldInstanceStore;
   private messageCoverage: MessageCoverage = {
     epoch: 0,
     online: false,
@@ -194,6 +203,7 @@ export class GuildPresence extends DurableObject<Env> {
   ) {
     super(state, env);
     this.slowmode = new MemberSlowmode(state.storage);
+    this.worldInstances = new WorldInstanceStore(env.AUTH_DB);
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch, messageCoverage] =
         await Promise.all([
@@ -225,6 +235,7 @@ export class GuildPresence extends DurableObject<Env> {
     if (pathname === '/internal/live-service') return this.receiveLiveService(request);
     if (pathname === '/internal/message') return this.receiveRoomMessage(request);
     if (pathname === '/internal/world-view') return this.readWorldView(request);
+    if (pathname === '/internal/rpg-world') return this.readRpgWorld(request);
     if (pathname === '/internal/world-mutate') return this.mutateWorld(request);
     if (pathname === '/internal/voice-destination') return this.readVoiceDestination(request);
     if (pathname === '/internal/voice') return this.receiveVoice(request);
@@ -755,6 +766,37 @@ export class GuildPresence extends DurableObject<Env> {
       }
     }
     return new Response(null, { status: 204 });
+  }
+
+  private async readRpgWorld(request: Request): Promise<Response> {
+    if (request.method !== 'POST') return new Response(null, { status: 405 });
+    const parsed = internalRpgWorldSchema.safeParse(
+      await this.readJson(request, MAX_INTERNAL_BODY_BYTES),
+    );
+    if (!parsed.success) return new Response(null, { status: 400 });
+    const { actor, theme } = parsed.data;
+    try {
+      const subscriptionId = this.coordinator.subscriptionId(actor.userId);
+      // Membership is checked before reserving any persistent map.
+      await this.coordinator.read(actor, subscriptionId);
+      const saved = await this.worldInstances.load(actor.guildId, theme);
+      const view = await this.coordinator.read(actor, subscriptionId);
+      if (!(await sessionIsCurrent(this.env, actor, Date.now())))
+        throw new WorldAccessError('UNAUTHENTICATED', 401);
+      if (this.coordinator.currentView(actor) !== view) throw new WorldAccessError();
+      return Response.json(
+        {
+          ...saved,
+          server: view.snapshot.server,
+          bindings: projectWorldBindings(saved.document, view.snapshot),
+        },
+        { headers: { 'cache-control': 'no-store' } },
+      );
+    } catch (error) {
+      return this.worldError(
+        error instanceof WorldSaveError ? new WorldAccessError(error.code, error.status) : error,
+      );
+    }
   }
 
   private async readWorldView(request: Request): Promise<Response> {

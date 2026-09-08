@@ -39,9 +39,39 @@ and is remembered per village during the current visit. `samples/norse-props` pa
 building/prop with its collision base and depth anchor. Reproduce the original scenery with
 `node scripts/generate-norse-buildings.mjs` and `node scripts/generate-norse-ground.mjs`.
 
-This first milestone does not connect to Discord or save server worlds. The next milestone will
-generate and persist one versioned map per server per theme; revisits must reuse that map. Owner
-editing remains future scope. The existing 2D and Three.js demos remain at `/map/demo`.
+The fixed art samples remain separate from saved server towns. The existing 2D and Three.js demos
+remain at `/map/demo`.
+
+### Saved server towns
+
+After signing in and syncing a connected server, choose **Explore town** on its dashboard card.
+`/play/:guildId` opens its saved village; `?theme=norse` opens its saved Norse town. The menu and
+dungeon portals preserve the current server and return settlement. The guide NPC and scenery belong
+to the game; the signed-in Discord member is the traveler.
+
+Each server has one map per overworld theme. First entry reserves a unique D1 `world_instances` row,
+assembles authored landmark plots around connected roads, validates movement clearances, then saves
+the complete scene documents with their seed, content/generator versions, revision and checksum.
+Simultaneous visits converge on the same saved output. Reloads, Discord syncs, channel changes and
+permission differences never move its terrain or buildings. The existing Lantern Vault is saved
+alongside each town; procedural dungeon topology remains a later addition.
+
+Membership is checked through the existing guild coordinator before initialization and again before
+returning the saved map. Only authorized channel names appear in landmark directories; channel
+bindings are projected separately from shared geometry. The **Open connected rooms** link retains the
+existing live presence, voice and chat experience. Those live spatial systems are not yet attached
+to the new RPG scene coordinates.
+
+`src/domain/world/` owns renderer-independent documents, generation, validation and the pinned v1
+content catalog; `worker/worlds/` owns storage and channel binding projection. The RPG adapter loads
+stored geometry without running a generator in the browser. Preserve released content versions and
+their asset files when introducing future generators. Invalid or unsupported saves report a loading
+error rather than being replaced. There is no reroll/editor control; map editing and player
+position/progression saves remain future scope.
+
+Apply the additive local migration with `pnpm db:migrate:local` before opening a saved town. Normal
+local use requires `pnpm dev` and the Discord Gateway, as described below. No additional bindings or
+Gateway protocol changes are needed.
 
 Imported LPC art and font notices are linked in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

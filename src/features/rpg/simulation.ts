@@ -1,10 +1,11 @@
-import { containsPoint, resolveMovement } from '../world/engine/collision';
+import { containsPoint, overlaps, resolveMovement } from '../world/engine/collision';
+import { footprint, WORLD_PLAYER_FEET } from '../../domain/world/geometry';
 import { findPath } from '../world/engine/pathfinding';
 import type { MovementVector } from '../world/engine/input';
 import type { Point, Rect } from '../world/engine/types';
 import type { RpgAction, RpgDirection, RpgLandmark, RpgNearby, RpgNpc, RpgSample } from './types';
 
-export const RPG_FEET = { width: 18, height: 12, offsetX: -9, offsetY: -12 };
+export const RPG_FEET = WORLD_PLAYER_FEET;
 const WALK_SPEED = 108;
 const RUN_SPEED = 174;
 const AUTO_RUN_SPEED = 240;
@@ -23,21 +24,55 @@ export class RpgSimulation {
   public blocked = false;
   private route: Point[] = [];
   private colliders: Rect[] = [];
-  private readonly positions = new Map<string, Point>();
   private readonly collisionCells = new Map<string, Rect[]>();
 
-  public constructor(public sample: RpgSample) {
-    this.player = { ...sample.spawn };
+  public constructor(
+    public sample: RpgSample,
+    private sceneKey: string = sample.id,
+    private readonly positions = new Map<string, Point>(),
+  ) {
+    this.player = this.restoredPosition();
     this.indexColliders();
   }
 
-  public changeSample(sample: RpgSample): void {
-    this.positions.set(this.sample.id, { ...this.player });
+  public rememberPosition(): void {
+    this.positions.set(this.sceneKey, { ...this.player });
+  }
+
+  public changeSample(sample: RpgSample, sceneKey: string = sample.id): void {
+    this.rememberPosition();
     this.sample = sample;
-    this.player = { ...(this.positions.get(sample.id) ?? sample.spawn) };
+    this.sceneKey = sceneKey;
+    this.player = this.restoredPosition();
     this.direction = 'down';
     this.stop();
     this.indexColliders();
+  }
+
+  private restoredPosition(): Point {
+    const point = this.positions.get(this.sceneKey);
+    if (point) {
+      const feet = {
+        x: point.x + RPG_FEET.offsetX,
+        y: point.y + RPG_FEET.offsetY,
+        width: RPG_FEET.width,
+        height: RPG_FEET.height,
+      };
+      const bounds = this.sample.bounds;
+      if (
+        Number.isFinite(point.x) &&
+        Number.isFinite(point.y) &&
+        feet.x >= bounds.x &&
+        feet.y >= bounds.y &&
+        feet.x + feet.width <= bounds.x + bounds.width &&
+        feet.y + feet.height <= bounds.y + bounds.height &&
+        ![...this.sample.colliders, ...this.sample.npcs.map(footprint)].some((box) =>
+          overlaps(feet, box),
+        )
+      )
+        return { ...point };
+    }
+    return { ...this.sample.spawn };
   }
 
   public stop(): void {
@@ -148,10 +183,7 @@ export class RpgSimulation {
   }
 
   private indexColliders(): void {
-    this.colliders = [
-      ...this.sample.colliders,
-      ...this.sample.npcs.map((npc) => ({ x: npc.x - 9, y: npc.y - 12, width: 18, height: 12 })),
-    ];
+    this.colliders = [...this.sample.colliders, ...this.sample.npcs.map(footprint)];
     this.collisionCells.clear();
     for (const box of this.colliders) {
       for (const cell of this.cellsFor(box)) {

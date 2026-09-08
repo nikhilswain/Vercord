@@ -12,6 +12,8 @@ import { snowflakeSchema } from '../../src/domain/discord/source-schema';
 import { decodeBase64UrlSecret } from '../config/runtime';
 import { WorldAccessError } from './coordinator';
 import type { WorldActor } from './session-access';
+import type { WorldThemeId } from '../../src/domain/world/document';
+import { savedWorldViewSchema } from '../../src/domain/world/protocol';
 
 const worldErrorSchema = z.strictObject({
   error: z.strictObject({
@@ -71,6 +73,13 @@ export async function readAuthorizedWorld(env: Env, actor: WorldActor): Promise<
   const parsed = z.strictObject({ view: worldViewSchema }).safeParse(value);
   if (!parsed.success) throw new WorldAccessError();
   return parsed.data.view;
+}
+
+export async function readAuthorizedSavedWorld(env: Env, actor: WorldActor, theme: WorldThemeId) {
+  const value = await callWorldOwner(env, actor, '/internal/rpg-world', { actor, theme });
+  const parsed = savedWorldViewSchema.safeParse(value);
+  if (!parsed.success) throw new WorldAccessError('WORLD_SAVE_INVALID', 409);
+  return parsed.data;
 }
 
 export async function mutateAuthorizedWorld(

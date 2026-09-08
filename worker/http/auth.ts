@@ -40,7 +40,13 @@ import { ChannelActionError } from '../channels/mutations';
 import { logChannelFailure } from '../channels/diagnostics';
 import { WorldAccessError } from '../live-world/coordinator';
 import type { WorldActor } from '../live-world/session-access';
-import { readAuthorizedVoiceDestination, readAuthorizedWorld } from '../live-world/service';
+import {
+  readAuthorizedSavedWorld,
+  readAuthorizedVoiceDestination,
+  readAuthorizedWorld,
+} from '../live-world/service';
+import { worldThemeIdSchema } from '../../src/domain/world/protocol';
+import { publicLabel } from '../../src/domain/map/labels';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
 const SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
@@ -51,6 +57,7 @@ const SESSION_PATH = '/api/auth/session';
 const LOGOUT_PATH = '/api/auth/logout';
 const GUILD_SYNC_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/sync$/u;
 const GUILD_MAP_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/map$/u;
+const GUILD_RPG_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/rpg\/([^/]+)$/u;
 const GUILD_CHANNELS_PATH =
   /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/channels(?:\/(c_[a-z0-9_-]{43}))?$/u;
 const GUILD_PRESENCE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/presence$/u;
@@ -59,6 +66,7 @@ const GUILD_VOICE_MOVE_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/mov
 const GUILD_VOICE_DISCONNECT_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/disconnect$/u;
 const GUILD_VOICE_JOIN_PATH = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/voice\/join$/u;
 const WORLD_PAGE_PATH = /^\/world\/[1-9]\d{0,19}$/u;
+const RPG_PAGE_PATH = /^\/play\/[1-9]\d{0,19}$/u;
 const MANAGE_GUILD = 1n << 5n;
 const ADMINISTRATOR = 1n << 3n;
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
@@ -207,7 +215,9 @@ function safeReturnTo(value: string | null): string {
     const parsed = new URL(value, 'https://dmap.invalid');
     if (
       parsed.origin !== 'https://dmap.invalid' ||
-      (parsed.pathname !== '/dashboard' && !WORLD_PAGE_PATH.test(parsed.pathname))
+      (parsed.pathname !== '/dashboard' &&
+        !WORLD_PAGE_PATH.test(parsed.pathname) &&
+        !RPG_PAGE_PATH.test(parsed.pathname))
     ) {
       return '/dashboard';
     }
@@ -607,6 +617,55 @@ function isMembershipProviderError(error: unknown): boolean {
   return error.message === 'AUTH_PROVIDER_FORBIDDEN' || error.message === 'AUTH_PROVIDER_NOT_FOUND';
 }
 
+async function handleGuildRpg(
+  request: Request,
+  env: Env,
+  guildId: string,
+  theme: string,
+): Promise<Response> {
+  if (request.method !== 'POST') return authError('METHOD_NOT_ALLOWED', 405);
+  if (!sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
+  const parsedTheme = worldThemeIdSchema.safeParse(theme);
+  if (!parsedTheme.success) return authError('NOT_FOUND', 404);
+  let authenticated: AuthenticatedSession | null = null;
+  try {
+    authenticated = await resolveAuthenticatedSession(request, env);
+    if (!authenticated) return unauthenticatedResponse(request);
+    const { config, repository, idHash, now, session } = authenticated;
+    if (!(await createD1WorldRepository(config.database).read(guildId)))
+      return authError('WORLD_NOT_FOUND', 404);
+    const saved = await readAuthorizedSavedWorld(
+      env,
+      actorFor(authenticated, guildId),
+      parsedTheme.data,
+    );
+    const identifiers = await createIdentifierFactory(
+      decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),
+    );
+    await repository.touchSession(idHash, now);
+    const response = noStoreJson({
+      ...saved,
+      player: {
+        memberKey: await identifiers.for('member', session.userId),
+        displayName: publicLabel(session.displayName, 'Traveler'),
+      },
+    });
+    response.headers.set('vary', 'cookie');
+    return response;
+  } catch (error) {
+    if (
+      isInvalidSessionError(error) ||
+      (error instanceof WorldAccessError && error.code === 'UNAUTHENTICATED')
+    ) {
+      if (authenticated)
+        await authenticated.repository.deleteSession(authenticated.idHash).catch(() => undefined);
+      return unauthenticatedResponse(request);
+    }
+    if (error instanceof WorldAccessError) return worldAccessResponse(error);
+    return authError('WORLD_SAVE_UNAVAILABLE', 503);
+  }
+}
+
 async function handleGuildMap(request: Request, env: Env, guildId: string): Promise<Response> {
   if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
 
@@ -970,6 +1029,9 @@ async function handleLogout(request: Request, env: Env): Promise<Response> {
 }
 
 export function handleAuth(request: Request, env: Env, pathname: string): Promise<Response> {
+  const guildRpgMatch = GUILD_RPG_PATH.exec(pathname);
+  if (guildRpgMatch !== null)
+    return handleGuildRpg(request, env, guildRpgMatch[1]!, guildRpgMatch[2]!);
   const guildChannelsMatch = GUILD_CHANNELS_PATH.exec(pathname);
   if (guildChannelsMatch !== null)
     return handleGuildChannels(request, env, guildChannelsMatch[1]!, guildChannelsMatch[2] ?? null);

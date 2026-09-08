@@ -2,10 +2,9 @@ import * as Phaser from 'phaser';
 import { WorldInput, worldInputBlocked } from '../world/engine/input';
 import type { Point } from '../world/engine/types';
 import { preloadRpgCharacters, RpgCharacter } from './character';
-import { getRpgSample } from './sample-worlds';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
-import type { RpgCallbacks, RpgThemeId, RpgUiState } from './types';
+import type { RpgCallbacks, RpgSample, RpgUiState } from './types';
 
 export class RpgScene extends Phaser.Scene {
   private readonly simulation: RpgSimulation;
@@ -31,22 +30,25 @@ export class RpgScene extends Phaser.Scene {
   private pointerStart: Point | null = null;
 
   public constructor(
-    theme: RpgThemeId,
+    sample: RpgSample,
     private readonly callbacks: RpgCallbacks,
+    private readonly samples: readonly RpgSample[],
+    sceneKey: string,
+    positions: Map<string, Point>,
   ) {
     super({ key: 'rpg-sample' });
-    this.simulation = new RpgSimulation(getRpgSample(theme));
+    this.simulation = new RpgSimulation(sample, sceneKey, positions);
   }
 
   public preload(): void {
     this.load.on('loaderror', this.onLoadError);
-    preloadRpgWorlds(this);
+    preloadRpgWorlds(this, this.samples);
     preloadRpgCharacters(this);
   }
 
   public create(): void {
     if (this.disposed || this.failed) return;
-    registerRpgFrames(this);
+    registerRpgFrames(this, this.samples);
     this.movement = new WorldInput();
     this.created = true;
     this.renderSample();
@@ -108,8 +110,9 @@ export class RpgScene extends Phaser.Scene {
     this.center();
   }
 
-  public setTheme(theme: RpgThemeId): void {
-    if (this.simulation.sample.id !== theme) this.simulation.changeSample(getRpgSample(theme));
+  public setScene(sample: RpgSample, sceneKey: string): void {
+    if (this.simulation.sample === sample) return;
+    this.simulation.changeSample(sample, sceneKey);
     if (this.created && !this.failed && !this.disposed) {
       this.renderSample();
       this.callbacks.onReady();
@@ -175,6 +178,7 @@ export class RpgScene extends Phaser.Scene {
   public dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.simulation.rememberPosition();
     this.movement?.destroy();
     this.movement = null;
     this.clearVisuals();

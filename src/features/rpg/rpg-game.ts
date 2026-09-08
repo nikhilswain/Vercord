@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { RpgScene } from './rpg-scene';
-import type { RpgCallbacks, RpgRuntime, RpgThemeId } from './types';
+import type { Point } from '../world/engine/types';
+import type { RpgCallbacks, RpgRuntime, RpgSample } from './types';
 
 /** React-facing lifecycle adapter. Game state and drawing live in separate modules. */
 export class RpgGame implements RpgRuntime {
@@ -11,17 +12,27 @@ export class RpgGame implements RpgRuntime {
   private appearance = 'rowan';
   private blocked = false;
   private destroyed = false;
+  private teardown: Promise<void> | null = null;
 
   public constructor(
     private readonly canvas: HTMLCanvasElement,
-    private theme: RpgThemeId,
+    private sample: RpgSample,
     private readonly callbacks: RpgCallbacks,
+    private readonly samples: readonly RpgSample[],
+    private sceneKey: string,
+    private readonly positions: Map<string, Point>,
   ) {}
 
   public start(): void {
     if (this.game || this.destroyed) return;
     try {
-      this.scene = new RpgScene(this.theme, this.callbacks);
+      this.scene = new RpgScene(
+        this.sample,
+        this.callbacks,
+        this.samples,
+        this.sceneKey,
+        this.positions,
+      );
       this.scene.resize(this.width, this.height);
       this.scene.setAppearance(this.appearance);
       this.scene.setInputBlocked(this.blocked);
@@ -54,9 +65,10 @@ export class RpgGame implements RpgRuntime {
     this.game?.scale.resize(this.width, this.height);
     this.scene?.resize(this.width, this.height);
   }
-  public setTheme(theme: RpgThemeId): void {
-    this.theme = theme;
-    this.scene?.setTheme(theme);
+  public setScene(sample: RpgSample, sceneKey: string): void {
+    this.sample = sample;
+    this.sceneKey = sceneKey;
+    this.scene?.setScene(sample, sceneKey);
   }
   public setAppearance(id: string): void {
     this.appearance = id;
@@ -79,12 +91,20 @@ export class RpgGame implements RpgRuntime {
     this.scene?.center();
   }
 
-  public destroy(): void {
-    if (this.destroyed) return;
+  public destroy(): Promise<void> {
+    if (this.teardown) return this.teardown;
     this.destroyed = true;
     this.scene?.dispose();
-    this.game?.destroy(false);
+    const game = this.game;
+    this.teardown = game
+      ? new Promise<void>((resolve) => {
+          // Phaser releases graphics after the current frame; the next runtime waits for this event.
+          game.events.once(Phaser.Core.Events.DESTROY, resolve);
+          game.destroy(false);
+        })
+      : Promise.resolve();
     this.game = null;
     this.scene = null;
+    return this.teardown;
   }
 }

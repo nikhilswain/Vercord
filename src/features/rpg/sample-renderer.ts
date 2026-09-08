@@ -1,10 +1,9 @@
 import * as Phaser from 'phaser';
-import { RPG_SAMPLES } from './sample-worlds';
 import type { RpgSample, RpgStamp } from './types';
 
-export function preloadRpgWorlds(scene: Phaser.Scene): void {
+export function preloadRpgWorlds(scene: Phaser.Scene, samples: readonly RpgSample[]): void {
   const queued = new Set<string>();
-  for (const sample of Object.values(RPG_SAMPLES)) {
+  for (const sample of samples) {
     for (const texture of sample.textures) {
       if (queued.has(texture.key) || scene.textures.exists(texture.key)) continue;
       queued.add(texture.key);
@@ -18,8 +17,8 @@ export function preloadRpgWorlds(scene: Phaser.Scene): void {
   }
 }
 
-export function registerRpgFrames(scene: Phaser.Scene): void {
-  for (const sample of Object.values(RPG_SAMPLES)) {
+export function registerRpgFrames(scene: Phaser.Scene, samples: readonly RpgSample[]): void {
+  for (const sample of samples) {
     for (const asset of sample.textures) {
       const texture = scene.textures.get(asset.key);
       texture.setFilter(Phaser.Textures.FilterMode.NEAREST);

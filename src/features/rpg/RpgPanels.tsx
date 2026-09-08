@@ -1,9 +1,9 @@
 import { Dialog } from '../../components/Dialog';
+import type { SavedWorldResponse } from '../../domain/world/protocol';
 import { RPG_APPEARANCES } from './character';
 import { RpgIcon } from './RpgIcon';
-import { getRpgSample } from './sample-worlds';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
-import type { RpgDestination, RpgThemeId, RpgUiState } from './types';
+import type { RpgDestination, RpgSample, RpgThemeId, RpgUiState } from './types';
 
 export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu';
 const titles: Record<RpgPanel, string> = {
@@ -19,23 +19,29 @@ interface Props {
   world: RpgWorldId;
   appearance: string;
   ui: RpgUiState;
+  sample: RpgSample;
+  server?: { guildId: string; bindings: SavedWorldResponse['bindings'] };
   onClose(): void;
   onTheme(destination: RpgDestination): void;
   onAppearance(id: string): void;
 }
 
-function SampleMap({ theme, ui }: Pick<Props, 'theme' | 'ui'>) {
-  const sample = getRpgSample(theme);
+function SceneMap({
+  theme,
+  ui,
+  sample,
+  server,
+}: Pick<Props, 'theme' | 'ui' | 'sample' | 'server'>) {
   const { bounds } = sample;
   return (
     <>
       <svg
         className="rpg-map"
-        viewBox={`0 0 ${bounds.width} ${bounds.height}`}
+        viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`}
         role="img"
         aria-label={`${sample.name}, landmarks and your current position`}
       >
-        <rect width={bounds.width} height={bounds.height} fill={RPG_THEMES[theme].map.ground} />
+        <rect {...bounds} fill={RPG_THEMES[theme].map.ground} />
         {sample.colliders.map((box, index) => (
           <rect key={index} {...box} fill={RPG_THEMES[theme].map.obstacle} />
         ))}
@@ -60,9 +66,23 @@ function SampleMap({ theme, ui }: Pick<Props, 'theme' | 'ui'>) {
       <p className="rpg-muted">The gold dot is you. Landmarks are numbered below.</p>
       <ol className="rpg-landmarks">
         {sample.landmarks.map((landmark) => (
-          <li key={landmark.id}>{landmark.name}</li>
+          <li key={landmark.id}>
+            {landmark.name}
+            {server?.bindings
+              .find((binding) => binding.landmarkId === landmark.id)
+              ?.rooms.map((room) => (
+                <span className="rpg-room-label" key={room.key}>
+                  {room.label} <small>{room.type === 'unsupported' ? 'room' : room.type}</small>
+                </span>
+              ))}
+          </li>
         ))}
       </ol>
+      {server && (
+        <p className="rpg-muted">
+          Visit <a href={`/world/${server.guildId}`}>connected rooms</a> for Discord chat and voice.
+        </p>
+      )}
     </>
   );
 }
@@ -73,6 +93,8 @@ export function RpgPanels({
   world,
   appearance,
   ui,
+  sample,
+  server,
   onClose,
   onTheme,
   onAppearance,
@@ -101,7 +123,7 @@ export function RpgPanels({
       >
         <RpgIcon name="close" />
       </button>
-      {panel === 'map' && <SampleMap theme={theme} ui={ui} />}
+      {panel === 'map' && <SceneMap theme={theme} ui={ui} sample={sample} server={server} />}
       {panel === 'guide' && (
         <>
           <p>
@@ -169,7 +191,11 @@ export function RpgPanels({
       )}
       {panel === 'menu' && (
         <>
-          <p className="rpg-muted">Two villages, each with a path into the Lantern Vault.</p>
+          <p className="rpg-muted">
+            {server
+              ? 'Choose a setting for your server. Each town has a path into the Lantern Vault.'
+              : 'Two villages, each with a path into the Lantern Vault.'}
+          </p>
           <h3 className="rpg-menu-heading">World themes</h3>
           <div className="rpg-destinations" aria-label="World themes">
             {RPG_WORLD_IDS.map((id) => (
@@ -220,6 +246,8 @@ export function RpgPanels({
               : 'Your traveler is remembered for each village as you explore.'}
           </p>
           <nav className="rpg-menu-links" aria-label="Other Dmap views">
+            {server && <a href={`/world/${server.guildId}`}>Open connected rooms</a>}
+            {server && <a href="/dashboard">Choose another server</a>}
             <a href="/map/demo?renderer=3d">Explore the 3D demo</a>
             <a href="/map/demo?renderer=2d">Open the original 2D demo</a>
             <a href="/">Return to Dmap</a>

@@ -1,62 +1,22 @@
-import type { Point, Rect } from '../world/engine/types';
+import type {
+  Point,
+  RpgDestination,
+  RpgSample,
+  RpgThemeId,
+} from '../../domain/world/content/v1/types';
 
-export type RpgThemeId = 'village' | 'norse' | 'dungeon';
-export type RpgDestination = RpgThemeId | 'return';
-export type RpgDirection = 'down' | 'left' | 'right' | 'up';
-export type RpgAction = 'idle' | 'walk' | 'run';
-
-export interface RpgTexture {
-  key: string;
-  url: string;
-  frameWidth?: number;
-  frameHeight?: number;
-  frames?: Record<string, { x: number; y: number; width: number; height: number }>;
-}
-
-export interface RpgStamp extends Point {
-  texture: string;
-  frame?: number | string;
-  width?: number;
-  height?: number;
-  originX?: number;
-  originY?: number;
-  depth?: number;
-  alpha?: number;
-  tint?: number;
-}
-
-export interface RpgNpc extends Point {
-  id: string;
-  name: string;
-  role: string;
-  appearance: string;
-  direction: RpgDirection;
-  lines: string[];
-}
-
-export interface RpgLandmark extends Point {
-  id: string;
-  name: string;
-  description: string;
-  radius: number;
-  kind: 'sign' | 'portal' | 'view';
-  destination?: RpgDestination;
-}
-
-export interface RpgSample {
-  id: RpgThemeId;
-  name: string;
-  subtitle: string;
-  bounds: Rect;
-  spawn: Point;
-  textures: RpgTexture[];
-  stamps: RpgStamp[];
-  colliders: Rect[];
-  npcs: RpgNpc[];
-  landmarks: RpgLandmark[];
-  lights: Array<Point & { radius: number; color: number }>;
-  background: string;
-}
+// Renderer and generator share one scene contract; UI/runtime messages stay local to this feature.
+export type {
+  RpgAction,
+  RpgDestination,
+  RpgDirection,
+  RpgLandmark,
+  RpgNpc,
+  RpgSample,
+  RpgStamp,
+  RpgTexture,
+  RpgThemeId,
+} from '../../domain/world/content/v1/types';
 
 export interface RpgNearby {
   id: string;
@@ -91,7 +51,7 @@ export interface RpgRuntime {
   start(): void;
   destroy(): void;
   resize(width: number, height: number): void;
-  setTheme(theme: RpgThemeId): void;
+  setScene(scene: RpgSample, sceneKey: string): void;
   setAppearance(id: string): void;
   setInputBlocked(blocked: boolean): void;
   setVirtualAxis(x: number, y: number, sprinting?: boolean): void;

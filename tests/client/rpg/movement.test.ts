@@ -50,3 +50,34 @@ describe('auto-run', () => {
     expect(simulation.action).toBe('idle');
   });
 });
+
+describe('saved scene positions', () => {
+  it('keeps dungeon and server positions separate and rejects positions inside new obstacles', () => {
+    const sample = {
+      ...getRpgSample('village'),
+      spawn: { x: 104, y: 104 },
+      colliders: [],
+      npcs: [],
+    };
+    const positions = new Map<string, { x: number; y: number }>();
+    const first = new RpgSimulation(sample, 'server-a/village', positions);
+    first.player = { x: 200, y: 200 };
+    first.changeSample({ ...sample, id: 'dungeon' }, 'server-a/dungeon');
+    first.player = { x: 300, y: 300 };
+    first.changeSample(sample, 'server-a/village');
+    expect(first.player).toEqual({ x: 200, y: 200 });
+    first.rememberPosition();
+    expect(new RpgSimulation(sample, 'server-b/village', positions).player).toEqual(sample.spawn);
+    expect(new RpgSimulation(sample, 'server-a/village', positions).player).toEqual({
+      x: 200,
+      y: 200,
+    });
+    expect(
+      new RpgSimulation(
+        { ...sample, colliders: [{ x: 185, y: 185, width: 30, height: 30 }] },
+        'server-a/village',
+        positions,
+      ).player,
+    ).toEqual(sample.spawn);
+  });
+});
