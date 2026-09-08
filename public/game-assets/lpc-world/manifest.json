@@ -161,8 +161,18 @@
       "width": 256,
       "height": 224,
       "frames": {
-        "uniformWidth": 256,
-        "uniformHeight": 224
+        "main": {
+          "x": 0,
+          "y": 0,
+          "width": 160,
+          "height": 224
+        },
+        "wing": {
+          "x": 160,
+          "y": 0,
+          "width": 96,
+          "height": 224
+        }
       }
     },
     {

@@ -16,7 +16,14 @@ export const RPG_TEXTURES: RpgTexture[] = [
   { key: 'lpc-stone-floor', url: `${ASSETS}stone-floor.png`, frameWidth: 32, frameHeight: 32 },
   { key: 'lpc-diamond-floor', url: `${ASSETS}diamond-floor.png`, frameWidth: 32, frameHeight: 32 },
   { key: 'lpc-grit', url: `${ASSETS}gritty-dirt.png`, frameWidth: 32, frameHeight: 32 },
-  { key: 'lpc-house-hall', url: `${ASSETS}brick-house-a.png` },
+  {
+    key: 'lpc-house-hall',
+    url: `${ASSETS}brick-house-a.png`,
+    frames: {
+      main: rect(0, 0, 160, 224),
+      wing: rect(160, 0, 96, 224),
+    },
+  },
   { key: 'lpc-house-brick', url: `${ASSETS}brick-house-b.png` },
   { key: 'lpc-house-paneled', url: `${ASSETS}paneled-house-a.png` },
   {

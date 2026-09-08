@@ -79,10 +79,15 @@ export function buildVillage(): RpgSample {
   block(sample, 35, 17.6, 9, 0.18);
   block(sample, 35, 19.75, 9, 0.18);
 
-  object(sample, 'lpc-house-hall', undefined, 15, 9, 15.2);
-  object(sample, 'lpc-door-small', 'closed', 17, 13, 15.21);
-  block(sample, 16, 11.5, 4, 3.2);
-  block(sample, 20, 10.5, 2, 3.4);
+  // The recessed wing has a different ground edge from the main facade. Slice the
+  // unchanged source image so each part sorts at its own physical front boundary.
+  const hallBase = { x: 16, y: 11.5, width: 4, height: 3.2 };
+  const wingBase = { x: 20, y: 10.5, width: 2, height: 3.4 };
+  const hallFront = hallBase.y + hallBase.height;
+  object(sample, 'lpc-house-hall', 'main', 15, 9, hallFront);
+  object(sample, 'lpc-house-hall', 'wing', 20, 9, wingBase.y + wingBase.height);
+  object(sample, 'lpc-door-small', 'closed', 17, 13, hallFront + 0.01);
+  for (const base of [hallBase, wingBase]) block(sample, base.x, base.y, base.width, base.height);
   object(sample, 'lpc-house-brick', undefined, 29, 9, 15);
   object(sample, 'lpc-door-tall', 'closed', 32, 13, 15.01);
   block(sample, 30, 12, 4, 3);
