@@ -4,6 +4,15 @@ Dmap turns a Discord server into an explorable multiplayer pixel world. Server c
 districts, supported channels become enterable rooms, and signed-in members can see one another move
 through the same guild world in real time.
 
+## 3D experiment
+
+The `experiment/threejs-world` branch adds a playable low-poly Three.js renderer for the same
+generated world. Open `/map/demo?renderer=3d` to explore the village and furnished rooms with animated
+CC0 characters. Use **Pixel 2D** in the world HUD to compare with the original Phaser renderer.
+
+See [THREEJS_EXPERIMENT.md](THREEJS_EXPERIMENT.md) for the map/character pipeline, controls,
+implementation notes, validation, and current limits.
+
 ## What works
 
 - Discord OAuth sign-in and guild access discovery

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { RequestRetry } from '../../components/RequestRetry';
+import { AVATAR_IDS } from '../../domain/avatar/identity';
 import type { MapRoom, MapSnapshot } from '../../domain/map/snapshot';
 import type { ChannelMutationResult, WorldSync, WorldView } from '../../domain/channels/protocol';
 import type { RoomMessage } from '../../domain/messages/protocol';
@@ -14,8 +15,14 @@ import {
   type WorldVoiceAction,
 } from '../../domain/voice/state';
 import { createVillageWorld } from './engine/village-world';
-import type { WorldUiState } from './engine/types';
 import { WorldEngine } from './engine/world-engine';
+import { ThreeWorldEngine } from './three/three-world-engine';
+import type { WorldUiState } from './engine/types';
+import {
+  worldRendererFromSearch,
+  worldRendererHref,
+  type WorldRuntime,
+} from './engine/world-runtime';
 import { WorldPresenceClient, type WorldPresenceState } from './presence/world-presence-client';
 import type { WorldClientState } from './world-state';
 import { VirtualJoystick } from './VirtualJoystick';
@@ -92,7 +99,9 @@ export function WorldCanvas({
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
-  const engineRef = useRef<WorldEngine | null>(null);
+  const engineRef = useRef<WorldRuntime | null>(null);
+  const demoAvatarIndex = useRef(0);
+  const renderer = worldRendererFromSearch(window.location.search);
   const presenceClientRef = useRef<WorldPresenceClient | null>(null);
   const presenceCallbacksRef = useRef({
     onWorldView,
@@ -319,41 +328,54 @@ export function WorldCanvas({
           },
         })
       : null;
-    const engine = new WorldEngine(canvas, latestWorld.current, {
-      onReady: () => setReady(true),
-      onAssetError: () => setAssetError(true),
-      onUiChange: setUi,
-      onSceneChange: (room, reason) => {
-        sceneRoomRef.current = room;
-        setSceneRoom(room);
-        if (reason === 'refresh') return;
-        if (room?.room.type !== 'voice' && room?.room.type !== 'stage') return;
-        if (suppressedRoomMoveRef.current === room.room.key) {
-          suppressedRoomMoveRef.current = null;
-          return;
-        }
-        void moveToVoiceRoom(room.room.key);
-      },
-      onPresenceMove: (location) => presenceClient?.updateLocation(location),
-    });
-    engineRef.current = engine;
-    presenceClientRef.current = presenceClient;
-
-    const resize = () => engine.resize(host.clientWidth, host.clientHeight);
+    let engine: WorldRuntime | null = null;
+    let cancelled = false;
+    const resize = () => engine?.resize(host.clientWidth, host.clientHeight);
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
-    resize();
-    engine.start();
-    presenceClient?.connect();
+    const start = () => {
+      const Engine = renderer === '3d' ? ThreeWorldEngine : WorldEngine;
+      if (cancelled) return;
+      engine = new Engine(canvas, latestWorld.current, {
+        onReady: () => setReady(true),
+        onAssetError: () => setAssetError(true),
+        onUiChange: setUi,
+        onSceneChange: (room, reason) => {
+          sceneRoomRef.current = room;
+          setSceneRoom(room);
+          if (reason === 'refresh') return;
+          if (room?.room.type !== 'voice' && room?.room.type !== 'stage') return;
+          if (suppressedRoomMoveRef.current === room.room.key) {
+            suppressedRoomMoveRef.current = null;
+            return;
+          }
+          void moveToVoiceRoom(room.room.key);
+        },
+        onPresenceMove: (location) => presenceClient?.updateLocation(location),
+      });
+      engineRef.current = engine;
+      presenceClientRef.current = presenceClient;
+      resize();
+      engine.start();
+      presenceClient?.connect();
+    };
+    queueMicrotask(() => {
+      try {
+        start();
+      } catch {
+        if (!cancelled) setAssetError(true);
+      }
+    });
 
     return () => {
+      cancelled = true;
       resizeObserver.disconnect();
       presenceClient?.disconnect();
-      engine.destroy();
+      engine?.destroy();
       if (presenceClientRef.current === presenceClient) presenceClientRef.current = null;
       engineRef.current = null;
     };
-  }, [dispatchVoice, moveToVoiceRoom, presenceGuildId, reconcileVoice]);
+  }, [dispatchVoice, moveToVoiceRoom, presenceGuildId, reconcileVoice, renderer]);
 
   const connectedRoom =
     voice.voiceState?.channelKey === null || voice.voiceState?.channelKey === undefined
@@ -402,12 +424,15 @@ export function WorldCanvas({
     onConfirmReconciled !== undefined;
 
   return (
-    <div ref={hostRef} className="world-viewport">
+    <div
+      ref={hostRef}
+      className={`world-viewport${renderer === '3d' ? ' world-viewport--three' : ''}`}
+    >
       <canvas
         ref={canvasRef}
         className="world-canvas"
         tabIndex={0}
-        aria-label={`Playable map of ${snapshot.server.displayName}. Use W A S D or arrow keys to move, or double-click or double-tap a destination.`}
+        aria-label={`Playable ${renderer === '3d' ? '3D ' : ''}map of ${snapshot.server.displayName}. Use W A S D or arrow keys to move, or double-click or double-tap a destination.`}
       />
 
       {!ready && !assetError ? (
@@ -419,11 +444,33 @@ export function WorldCanvas({
 
       {assetError ? (
         <div className="world-loading world-loading--error" role="alert">
-          <p>The world tiles could not be loaded.</p>
+          <p>
+            {renderer === '3d'
+              ? 'The 3D world could not start. Try reloading, or open the pixel view.'
+              : 'The world tiles could not be loaded.'}
+          </p>
+          <div className="world-recovery">
+            <a className="secondary-action" href={window.location.href}>
+              Try again
+            </a>
+            {renderer === '3d' ? (
+              <a className="secondary-action" href={worldRendererHref('2d')}>
+                Open pixel view
+              </a>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       <div ref={locationRef} className="world-location" aria-live="polite">
+        <nav className="world-renderer-switch" aria-label="World renderer">
+          <a href={worldRendererHref('3d')} aria-current={renderer === '3d' ? 'page' : undefined}>
+            3D experiment
+          </a>
+          <a href={worldRendererHref('2d')} aria-current={renderer === '2d' ? 'page' : undefined}>
+            Pixel 2D
+          </a>
+        </nav>
         <span className="world-location-kicker">
           {sceneRoom ? 'Inside channel' : 'Now exploring'}
         </span>
@@ -449,6 +496,39 @@ export function WorldCanvas({
                 ? 'Connecting…'
                 : 'Reconnecting…'}
           </span>
+        ) : null}
+        {renderer === '3d' ? (
+          <details className="world-room-directory">
+            <summary>Rooms · {world.portals.length}</summary>
+            <nav aria-label="World room directory">
+              {snapshot.areas.map((area) => (
+                <section key={area.key}>
+                  <h2>{area.label}</h2>
+                  {area.rooms.length === 0 ? (
+                    <p>No rooms in this district.</p>
+                  ) : (
+                    area.rooms.map((room) => (
+                      <button
+                        key={room.key}
+                        type="button"
+                        disabled={!ready || assetError}
+                        onClick={(event) => {
+                          if (engineRef.current?.enterRoomByKey(room.key)) {
+                            const details = event.currentTarget.closest('details');
+                            if (details) details.open = false;
+                            canvasRef.current?.focus({ preventScroll: true });
+                          }
+                        }}
+                      >
+                        <span>Visit #{room.label}</span>
+                        <small>{room.type}</small>
+                      </button>
+                    ))
+                  )}
+                </section>
+              ))}
+            </nav>
+          </details>
         ) : null}
         {canManageChannels ? (
           <ChannelManager
@@ -491,6 +571,35 @@ export function WorldCanvas({
       </div>
 
       <div className="world-controls" aria-label="World view controls">
+        {renderer === '3d' ? (
+          <>
+            <button
+              type="button"
+              className="world-control-text"
+              onClick={() => engineRef.current?.overview?.()}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              aria-label="Rotate camera left"
+              onClick={() => engineRef.current?.rotateView?.(-Math.PI / 4)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 10a8 8 0 1 1 0 5M4 4v6h6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Rotate camera right"
+              onClick={() => engineRef.current?.rotateView?.(Math.PI / 4)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 10a8 8 0 1 0 0 5M20 4v6h-6" />
+              </svg>
+            </button>
+          </>
+        ) : null}
         <button type="button" onClick={() => engineRef.current?.zoomIn()} aria-label="Zoom in">
           <ControlIcon>+</ControlIcon>
         </button>
@@ -507,6 +616,19 @@ export function WorldCanvas({
         >
           <ControlIcon>◎</ControlIcon>
         </button>
+        {renderer === '3d' && !presenceGuildId ? (
+          <button
+            type="button"
+            className="world-control-text"
+            disabled={!ready || assetError}
+            onClick={() => {
+              demoAvatarIndex.current = (demoAvatarIndex.current + 1) % AVATAR_IDS.length;
+              engineRef.current?.setPlayerAvatar(AVATAR_IDS[demoAvatarIndex.current]!);
+            }}
+          >
+            Change character
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => void toggleFullscreen()}
@@ -527,7 +649,7 @@ export function WorldCanvas({
           <kbd>Double-click</kbd> run
         </span>
         <span>
-          <kbd>Drag</kbd> pan
+          <kbd>Drag</kbd> {renderer === '3d' ? 'orbit' : 'pan'}
         </span>
         <span>
           <kbd>Wheel</kbd> zoom
@@ -535,6 +657,11 @@ export function WorldCanvas({
         <span>
           <kbd>E</kbd> enter
         </span>
+        {renderer === '3d' ? (
+          <span>
+            <kbd>Q / R</kbd> rotate
+          </span>
+        ) : null}
       </div>
 
       <VirtualJoystick

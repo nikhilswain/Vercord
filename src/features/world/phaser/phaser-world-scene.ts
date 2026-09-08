@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 
 import type { AvatarId } from '../../../domain/avatar/identity';
 import type { ClientPresenceLocation, PresencePlayer } from '../../../domain/presence/protocol';
+import type { WorldCallbacks } from '../engine/world-runtime';
 import { WorldCamera } from '../engine/camera';
 import { containsPoint, overlaps, resolveMovement } from '../engine/collision';
 import { WorldInput, worldInputBlocked } from '../engine/input';
@@ -14,7 +15,6 @@ import type {
   WorldArea,
   WorldDefinition,
   WorldPortal,
-  WorldUiState,
 } from '../engine/types';
 import {
   PhaserWorldRenderer,
@@ -29,13 +29,7 @@ const AUTO_MOVE_SPEED_MULTIPLIER = 4;
 const DOUBLE_ACTIVATION_WINDOW_MS = 350;
 const DOUBLE_ACTIVATION_DISTANCE_PX = 32;
 
-export interface PhaserWorldCallbacks {
-  onReady: () => void;
-  onAssetError: () => void;
-  onUiChange: (state: WorldUiState) => void;
-  onSceneChange: (room: WorldPortal | null, reason?: 'refresh') => void;
-  onPresenceMove?: (location: ClientPresenceLocation) => void;
-}
+export type PhaserWorldCallbacks = WorldCallbacks;
 
 export class PhaserWorldScene extends Phaser.Scene {
   private readonly worldCamera = new WorldCamera();

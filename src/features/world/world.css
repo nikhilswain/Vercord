@@ -679,3 +679,227 @@
     animation: none;
   }
 }
+
+/* The 3D experiment inherits the existing world HUD; materials live in the scene. */
+.world-viewport--three {
+  background: var(--color-chart-navy);
+}
+
+.world-viewport--three .world-canvas {
+  image-rendering: auto;
+  cursor: grab;
+}
+
+.world-viewport--three .world-canvas:active {
+  cursor: grabbing;
+}
+
+.world-three-labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.world-three-label {
+  position: absolute;
+  inset: 0 auto auto 0;
+  max-width: 12rem;
+  height: max-content;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  padding: 0.3rem 0.55rem;
+  color: var(--color-map-white);
+  background: rgb(8 12 24 / 0.88);
+  font: 500 0.75rem var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-three-label--area {
+  color: var(--color-route-violet-soft);
+  font: 600 1.15rem var(--font-cartographic);
+}
+
+.world-three-label--player {
+  max-width: 9rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-control);
+}
+
+.world-renderer-switch {
+  display: flex;
+  gap: 0.25rem;
+  padding-block-end: 0.4rem;
+  margin-block-end: 0.35rem;
+  border-bottom: 1px solid rgb(var(--color-border-rgb) / 0.25);
+}
+
+.world-renderer-switch a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.world-renderer-switch a[aria-current='page'] {
+  color: var(--color-void);
+  background: var(--color-route-violet-soft);
+}
+
+.world-renderer-switch a:hover {
+  color: var(--color-map-white);
+  background: var(--color-chart-navy-elevated);
+}
+
+.world-renderer-switch a:active {
+  background: var(--color-chart-navy);
+}
+
+.world-room-directory {
+  margin-block-start: 0.4rem;
+  border-top: 1px solid rgb(var(--color-border-rgb) / 0.25);
+}
+
+.world-room-directory summary {
+  min-height: 44px;
+  padding: 0.7rem 0.15rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.world-room-directory summary:hover,
+.world-room-directory summary:active {
+  color: var(--color-route-violet-soft);
+}
+
+.world-room-directory nav {
+  max-height: min(45dvh, 22rem);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.world-room-directory h2 {
+  margin: 1rem 0 0.25rem;
+  color: var(--color-route-violet-soft);
+  font: 600 1.05rem var(--font-cartographic);
+}
+
+.world-room-directory p {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.world-room-directory button {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  gap: 0.2rem;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-map-white);
+  font-size: 0.8rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.world-room-directory small {
+  color: var(--color-text-muted);
+}
+
+.world-room-directory button:hover {
+  background: var(--color-chart-navy-elevated);
+}
+
+.world-room-directory button:active {
+  background: var(--color-chart-navy);
+}
+
+.world-controls button:disabled,
+.world-room-directory button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.world-viewport--three .world-controls {
+  max-width: 22rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.world-viewport--three .world-controls button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.world-controls button.world-control-text {
+  width: auto;
+  padding-inline: 0.7rem;
+  font-size: 0.75rem;
+}
+
+.world-controls button:active {
+  background: var(--color-chart-navy-elevated);
+}
+
+.world-controls svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.world-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.world-viewport--three .world-help {
+  max-width: min(25rem, calc(100% - 2.5rem));
+}
+
+@media (max-width: 44rem) {
+  .world-viewport--three .world-location {
+    max-width: min(22rem, calc(100% - 1.5rem));
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .world-viewport--three .world-controls {
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    gap: 0.2rem;
+    max-width: none;
+  }
+
+  .world-viewport--three .world-control-text {
+    grid-column: 1 / -1;
+  }
+
+  .world-viewport--three .world-interaction {
+    bottom: 16rem;
+    width: max-content;
+    max-width: calc(100% - 1.5rem);
+    overflow-wrap: anywhere;
+  }
+
+  .world-viewport--three .world-joystick {
+    display: block;
+  }
+
+  .world-room-directory nav {
+    max-height: 28dvh;
+  }
+}

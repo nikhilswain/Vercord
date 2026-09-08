@@ -1,0 +1,292 @@
+{
+  "models": [
+    {
+      "file": "animated-woman.glb",
+      "title": "Animated Woman",
+      "page": "https://poly.pizza/m/qJ2gsTUBHL",
+      "download": "https://static.poly.pizza/ba7a1955-ea51-4cb9-a561-188bdef0a6c7.glb",
+      "author": "Quaternius",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "verifiedAt": "2026-09-07",
+      "bytes": 1530616,
+      "sha256": "a2212729826b718e59e698211ed3951c22459b48733b1ee6a24fac0abf74dca8",
+      "format": {
+        "generator": "FBX2glTF v0.9.7",
+        "version": "2.0"
+      },
+      "meshCount": 4,
+      "materialCount": 7,
+      "imageCount": 0,
+      "externalResourceCount": 0,
+      "nativeForward": "+Z",
+      "animationCount": 24,
+      "animations": [
+        {
+          "name": "CharacterArmature|Death",
+          "durationSeconds": 1.3333333730697632,
+          "trackCount": 24
+        },
+        {
+          "name": "CharacterArmature|Gun_Shoot",
+          "durationSeconds": 0.75,
+          "trackCount": 29
+        },
+        {
+          "name": "CharacterArmature|HitRecieve",
+          "durationSeconds": 0.7083333134651184,
+          "trackCount": 12
+        },
+        {
+          "name": "CharacterArmature|HitRecieve_2",
+          "durationSeconds": 0.7083333134651184,
+          "trackCount": 12
+        },
+        {
+          "name": "CharacterArmature|Idle",
+          "durationSeconds": 2.0833332538604736,
+          "trackCount": 21
+        },
+        {
+          "name": "CharacterArmature|Idle_Gun",
+          "durationSeconds": 2.0833332538604736,
+          "trackCount": 34
+        },
+        {
+          "name": "CharacterArmature|Idle_Gun_Pointing",
+          "durationSeconds": 2.0833332538604736,
+          "trackCount": 34
+        },
+        {
+          "name": "CharacterArmature|Idle_Gun_Shoot",
+          "durationSeconds": 0.8333333134651184,
+          "trackCount": 37
+        },
+        {
+          "name": "CharacterArmature|Idle_Neutral",
+          "durationSeconds": 2.0833332538604736,
+          "trackCount": 22
+        },
+        {
+          "name": "CharacterArmature|Idle_Sword",
+          "durationSeconds": 2.0833332538604736,
+          "trackCount": 34
+        },
+        {
+          "name": "CharacterArmature|Interact",
+          "durationSeconds": 1.5833333730697632,
+          "trackCount": 15
+        },
+        {
+          "name": "CharacterArmature|Kick_Left",
+          "durationSeconds": 1.1666666269302368,
+          "trackCount": 54
+        },
+        {
+          "name": "CharacterArmature|Kick_Right",
+          "durationSeconds": 1.1666666269302368,
+          "trackCount": 54
+        },
+        {
+          "name": "CharacterArmature|Punch_Left",
+          "durationSeconds": 1.0416666269302368,
+          "trackCount": 55
+        },
+        {
+          "name": "CharacterArmature|Punch_Right",
+          "durationSeconds": 1.0416666269302368,
+          "trackCount": 55
+        },
+        {
+          "name": "CharacterArmature|Roll",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 57
+        },
+        {
+          "name": "CharacterArmature|Run",
+          "durationSeconds": 1,
+          "trackCount": 53
+        },
+        {
+          "name": "CharacterArmature|Run_Back",
+          "durationSeconds": 1.0416666269302368,
+          "trackCount": 53
+        },
+        {
+          "name": "CharacterArmature|Run_Left",
+          "durationSeconds": 1,
+          "trackCount": 55
+        },
+        {
+          "name": "CharacterArmature|Run_Right",
+          "durationSeconds": 1,
+          "trackCount": 55
+        },
+        {
+          "name": "CharacterArmature|Run_Shoot",
+          "durationSeconds": 1.0416666269302368,
+          "trackCount": 53
+        },
+        {
+          "name": "CharacterArmature|Sword_Slash",
+          "durationSeconds": 1.2916666269302368,
+          "trackCount": 34
+        },
+        {
+          "name": "CharacterArmature|Walk",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 29
+        },
+        {
+          "name": "CharacterArmature|Wave",
+          "durationSeconds": 2.0833332538604736,
+          "trackCount": 22
+        }
+      ]
+    },
+    {
+      "file": "hoodie-character.glb",
+      "title": "Hoodie Character",
+      "page": "https://poly.pizza/m/gKLBoRsyKe",
+      "download": "https://static.poly.pizza/bcd66ec5-5e81-4901-a222-47abc875fe2a.glb",
+      "author": "Quaternius",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "verifiedAt": "2026-09-07",
+      "bytes": 1456760,
+      "sha256": "0de1bcd789d409214cf82f66f61daeb53d2f7de6d914b23e7b3660bfb3dee61e",
+      "format": {
+        "generator": "FBX2glTF v0.9.7",
+        "version": "2.0"
+      },
+      "meshCount": 4,
+      "materialCount": 7,
+      "imageCount": 0,
+      "externalResourceCount": 0,
+      "nativeForward": "+Z",
+      "animationCount": 24,
+      "animations": [
+        {
+          "name": "CharacterArmature|Death",
+          "durationSeconds": 1.0416666269302368,
+          "trackCount": 30
+        },
+        {
+          "name": "CharacterArmature|Gun_Shoot",
+          "durationSeconds": 0.5833333134651184,
+          "trackCount": 34
+        },
+        {
+          "name": "CharacterArmature|HitRecieve",
+          "durationSeconds": 0.5416666865348816,
+          "trackCount": 18
+        },
+        {
+          "name": "CharacterArmature|HitRecieve_2",
+          "durationSeconds": 0.5416666865348816,
+          "trackCount": 19
+        },
+        {
+          "name": "CharacterArmature|Idle",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 21
+        },
+        {
+          "name": "CharacterArmature|Idle_Gun",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 35
+        },
+        {
+          "name": "CharacterArmature|Idle_Gun_Pointing",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 35
+        },
+        {
+          "name": "CharacterArmature|Idle_Gun_Shoot",
+          "durationSeconds": 0.6666666865348816,
+          "trackCount": 38
+        },
+        {
+          "name": "CharacterArmature|Idle_Neutral",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 29
+        },
+        {
+          "name": "CharacterArmature|Idle_Sword",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 34
+        },
+        {
+          "name": "CharacterArmature|Interact",
+          "durationSeconds": 1.25,
+          "trackCount": 23
+        },
+        {
+          "name": "CharacterArmature|Kick_Left",
+          "durationSeconds": 0.9166666865348816,
+          "trackCount": 54
+        },
+        {
+          "name": "CharacterArmature|Kick_Right",
+          "durationSeconds": 0.9166666865348816,
+          "trackCount": 56
+        },
+        {
+          "name": "CharacterArmature|Punch_Left",
+          "durationSeconds": 0.8333333134651184,
+          "trackCount": 55
+        },
+        {
+          "name": "CharacterArmature|Punch_Right",
+          "durationSeconds": 0.8333333134651184,
+          "trackCount": 56
+        },
+        {
+          "name": "CharacterArmature|Roll",
+          "durationSeconds": 1.3333333730697632,
+          "trackCount": 58
+        },
+        {
+          "name": "CharacterArmature|Run",
+          "durationSeconds": 0.7916666865348816,
+          "trackCount": 54
+        },
+        {
+          "name": "CharacterArmature|Run_Back",
+          "durationSeconds": 0.8333333134651184,
+          "trackCount": 54
+        },
+        {
+          "name": "CharacterArmature|Run_Left",
+          "durationSeconds": 0.7916666865348816,
+          "trackCount": 55
+        },
+        {
+          "name": "CharacterArmature|Run_Right",
+          "durationSeconds": 0.7916666865348816,
+          "trackCount": 56
+        },
+        {
+          "name": "CharacterArmature|Run_Shoot",
+          "durationSeconds": 0.8333333134651184,
+          "trackCount": 54
+        },
+        {
+          "name": "CharacterArmature|Sword_Slash",
+          "durationSeconds": 1,
+          "trackCount": 37
+        },
+        {
+          "name": "CharacterArmature|Walk",
+          "durationSeconds": 1.3333333730697632,
+          "trackCount": 37
+        },
+        {
+          "name": "CharacterArmature|Wave",
+          "durationSeconds": 1.6666666269302368,
+          "trackCount": 23
+        }
+      ]
+    }
+  ]
+}
