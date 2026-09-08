@@ -1,6 +1,7 @@
 import type { Point, Rect } from '../world/engine/types';
 
-export type RpgThemeId = 'village' | 'dungeon';
+export type RpgThemeId = 'village' | 'norse' | 'dungeon';
+export type RpgDestination = RpgThemeId | 'return';
 export type RpgDirection = 'down' | 'left' | 'right' | 'up';
 export type RpgAction = 'idle' | 'walk' | 'run';
 
@@ -39,7 +40,7 @@ export interface RpgLandmark extends Point {
   description: string;
   radius: number;
   kind: 'sign' | 'portal' | 'view';
-  destination?: RpgThemeId;
+  destination?: RpgDestination;
 }
 
 export interface RpgSample {
@@ -83,7 +84,7 @@ export interface RpgCallbacks {
   onError(): void;
   onUi(state: RpgUiState): void;
   onDialogue(dialogue: RpgDialogue): void;
-  onTravel(theme: RpgThemeId): void;
+  onTravel(destination: RpgDestination): void;
 }
 
 export interface RpgRuntime {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { RpgGame } from './rpg-game';
-import type { RpgDialogue, RpgRuntime, RpgThemeId, RpgUiState } from './types';
+import type { RpgDestination, RpgDialogue, RpgRuntime, RpgThemeId, RpgUiState } from './types';
 
 interface Options {
   theme: RpgThemeId;
@@ -8,7 +8,7 @@ interface Options {
   blocked: boolean;
   onUi(state: RpgUiState): void;
   onDialogue(dialogue: RpgDialogue): void;
-  onTravel(theme: RpgThemeId): void;
+  onTravel(destination: RpgDestination): void;
 }
 
 /** Owns the React/Phaser boundary, including Strict Mode, sizing and retry cleanup. */

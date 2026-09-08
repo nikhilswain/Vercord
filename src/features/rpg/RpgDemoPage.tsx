@@ -5,7 +5,14 @@ import { RPG_APPEARANCES } from './character';
 import { RpgIcon, type RpgIconName } from './RpgIcon';
 import { RpgPanels, type RpgPanel } from './RpgPanels';
 import { getRpgSample } from './sample-worlds';
-import type { RpgDialogue, RpgThemeId, RpgUiState } from './types';
+import {
+  readRpgRoute,
+  resolveRpgTravel,
+  RPG_THEMES,
+  writeRpgRoute,
+  type RpgWorldId,
+} from './themes';
+import type { RpgDestination, RpgDialogue, RpgUiState } from './types';
 import { useRpgGame } from './use-rpg-game';
 import './rpg.css';
 
@@ -17,10 +24,13 @@ const actions: Array<{ panel: RpgPanel; icon: RpgIconName; label: string }> = [
 ];
 
 export function RpgDemoPage() {
-  const [theme, setTheme] = useState<RpgThemeId>(() =>
-    new URLSearchParams(location.search).get('theme') === 'dungeon' ? 'dungeon' : 'village',
-  );
-  const [appearance, setAppearance] = useState('rowan');
+  const [route, setRoute] = useState(() => readRpgRoute(location.search));
+  const { theme, world } = route;
+  const [appearances, setAppearances] = useState<Record<RpgWorldId, string>>({
+    village: RPG_THEMES.village.defaultAppearance,
+    norse: RPG_THEMES.norse.defaultAppearance,
+  });
+  const appearance = appearances[world];
   const [panel, setPanel] = useState<RpgPanel | null>(null);
   const [speech, setSpeech] = useState<RpgDialogue | null>(null);
   const [line, setLine] = useState(0);
@@ -36,14 +46,10 @@ export function RpgDemoPage() {
   const traveler =
     RPG_APPEARANCES.find((option) => option.id === appearance) ?? RPG_APPEARANCES[0]!;
   const speaker = RPG_APPEARANCES.find((option) => option.id === speech?.appearance);
-  const travel = useCallback((next: RpgThemeId) => {
-    setTheme(next);
+  const travel = useCallback((destination: RpgDestination) => {
+    setRoute((current) => resolveRpgTravel(current, destination));
     setSpeech(null);
     setPanel(null);
-    const url = new URL(location.href);
-    if (next === 'village') url.searchParams.delete('theme');
-    else url.searchParams.set('theme', next);
-    history.replaceState(history.state, '', url);
   }, []);
   const talk = useCallback((dialogue: RpgDialogue) => {
     setLine(0);
@@ -64,6 +70,9 @@ export function RpgDemoPage() {
   useEffect(() => {
     document.title = `${sample.name} — Dmap`;
   }, [sample.name]);
+  useEffect(() => {
+    history.replaceState(history.state, '', writeRpgRoute(new URL(location.href), route));
+  }, [route]);
   useEffect(() => {
     if (speech) advanceRef.current?.focus();
   }, [speech]);
@@ -110,7 +119,7 @@ export function RpgDemoPage() {
           </span>
         </button>
         <header className="rpg-location rpg-frame">
-          <span className="rpg-kicker">Local preview</span>
+          <span className="rpg-kicker">{RPG_THEMES[theme].label} · Local preview</span>
           <h1>{sample.name}</h1>
           <p>{ui.theme === theme ? ui.place : sample.subtitle}</p>
         </header>
@@ -200,11 +209,12 @@ export function RpgDemoPage() {
       <RpgPanels
         panel={panel}
         theme={theme}
+        world={world}
         appearance={appearance}
         ui={ui}
         onClose={() => setPanel(null)}
         onTheme={travel}
-        onAppearance={setAppearance}
+        onAppearance={(id) => setAppearances((current) => ({ ...current, [world]: id }))}
       />
       <Dialog
         open={speech !== null}

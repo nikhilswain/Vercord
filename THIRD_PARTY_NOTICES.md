@@ -60,8 +60,22 @@ repository. No scenery from the linked Poly Pizza bundle is included.
   [Scenery credits](public/game-assets/lpc-world/CREDITS.md),
   [license](public/game-assets/lpc-world/OGA-BY-3.0.txt), and
   [per-file manifest](public/game-assets/lpc-world/manifest.json).
-- Original sheets are unchanged. Portraits are derived composites of the same character layers;
+- The Rowan/Ash sheets are unchanged. Portraits are derived composites of the character layers;
   map layouts, collision geometry and dialogue are authored in this repository.
+
+### Frosthavn outfits and original scenery
+
+- Ivar and Sigrid combine LPC Revised layers with armor from the Expanded Universal LPC collection,
+  pinned to `675e21e04aaff8486a3a24e09573b3d5af9d28b9`. The selected armor offers OGA-BY 3.0.
+  Contributors include Johannes Sjölund (wulax), Matthew Krohn (makrohn), Michael Whitlock
+  (bigbeargames), bluecarrot16 and JaidynReiman, alongside the Revised contributors above.
+- Armor frames are selected and composited with sleeves; Ivar's beard is composited with his hair.
+  Per-source declarations, exact modifications and checksums are retained in the
+  [character manifest](public/game-assets/lpc-characters/manifest.json) and
+  [character credits](public/game-assets/lpc-characters/CREDITS.txt).
+- The Norse buildings, longboat, paths, shore, runestone, hearth, banners and supplies are original
+  code-authored Dmap SVG artwork. See [Frosthavn artwork notes](public/game-assets/norse/README.md).
+  Its surrounding LPC pine trees and rocks retain their existing scenery attribution.
 
 ## Fonts
 

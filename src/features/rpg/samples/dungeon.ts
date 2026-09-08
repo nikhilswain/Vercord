@@ -137,13 +137,12 @@ export function buildDungeon(): RpgSample {
   sample.landmarks.push(
     {
       id: 'village-stairs',
-      name: 'Stairs to Willowmere',
+      name: 'Stairs to the surface',
       ...at(10.5, 28),
       radius: 72,
       kind: 'portal',
-      destination: 'village',
-      description:
-        'A cool breeze carries the smell of grass down these worn steps. Return to Willowmere.',
+      destination: 'return',
+      description: 'A cool breeze follows these worn steps. Return to the settlement above.',
     },
     {
       id: 'western-archive',

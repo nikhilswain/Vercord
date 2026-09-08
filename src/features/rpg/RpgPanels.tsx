@@ -2,7 +2,8 @@ import { Dialog } from '../../components/Dialog';
 import { RPG_APPEARANCES } from './character';
 import { RpgIcon } from './RpgIcon';
 import { getRpgSample } from './sample-worlds';
-import type { RpgThemeId, RpgUiState } from './types';
+import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
+import type { RpgDestination, RpgThemeId, RpgUiState } from './types';
 
 export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu';
 const titles: Record<RpgPanel, string> = {
@@ -15,10 +16,11 @@ const titles: Record<RpgPanel, string> = {
 interface Props {
   panel: RpgPanel | null;
   theme: RpgThemeId;
+  world: RpgWorldId;
   appearance: string;
   ui: RpgUiState;
   onClose(): void;
-  onTheme(theme: RpgThemeId): void;
+  onTheme(destination: RpgDestination): void;
   onAppearance(id: string): void;
 }
 
@@ -33,13 +35,9 @@ function SampleMap({ theme, ui }: Pick<Props, 'theme' | 'ui'>) {
         role="img"
         aria-label={`${sample.name}, landmarks and your current position`}
       >
-        <rect
-          width={bounds.width}
-          height={bounds.height}
-          fill={theme === 'village' ? '#7c995a' : '#65717b'}
-        />
+        <rect width={bounds.width} height={bounds.height} fill={RPG_THEMES[theme].map.ground} />
         {sample.colliders.map((box, index) => (
-          <rect key={index} {...box} fill={theme === 'village' ? '#405736' : '#222b36'} />
+          <rect key={index} {...box} fill={RPG_THEMES[theme].map.obstacle} />
         ))}
         {sample.landmarks.map((landmark, index) => (
           <g key={landmark.id} transform={`translate(${landmark.x},${landmark.y})`}>
@@ -69,7 +67,21 @@ function SampleMap({ theme, ui }: Pick<Props, 'theme' | 'ui'>) {
   );
 }
 
-export function RpgPanels({ panel, theme, appearance, ui, onClose, onTheme, onAppearance }: Props) {
+export function RpgPanels({
+  panel,
+  theme,
+  world,
+  appearance,
+  ui,
+  onClose,
+  onTheme,
+  onAppearance,
+}: Props) {
+  const place = RPG_THEMES[theme];
+  const home = RPG_THEMES[world];
+  const appearances = RPG_APPEARANCES.filter((option) =>
+    (home.appearances as readonly string[]).includes(option.id),
+  );
   return (
     <Dialog
       open={panel !== null}
@@ -93,9 +105,8 @@ export function RpgPanels({ panel, theme, appearance, ui, onClose, onTheme, onAp
       {panel === 'guide' && (
         <>
           <p>
-            Take the paths at your own pace. Approach{' '}
-            {theme === 'village' ? 'Mira by the crossroads' : 'Oren in the arrival chamber'} to hear
-            a little about this place.
+            Take the paths at your own pace. Approach {place.guide} to hear a little about this
+            place.
           </p>
           <dl className="rpg-controls-list">
             <div>
@@ -130,16 +141,18 @@ export function RpgPanels({ panel, theme, appearance, ui, onClose, onTheme, onAp
             </div>
           </dl>
           <p className="rpg-muted">
-            Look for the steps between Willowmere and the Lantern Vault. You can also choose a
-            destination from the menu.
+            {place.kind === 'location'
+              ? `The return stairs lead back to ${home.name}. Your traveler goes with you.`
+              : home.dungeonHint}{' '}
+            You can also choose a destination from the menu.
           </p>
         </>
       )}
       {panel === 'appearance' && (
         <>
-          <p>Two travelers, the same open road.</p>
+          <p>Choose your traveler for {home.name}. Your look stays with you in the dungeon.</p>
           <div className="rpg-appearance-list">
-            {RPG_APPEARANCES.map((option) => (
+            {appearances.map((option) => (
               <button
                 key={option.id}
                 className="rpg-appearance"
@@ -156,20 +169,56 @@ export function RpgPanels({ panel, theme, appearance, ui, onClose, onTheme, onAp
       )}
       {panel === 'menu' && (
         <>
-          <p className="rpg-muted">Local preview · two places to explore</p>
-          <div className="rpg-destinations">
-            {(['village', 'dungeon'] as const).map((id) => (
+          <p className="rpg-muted">Two villages, each with a path into the Lantern Vault.</p>
+          <h3 className="rpg-menu-heading">World themes</h3>
+          <div className="rpg-destinations" aria-label="World themes">
+            {RPG_WORLD_IDS.map((id) => (
               <button
-                className="rpg-button"
+                className="rpg-destination"
                 key={id}
                 aria-pressed={theme === id}
                 onClick={() => onTheme(id)}
               >
-                {getRpgSample(id).name}
+                <span className="rpg-destination-mark" data-world={id} aria-hidden="true">
+                  <RpgIcon name="map" />
+                </span>
+                <span className="rpg-destination-copy">
+                  <strong>{RPG_THEMES[id].name}</strong>
+                  <span>
+                    {RPG_THEMES[id].label} · {RPG_THEMES[id].setting}
+                  </span>
+                </span>
+                <span className="rpg-destination-state">{theme === id ? 'Here' : 'Visit'}</span>
               </button>
             ))}
           </div>
-          <p>These sample places keep their layout each time you visit.</p>
+          <h3 className="rpg-menu-heading">Explore a location</h3>
+          <button
+            className="rpg-destination rpg-destination--location"
+            aria-pressed={theme === 'dungeon'}
+            onClick={() => onTheme('dungeon')}
+          >
+            <span className="rpg-destination-mark" data-world="dungeon" aria-hidden="true">
+              <RpgIcon name="guide" />
+            </span>
+            <span className="rpg-destination-copy">
+              <strong>{RPG_THEMES.dungeon.name}</strong>
+              <span>
+                {RPG_THEMES.dungeon.label} · {RPG_THEMES.dungeon.setting}
+              </span>
+            </span>
+            <span className="rpg-destination-state">{theme === 'dungeon' ? 'Here' : 'Enter'}</span>
+          </button>
+          {place.kind === 'location' && (
+            <button className="rpg-button rpg-return" onClick={() => onTheme('return')}>
+              Return to {home.name}
+            </button>
+          )}
+          <p className="rpg-muted rpg-destination-note">
+            {place.kind === 'location'
+              ? `Exploring from ${home.name}. The stairs return you to the same village.`
+              : 'Your traveler is remembered for each village as you explore.'}
+          </p>
           <nav className="rpg-menu-links" aria-label="Other Dmap views">
             <a href="/map/demo?renderer=3d">Explore the 3D demo</a>
             <a href="/map/demo?renderer=2d">Open the original 2D demo</a>
@@ -178,9 +227,9 @@ export function RpgPanels({ panel, theme, appearance, ui, onClose, onTheme, onAp
           <details className="rpg-credits">
             <summary>Art &amp; font credits</summary>
             <p>
-              LPC Revised by Eliza Wyatt, with Stephen Challener, Lanea Zimmerman, Hyptosis and
-              BlueCarrot16. Selected artwork uses OGA-BY 3.0. Pixelify Sans uses the SIL Open Font
-              License.
+              LPC Revised and Expanded, with full contributor credits below. Selected artwork uses
+              OGA-BY 3.0. Frosthavn buildings and ground artwork are original to Dmap. Pixelify Sans
+              uses the SIL Open Font License.
             </p>
             <a href="/game-assets/lpc-characters/CREDITS.txt" target="_blank" rel="noreferrer">
               Character credits
@@ -188,6 +237,10 @@ export function RpgPanels({ panel, theme, appearance, ui, onClose, onTheme, onAp
             {' · '}
             <a href="/game-assets/lpc-world/CREDITS.md" target="_blank" rel="noreferrer">
               Scenery credits
+            </a>
+            {' · '}
+            <a href="/game-assets/norse/README.md" target="_blank" rel="noreferrer">
+              Frosthavn artwork
             </a>
             {' · '}
             <a href="/game-assets/rpg-ui/OFL.txt" target="_blank" rel="noreferrer">

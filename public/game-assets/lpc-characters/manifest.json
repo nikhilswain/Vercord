@@ -1,5 +1,5 @@
 {
-  "pack": "LPC Revised \u2014 dressed character subset",
+  "pack": "LPC Revised — dressed character subset",
   "repository": "https://github.com/ElizaWy/LPC",
   "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
   "imported": "2026-09-08",
@@ -14,6 +14,16 @@
     {
       "url": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Credits.txt",
       "note": "Idle and walk are by Stephen Challener and Eliza Wyatt; run is by Eliza Wyatt. Aggregate body and clothing contributor notices are retained, including contributors to unused jump frames."
+    },
+    {
+      "norse": true,
+      "url": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv",
+      "note": "Selected teen/female plate armor and medium-beard rows explicitly offer OGA-BY 3.0; exact rows retained in upstream-norse-credits.txt."
+    },
+    {
+      "norse": true,
+      "url": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sources/source_index.html",
+      "note": "Pinned animation mapping: idle rows 22-25 with columns 0,0,1; walk rows 8-11, moving columns 1-8; run rows 34-37, columns 0-7."
     }
   ],
   "frameWidth": 64,
@@ -37,6 +47,36 @@
       "name": "Ash",
       "layers": ["body", "head", "pants", "shirt", "boots", "hair"],
       "portrait": "ash/portrait.png"
+    },
+    {
+      "id": "ivar",
+      "name": "Ivar",
+      "description": "Iron armor over forest wool, leather boots, ash-brown page hair and a medium beard.",
+      "layers": ["body", "head", "pants", "shirt", "boots", "hair"],
+      "layerSources": {
+        "body": "rowan",
+        "head": "rowan",
+        "pants": "rowan",
+        "shirt": "ivar",
+        "boots": "rowan",
+        "hair": "ivar"
+      },
+      "portrait": "ivar/portrait.png"
+    },
+    {
+      "id": "sigrid",
+      "name": "Sigrid",
+      "description": "Copper armor over wine wool, dark boots and chestnut hair tied in a bun.",
+      "layers": ["body", "head", "pants", "shirt", "boots", "hair"],
+      "layerSources": {
+        "body": "ash",
+        "head": "ash",
+        "pants": "ash",
+        "shirt": "sigrid",
+        "boots": "ash",
+        "hair": "sigrid"
+      },
+      "portrait": "sigrid/portrait.png"
     }
   ],
   "assets": [
@@ -1236,11 +1276,338 @@
         "frameHeightRange": [21, 25]
       },
       "inheritedCredits": ["Stephen Challener (Redshrike)"]
+    },
+    {
+      "file": "ivar/shirt-idle.png",
+      "appearance": "ivar",
+      "sha256": "41e79c193c1d5c47ed555e441cf6a52b04c195e152ef40973ac0965a1f8379a7",
+      "bytes": 5320,
+      "width": 192,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "shirt",
+      "action": "idle",
+      "sourceIds": ["ivar-shirt-idle", "ivar-armor"],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Eliza Wyatt (DeathsDarling)"
+      ],
+      "modifications": "Original animated wool and armor composited frame-for-frame with Canvas 2D. Armor rows: idle 22-25 (columns 0,0,1), walk 8-11 (columns 1-8), run 34-37 (columns 0-7). No recoloring, resampling, or painted garments.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "framesPerDirection": [3, 3, 3, 3],
+        "unionBounds": [18, 31, 46, 50],
+        "frameHeightRange": [15, 18]
+      }
+    },
+    {
+      "file": "ivar/hair-idle.png",
+      "appearance": "ivar",
+      "sha256": "70e7067da12ffd3230ad60fe1cbce0a52a78f2e7cff70152def94d1a69b1a3a1",
+      "bytes": 5263,
+      "width": 192,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "hair",
+      "action": "idle",
+      "sourceIds": ["ivar-hair-idle", "ivar-beard-idle"],
+      "authors": ["Johannes Sjölund (wulax)", "Eliza Wyatt (DeathsDarling)"],
+      "modifications": "Original animated page hair and beard composited without recoloring or resampling.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "framesPerDirection": [3, 3, 3, 3],
+        "unionBounds": [20, 15, 44, 38],
+        "frameHeightRange": [21, 22]
+      }
+    },
+    {
+      "file": "ivar/shirt-walk.png",
+      "appearance": "ivar",
+      "sha256": "b6c1e402255f447f4bc94b60a7a111a64d760d3d64632e9b41f430e740b44aff",
+      "bytes": 11039,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "shirt",
+      "action": "walk",
+      "sourceIds": ["ivar-shirt-walk", "ivar-armor"],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Eliza Wyatt (DeathsDarling)"
+      ],
+      "modifications": "Original animated wool and armor composited frame-for-frame with Canvas 2D. Armor rows: idle 22-25 (columns 0,0,1), walk 8-11 (columns 1-8), run 34-37 (columns 0-7). No recoloring, resampling, or painted garments.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [18, 32, 46, 51],
+        "frameHeightRange": [15, 18]
+      }
+    },
+    {
+      "file": "ivar/hair-walk.png",
+      "appearance": "ivar",
+      "sha256": "b0c7aa8f7a98980e8b42f9abeb61565f93d90e1f88b1f1f6356554884be777df",
+      "bytes": 9847,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "hair",
+      "action": "walk",
+      "sourceIds": ["ivar-hair-walk", "ivar-beard-walk"],
+      "authors": ["Johannes Sjölund (wulax)", "Eliza Wyatt (DeathsDarling)"],
+      "modifications": "Original animated page hair and beard composited without recoloring or resampling.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [20, 16, 44, 39],
+        "frameHeightRange": [21, 22]
+      }
+    },
+    {
+      "file": "ivar/shirt-run.png",
+      "appearance": "ivar",
+      "sha256": "39489c85e0fbf72b79493359ecb97fd1d914155fb6c838b36023089018164947",
+      "bytes": 14976,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "shirt",
+      "action": "run",
+      "sourceIds": ["ivar-shirt-run", "ivar-armor"],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Eliza Wyatt (DeathsDarling)"
+      ],
+      "modifications": "Original animated wool and armor composited frame-for-frame with Canvas 2D. Armor rows: idle 22-25 (columns 0,0,1), walk 8-11 (columns 1-8), run 34-37 (columns 0-7). No recoloring, resampling, or painted garments.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [21, 27, 43, 51],
+        "frameHeightRange": [15, 20]
+      }
+    },
+    {
+      "file": "ivar/hair-run.png",
+      "appearance": "ivar",
+      "sha256": "b9098d0402c970b2c504f84f8efb5ec7bb466329cfaaa0985fe92996d69c69e4",
+      "bytes": 12847,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "hair",
+      "action": "run",
+      "sourceIds": ["ivar-hair-run", "ivar-beard-run"],
+      "authors": ["Johannes Sjölund (wulax)", "Eliza Wyatt (DeathsDarling)"],
+      "modifications": "Original animated page hair and beard composited without recoloring or resampling.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [19, 10, 45, 39],
+        "frameHeightRange": [21, 22]
+      }
+    },
+    {
+      "file": "sigrid/shirt-idle.png",
+      "appearance": "sigrid",
+      "sha256": "e8d435a4bd10b1ed1e775c2a4e1e83fdbaeeb19f74b672ec7dc4f75bdbb8c855",
+      "bytes": 5394,
+      "width": 192,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "shirt",
+      "action": "idle",
+      "sourceIds": ["sigrid-shirt-idle", "sigrid-armor"],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Matthew Krohn (makrohn)",
+        "Eliza Wyatt (DeathsDarling)"
+      ],
+      "modifications": "Original animated wool and armor composited frame-for-frame with Canvas 2D. Armor rows: idle 22-25 (columns 0,0,1), walk 8-11 (columns 1-8), run 34-37 (columns 0-7). No recoloring, resampling, or painted garments.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "framesPerDirection": [3, 3, 3, 3],
+        "unionBounds": [18, 31, 46, 50],
+        "frameHeightRange": [15, 18]
+      }
+    },
+    {
+      "file": "sigrid/hair-idle.png",
+      "appearance": "sigrid",
+      "sha256": "a0ede583d506227872c53f9ac85b479d64702916bd76a7b0dce04f0e3a642a66",
+      "bytes": 4172,
+      "width": 192,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "hair",
+      "action": "idle",
+      "sourceIds": ["sigrid-hair-idle"],
+      "authors": ["bluecarrot16", "Eliza Wyatt (DeathsDarling)"],
+      "modifications": "None. Original PNG, unchanged.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 3,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 12,
+        "framesPerDirection": [3, 3, 3, 3],
+        "unionBounds": [20, 12, 44, 37],
+        "frameHeightRange": [20, 23]
+      }
+    },
+    {
+      "file": "sigrid/shirt-walk.png",
+      "appearance": "sigrid",
+      "sha256": "295f6bc3acaa0056417acb4812bbed9200c2f3ab9a6a4bbafd1769044bcd6821",
+      "bytes": 11212,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "shirt",
+      "action": "walk",
+      "sourceIds": ["sigrid-shirt-walk", "sigrid-armor"],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Matthew Krohn (makrohn)",
+        "Eliza Wyatt (DeathsDarling)"
+      ],
+      "modifications": "Original animated wool and armor composited frame-for-frame with Canvas 2D. Armor rows: idle 22-25 (columns 0,0,1), walk 8-11 (columns 1-8), run 34-37 (columns 0-7). No recoloring, resampling, or painted garments.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [18, 32, 46, 51],
+        "frameHeightRange": [15, 18]
+      }
+    },
+    {
+      "file": "sigrid/hair-walk.png",
+      "appearance": "sigrid",
+      "sha256": "728d122633561d4b7aa6c6cda564e520b2913f64cf8ae21d37c9083ae41552f8",
+      "bytes": 6943,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "hair",
+      "action": "walk",
+      "sourceIds": ["sigrid-hair-walk"],
+      "authors": ["bluecarrot16", "Eliza Wyatt (DeathsDarling)"],
+      "modifications": "None. Original PNG, unchanged.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [20, 13, 44, 38],
+        "frameHeightRange": [20, 23]
+      }
+    },
+    {
+      "file": "sigrid/shirt-run.png",
+      "appearance": "sigrid",
+      "sha256": "9e341339e82b6096ace363d5f4df1781ca511539358b44f65ee97adc22c70cad",
+      "bytes": 15457,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "shirt",
+      "action": "run",
+      "sourceIds": ["sigrid-shirt-run", "sigrid-armor"],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Matthew Krohn (makrohn)",
+        "Eliza Wyatt (DeathsDarling)"
+      ],
+      "modifications": "Original animated wool and armor composited frame-for-frame with Canvas 2D. Armor rows: idle 22-25 (columns 0,0,1), walk 8-11 (columns 1-8), run 34-37 (columns 0-7). No recoloring, resampling, or painted garments.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [21, 27, 43, 51],
+        "frameHeightRange": [15, 20]
+      }
+    },
+    {
+      "file": "sigrid/hair-run.png",
+      "appearance": "sigrid",
+      "sha256": "8d80ebe01da8fa16675d56caac294ee327f3ff722a5d2943adfa05bf84d6a47d",
+      "bytes": 10720,
+      "width": 512,
+      "height": 256,
+      "license": "OGA-BY-3.0",
+      "layer": "hair",
+      "action": "run",
+      "sourceIds": ["sigrid-hair-run"],
+      "authors": ["bluecarrot16", "Eliza Wyatt (DeathsDarling)"],
+      "modifications": "None. Original PNG, unchanged.",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "alphaValidation": {
+        "nonemptyFrames": 32,
+        "framesPerDirection": [8, 8, 8, 8],
+        "unionBounds": [18, 11, 46, 36],
+        "frameHeightRange": [20, 23]
+      }
     }
   ],
   "validation": {
-    "nonemptyLayers": "Every 64x64 frame in each of 36 sheets has nontransparent pixels, for every direction and action.",
-    "framesInspected": 912
+    "nonemptyLayers": "Every 64x64 frame in all 48 unique runtime sheets has nontransparent pixels for every direction and action. Ivar and Sigrid reuse 24 existing body/head/pants/boots sheets.",
+    "framesInspected": 1216
   },
   "feetAnchor": {
     "x": 32,
@@ -1322,6 +1689,660 @@
         "Eliza Wyatt (DeathsDarling)",
         "Stephen Challener (Redshrike)"
       ]
+    },
+    {
+      "file": "ivar/portrait.png",
+      "appearance": "ivar",
+      "sha256": "eb3adf60653f01709f3470446c05c92f034f2dd25c15222b2085078b071a55ab",
+      "bytes": 1238,
+      "width": 40,
+      "height": 40,
+      "license": "OGA-BY-3.0",
+      "title": "Ivar appearance portrait",
+      "derivedFrom": [
+        "rowan/body-idle.png",
+        "rowan/head-idle.png",
+        "rowan/pants-idle.png",
+        "ivar/shirt-idle.png",
+        "rowan/boots-idle.png",
+        "ivar/hair-idle.png"
+      ],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Stephen Challener (Redshrike)",
+        "Durrani",
+        "BenCreating"
+      ],
+      "modifications": "Canvas 2D composition cropped at x=12, y=136, width=40, height=40 (front idle frame zero). No recoloring or resampling."
+    },
+    {
+      "file": "sigrid/portrait.png",
+      "appearance": "sigrid",
+      "sha256": "ce038397a1be5915891480a4cc5cc57b43ef3af5093923a451194ac7e69b219b",
+      "bytes": 1248,
+      "width": 40,
+      "height": 40,
+      "license": "OGA-BY-3.0",
+      "title": "Sigrid appearance portrait",
+      "derivedFrom": [
+        "ash/body-idle.png",
+        "ash/head-idle.png",
+        "ash/pants-idle.png",
+        "sigrid/shirt-idle.png",
+        "ash/boots-idle.png",
+        "sigrid/hair-idle.png"
+      ],
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Matthew Krohn (makrohn)",
+        "Eliza Wyatt (DeathsDarling)",
+        "Stephen Challener (Redshrike)",
+        "Durrani",
+        "BenCreating"
+      ],
+      "modifications": "Canvas 2D composition cropped at x=12, y=136, width=40, height=40 (front idle frame zero). No recoloring or resampling."
     }
-  ]
+  ],
+  "norseSources": [
+    {
+      "id": "ivar-armor",
+      "appearance": "ivar",
+      "upstreamPath": "spritesheets/torso/armour/plate/teen/iron.png",
+      "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/torso/armour/plate/teen/iron.png",
+      "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+      "sha256": "b5c7940ca1df902715240b20e2090faaae5bb2a7da2162acc61bd4e26f238c09",
+      "bytes": 66444,
+      "width": 832,
+      "height": 2944,
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)"
+      ],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv",
+      "provenance": [
+        "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+        "https://opengameart.org/content/lpc-combat-armor-for-women"
+      ]
+    },
+    {
+      "id": "ivar-shirt-idle",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Torso/Shirt 02 - V-neck Longsleeve Shirt/Forest/Idle.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Torso/Shirt%2002%20-%20V-neck%20Longsleeve%20Shirt/Forest/Idle.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "c39a8097a3c35b4451a07be9d8bba982b8edb367d7b62003248efcefbcffb920",
+      "bytes": 5185,
+      "width": 192,
+      "height": 256,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+    },
+    {
+      "id": "ivar-hair-idle",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Hair/Medium 01 - Page/Ash Brown/Idle.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2001%20-%20Page/Ash%20Brown/Idle.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "f6376ddffd5c3971daa1becb8cf46f8bbd44a3d21d46cedc9b136d40a41e72cb",
+      "bytes": 4880,
+      "width": 192,
+      "height": 256,
+      "authors": ["Johannes Sjölund (wulax)", "Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+    },
+    {
+      "id": "ivar-beard-idle",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Hair/Facial Hair 07 - Medium Beard/Ash Brown/Idle.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Facial%20Hair%2007%20-%20Medium%20Beard/Ash%20Brown/Idle.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "40e201787743721446c585ce1d73c506a1ead5078e0b433340ccb2ab60e06b0f",
+      "bytes": 1516,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv",
+      "provenance": ["https://opengameart.org/content/lpc-expanded-sit-run-jump-more"],
+      "note": "The pinned Revised Hair/Credits.txt omits facial hair. The Expanded per-entry beard declaration explicitly names ElizaWy, OGA-BY 3.0 and the original Revised Hair repository."
+    },
+    {
+      "id": "ivar-shirt-walk",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Torso/Shirt 02 - V-neck Longsleeve Shirt/Forest/Walk.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Torso/Shirt%2002%20-%20V-neck%20Longsleeve%20Shirt/Forest/Walk.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "a757e9503e63e665e602d8fe8e1fb2c0c43235bb2834190a41a3f6df71c5f6ef",
+      "bytes": 11958,
+      "width": 512,
+      "height": 256,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+    },
+    {
+      "id": "ivar-hair-walk",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Hair/Medium 01 - Page/Ash Brown/Walk.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2001%20-%20Page/Ash%20Brown/Walk.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "99d7fad022e2dbd3dcffbec36b61dd2511494c4695860499fe0fcf7ecaba0333",
+      "bytes": 7818,
+      "width": 512,
+      "height": 256,
+      "authors": ["Johannes Sjölund (wulax)", "Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+    },
+    {
+      "id": "ivar-beard-walk",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Hair/Facial Hair 07 - Medium Beard/Ash Brown/Walk.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Facial%20Hair%2007%20-%20Medium%20Beard/Ash%20Brown/Walk.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "3a557b34ddcebc23fc3649a7c3765329dad1d469f5fba2ea2a0dee586851182d",
+      "bytes": 3199,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv",
+      "provenance": ["https://opengameart.org/content/lpc-expanded-sit-run-jump-more"],
+      "note": "The pinned Revised Hair/Credits.txt omits facial hair. The Expanded per-entry beard declaration explicitly names ElizaWy, OGA-BY 3.0 and the original Revised Hair repository."
+    },
+    {
+      "id": "ivar-shirt-run",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Clothing/Masculine, Thin/Torso/Shirt 02 - V-neck Longsleeve Shirt/Forest/Run.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Masculine%2C%20Thin/Torso/Shirt%2002%20-%20V-neck%20Longsleeve%20Shirt/Forest/Run.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "0f27094a4d07498c0ba2d2184ac31ebab5c671f3886486100d69899459d49d54",
+      "bytes": 14348,
+      "width": 512,
+      "height": 256,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+    },
+    {
+      "id": "ivar-hair-run",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Hair/Medium 01 - Page/Ash Brown/Run.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2001%20-%20Page/Ash%20Brown/Run.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "78ac4ce4fa5aeb578ce9420000455f3575b944d41fbfa14c063429158c223061",
+      "bytes": 10941,
+      "width": 512,
+      "height": 256,
+      "authors": ["Johannes Sjölund (wulax)", "Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+    },
+    {
+      "id": "ivar-beard-run",
+      "appearance": "ivar",
+      "upstreamPath": "Characters/Hair/Facial Hair 07 - Medium Beard/Ash Brown/Run.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Facial%20Hair%2007%20-%20Medium%20Beard/Ash%20Brown/Run.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "981c7b99a8f72ad010eed4ae7aaf97ae0e2037a57aecc059a8597caf9a0d9e05",
+      "bytes": 3373,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv",
+      "provenance": ["https://opengameart.org/content/lpc-expanded-sit-run-jump-more"],
+      "note": "The pinned Revised Hair/Credits.txt omits facial hair. The Expanded per-entry beard declaration explicitly names ElizaWy, OGA-BY 3.0 and the original Revised Hair repository."
+    },
+    {
+      "id": "sigrid-armor",
+      "appearance": "sigrid",
+      "upstreamPath": "spritesheets/torso/armour/plate/female/copper.png",
+      "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/torso/armour/plate/female/copper.png",
+      "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+      "sha256": "14778e942a5027fb5dbf5e4f96dfb2506bdf45fee61ee341040dc9a7f32da8ba",
+      "bytes": 74796,
+      "width": 832,
+      "height": 2944,
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Michael Whitlock (bigbeargames)",
+        "Johannes Sjölund (wulax)",
+        "Matthew Krohn (makrohn)"
+      ],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv",
+      "provenance": [
+        "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+        "https://opengameart.org/content/lpc-combat-armor-for-women"
+      ]
+    },
+    {
+      "id": "sigrid-shirt-idle",
+      "appearance": "sigrid",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Torso/Shirt 03 - Scoop Longsleeve Shirt/Wine/Idle.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Torso/Shirt%2003%20-%20Scoop%20Longsleeve%20Shirt/Wine/Idle.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "0be130df57fa7b396ba65902b44224670eb29a7579f67fafb7a1a89bed5ce12b",
+      "bytes": 4987,
+      "width": 192,
+      "height": 256,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+    },
+    {
+      "id": "sigrid-hair-idle",
+      "appearance": "sigrid",
+      "upstreamPath": "Characters/Hair/Medium 04 - Bangs & Bun/Chestnut/Idle.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2004%20-%20Bangs%20%26%20Bun/Chestnut/Idle.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "a0ede583d506227872c53f9ac85b479d64702916bd76a7b0dce04f0e3a642a66",
+      "bytes": 4172,
+      "width": 192,
+      "height": 256,
+      "authors": ["bluecarrot16", "Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+    },
+    {
+      "id": "sigrid-shirt-walk",
+      "appearance": "sigrid",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Torso/Shirt 03 - Scoop Longsleeve Shirt/Wine/Walk.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Torso/Shirt%2003%20-%20Scoop%20Longsleeve%20Shirt/Wine/Walk.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "066020d3e9d44a8aa572f3a447b37a1a00b88b6c528aed9425d0b6a10a0534ef",
+      "bytes": 12409,
+      "width": 512,
+      "height": 256,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+    },
+    {
+      "id": "sigrid-hair-walk",
+      "appearance": "sigrid",
+      "upstreamPath": "Characters/Hair/Medium 04 - Bangs & Bun/Chestnut/Walk.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2004%20-%20Bangs%20%26%20Bun/Chestnut/Walk.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "728d122633561d4b7aa6c6cda564e520b2913f64cf8ae21d37c9083ae41552f8",
+      "bytes": 6943,
+      "width": 512,
+      "height": 256,
+      "authors": ["bluecarrot16", "Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+    },
+    {
+      "id": "sigrid-shirt-run",
+      "appearance": "sigrid",
+      "upstreamPath": "Characters/Clothing/Feminine, Thin/Torso/Shirt 03 - Scoop Longsleeve Shirt/Wine/Run.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Feminine%2C%20Thin/Torso/Shirt%2003%20-%20Scoop%20Longsleeve%20Shirt/Wine/Run.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "87cd67c7885e4a9edcbeb1270e58645de4e628c3b05d6a930578220dfbd21976",
+      "bytes": 14389,
+      "width": 512,
+      "height": 256,
+      "authors": ["Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Clothing/Credits.txt"
+    },
+    {
+      "id": "sigrid-hair-run",
+      "appearance": "sigrid",
+      "upstreamPath": "Characters/Hair/Medium 04 - Bangs & Bun/Chestnut/Run.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Medium%2004%20-%20Bangs%20%26%20Bun/Chestnut/Run.png",
+      "revision": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+      "sha256": "8d80ebe01da8fa16675d56caac294ee327f3ff722a5d2943adfa05bf84d6a47d",
+      "bytes": 10720,
+      "width": 512,
+      "height": 256,
+      "authors": ["bluecarrot16", "Eliza Wyatt (DeathsDarling)"],
+      "inheritedCredits": ["Stephen Challener (Redshrike)"],
+      "license": "OGA-BY-3.0",
+      "creditDeclaration": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/Hair/Credits.txt"
+    }
+  ],
+  "norseValidation": {
+    "method": "Headless Chrome Canvas alpha scan of every armor, runtime layer and composed frame; visual contact-sheet inspection.",
+    "renderedFrames": 152,
+    "runtimeLayerFrames": 912,
+    "armorFrames": 152,
+    "results": {
+      "ivar": {
+        "idle": {
+          "armor": {
+            "nonemptyFrames": 12,
+            "framesPerDirection": [3, 3, 3, 3],
+            "unionBounds": [22, 31, 42, 50],
+            "frameHeightRange": [15, 18]
+          },
+          "layers": {
+            "body": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [18, 32, 46, 62],
+              "frameHeightRange": [28, 30]
+            },
+            "head": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [22, 16, 42, 36],
+              "frameHeightRange": [17, 19]
+            },
+            "pants": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [24, 44, 40, 58],
+              "frameHeightRange": [11, 14]
+            },
+            "shirt": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [18, 31, 46, 50],
+              "frameHeightRange": [15, 18]
+            },
+            "boots": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [23, 51, 41, 62],
+              "frameHeightRange": [10, 11]
+            },
+            "hair": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [20, 15, 44, 38],
+              "frameHeightRange": [21, 22]
+            }
+          },
+          "composite": {
+            "nonemptyFrames": 12,
+            "framesPerDirection": [3, 3, 3, 3],
+            "unionBounds": [18, 15, 46, 62],
+            "frameHeightRange": [46, 47]
+          }
+        },
+        "walk": {
+          "armor": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [22, 32, 42, 51],
+            "frameHeightRange": [15, 17]
+          },
+          "layers": {
+            "body": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [17, 33, 47, 64],
+              "frameHeightRange": [28, 30]
+            },
+            "head": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [22, 17, 42, 37],
+              "frameHeightRange": [17, 19]
+            },
+            "pants": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [23, 45, 41, 60],
+              "frameHeightRange": [11, 14]
+            },
+            "shirt": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [18, 32, 46, 51],
+              "frameHeightRange": [15, 18]
+            },
+            "boots": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 50, 43, 64],
+              "frameHeightRange": [9, 14]
+            },
+            "hair": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [20, 16, 44, 39],
+              "frameHeightRange": [21, 22]
+            }
+          },
+          "composite": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [17, 16, 47, 64],
+            "frameHeightRange": [45, 47]
+          }
+        },
+        "run": {
+          "armor": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [22, 30, 42, 51],
+            "frameHeightRange": [14, 17]
+          },
+          "layers": {
+            "body": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [17, 27, 47, 62],
+              "frameHeightRange": [26, 35]
+            },
+            "head": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 12, 43, 37],
+              "frameHeightRange": [17, 19]
+            },
+            "pants": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 39, 43, 58],
+              "frameHeightRange": [12, 16]
+            },
+            "shirt": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 27, 43, 51],
+              "frameHeightRange": [15, 20]
+            },
+            "boots": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [17, 45, 47, 62],
+              "frameHeightRange": [10, 16]
+            },
+            "hair": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [19, 10, 45, 39],
+              "frameHeightRange": [21, 22]
+            }
+          },
+          "composite": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [17, 10, 47, 62],
+            "frameHeightRange": [44, 52]
+          }
+        }
+      },
+      "sigrid": {
+        "idle": {
+          "armor": {
+            "nonemptyFrames": 12,
+            "framesPerDirection": [3, 3, 3, 3],
+            "unionBounds": [22, 31, 42, 50],
+            "frameHeightRange": [15, 18]
+          },
+          "layers": {
+            "body": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [18, 32, 46, 62],
+              "frameHeightRange": [28, 30]
+            },
+            "head": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [22, 16, 42, 36],
+              "frameHeightRange": [17, 19]
+            },
+            "pants": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [24, 44, 40, 58],
+              "frameHeightRange": [11, 14]
+            },
+            "shirt": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [18, 31, 46, 50],
+              "frameHeightRange": [15, 18]
+            },
+            "boots": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [23, 51, 41, 62],
+              "frameHeightRange": [10, 11]
+            },
+            "hair": {
+              "nonemptyFrames": 12,
+              "framesPerDirection": [3, 3, 3, 3],
+              "unionBounds": [20, 12, 44, 37],
+              "frameHeightRange": [20, 23]
+            }
+          },
+          "composite": {
+            "nonemptyFrames": 12,
+            "framesPerDirection": [3, 3, 3, 3],
+            "unionBounds": [18, 12, 46, 62],
+            "frameHeightRange": [45, 50]
+          }
+        },
+        "walk": {
+          "armor": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [22, 32, 42, 51],
+            "frameHeightRange": [15, 17]
+          },
+          "layers": {
+            "body": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [17, 33, 47, 64],
+              "frameHeightRange": [28, 30]
+            },
+            "head": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [22, 17, 42, 37],
+              "frameHeightRange": [17, 19]
+            },
+            "pants": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [23, 45, 41, 60],
+              "frameHeightRange": [11, 14]
+            },
+            "shirt": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [18, 32, 46, 51],
+              "frameHeightRange": [15, 18]
+            },
+            "boots": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 50, 43, 64],
+              "frameHeightRange": [9, 14]
+            },
+            "hair": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [20, 13, 44, 38],
+              "frameHeightRange": [20, 23]
+            }
+          },
+          "composite": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [17, 13, 47, 64],
+            "frameHeightRange": [45, 50]
+          }
+        },
+        "run": {
+          "armor": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [22, 30, 42, 51],
+            "frameHeightRange": [14, 17]
+          },
+          "layers": {
+            "body": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [17, 27, 47, 62],
+              "frameHeightRange": [26, 35]
+            },
+            "head": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 12, 43, 37],
+              "frameHeightRange": [17, 19]
+            },
+            "pants": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 39, 43, 58],
+              "frameHeightRange": [12, 16]
+            },
+            "shirt": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [21, 27, 43, 51],
+              "frameHeightRange": [15, 20]
+            },
+            "boots": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [17, 45, 47, 62],
+              "frameHeightRange": [10, 16]
+            },
+            "hair": {
+              "nonemptyFrames": 32,
+              "framesPerDirection": [8, 8, 8, 8],
+              "unionBounds": [18, 11, 46, 36],
+              "frameHeightRange": [20, 23]
+            }
+          },
+          "composite": {
+            "nonemptyFrames": 32,
+            "framesPerDirection": [8, 8, 8, 8],
+            "unionBounds": [17, 11, 47, 62],
+            "frameHeightRange": [45, 51]
+          }
+        }
+      }
+    }
+  }
 }

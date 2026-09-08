@@ -17,8 +17,12 @@ implementation notes, validation, and current limits.
 
 ### 2D RPG samples
 
-On `feat/2d-rpg-samples`, open `/play/demo` for Willowmere or
-`/play/demo?theme=dungeon` for The Lantern Vault. These are fixed local art/interaction samples:
+On `feat/2d-rpg-samples`, open `/play/demo` for Willowmere or `/play/demo?theme=norse` for
+Frosthavn, a Norse/fantasy village with timber houses, stone lanes, a smithy, rune grove and longboat
+landing. The menu switches between the two world themes. Each has an entrance to the Lantern Vault;
+the dungeon stairs return to the settlement you came from. `/play/demo?theme=dungeon&from=norse`
+opens the vault with Frosthavn as its return destination (omitting `from` returns to Willowmere).
+These are fixed local art/interaction samples:
 taller dressed characters with idle, walk and run animations, NPC dialogue, landmark interactions,
 and themed HUDs. Move with WASD/arrows, hold Shift to run, double-click/tap to auto-run faster, and press E
 near a character or landmark. Touch controls, appearance selection and a map are available in the HUD.
@@ -28,6 +32,12 @@ owns movement and interactions, `character` owns layered animation, `sample-rend
 `rpg-scene` connects Phaser to those modules, and `RpgDemoPage` owns React UI. Static ground is baked
 once per scene load; collision checks use a spatial index; HUD state is deduplicated and capped at
 10 updates per second. Textures are shared across characters and theme changes.
+
+`themes` owns destination labels, travel context and each village's traveler choices. Rowan/Ash
+belong to Willowmere; Ivar/Sigrid wear the Norse outfits. Your selection follows you underground
+and is remembered per village during the current visit. `samples/norse-props` pairs each original
+building/prop with its collision base and depth anchor. Reproduce the original scenery with
+`node scripts/generate-norse-buildings.mjs` and `node scripts/generate-norse-ground.mjs`.
 
 This first milestone does not connect to Discord or save server worlds. The next milestone will
 generate and persist one versioned map per server per theme; revisits must reuse that map. Owner

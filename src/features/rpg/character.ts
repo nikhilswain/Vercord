@@ -16,23 +16,37 @@ const ANIMATION: Record<RpgAction, { frames: number; frameMs: number }> = {
 export const RPG_APPEARANCES = [
   { id: 'rowan', name: 'Rowan', portraitUrl: `${ASSET_ROOT}/rowan/portrait.png` },
   { id: 'ash', name: 'Ash', portraitUrl: `${ASSET_ROOT}/ash/portrait.png` },
+  { id: 'ivar', name: 'Ivar', portraitUrl: `${ASSET_ROOT}/ivar/portrait.png` },
+  { id: 'sigrid', name: 'Sigrid', portraitUrl: `${ASSET_ROOT}/sigrid/portrait.png` },
 ];
+
+// The Norse outfits share the original bodies, trousers and boots in the cache.
+const SHARED_BASE: Record<string, string> = { ivar: 'rowan', sigrid: 'ash' };
+
+function layerAppearance(appearance: string, layer: string): string {
+  return layer === 'shirt' || layer === 'hair'
+    ? appearance
+    : (SHARED_BASE[appearance] ?? appearance);
+}
 
 function appearanceOrDefault(id: string): string {
   return RPG_APPEARANCES.some((appearance) => appearance.id === id) ? id : 'rowan';
 }
 
 function textureKey(appearance: string, layer: string, action: RpgAction): string {
-  return `rpg-character-${appearance}-${layer}-${action}`;
+  return `rpg-character-${layerAppearance(appearance, layer)}-${layer}-${action}`;
 }
 
 export function preloadRpgCharacters(scene: Phaser.Scene): void {
+  const queued = new Set<string>();
   for (const { id } of RPG_APPEARANCES) {
     for (const layer of LAYERS) {
       for (const action of ACTIONS) {
         const key = textureKey(id, layer, action);
-        if (scene.textures.exists(key)) continue;
-        scene.load.spritesheet(key, `${ASSET_ROOT}/${id}/${layer}-${action}.png`, {
+        if (scene.textures.exists(key) || queued.has(key)) continue;
+        queued.add(key);
+        const source = layerAppearance(id, layer);
+        scene.load.spritesheet(key, `${ASSET_ROOT}/${source}/${layer}-${action}.png`, {
           frameWidth: FRAME_SIZE,
           frameHeight: FRAME_SIZE,
         });

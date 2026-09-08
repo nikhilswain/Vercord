@@ -1,5 +1,5 @@
-LPC Revised — Dmap dressed character sample
-===========================================
+LPC Revised / Expanded — Dmap character appearances
+=================================================
 
 Source repository: https://github.com/ElizaWy/LPC
 Pinned revision: f07f7f5892e67c932c68f70bb04472f2c64e46bc
@@ -8,6 +8,52 @@ Selected license: OGA-BY 3.0
 Full license: LICENSE.txt
 License publisher: https://static.opengameart.org/OGA-BY-3.0.txt
 Per-file source URLs, SHA-256 hashes, recipes, frames, and validation: manifest.json
+
+Ivar and Sigrid — Frosthavn travelers
+-----------------------------------
+Ivar wears original iron plate armor over a forest V-neck longsleeve layer,
+with leather boots, charcoal trousers, ash-brown page hair and a medium beard.
+Sigrid wears original copper plate armor over a wine scoop-neck longsleeve
+layer, with coffee boots, midnight trousers and chestnut bangs-and-bun hair.
+Their body, head, trousers and boots reuse Rowan and Ash's original assets
+and shared runtime textures. All six layers retain full idle, walk and run
+coverage in all four directions.
+
+Wool layers, page hair, bangs-and-bun hair and beard use the same pinned
+LPC Revised revision above. The page hairstyle was originally drawn by
+Johannes Sjölund (wulax), and bangs-and-bun by bluecarrot16 (original CC0);
+Eliza Wyatt (DeathsDarling) edited, animated and recolored both. The wool
+layers and medium beard are by Eliza Wyatt. The inherited LPC body credit
+is Stephen Challener (Redshrike). Hair declarations remain in
+upstream-hair-credits.txt; wool declarations in upstream-clothing-credits.txt.
+The Revised Hair/Credits.txt omits facial hair. The explicit medium-beard
+OGA-BY declaration, naming ElizaWy and the original Revised repository,
+is retained from the Expanded credits in upstream-norse-credits.txt.
+
+The compatible armor uses the original Expanded teen/female plate sheets:
+https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator
+Pinned revision: 675e21e04aaff8486a3a24e09573b3d5af9d28b9
+Original armor: Johannes Sjölund (wulax).
+Recolors: Michael Whitlock (bigbeargames).
+Palette reduction and v3-base adaptation: bluecarrot16.
+Expanded animations and teen adaptation: JaidynReiman.
+Female adaptation: Matthew Krohn (makrohn).
+Selected license: OGA-BY 3.0. Exact source credit rows are retained in
+upstream-norse-credits.txt, including the upstream's original CSV formatting.
+Both original publication pages explicitly offer OGA-BY 3.0:
+https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+https://opengameart.org/content/lpc-combat-armor-for-women
+Expanded animation and beard provenance:
+https://opengameart.org/content/lpc-expanded-sit-run-jump-more
+
+The Norse shirt sheets compose the original animated wool and armor
+frame-for-frame. Armor follows the pinned upstream animation layout:
+idle rows 22-25, columns 0,0,1; walk rows 8-11, moving columns 1-8;
+dedicated run rows 34-37, columns 0-7. Ivar's hair sheets compose original
+animated page hair and beard. No garments are painted over static poses,
+and no source pixels are recolored or resampled. Sigrid's hair sheets are
+unchanged source originals. Reproduce with scripts/import-norse-characters.mjs.
+All derived animation sheets and portraits retain OGA-BY 3.0 and these credits.
 
 Rowan appearance
 ----------------
@@ -59,10 +105,10 @@ No unrelated LPC asset is covered by this subset declaration.
 
 Modifications and rendering
 ---------------------------
-All 36 imported animation PNGs are unchanged original files. Dmap places
+The 36 Rowan/Ash animation PNGs are unchanged original files. Dmap places
 body, head, pants, shirt, boots and hair in six synchronized Phaser layers.
 The game and NPCs share these appearances and the game-owned texture cache.
-Each portrait.png is a derived 40x40 transparent image: Canvas 2D composition
+Each of the four portrait.png files is a derived 40x40 transparent image: Canvas 2D composition
 of its six front idle frame-zero layers, cropped from the source sheets at
 x=12, y=136, width=40, height=40, with no recoloring or resampling.
 Portraits retain the same credits and OGA-BY 3.0 license.
