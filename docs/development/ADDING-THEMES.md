@@ -37,6 +37,14 @@ Do not change an old prefab's meaning or accept arbitrary new textures in old co
 
 Presentation-only changes (UI copy, live outfit choices, renderer optimization) can use the shared catalogs without rewriting saved map documents. The saved v1 NPC appearance allowlist remains pinned even when the live character catalog expands.
 
+## House interiors
+
+`interiors.ts` generates and validates the independent `house-v1` document. `content/house-v1/assets.ts` pins the original SVG furniture atlas. Each theme supplies its `interior` palette; the shared recipes create a parlor for text, a gathering hall for voice/stage, and a reading room for forum/media/announcements.
+
+`worker/worlds/house-store.ts` saves the generated room once under world ID + stable house ID in the guild's Durable Object storage, with a checksum. Room changes never rewrite the outdoor town. Introduce a new content version for changed furniture or geometry; do not silently replace saved rooms.
+
+House presence uses the house's scene ID (`house:0`, for example), current Discord room access, and its saved collision map. Up to 16 travelers including the local player have character rigs; the searchable roster includes every admitted traveler. The current guild connection limit is 200 sockets, so the roster is not an unlimited-capacity backend. Room entry does not join or move a Discord voice call.
+
 ## Characters and entities
 
 Add a character to `RPG_CHARACTER_DEFINITIONS`, then include its ID in the relevant theme's `appearances`. Provide all six layers for idle, walk and run, in the existing four-direction frame layout. `source` can reuse an existing layer atlas; optional `tint` colors that layer without downloading a duplicate. Supply a matching portrait. The renderer deduplicates shared texture loads, and browser/worker appearance validation uses the same catalog.

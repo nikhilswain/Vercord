@@ -1,6 +1,11 @@
 /** Spatial identity is separate from a world's visual theme. */
 export const RPG_SCENE_IDS = ['overworld', 'dungeon'] as const;
-export type RpgSceneId = (typeof RPG_SCENE_IDS)[number];
+export type HouseSceneId = `house:${number}`;
+export type RpgSceneId = (typeof RPG_SCENE_IDS)[number] | HouseSceneId;
+
+export function isHouseSceneId(value: string): value is HouseSceneId {
+  return /^house:(?:0|[1-9][0-9]{0,4})$/u.test(value);
+}
 export const SCENE_DEFINITIONS = {
   overworld: { kind: 'overworld', visiblePlayerLimit: 64 },
   dungeon: { kind: 'dungeon', visiblePlayerLimit: 32 },
@@ -23,5 +28,5 @@ export function sampleSceneId(sample: { id: string; sceneId?: RpgSceneId }): Rpg
 }
 
 export function sceneDefinition(id: RpgSceneId) {
-  return SCENE_DEFINITIONS[id];
+  return SCENE_DEFINITIONS[isHouseSceneId(id) ? 'house' : id];
 }

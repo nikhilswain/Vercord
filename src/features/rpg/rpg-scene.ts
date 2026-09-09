@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { WorldInput, worldInputBlocked } from '../world/engine/input';
 import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
-import { sampleSceneId } from '../../domain/world/catalog/scenes';
+import { sampleSceneId, sceneDefinition, isHouseSceneId } from '../../domain/world/catalog/scenes';
 import { DEFAULT_RPG_CHARACTER_ID } from '../../domain/world/catalog/characters';
 import { preloadRpgCharacters, RpgCharacter } from './character';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
@@ -351,7 +351,10 @@ export class RpgScene extends Phaser.Scene {
       .setStrokeStyle(1, 0xffdfa4, 0.8)
       .setDepth(player.y - 0.1);
     this.avatar = new RpgCharacter(this, this.appearance, player.x, player.y);
-    this.remotes = new RpgRemoteCharacters(this);
+    this.remotes = new RpgRemoteCharacters(
+      this,
+      sceneDefinition(sampleSceneId(this.simulation.sample)).visiblePlayerLimit - 1,
+    );
     this.remotes.setPlayers(this.players, this.elapsed);
     this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
@@ -369,7 +372,20 @@ export class RpgScene extends Phaser.Scene {
     );
     this.marker = this.add.graphics().setDepth(50000).setVisible(false);
     this.cameras.main.setSize(this.width, this.height).setRoundPixels(true);
-    this.setCameraZoom(this.width < 700 || sample.terrain !== undefined ? 1 : 2);
+    this.setCameraZoom(
+      isHouseSceneId(sampleSceneId(sample))
+        ? Math.max(
+            0.75,
+            Math.min(
+              1.5,
+              (this.width - 64) / sample.bounds.width,
+              (this.height - 160) / sample.bounds.height,
+            ),
+          )
+        : this.width < 700 || sample.terrain !== undefined
+          ? 1
+          : 2,
+    );
     this.lastUi = '';
     this.center();
   }

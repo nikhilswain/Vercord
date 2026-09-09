@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="256" viewBox="0 0 512 256" shape-rendering="crispEdges">
+  <!-- Floor: staggered honey-oak planks, inset seams and grain. -->
+  <g>
+    <path fill="#99724b" d="M0 0h32v32H0z"/>
+    <path fill="#ab8054" d="M1 1h30v6H1zm0 16h30v6H1z"/>
+    <path fill="#906641" d="M1 9h30v6H1zm0 16h30v6H1z"/>
+    <path stroke="#62462f" d="M0 8h32M0 16h32M0 24h32M0 32h32M10 0v8m12 0v8M6 16v8m16 0v8"/>
+    <path stroke="#c49460" d="M2 2h6m5 0h12M3 18h11m4 0h10M8 27h9"/>
+    <path stroke="#795739" d="M3 5h4m9 7h4m4 9h5M2 29h3"/>
+  </g>
+  <!-- Rear timber wall. -->
+  <g transform="translate(32)">
+    <path fill="#725336" d="M0 0h32v64H0z"/>
+    <path fill="#c8a57c" d="M4 5h24v48H4z"/>
+    <path fill="#b68d64" d="M5 7h22v10H5zm0 24h22v10H5z"/>
+    <path stroke="#8d694b" d="M4 18h24M4 30h24M4 42h24M4 53h24"/>
+    <path fill="#4b3629" d="M0 0h4v64H0zm28 0h4v64h-4zM0 55h32v9H0z"/>
+    <path fill="#997048" d="M1 2h2v50H1zm28 0h2v52h-2zM4 56h24v3H4z"/>
+    <path fill="#3d2d24" d="M5 60h23v3H5z"/>
+  </g>
+  <!-- Window, crossed mullions and soft curtains. -->
+  <g transform="translate(128)">
+    <path fill="#3c2e28" d="M5 4h54v55H5z"/>
+    <path fill="#bf9769" d="M8 7h48v48H8z"/>
+    <path fill="#a8ced0" d="M12 11h40v36H12z"/>
+    <path fill="#dce6bc" d="M14 13h36v15H14z"/>
+    <path fill="#638b72" d="M13 39h14v8H13zm25-6h13v14H38z"/>
+    <path fill="#715239" d="M30 10h4v40h-4zM10 29h44v4H10zM2 55h60v6H2z"/>
+    <path fill="#ab6251" d="M3 6h9v43H3zm49 0h9v43h-9z"/>
+    <path fill="#d5936d" d="M5 7h3v37H5zm50 0h3v37h-3z"/>
+  </g>
+  <!-- Woven rug. -->
+  <g transform="translate(0 96)">
+    <path fill="#543b35" d="M3 4h122v89H3z"/>
+    <path fill="#b36850" d="M5 6h118v85H5z"/>
+    <path fill="none" stroke="#ead5a0" stroke-width="3" d="M12 13h104v70H12z"/>
+    <path fill="#d1a16f" d="m64 24 30 24-30 24-30-24z"/>
+    <path fill="#915346" d="m64 33 19 15-19 15-19-15z"/>
+    <path fill="#f0d9a6" d="m64 41 9 7-9 7-9-7zM20 24h4v4h-4zm84 0h4v4h-4zM20 68h4v4h-4zm84 0h4v4h-4z"/>
+    <path stroke="#d1ac7c" stroke-width="2" d="M8 0v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5M8 91v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5m8-5v5"/>
+  </g>
+  <!-- Table with cups, a book and carved legs. -->
+  <g transform="translate(128 96)">
+    <path fill="#2c2520" opacity=".3" d="M4 48h88v12H4z"/>
+    <path fill="#513a2b" d="M10 31h8v26h-8zm69 0h8v26h-8z"/>
+    <path fill="#3b2b23" d="M3 5h90v39H3z"/>
+    <path fill="#bd8a52" d="M6 7h84v30H6z"/>
+    <path fill="#95653b" d="M6 37h84v5H6z"/>
+    <path stroke="#9d6a40" d="M8 16h80M8 28h80M35 8v8m27 0v12m-37 0v7"/>
+    <path fill="#ddbf82" d="M8 8h80v2H8z"/>
+    <path fill="#6e876a" d="M37 13h22v18H37z"/>
+    <path fill="#eee0b5" d="M40 15h17v13H40z"/>
+    <path stroke="#a18a67" d="M43 18h11m-11 4h9M48 15v13"/>
+    <path fill="#644333" d="M16 17h10v11H16zm55-1h10v11H71z"/>
+    <path fill="#eddbb1" d="M16 15h8v9h-8zm55-1h8v9h-8z"/>
+    <path fill="#8b5940" d="M18 16h4v3h-4zm55-1h4v3h-4z"/>
+  </g>
+  <g transform="translate(224 96)">
+    <path fill="#46332a" d="M4 2h24v30H4zm2 28h5v17H6zm16 0h5v17h-5z"/>
+    <path fill="#a47748" d="M7 5h18v18H7zM3 25h26v12H3z"/>
+    <path fill="#749080" d="M5 26h22v7H5z"/>
+    <path fill="#c59c6b" d="M8 6h16v3H8z"/>
+  </g>
+  <!-- Bookcase. -->
+  <g transform="translate(256)">
+    <path fill="#352c27" d="M3 3h90v73H3z"/>
+    <path fill="#865d3c" d="M0 0h96v7H0zm3 7h7v69H3zm83 0h10v76H83zM3 70h90v8H3z"/>
+    <path fill="#b98c54" d="M8 7h78v3H8zm0 28h78v5H8zm0 28h78v5H8z"/>
+    <path fill="#7e9b88" d="M13 14h8v20h-8zm31 1h10v19H44zm17 29h7v18h-7z"/>
+    <path fill="#b76951" d="M24 11h7v23h-7zm39 7h8v17h-8zM16 44h9v18h-9zm19-1h8v19h-8z"/>
+    <path fill="#d3b474" d="M34 15h7v19h-7zm39-2h6v21h-6zM27 42h5v20h-5zm21 3h8v17h-8zm23-1h8v18h-8z"/>
+    <path stroke="#ead4a5" d="M14 18h6m5-3h5m10 6h-5m10-3h8m11 4h6m4-4h4M17 48h7m12-1h6m7 4h6m8-3h5m4 0h6"/>
+    <path fill="#b98c54" d="M4 1h86v2H4z"/>
+  </g>
+  <!-- Hearth. -->
+  <g transform="translate(352)">
+    <path fill="#404744" d="M17 0h62v28H17zM9 27h78v63H9zM2 86h92v10H2z"/>
+    <path fill="#818679" d="M20 2h56v21H20zM12 29h72v53H12zM4 86h88v6H4z"/>
+    <path stroke="#515850" stroke-width="2" d="M19 12h57m-43-10v10m24 0v11M14 42h68m-57-12v12m43-12v12M12 69h15m-15-14h15m-6 0v14m48 0h15m-15-14h15m-10 0v14"/>
+    <path fill="#513d2c" d="M4 22h88v10H4z"/>
+    <path fill="#b18d60" d="M4 22h88v4H4z"/>
+    <path fill="#252826" d="M28 47h40v36H28zM33 42h30v6H33z"/>
+    <path fill="#ad5940" d="M32 76h32v8H32z"/>
+    <path fill="#e89948" d="m36 77-2-13 8 5 5-19 9 18 7-5-3 16z"/>
+    <path fill="#f4d178" d="m43 79 3-14 5 7 4-6 2 13z"/>
+    <path fill="#58402e" d="M29 80h37v5H29z"/>
+  </g>
+  <!-- Armchair / upholstered settee module. -->
+  <g transform="translate(256 96)">
+    <path fill="#392e27" d="M4 53h8v10H4zm48 0h8v10h-8z"/>
+    <path fill="#4c675e" d="M4 2h56v46H4zM0 24h64v32H0z"/>
+    <path fill="#8ba68a" d="M8 6h48v26H8zM8 34h48v16H8z"/>
+    <path fill="#708c75" d="M10 9h44v20H10zM3 27h7v24H3zm51 0h7v24h-7z"/>
+    <path stroke="#a8ba91" d="M11 8h40M11 35h40M32 10v19m0 7v12"/>
+    <path fill="#dec597" d="M13 18h14v12H13z"/>
+  </g>
+  <g transform="translate(320 96)">
+    <path fill="#624432" d="M7 30h18l-3 17H10z"/>
+    <path fill="#bc8354" d="M6 29h20v6H6zM10 36h12v8H10z"/>
+    <path fill="#385947" d="M13 13h6v17h-6zM4 11h10v12H4zm13-6h11v12H17z"/>
+    <path fill="#70935c" d="M1 10h9v6H1zm6 9h10v8H7zm11-17h10v10H18zM12 0h6v15h-6z"/>
+    <path fill="#98b477" d="M12 2h3v9h-3zM3 10h7v3H3z"/>
+  </g>
+  <!-- Tea counter / communal desk. -->
+  <g transform="translate(352 128)">
+    <path fill="#382c26" d="M3 9h122v50H3z"/>
+    <path fill="#9c7047" d="M6 26h116v30H6z"/>
+    <path fill="#d1a571" d="M1 8h126v20H1z"/>
+    <path fill="#765238" d="M2 25h124v5H2z"/>
+    <path stroke="#c2915f" d="M10 34h109M10 50h109M42 33v20m42-20v20"/>
+    <path fill="#e5d5ac" d="M78 4h17v14H78zM97 10h8v9h-8zM112 10h8v9h-8z"/>
+    <path fill="#708b78" d="M23 3h27v18H23z"/>
+    <path fill="#e4cea0" d="M25 6h23v12H25z"/>
+    <path stroke="#947b55" d="M29 10h15m-15 4h11"/>
+    <path fill="#ae754b" d="M79 4h15v3H79z"/>
+  </g>
+  <g transform="translate(0 208)">
+    <path fill="#3c3228" d="M0 0h96v32H0z"/>
+    <path fill="#bd995f" d="M2 3h92v25H2z"/>
+    <path stroke="#775538" d="M3 10h90M3 21h90m-62-18v24m32-24v24"/>
+    <path fill="#d6c188" d="m42 11 6-6 6 6h-4v10h-4V11z"/>
+  </g>
+</svg>

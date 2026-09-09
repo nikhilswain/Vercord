@@ -47,14 +47,20 @@ export class RpgRemoteCharacters {
   private readonly players = new Map<string, RemotePlayer>();
   private readonly ink: string;
   private readonly panel: string;
+  private selected = new Set<string>();
+  private lastSelection = -Infinity;
 
-  public constructor(private readonly scene: Phaser.Scene) {
+  public constructor(
+    private readonly scene: Phaser.Scene,
+    private readonly visibleLimit = 63,
+  ) {
     const style = getComputedStyle(scene.game.canvas.closest('.rpg-page') ?? scene.game.canvas);
     this.ink = style.getPropertyValue('--rpg-label-ink').trim() || '#fff4dc';
     this.panel = style.getPropertyValue('--rpg-label-panel').trim() || '#19251e';
   }
 
   public setPlayers(players: readonly RpgPresencePlayer[], time: number): void {
+    this.lastSelection = -Infinity;
     const present = new Set<string>();
     for (const player of players) {
       present.add(player.id);
@@ -88,7 +94,30 @@ export class RpgRemoteCharacters {
   }
 
   public update(camera: Phaser.Cameras.Scene2D.Camera, time: number, reducedMotion: boolean): void {
-    for (const remote of this.players.values()) {
+    if (time - this.lastSelection >= 200) {
+      this.lastSelection = time;
+      const center = {
+        x: camera.scrollX + camera.width / 2,
+        y: camera.scrollY + camera.height / 2,
+      };
+      this.selected = new Set(
+        [...this.players.values()]
+          .sort((a, b) => {
+            const distance = (remote: RemotePlayer) =>
+              (remote.player.x - center.x) ** 2 + (remote.player.y - center.y) ** 2;
+            return distance(a) - distance(b) || a.player.id.localeCompare(b.player.id);
+          })
+          .slice(0, this.visibleLimit)
+          .map((remote) => remote.player.id),
+      );
+    }
+    for (const [id, remote] of this.players) {
+      if (!this.selected.has(id)) {
+        // A crowd keeps its full roster but never allocates more than the scene's rig budget.
+        this.destroyView(remote);
+        remote.visible = false;
+        continue;
+      }
       const point = positionAt(remote, time);
       const x = (point.x - camera.scrollX - camera.width / 2) * camera.zoom + camera.width / 2;
       const y = (point.y - camera.scrollY - camera.height / 2) * camera.zoom + camera.height / 2;

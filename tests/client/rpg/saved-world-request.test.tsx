@@ -5,6 +5,9 @@ import { generateWorldDocument } from '../../../src/domain/world/generate';
 import { savedWorldResponseSchema } from '../../../src/domain/world/protocol';
 import { useSavedRpgWorld } from '../../../src/features/rpg/use-saved-rpg-world';
 import type { RpgWorldId } from '../../../src/features/rpg/themes';
+import { readRpgRoute, resolveRpgTravel, writeRpgRoute } from '../../../src/features/rpg/themes';
+import { generateHouseInterior } from '../../../src/domain/world/interiors';
+import type { HouseSceneId } from '../../../src/domain/world/catalog/scenes';
 
 const wrapper = ({ children }: PropsWithChildren) => <StrictMode>{children}</StrictMode>;
 const payload = (themeId: RpgWorldId) => ({
@@ -26,6 +29,106 @@ afterEach(() => {
 });
 
 describe('saved town requests', () => {
+  it('restores a house URL and clears the house on location or world travel', () => {
+    const route = readRpgRoute('?theme=norse&street=square&house=house%3A7');
+    expect(route).toEqual({ theme: 'norse', world: 'norse', street: 'square', house: 'house:7' });
+    expect(
+      readRpgRoute(writeRpgRoute(new URL('https://example.test/play/123'), route).search),
+    ).toEqual(route);
+    expect(resolveRpgTravel(route, 'return')).toEqual({
+      theme: 'norse',
+      world: 'norse',
+      street: 'square',
+    });
+    expect(resolveRpgTravel(route, 'dungeon')).not.toHaveProperty('house');
+    expect(resolveRpgTravel(route, 'village')).not.toHaveProperty('house');
+    expect(readRpgRoute('?theme=dungeon&house=house:7')).not.toHaveProperty('house');
+    expect(readRpgRoute('?house=house:007')).not.toHaveProperty('house');
+  });
+
+  it('owns the requested house and rejects a different or stale interior', async () => {
+    const housePayload = (landmarkId: HouseSceneId) => {
+      const saved = payload('village');
+      return {
+        ...saved,
+        bindings: [{ landmarkId, rooms: [{ key: 'r_one', label: 'Garden', type: 'text' }] }],
+        interior: generateHouseInterior({
+          worldId: saved.document.worldId,
+          seed: saved.document.seed,
+          themeId: 'village',
+          landmarkId,
+          roomType: 'text',
+        }),
+      };
+    };
+    const requests: Array<{ resolve(response: Response): void; signal: AbortSignal }> = [];
+    const fetchMock = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((resolve) => requests.push({ resolve, signal: init.signal! })),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, rerender } = renderHook(
+      ({ house }: { house: HouseSceneId | undefined }) =>
+        useSavedRpgWorld('123', 'village', 0, undefined, house),
+      { initialProps: { house: 'house:0' as HouseSceneId | undefined } },
+    );
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/auth/guilds/123/rpg/village?house=house%3A0');
+    await act(async () => requests[0]!.resolve(Response.json(housePayload('house:0'))));
+    expect(result.current.status).toBe('ready');
+    expect(result.current.data?.interior?.landmarkId).toBe('house:0');
+    rerender({ house: 'house:1' });
+    expect(result.current.status).toBe('loading');
+    await waitFor(() => expect(requests).toHaveLength(2));
+    await act(async () => requests[1]!.resolve(Response.json(housePayload('house:0'))));
+    expect(result.current.status).toBe('invalid');
+    rerender({ house: 'house:2' });
+    await waitFor(() => expect(requests).toHaveLength(3));
+    rerender({ house: undefined });
+    await waitFor(() => expect(requests).toHaveLength(4));
+    expect(requests[2]!.signal.aborted).toBe(true);
+    await act(async () => requests[2]!.resolve(Response.json(housePayload('house:2'))));
+    expect(result.current.status).toBe('loading');
+    await act(async () => requests[3]!.resolve(Response.json(payload('village'))));
+    expect(result.current.status).toBe('ready');
+    expect(result.current.data?.interior).toBeUndefined();
+  });
+
+  it('rejects interiors from a different saved world or without an authorized channel binding', async () => {
+    const saved = payload('village');
+    const interior = generateHouseInterior({
+      worldId: '477c9d0e-2445-4a17-a66d-80b93660cc0b',
+      seed: saved.document.seed,
+      themeId: 'village',
+      landmarkId: 'house:0',
+      roomType: 'text',
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          ...saved,
+          interior,
+          bindings: [
+            { landmarkId: 'house:0', rooms: [{ key: 'r_one', label: 'Garden', type: 'text' }] },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ ...saved, interior: { ...interior, worldId: saved.document.worldId } }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() =>
+      useSavedRpgWorld('123', 'village', 0, undefined, 'house:0'),
+    );
+    await waitFor(() => expect(result.current.status).toBe('invalid'));
+    expect(result.current.data).toBeNull();
+    act(() => result.current.retry());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.status).toBe('invalid'));
+    expect(result.current.data).toBeNull();
+  });
+
   it('keeps the map blocked through two short source-recovery retries before success', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const unavailable = () =>

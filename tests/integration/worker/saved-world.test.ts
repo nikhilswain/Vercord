@@ -56,6 +56,23 @@ it('requires a member session before opening a saved server world', async () => 
   expect(await response.json()).toEqual({ error: { code: 'UNAUTHENTICATED' } });
 });
 
+it.each([
+  'house=house%3A-1',
+  'house=house%3A00',
+  'house=house%3A100000',
+  'house=house%3A0&house=house%3A1',
+])('rejects an invalid or ambiguous house selection: %s', async (query) => {
+  const response = await createWorker().fetch!(
+    new Request(`https://dmap.test/api/auth/guilds/${guildId}/rpg/village?${query}`, {
+      method: 'POST',
+      headers: { origin: 'https://dmap.test' },
+    }),
+    env,
+    {} as ExecutionContext,
+  );
+  expect(response.status).toBe(404);
+});
+
 it.each(['denied', 'allowed'] as const)(
   'honors %s membership and validates the signed player response',
   async (access) => {

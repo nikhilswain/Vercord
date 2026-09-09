@@ -45,7 +45,11 @@ import {
   readAuthorizedVoiceDestination,
   readAuthorizedWorld,
 } from '../live-world/service';
-import { worldThemeIdSchema, streetSelectionSchema } from '../../src/domain/world/protocol';
+import {
+  worldThemeIdSchema,
+  streetSelectionSchema,
+  houseSceneIdSchema,
+} from '../../src/domain/world/protocol';
 import { publicLabel } from '../../src/domain/map/labels';
 import { readRpgPartition } from '../presence/rpg-state';
 
@@ -632,6 +636,9 @@ async function handleGuildRpg(
     new URL(request.url).searchParams.get('street') ?? undefined,
   );
   if (!parsedStreet.success) return authError('NOT_FOUND', 404);
+  const params = new URL(request.url).searchParams;
+  const parsedHouse = houseSceneIdSchema.optional().safeParse(params.get('house') ?? undefined);
+  if (!parsedHouse.success || params.getAll('house').length > 1) return authError('NOT_FOUND', 404);
   let authenticated: AuthenticatedSession | null = null;
   try {
     authenticated = await resolveAuthenticatedSession(request, env);
@@ -644,6 +651,7 @@ async function handleGuildRpg(
       actorFor(authenticated, guildId),
       parsedTheme.data,
       parsedStreet.data,
+      parsedHouse.data,
     );
     const identifiers = await createIdentifierFactory(
       decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),
@@ -827,6 +835,9 @@ async function handleGuildPresence(request: Request, env: Env, guildId: string):
       'x-dmap-session-hash': idHash,
       'x-dmap-session-expires-at': String(session.sessionExpiresAt),
     });
+    const discordAvatarUrl = avatarUrl(session.userId, session.avatarHash);
+    if (discordAvatarUrl !== null)
+      headers.set('x-dmap-avatar-url', encodeURIComponent(discordAvatarUrl));
     if (websocketUpgrade) headers.set('upgrade', 'websocket');
     const connectUrl = new URL('https://presence.dmap/connect');
     if (partition)

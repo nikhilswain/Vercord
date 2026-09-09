@@ -1,0 +1,170 @@
+.rpg-house-tools {
+  position: absolute;
+  top: max(130px, calc(env(safe-area-inset-top) + 108px));
+  left: max(24px, env(safe-area-inset-left));
+  right: max(24px, env(safe-area-inset-right));
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.rpg-house-tools .rpg-button {
+  min-width: 76px;
+  padding: 9px 12px;
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+.rpg-house-tools .rpg-button:last-child {
+  margin-left: auto;
+}
+
+.rpg-page .rpg-dialog--roster {
+  width: min(520px, calc(100% - 32px));
+}
+
+.rpg-page .rpg-dialog--roster h2 {
+  max-width: none;
+}
+
+.rpg-roster-room {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.rpg-dialog .rpg-roster-note {
+  margin: 0 0 20px;
+  font-size: 12px;
+}
+
+.rpg-roster-search {
+  margin-bottom: 12px;
+}
+
+.rpg-roster-search label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rpg-roster-search > div {
+  position: relative;
+}
+
+.rpg-roster-search input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 52px 8px 12px;
+  border: 1px solid var(--rpg-edge);
+  border-radius: 2px;
+  color: var(--rpg-ink);
+  background: var(--rpg-panel-dark);
+  font: inherit;
+}
+
+.rpg-roster-search .rpg-icon-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.rpg-roster-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.rpg-roster-list {
+  max-height: min(380px, 42dvh);
+  min-height: 64px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.rpg-roster-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rpg-roster-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--rpg-edge);
+}
+
+.rpg-roster-list li:last-child {
+  border-bottom: 0;
+}
+
+.rpg-roster-list img {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid var(--rpg-edge);
+  border-radius: 2px;
+  background: var(--rpg-panel-dark);
+}
+
+.rpg-roster-avatar {
+  object-fit: cover;
+}
+.rpg-roster-portrait {
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.rpg-roster-list li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rpg-roster-list small {
+  display: block;
+  color: var(--rpg-muted);
+  font-size: 12px;
+}
+
+.rpg-dialog .rpg-roster-result {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+
+@media (max-width: 699px) {
+  .rpg-house-tools {
+    top: max(126px, calc(env(safe-area-inset-top) + 114px));
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    display: grid;
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .rpg-house-tools .rpg-button {
+    min-width: 0;
+    padding: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  .rpg-house-tools .rpg-button:last-child {
+    margin-left: 0;
+  }
+  .rpg-page--house .rpg-camera {
+    top: 198px;
+  }
+  .rpg-roster-search input {
+    font-size: 16px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .rpg-house-tools {
+    top: 96px;
+  }
+  .rpg-page--house .rpg-camera {
+    top: auto;
+  }
+}

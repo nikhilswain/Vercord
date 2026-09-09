@@ -1,0 +1,4 @@
+House interiors v1 — original SVG artwork created for Dmap, 2026.
+Source: furniture.svg in this directory. No external artwork or fonts are embedded.
+Includes timber flooring, wall panels, windows, rugs, seating, bookcases, tables and hearth.
+Geometry and frame definitions are versioned under src/domain/world/content/house-v1/.

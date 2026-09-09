@@ -1,6 +1,7 @@
 import type { MapRoomType } from '../../domain/map/snapshot';
 import type { WorldTown } from '../../domain/world/protocol';
 import type { RpgSample, RpgSceneLabel } from './types';
+import { sampleSceneId } from '../../domain/world/catalog/scenes';
 
 export const ROOM_TYPE_LABELS: Record<MapRoomType, string> = {
   text: 'Text',
@@ -26,7 +27,7 @@ export function presentTownScene(
   serverName: string,
   town: WorldTown,
 ): RpgSample {
-  if (sample.id === 'dungeon') return sample;
+  if (sampleSceneId(sample) !== 'overworld') return sample;
   if (town.continuous) {
     const rooms = new Map(
       town.districts.flatMap((district) =>

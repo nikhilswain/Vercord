@@ -11,6 +11,13 @@ interface WorldThemePack {
   appearances: readonly RpgCharacterId[];
   defaultAppearance: RpgCharacterId;
   dungeonHint: string;
+  interior: {
+    floorTint: number;
+    wallTint: number;
+    furnitureTint: number;
+    rugTints: readonly number[];
+    background: string;
+  };
   generation: {
     style: 'lpc-village' | 'norse-timber';
     prefabs: readonly WorldPrefabId[];
@@ -54,6 +61,13 @@ export const WORLD_THEMES = {
     appearances: ['rowan', 'ash'],
     defaultAppearance: 'rowan',
     dungeonHint: 'Look for the vault steps to enter the Lantern Vault beneath the village.',
+    interior: {
+      floorTint: 0xffffff,
+      wallTint: 0xffffff,
+      furnitureTint: 0xffffff,
+      rugTints: [0xffffff, 0xaed9c3, 0xcebbe2],
+      background: '#211c19',
+    },
     generation: {
       style: 'lpc-village',
       prefabs: ['hall', 'brick', 'paneled', 'grove', 'garden', 'vault'],
@@ -94,6 +108,13 @@ export const WORLD_THEMES = {
     appearances: ['ivar', 'sigrid'],
     defaultAppearance: 'ivar',
     dungeonHint: 'Find the vault entrance to explore the Lantern Vault beneath Frosthavn.',
+    interior: {
+      floorTint: 0x9faeb6,
+      wallTint: 0xb2bfc1,
+      furnitureTint: 0xd8c5b5,
+      rugTints: [0xa4c6d2, 0xb8c9ba, 0xcfaaa2],
+      background: '#171e22',
+    },
     generation: {
       style: 'norse-timber',
       prefabs: ['longhouse', 'cottage', 'smithy', 'runes', 'landing', 'vault'],

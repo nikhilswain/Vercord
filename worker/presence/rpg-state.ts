@@ -6,6 +6,8 @@ import {
   type RpgLocation,
 } from '../../src/domain/presence/rpg-protocol';
 import type { WorldDocument } from '../../src/domain/world/document';
+import type { HouseInterior } from '../../src/domain/world/interiors';
+import { isHouseSceneId, type RpgSceneId } from '../../src/domain/world/catalog/scenes';
 import { worldThemeIdSchema, type WorldBindings } from '../../src/domain/world/protocol';
 import { WorldAccessError } from '../live-world/coordinator';
 import { RpgCollisionMap } from './rpg-geometry';
@@ -44,13 +46,14 @@ const savedAppearanceSchema = z.strictObject({
 type SavedAppearance = z.infer<typeof savedAppearanceSchema>;
 type SavedProgress = Progress | SavedAppearance;
 type Geometry = {
-  collisions: { overworld: RpgCollisionMap; dungeon: RpgCollisionMap };
-  rooms: Map<string, { x: number; y: number; radius: number }>;
+  collisions: Map<RpgSceneId, RpgCollisionMap>;
+  rooms: Map<string, { id: string; x: number; y: number; radius: number }>;
 };
 const SAVE_INTERVAL = 2_000;
 const SPEED = 240;
 const BUDGET = 96;
 const MAX_CACHED_PROGRESS = 1_024;
+const MAX_CACHED_HOUSES = 256;
 
 export function rpgPartitionKey(partition: RpgPartition): string {
   return `${partition.worldId}:${partition.checksum}:${partition.scene}`;
@@ -78,6 +81,7 @@ export class RpgPresenceState {
     document: WorldDocument;
     checksum: string;
     bindings: WorldBindings;
+    interior?: HouseInterior;
   }): void {
     const key = `${saved.document.worldId}:${saved.checksum}`;
     for (const existing of this.geometries.keys())
@@ -92,22 +96,36 @@ export class RpgPresenceState {
       const landmark = landmarks.get(binding.landmarkId);
       if (landmark) for (const room of binding.rooms) rooms.set(room.key, landmark);
     }
-    this.geometries.set(key, {
-      collisions: previous?.collisions ?? {
-        overworld: new RpgCollisionMap(saved.document.scenes.overworld),
-        dungeon: new RpgCollisionMap(saved.document.scenes.dungeon),
-      },
-      rooms,
-    });
+    const collisions =
+      previous?.collisions ??
+      new Map<RpgSceneId, RpgCollisionMap>([
+        ['overworld', new RpgCollisionMap(saved.document.scenes.overworld)],
+        ['dungeon', new RpgCollisionMap(saved.document.scenes.dungeon)],
+      ]);
+    if (saved.interior && isHouseSceneId(saved.interior.landmarkId)) {
+      const id = saved.interior.landmarkId;
+      const existing = collisions.get(id);
+      collisions.delete(id);
+      collisions.set(id, existing ?? new RpgCollisionMap(saved.interior.scene));
+      while (collisions.size > MAX_CACHED_HOUSES + 2) {
+        const oldest = [...collisions.keys()].find(isHouseSceneId);
+        if (oldest) collisions.delete(oldest);
+      }
+    }
+    this.geometries.set(key, { collisions, rooms });
   }
 
   public has(partition: RpgPartition): boolean {
-    return this.geometries.has(`${partition.worldId}:${partition.checksum}`);
+    return (
+      this.geometries
+        .get(`${partition.worldId}:${partition.checksum}`)
+        ?.collisions.has(partition.scene) ?? false
+    );
   }
 
   public restore(partition: RpgPartition, userId: string, now: number): Promise<RpgSocket> {
     return this.ordered(partition, userId, async () => {
-      const collision = this.geometry(partition).collisions[partition.scene];
+      const collision = this.collision(partition);
       const positionKey = this.positionKey(partition, userId);
       const appearanceKey = this.appearanceKey(partition, userId);
       const saved = await this.hydrate([positionKey, appearanceKey]);
@@ -117,6 +135,7 @@ export class RpgPresenceState {
         progress.success && collision.safe(progress.data)
           ? progress.data
           : { ...collision.scene.spawn, direction: 'down' as const };
+      if (isHouseSceneId(partition.scene)) await this.anchorHouseReturn(partition, userId, now);
       return {
         ...partition,
         x: location.x,
@@ -145,7 +164,7 @@ export class RpgPresenceState {
       previous.budget + (Math.max(0, now - previous.budgetAt) * SPEED) / 1_000,
     );
     const next = { ...previous, budget, budgetAt: now };
-    const collision = this.geometry(previous).collisions[previous.scene];
+    const collision = this.collision(previous);
     const distance = Math.hypot(location.x - previous.x, location.y - previous.y);
     if (
       location.scene !== previous.scene ||
@@ -170,12 +189,23 @@ export class RpgPresenceState {
   }
 
   public canUseRoom(partition: RpgSocket, roomKey: string): boolean {
-    if (partition.scene !== 'overworld') return false;
     const landmark = this.geometry(partition).rooms.get(roomKey);
+    if (isHouseSceneId(partition.scene)) return landmark?.id === partition.scene;
+    if (partition.scene !== 'overworld') return false;
     return (
       landmark !== undefined &&
       Math.hypot(partition.x - landmark.x, partition.y - landmark.y) <= landmark.radius + 24
     );
+  }
+
+  /** Bindings identify geometry; only the caller's current authorized room keys grant access. */
+  public canOccupyScene(partition: RpgPartition, roomKeys: Iterable<string>): boolean {
+    if (!isHouseSceneId(partition.scene)) return true;
+    const geometry = this.geometries.get(`${partition.worldId}:${partition.checksum}`);
+    if (!geometry) return false;
+    for (const roomKey of roomKeys)
+      if (geometry.rooms.get(roomKey)?.id === partition.scene) return true;
+    return false;
   }
 
   public save(userId: string, state: RpgSocket, now: number, immediate = false): Promise<void> {
@@ -242,6 +272,47 @@ export class RpgPresenceState {
     const geometry = this.geometries.get(`${partition.worldId}:${partition.checksum}`);
     if (!geometry) throw new WorldAccessError();
     return geometry;
+  }
+  private collision(partition: RpgPartition): RpgCollisionMap {
+    const collisions = this.geometry(partition).collisions;
+    const collision = collisions.get(partition.scene);
+    if (!collision) throw new WorldAccessError();
+    if (isHouseSceneId(partition.scene)) {
+      collisions.delete(partition.scene);
+      collisions.set(partition.scene, collision);
+    }
+    return collision;
+  }
+  /** Runs inside the member's restore lane, before admission's final authorization check. */
+  private async anchorHouseReturn(
+    partition: RpgPartition,
+    userId: string,
+    now: number,
+  ): Promise<void> {
+    const door = [...this.geometry(partition).rooms.values()].find(
+      (room) => room.id === partition.scene,
+    );
+    const outside = { ...partition, scene: 'overworld' as const };
+    const collision = this.collision(outside);
+    if (!door || !collision.safe(door)) throw new WorldAccessError();
+    const key = this.positionKey(outside, userId);
+    const saved = await this.hydrate([key]);
+    const old = progressSchema.safeParse(saved.get(key));
+    const nearby =
+      old.success &&
+      collision.safe(old.data) &&
+      Math.hypot(old.data.x - door.x, old.data.y - door.y) <= door.radius + 24;
+    const position = nearby ? old.data : { x: door.x, y: door.y, direction: 'down' as const };
+    const progress: Progress = {
+      x: position.x,
+      y: position.y,
+      direction: position.direction,
+      // Old outdoor sockets close with their last movement time, even if closing much later.
+      updatedAt: Math.max(now + 1, (old.success ? old.data.updatedAt : 0) + 1),
+    };
+    this.remember(key, progress);
+    this.pending.set(key, progress);
+    await this.flush([key]);
   }
   private async hydrate(keys: string[]): Promise<Map<string, SavedProgress | undefined>> {
     const result = new Map<string, SavedProgress | undefined>();

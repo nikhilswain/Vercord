@@ -35,11 +35,20 @@ import { LiveWorldCoordinator, WorldAccessError } from '../live-world/coordinato
 import { sessionIsCurrent, type WorldActor } from '../live-world/session-access';
 import { sendDiscordGatewayCommand } from '../voice/bridge-client';
 import { MemberSlowmode } from '../messages/member-slowmode';
-import { worldThemeIdSchema, streetSelectionSchema } from '../../src/domain/world/protocol';
+import {
+  worldThemeIdSchema,
+  streetSelectionSchema,
+  houseSceneIdSchema,
+  type WorldBindings,
+} from '../../src/domain/world/protocol';
+import { isHouseSceneId, type HouseSceneId } from '../../src/domain/world/catalog/scenes';
+import type { WorldDocument } from '../../src/domain/world/document';
+import type { HouseInterior } from '../../src/domain/world/interiors';
 import { WorldInstanceStore } from '../worlds/instance-store';
 import { ContinuousTownStore } from '../worlds/continuous-town-store';
+import { HouseInteriorStore } from '../worlds/house-store';
 import { WorldSaveError } from '../worlds/save-error';
-import type { RpgPresencePlayer } from '../../src/domain/presence/rpg-protocol';
+import { rpgPlayerSchema, type RpgPresencePlayer } from '../../src/domain/presence/rpg-protocol';
 import {
   RpgPresenceState,
   appearanceFitsTheme,
@@ -82,6 +91,7 @@ const internalRpgWorldSchema = z.strictObject({
   actor: worldActorSchema,
   theme: worldThemeIdSchema,
   street: streetSelectionSchema,
+  house: houseSceneIdSchema.optional(),
 });
 const internalLiveFrameSchema = z.strictObject({
   bridgeEpoch: bridgeEpochSchema,
@@ -123,6 +133,7 @@ const socketAttachmentSchema = presencePlayerSchema.extend({
   subscriptionId: subscriptionIdSchema,
   viewVersion: worldViewVersionSchema.nullable(),
   rpg: rpgSocketSchema.optional(),
+  avatarUrl: rpgPlayerSchema.shape.avatarUrl,
 });
 
 type SocketAttachment = z.infer<typeof socketAttachmentSchema>;
@@ -134,6 +145,7 @@ interface ConnectionAdmission {
   presenceId: string;
   displayName: string;
   avatarId: SocketAttachment['avatarId'];
+  avatarUrl?: string;
 }
 
 function readIdentityHeader(request: Request, name: string, maximumLength: number): string | null {
@@ -191,6 +203,7 @@ function rpgPlayerFromAttachment(
     action,
     scene,
     appearance,
+    ...(attachment.avatarUrl ? { avatarUrl: attachment.avatarUrl } : {}),
   };
 }
 
@@ -217,6 +230,7 @@ export class GuildPresence extends DurableObject<Env> {
   private readonly slowmode: MemberSlowmode;
   private readonly worldInstances: WorldInstanceStore;
   private readonly towns: ContinuousTownStore;
+  private readonly houses: HouseInteriorStore;
   private readonly rpgPresence: RpgPresenceState;
   private readonly rpgSessionChecks = new WeakMap<WebSocket, number>();
   private messageCoverage: MessageCoverage = {
@@ -236,6 +250,7 @@ export class GuildPresence extends DurableObject<Env> {
     this.slowmode = new MemberSlowmode(state.storage);
     this.worldInstances = new WorldInstanceStore(env.AUTH_DB);
     this.towns = new ContinuousTownStore(env.AUTH_DB);
+    this.houses = new HouseInteriorStore(state.storage);
     this.rpgPresence = new RpgPresenceState(state.storage, (job) => state.waitUntil(job));
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch, messageCoverage] =
@@ -336,6 +351,7 @@ export class GuildPresence extends DurableObject<Env> {
         id: admission.presenceId,
         displayName: admission.displayName,
         avatarId: admission.avatarId,
+        ...(admission.avatarUrl ? { avatarUrl: admission.avatarUrl } : {}),
         x: 0,
         y: 0,
         direction: 'down',
@@ -572,14 +588,35 @@ export class GuildPresence extends DurableObject<Env> {
       const town = prepared.project(view.snapshot);
       if (town.document.worldId !== partition.worldId || town.checksum !== partition.checksum)
         throw new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 409);
+      const interior = isHouseSceneId(partition.scene)
+        ? await this.loadHouse(town, partition.scene)
+        : undefined;
+      if (
+        !(await sessionIsCurrent(this.env, actor, Date.now())) ||
+        this.coordinator.currentView(actor) !== view
+      )
+        throw new WorldAccessError('UNAUTHENTICATED', 401);
       this.invalidateStaleRpgSockets(town.document.worldId, town.checksum);
-      this.rpgPresence.register(town);
+      this.rpgPresence.register({ ...town, ...(interior ? { interior } : {}) });
       return view;
     } catch (error) {
       throw error instanceof WorldSaveError
         ? new WorldAccessError(error.code, error.status)
         : error;
     }
+  }
+
+  private async loadHouse(
+    saved: { document: WorldDocument; bindings: WorldBindings },
+    house: HouseSceneId,
+  ): Promise<HouseInterior> {
+    // This is the caller's freshly projected binding, never another member's geometry cache.
+    const binding = saved.bindings.find((candidate) => candidate.landmarkId === house);
+    const room = binding?.rooms[0];
+    if (!room) throw new WorldAccessError('CHANNEL_MEMBER_FORBIDDEN', 403);
+    if (!saved.document.scenes.overworld.landmarks.some((landmark) => landmark.id === house))
+      throw new WorldAccessError('CHANNEL_NOT_FOUND', 404);
+    return this.houses.load(saved.document, house, room.type);
   }
 
   private async rpgSessionIsCurrent(
@@ -614,8 +651,21 @@ export class GuildPresence extends DurableObject<Env> {
     >,
   ): Promise<void> {
     if (!(await this.rpgSessionIsCurrent(socket, attachment))) return;
-    const previous = attachmentOf(socket);
-    if (!previous?.rpg || !this.rpgPresence.has(previous.rpg)) return;
+    let previous = attachmentOf(socket);
+    if (!previous?.rpg) return;
+    if (!this.rpgPresence.has(previous.rpg)) {
+      const actor = actorFromAttachment(previous);
+      const view = this.coordinator.currentView(actor);
+      if (!view) return;
+      try {
+        await this.loadRpgPresence(actor, previous.subscriptionId, previous.rpg, view);
+      } catch {
+        this.refreshRpgSocket(socket);
+        return;
+      }
+      previous = attachmentOf(socket);
+      if (!previous?.rpg || !this.attachmentIsLocallyCurrent(previous)) return;
+    }
     const now = Date.now();
     if (command.type === 'rpg-move' && command.seq <= previous.seq) return;
     // Blur/hidden can send the final stop immediately after a moving frame.
@@ -950,6 +1000,9 @@ export class GuildPresence extends DurableObject<Env> {
     const displayName = readIdentityHeader(request, 'x-dmap-display-name', 100);
     const avatarId = readIdentityHeader(request, 'x-dmap-avatar-id', 32);
     const presenceId = readIdentityHeader(request, 'x-dmap-presence-id', 64);
+    const avatarUrl = rpgPlayerSchema.shape.avatarUrl.safeParse(
+      readIdentityHeader(request, 'x-dmap-avatar-url', 512) ?? undefined,
+    );
     const parsed = z
       .strictObject({
         guildId: snowflakeSchema,
@@ -987,6 +1040,7 @@ export class GuildPresence extends DurableObject<Env> {
       presenceId,
       displayName,
       avatarId,
+      ...(avatarUrl.success && avatarUrl.data ? { avatarUrl: avatarUrl.data } : {}),
     };
   }
 
@@ -1120,7 +1174,7 @@ export class GuildPresence extends DurableObject<Env> {
       await this.readJson(request, MAX_INTERNAL_BODY_BYTES),
     );
     if (!parsed.success) return new Response(null, { status: 400 });
-    const { actor, theme, street } = parsed.data;
+    const { actor, theme, street, house } = parsed.data;
     try {
       const subscriptionId = this.coordinator.subscriptionId(actor.userId);
       // Membership is checked before reserving any persistent map.
@@ -1132,10 +1186,19 @@ export class GuildPresence extends DurableObject<Env> {
         throw new WorldAccessError('UNAUTHENTICATED', 401);
       if (this.coordinator.currentView(actor) !== view) throw new WorldAccessError();
       const projected = town.project(view.snapshot);
+      const interior = house ? await this.loadHouse(projected, house) : undefined;
+      if (
+        !(await sessionIsCurrent(this.env, actor, Date.now())) ||
+        this.coordinator.currentView(actor) !== view
+      )
+        throw new WorldAccessError('UNAUTHENTICATED', 401);
       this.invalidateStaleRpgSockets(projected.document.worldId, projected.checksum);
-      return Response.json(projected, {
-        headers: { 'cache-control': 'no-store' },
-      });
+      return Response.json(
+        { ...projected, ...(interior ? { interior } : {}) },
+        {
+          headers: { 'cache-control': 'no-store' },
+        },
+      );
     } catch (error) {
       console.warn(
         JSON.stringify({
@@ -1304,7 +1367,12 @@ export class GuildPresence extends DurableObject<Env> {
       return null;
     }
     // Movement never initiates a gateway read. Cold restoration and live recovery are coalesced.
-    return this.coordinator.currentView(actorFromAttachment(attachment));
+    const view = this.coordinator.currentView(actorFromAttachment(attachment));
+    if (view && !this.attachmentSceneIsAllowed(attachment, view)) {
+      this.refreshRpgSocket(socket);
+      return null;
+    }
+    return view;
   }
 
   private async deliverWorld(
@@ -1428,9 +1496,21 @@ export class GuildPresence extends DurableObject<Env> {
   }
 
   private attachmentIsLocallyCurrent(attachment: SocketAttachment): boolean {
+    const view = this.coordinator.currentView(actorFromAttachment(attachment));
     return (
       this.attachmentExpiryIsCurrent(attachment) &&
-      this.coordinator.currentView(actorFromAttachment(attachment)) !== null
+      view !== null &&
+      this.attachmentSceneIsAllowed(attachment, view)
+    );
+  }
+
+  private attachmentSceneIsAllowed(attachment: SocketAttachment, view: WorldView): boolean {
+    return (
+      !attachment.rpg ||
+      this.rpgPresence.canOccupyScene(
+        attachment.rpg,
+        view.snapshot.areas.flatMap((area) => area.rooms.map((room) => room.key)),
+      )
     );
   }
 

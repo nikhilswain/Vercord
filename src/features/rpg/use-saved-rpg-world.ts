@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { savedWorldResponseSchema, type SavedWorldResponse } from '../../domain/world/protocol';
 import type { RpgWorldId } from './themes';
+import type { HouseSceneId } from '../../domain/world/catalog/scenes';
 
 export type SavedRpgStatus =
   'loading' | 'ready' | 'signed-out' | 'forbidden' | 'missing' | 'invalid' | 'unavailable';
@@ -37,9 +38,10 @@ export function useSavedRpgWorld(
   world: RpgWorldId,
   travelRevision = 0,
   street?: string,
+  house?: HouseSceneId,
 ) {
   const [attempt, setAttempt] = useState(0);
-  const key = JSON.stringify([guildId, world, street, travelRevision, attempt]);
+  const key = JSON.stringify([guildId, world, street, house, travelRevision, attempt]);
   const [request, setRequest] = useState<RequestState | null>(null);
   const [data, setData] = useState<SavedWorldResponse | null>(null);
   const status = request?.key === key ? request.status : 'loading';
@@ -57,7 +59,10 @@ export function useSavedRpgWorld(
     const requestWorld = () => {
       if (controller.signal.aborted) return;
       let retryScheduled = false;
-      const query = street === undefined ? '' : `?${new URLSearchParams({ street })}`;
+      const params = new URLSearchParams();
+      if (street !== undefined) params.set('street', street);
+      if (house !== undefined) params.set('house', house);
+      const query = params.size ? `?${params}` : '';
       void fetch(`/api/auth/guilds/${encodeURIComponent(guildId)}/rpg/${world}${query}`, {
         method: 'POST',
         headers: { accept: 'application/json' },
@@ -88,6 +93,14 @@ export function useSavedRpgWorld(
           if (
             !parsed.success ||
             parsed.data.document.themeId !== world ||
+            (house === undefined
+              ? parsed.data.interior !== undefined
+              : parsed.data.interior?.landmarkId !== house ||
+                parsed.data.interior.worldId !== parsed.data.document.worldId ||
+                parsed.data.interior.themeId !== world ||
+                !parsed.data.bindings.some(
+                  (binding) => binding.landmarkId === house && binding.rooms.length === 1,
+                )) ||
             (street !== undefined &&
               !parsed.data.town?.continuous &&
               (!parsed.data.town ||
@@ -112,7 +125,7 @@ export function useSavedRpgWorld(
       clearTimeout(retryTimeout);
       controller.abort();
     };
-  }, [guildId, world, street, key]);
+  }, [guildId, world, street, house, key]);
 
   return { data, status, retry };
 }

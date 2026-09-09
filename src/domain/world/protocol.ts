@@ -3,8 +3,14 @@ import { isSafeMapDisplayText } from '../map/labels';
 import { MAP_ROOM_TYPES } from '../map/snapshot';
 import { parseWorldDocument } from './document';
 import { WORLD_THEME_IDS } from './catalog/themes';
+import { isHouseSceneId, type HouseSceneId } from './catalog/scenes';
+import { houseInteriorSchema } from './interiors';
 
 export const worldThemeIdSchema = z.enum(WORLD_THEME_IDS);
+export const houseSceneIdSchema = z
+  .string()
+  .refine(isHouseSceneId)
+  .transform((value) => value as HouseSceneId);
 const label = z.string().min(1).max(200).refine(isSafeMapDisplayText);
 const key = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/u);
 const townRoom = z.strictObject({
@@ -94,6 +100,7 @@ export const savedWorldViewSchema = z.strictObject({
   server: z.strictObject({ displayName: label }),
   bindings: worldBindingsSchema,
   town: worldTownSchema.optional(),
+  interior: houseInteriorSchema.optional(),
 });
 
 export const savedWorldResponseSchema = savedWorldViewSchema.extend({

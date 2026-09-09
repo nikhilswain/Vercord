@@ -1,10 +1,16 @@
 import { z } from 'zod';
 import { RPG_CHARACTER_IDS } from '../world/catalog/characters';
-import { RPG_SCENE_IDS } from '../world/catalog/scenes';
+import { RPG_SCENE_IDS, isHouseSceneId, type HouseSceneId } from '../world/catalog/scenes';
 
 export const RPG_APPEARANCE_IDS = RPG_CHARACTER_IDS;
 export const rpgAppearanceSchema = z.enum(RPG_APPEARANCE_IDS);
-export const rpgSceneSchema = z.enum(RPG_SCENE_IDS);
+export const rpgSceneSchema = z.union([
+  z.enum(RPG_SCENE_IDS),
+  z
+    .string()
+    .refine(isHouseSceneId)
+    .transform((value) => value as HouseSceneId),
+]);
 export const rpgLocationSchema = z.strictObject({
   x: z.number().finite().min(0).max(32768),
   y: z.number().finite().min(0).max(32768),
@@ -16,6 +22,14 @@ export const rpgPlayerSchema = rpgLocationSchema.extend({
   id: z.string().regex(/^p_[A-Za-z0-9_-]{43}$/u),
   displayName: z.string().min(1).max(100),
   appearance: rpgAppearanceSchema,
+  avatarUrl: z
+    .string()
+    .max(512)
+    .regex(
+      /^https:\/\/cdn\.discordapp\.com\/(?:avatars\/[0-9]+\/[a-zA-Z0-9_]+\.(?:png|webp)|embed\/avatars\/[0-9]+\.png)(?:\?size=[0-9]+)?$/u,
+    )
+    .nullable()
+    .optional(),
 });
 export const rpgAdmissionSchema = z.strictObject({
   worldId: z.uuid(),

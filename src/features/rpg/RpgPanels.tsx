@@ -1,5 +1,6 @@
 import { Dialog } from '../../components/Dialog';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
+import type { HouseSceneId } from '../../domain/world/catalog/scenes';
 import type { Point } from '../world/engine/types';
 import { RPG_APPEARANCES } from './character';
 import { RpgIcon } from './RpgIcon';
@@ -23,6 +24,7 @@ interface Props {
   appearance: string;
   ui: RpgUiState;
   sample: RpgSample;
+  house?: HouseSceneId;
   server?: {
     guildId: string;
     displayName: string;
@@ -43,6 +45,7 @@ export function RpgPanels({
   appearance,
   ui,
   sample,
+  house,
   server,
   onClose,
   onTheme,
@@ -57,7 +60,15 @@ export function RpgPanels({
   return (
     <Dialog
       open={panel !== null}
-      title={panel === 'map' && server?.town ? 'Your town' : panel ? titles[panel] : ''}
+      title={
+        panel === 'map' && house
+          ? 'Inside this house'
+          : panel === 'map' && server?.town
+            ? 'Your town'
+            : panel
+              ? titles[panel]
+              : ''
+      }
       className="rpg-dialog"
       onClose={onClose}
       footer={
@@ -74,7 +85,7 @@ export function RpgPanels({
         <RpgIcon name="close" />
       </button>
       {panel === 'map' &&
-        (server?.town ? (
+        (server?.town && !house ? (
           <RpgTownMap
             theme={theme}
             ui={ui}
@@ -90,11 +101,13 @@ export function RpgPanels({
       {panel === 'guide' && (
         <>
           <p>
-            {server?.town && theme !== 'dungeon'
-              ? server.town.continuous
-                ? 'Follow the paths between neighborhoods and channel houses. Open Map to find every house, then approach a doorway and press E to open its chat or voice controls.'
-                : 'The Map lists your town’s neighborhoods and streets. Follow the paths to named channel houses, or read the town-square sign to visit the square.'
-              : `Take the paths at your own pace. Approach ${place.guide} to hear a little about this place.`}
+            {house
+              ? 'Walk around and meet the travelers in this house. Use Chat or Voice to open the channel’s controls, or In this room to see everyone here. Leave house returns you to the doorway outside.'
+              : server?.town && theme !== 'dungeon'
+                ? server.town.continuous
+                  ? 'Follow the paths between neighborhoods and channel houses. Open Map to find every house, then approach a doorway and press E to enter. Chat and voice controls are available inside.'
+                  : 'The Map lists your town’s neighborhoods and streets. Follow the paths to named channel houses, or read the town-square sign to visit the square.'
+                : `Take the paths at your own pace. Approach ${place.guide} to hear a little about this place.`}
           </p>
           <dl className="rpg-controls-list">
             <div>
@@ -133,9 +146,11 @@ export function RpgPanels({
             </div>
           </dl>
           <p className="rpg-muted">
-            {place.kind === 'location'
-              ? `The return stairs lead back to ${home.name}. Your traveler goes with you.`
-              : home.dungeonHint}{' '}
+            {house
+              ? 'The door leads back outside. Your Discord call stays where it is until you choose to move it.'
+              : place.kind === 'location'
+                ? `The return stairs lead back to ${home.name}. Your traveler goes with you.`
+                : home.dungeonHint}{' '}
             You can also choose a destination from the menu.
           </p>
         </>
@@ -175,7 +190,7 @@ export function RpgPanels({
               <button
                 className="rpg-destination"
                 key={id}
-                aria-pressed={theme === id}
+                aria-pressed={theme === id && !house}
                 onClick={() => onTheme(id)}
               >
                 <span className="rpg-destination-mark" data-world={id} aria-hidden="true">
@@ -187,7 +202,9 @@ export function RpgPanels({
                     {RPG_THEMES[id].label} · {RPG_THEMES[id].setting}
                   </span>
                 </span>
-                <span className="rpg-destination-state">{theme === id ? 'Here' : 'Visit'}</span>
+                <span className="rpg-destination-state">
+                  {theme === id && !house ? 'Here' : 'Visit'}
+                </span>
               </button>
             ))}
           </div>
@@ -208,9 +225,9 @@ export function RpgPanels({
             </span>
             <span className="rpg-destination-state">{theme === 'dungeon' ? 'Here' : 'Enter'}</span>
           </button>
-          {place.kind === 'location' && (
+          {(house || place.kind === 'location') && (
             <button className="rpg-button rpg-return" onClick={() => onTheme('return')}>
-              Return to {home.name}
+              {house ? 'Leave house' : `Return to ${home.name}`}
             </button>
           )}
           <p className="rpg-muted rpg-destination-note">
