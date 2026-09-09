@@ -64,6 +64,8 @@ describe('bounded RPG pathfinding', () => {
         Math.hypot(simulation.player.x - destination.x, simulation.player.y - destination.y),
       ).toBeLessThan(2);
     },
+    // This checks thousands of simulation frames plus map generation in the full parallel suite.
+    15_000,
   );
 
   it('routes across a 32k town along connected roads with ten thousand colliders', () => {

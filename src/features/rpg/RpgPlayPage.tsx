@@ -15,6 +15,7 @@ import type { RpgConnection } from './use-rpg-presence';
 import type { RpgVoiceController } from './use-rpg-voice';
 import { RpgChannelPanel, RpgVoiceStatus } from './RpgChannelPanel';
 import { RpgHouseRoster } from './RpgHouseRoster';
+import { RpgPortrait } from './RpgPortrait';
 import './rpg.css';
 import './rpg-house.css';
 
@@ -268,7 +269,7 @@ export function RpgPlayPage({
           onClick={() => setPanel('appearance')}
           aria-label={`Change appearance${server ? ` for ${server.playerName}` : ''}, currently ${traveler.name}`}
         >
-          <img src={traveler.portraitUrl} width="56" height="56" alt="" />
+          <RpgPortrait appearance={traveler.id} width={56} height={56} />
           <span>
             <strong>{server?.playerName ?? traveler.name}</strong>
             <small>{server ? `${traveler.name} · You` : 'Traveler · You'}</small>
@@ -517,7 +518,7 @@ export function RpgPlayPage({
       >
         <p className="rpg-speaker-role">{speech?.role}</p>
         <div className="rpg-speech-content">
-          {speaker && <img src={speaker.portraitUrl} width="80" height="80" alt="" />}
+          {speaker && <RpgPortrait appearance={speaker.id} width={80} height={80} />}
           <p aria-live="polite">{speech?.lines[line]}</p>
         </div>
       </Dialog>

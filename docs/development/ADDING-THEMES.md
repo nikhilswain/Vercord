@@ -47,9 +47,13 @@ House presence uses the house's scene ID (`house:0`, for example), current Disco
 
 ## Characters and entities
 
-Add a character to `RPG_CHARACTER_DEFINITIONS`, then include its ID in the relevant theme's `appearances`. Provide all six layers for idle, walk and run, in the existing four-direction frame layout. `source` can reuse an existing layer atlas; optional `tint` colors that layer without downloading a duplicate. Supply a matching portrait. The renderer deduplicates shared texture loads, and browser/worker appearance validation uses the same catalog.
+Add a character to `RPG_CHARACTER_DEFINITIONS`, then include its ID in the relevant theme's `appearances`. Provide all six layers for idle, walk and run, in the existing four-direction frame layout. `source` can reuse an existing layer atlas; optional `tint` colors that layer without downloading a duplicate. `RpgPortrait.tsx` composes the same layers and tints from down-facing idle frame 6, so the portrait matches the rig. Keep the portrait URL as a compatible base fallback. The renderer deduplicates shared texture loads, and browser/worker appearance validation uses the same catalog.
 
 Keep NPC identity separate from Discord member identity. A townsperson or animal uses entity definitions and bounded behavior; a connected member uses the authoritative presence stream. Entity rendering must respect the viewport and its scene's budget. Decorative motion should respect reduced-motion preferences.
+
+`catalog/population.ts` supplies the theme/location rosters. Add the new theme's population there and select character IDs allowed by its pack. `features/rpg/entities/simulation.ts` plans short, collision-safe routes once from the saved geometry and seed; an absolute clock evaluates idle/walk phases without a path search per frame. Its bounded roster is independent of server channel count. Ambient positions are decorative client simulation (subject to client clock differences), not authoritative multiplayer gameplay state.
+
+`entities/renderer.ts` owns viewport visibility and talk prompts. `entities/animal.ts` draws the original pixel dogs and cats in code with the same feet/depth convention as human rigs. Ambient residents avoid walls and furniture but are not solid obstacles for players; do not add client-only colliders that the movement server cannot validate. Houses currently have no ambient residents. New gameplay NPCs that block movement, grant rewards or react to members need server-owned state before those behaviors are added.
 
 New artwork belongs under `public/game-assets/` with its source, author, license and modification notes beside the assets. Existing LPC art is not automatically CC0; retain its credits and license. Repo-authored vector art can stay as maintainable SVG source.
 

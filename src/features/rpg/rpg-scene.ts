@@ -9,6 +9,7 @@ import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample
 import { directionToward, RpgSimulation } from './simulation';
 import { TownSignage } from './town-signage';
 import { RpgRemoteCharacters } from './remote-characters';
+import { RpgAmbientEntities } from './entities/renderer';
 import type { RpgCallbacks, RpgSample, RpgUiState, RpgPositionUpdate } from './types';
 
 export class RpgScene extends Phaser.Scene {
@@ -18,6 +19,7 @@ export class RpgScene extends Phaser.Scene {
   private scenery: RpgSampleRenderer | null = null;
   private avatar: RpgCharacter | null = null;
   private remotes: RpgRemoteCharacters | null = null;
+  private ambient: RpgAmbientEntities | null = null;
   private players: readonly RpgPresencePlayer[] = [];
   private positionReady = false;
   private npcs: RpgCharacter[] = [];
@@ -126,6 +128,7 @@ export class RpgScene extends Phaser.Scene {
     }
     this.signage?.update(camera);
     this.remotes?.update(camera, this.elapsed, this.motion.matches);
+    this.ambient?.update(camera, this.elapsed, this.motion.matches, player);
     this.publishMove();
     if (action !== 'idle') this.marker?.setVisible(false);
     if (this.elapsed - this.lastUiTime >= 100) this.publishUi();
@@ -213,7 +216,7 @@ export class RpgScene extends Phaser.Scene {
   public interact(): void {
     if (!this.created || this.failed || this.disposed || this.inputBlocked || worldInputBlocked())
       return;
-    const nearby = this.simulation.nearby();
+    const nearby = this.simulation.nearby() ?? this.ambient?.nearby(this.simulation.player);
     if (!nearby) return;
     this.simulation.stop();
     const target = nearby.target;
@@ -356,6 +359,7 @@ export class RpgScene extends Phaser.Scene {
       sceneDefinition(sampleSceneId(this.simulation.sample)).visiblePlayerLimit - 1,
     );
     this.remotes.setPlayers(this.players, this.elapsed);
+    this.ambient = new RpgAmbientEntities(this, sample, this.sceneKey);
     this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
       this.add
@@ -397,6 +401,8 @@ export class RpgScene extends Phaser.Scene {
     this.avatar = null;
     this.remotes?.destroy();
     this.remotes = null;
+    this.ambient?.destroy();
+    this.ambient = null;
     this.npcs.forEach((npc) => npc.destroy());
     this.npcs = [];
     this.labels.forEach((label) => label.destroy());
@@ -415,7 +421,11 @@ export class RpgScene extends Phaser.Scene {
     const state: RpgUiState = {
       theme: this.simulation.sample.id,
       place: this.simulation.place(),
-      nearby: this.simulation.nearby(Boolean(this.callbacks.onHouse))?.ui ?? null,
+      nearby:
+        (
+          this.simulation.nearby(Boolean(this.callbacks.onHouse)) ??
+          this.ambient?.nearby(this.simulation.player)
+        )?.ui ?? null,
       position: {
         x: Math.round(this.simulation.player.x),
         y: Math.round(this.simulation.player.y),

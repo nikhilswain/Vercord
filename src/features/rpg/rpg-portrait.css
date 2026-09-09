@@ -1,0 +1,42 @@
+.rpg-portrait {
+  display: block;
+  flex-shrink: 0;
+  overflow: hidden;
+  image-rendering: pixelated;
+}
+
+.rpg-roster-list .rpg-portrait {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid var(--rpg-edge);
+  border-radius: 2px;
+  background: var(--rpg-panel-dark);
+}
+
+.rpg-page .rpg-appearance-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rpg-appearance-list .rpg-appearance {
+  min-height: 148px;
+  padding: 12px 8px;
+}
+
+@media (max-width: 699px) {
+  .rpg-identity .rpg-portrait {
+    width: 42px;
+    height: 48px;
+  }
+  .rpg-speech-content .rpg-portrait {
+    width: 56px;
+    height: 64px;
+  }
+}
+
+@media (max-width: 420px) {
+  .rpg-page .rpg-appearance-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

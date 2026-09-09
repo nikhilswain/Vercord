@@ -1,6 +1,12 @@
 LPC Revised / Expanded — Dmap character appearances
 =================================================
 
+Live outfit variants (2026-09-09): Tamsin, Emery, Linden, Leif, Runa and Eirik
+reuse the credited layers below with runtime skin/clothing/hair color tints.
+No imported PNG files were changed. The layered SVG portraits apply those same
+tints to the original down-facing idle frame. Existing licenses and authorship
+continue to apply to every reused layer.
+
 Source repository: https://github.com/ElizaWy/LPC
 Pinned revision: f07f7f5892e67c932c68f70bb04472f2c64e46bc
 Imported: 2026-09-08

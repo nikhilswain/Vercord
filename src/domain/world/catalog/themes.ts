@@ -58,7 +58,7 @@ export const WORLD_THEMES = {
     setting: 'Sunlit paths, gardens & familiar faces',
     guide: 'Mira by the crossroads',
     map: { ground: '#7c995a', obstacle: '#405736' },
-    appearances: ['rowan', 'ash'],
+    appearances: ['rowan', 'ash', 'tamsin', 'emery', 'linden'],
     defaultAppearance: 'rowan',
     dungeonHint: 'Look for the vault steps to enter the Lantern Vault beneath the village.',
     interior: {
@@ -105,7 +105,7 @@ export const WORLD_THEMES = {
     setting: 'Pine woods, timber halls & a glowing hearth',
     guide: 'Sigrid near Hearth square',
     map: { ground: '#8d9c99', obstacle: '#3b4b48' },
-    appearances: ['ivar', 'sigrid'],
+    appearances: ['ivar', 'sigrid', 'leif', 'runa', 'eirik'],
     defaultAppearance: 'ivar',
     dungeonHint: 'Find the vault entrance to explore the Lantern Vault beneath Frosthavn.',
     interior: {

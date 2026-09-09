@@ -2,24 +2,23 @@ import { useId, useRef, useState } from 'react';
 import { Dialog } from '../../components/Dialog';
 import type { RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { sceneDefinition, type HouseSceneId } from '../../domain/world/catalog/scenes';
-import { RPG_APPEARANCES } from './character';
+import { RpgPortrait } from './RpgPortrait';
 import { RpgIcon } from './RpgIcon';
 
 function TravelerPortrait({ player }: { player: RpgPresencePlayer }) {
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
-  const portrait = (
-    RPG_APPEARANCES.find((option) => option.id === player.appearance) ?? RPG_APPEARANCES[0]!
-  ).portraitUrl;
   const avatar = player.avatarUrl && failedAvatar !== player.avatarUrl ? player.avatarUrl : null;
-  return (
+  return avatar ? (
     <img
-      src={avatar ?? portrait}
+      src={avatar}
       width="44"
       height="44"
       alt=""
-      className={avatar ? 'rpg-roster-avatar' : 'rpg-roster-portrait'}
-      onError={avatar ? () => setFailedAvatar(avatar) : undefined}
+      className="rpg-roster-avatar"
+      onError={() => setFailedAvatar(avatar)}
     />
+  ) : (
+    <RpgPortrait appearance={player.appearance} width={44} height={44} />
   );
 }
 

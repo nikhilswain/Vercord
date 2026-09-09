@@ -3,6 +3,7 @@ import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol'
 import type { HouseSceneId } from '../../domain/world/catalog/scenes';
 import type { Point } from '../world/engine/types';
 import { RPG_APPEARANCES } from './character';
+import { RpgPortrait } from './RpgPortrait';
 import { RpgIcon } from './RpgIcon';
 import { RpgSceneMap } from './RpgSceneMap';
 import { RpgTownMap } from './RpgTownMap';
@@ -169,7 +170,7 @@ export function RpgPanels({
                 aria-pressed={appearance === option.id}
                 onClick={() => onAppearance(option.id)}
               >
-                <img src={option.portraitUrl} alt="" width="80" height="80" />
+                <RpgPortrait appearance={option.id} width={72} height={72} />
                 <strong>{option.name}</strong>
                 <span>{appearance === option.id ? 'Your traveler' : 'Choose traveler'}</span>
               </button>
