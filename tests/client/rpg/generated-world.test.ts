@@ -3,6 +3,8 @@ import { generateWorldDocument } from '../../../src/domain/world/generate';
 import { parseWorldDocument } from '../../../src/domain/world/document';
 import { RpgSimulation, RPG_FEET } from '../../../src/features/rpg/simulation';
 import { overlaps } from '../../../src/features/world/engine/collision';
+import { appearanceFitsTheme, WORLD_THEMES } from '../../../src/domain/world/catalog/themes';
+import { rpgAppearanceSchema } from '../../../src/domain/presence/rpg-protocol';
 
 const worldId = 'c41ec8ec-0606-47ed-9dcc-87a1c5535ab1';
 const seeds = Array.from(
@@ -12,6 +14,19 @@ const seeds = Array.from(
 const themes = ['village', 'norse'] as const;
 
 describe('saved world generation', () => {
+  it('keeps every theme default and selectable character valid for live presence', () => {
+    for (const [id, theme] of Object.entries(WORLD_THEMES)) {
+      expect(appearanceFitsTheme(theme.defaultAppearance, id as keyof typeof WORLD_THEMES)).toBe(
+        true,
+      );
+      for (const appearance of theme.appearances)
+        expect(rpgAppearanceSchema.safeParse(appearance).success).toBe(true);
+    }
+    expect(appearanceFitsTheme('rowan', 'norse')).toBe(false);
+    expect(appearanceFitsTheme('sigrid', 'village')).toBe(false);
+    expect(rpgAppearanceSchema.safeParse('unknown-traveler').success).toBe(false);
+  });
+
   it('reproduces complete, independently owned documents including stable object identities', () => {
     const options = { worldId, themeId: 'village' as const, seed: seeds[0]! };
     const first = generateWorldDocument(options);

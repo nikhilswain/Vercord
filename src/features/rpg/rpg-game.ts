@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { RpgScene } from './rpg-scene';
+import { DEFAULT_RPG_CHARACTER_ID } from '../../domain/world/catalog/characters';
 import type { Point } from '../world/engine/types';
 import type { RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import type { RpgCallbacks, RpgRuntime, RpgSample, RpgPositionUpdate } from './types';
@@ -10,7 +11,7 @@ export class RpgGame implements RpgRuntime {
   private scene: RpgScene | null = null;
   private width = 1;
   private height = 1;
-  private appearance = 'rowan';
+  private appearance: string = DEFAULT_RPG_CHARACTER_ID;
   private players: readonly RpgPresencePlayer[] = [];
   private playerPosition: RpgPositionUpdate | null = null;
   private blocked = false;

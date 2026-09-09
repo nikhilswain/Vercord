@@ -6,6 +6,7 @@ import type {
 } from '../../domain/world/content/v1/types';
 import type { MapRoomType } from '../../domain/map/snapshot';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
+import type { RpgSceneId } from '../../domain/world/catalog/scenes';
 
 /** Local reconciliation intent; never sent as a movement packet. */
 export interface RpgPositionUpdate extends RpgLocation {
@@ -34,6 +35,7 @@ export interface RpgSceneLabel extends Point {
 }
 
 export interface RpgSample extends SavedRpgSample {
+  sceneId?: RpgSceneId;
   signage?: RpgSceneLabel[];
   townSquareNavigation?: boolean;
 }

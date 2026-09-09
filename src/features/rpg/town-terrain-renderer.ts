@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import type { Rect } from '../../domain/world/content/v1/types';
 import type { RpgSample, RpgStamp } from './types';
+import { getWorldTheme } from '../../domain/world/catalog/themes';
 
 const TILE = 32;
 const INDEX_CELL = 512;
@@ -160,7 +161,7 @@ export class TownTerrainRenderer {
         drawHeight ?? frame.realHeight,
       );
     };
-    const norse = this.sample.id === 'norse';
+    const terrain = getWorldTheme(this.sample.id).generation.terrain;
     if (size >= 4096) {
       // At town-wide scale, fill repeating ground and road rectangles directly.
       // Painting every 32px tile would do world-sized CPU work just to draw an overview.
@@ -184,9 +185,9 @@ export class TownTerrainRenderer {
           );
         return context.createPattern(tile, 'repeat')!;
       };
-      context.fillStyle = pattern(norse ? 'norse-terrain' : 'lpc-terrain', 17);
+      context.fillStyle = pattern(terrain.texture, terrain.groundFrame);
       context.fillRect(0, 0, width, height);
-      context.fillStyle = pattern(norse ? 'norse-terrain' : 'lpc-terrain', norse ? 15 : 68);
+      context.fillStyle = pattern(terrain.texture, terrain.roadFrame);
       const roads = new Set<Rect>();
       for (let y = Math.floor(oy / INDEX_CELL); y <= Math.floor((oy + height) / INDEX_CELL); y++)
         for (let x = Math.floor(ox / INDEX_CELL); x <= Math.floor((ox + width) / INDEX_CELL); x++)
@@ -200,16 +201,17 @@ export class TownTerrainRenderer {
             east = this.onRoad(x + 1, y);
           const south = this.onRoad(x, y + 1),
             west = this.onRoad(x - 1, y);
-          if (norse) {
+          if (terrain.style === 'cardinal-mask') {
             const mask = (north ? 1 : 0) | (east ? 2 : 0) | (south ? 4 : 0) | (west ? 8 : 0);
-            draw('norse-terrain', onPath ? mask : 16 + ((x * 17 + y * 31) % 4), x * TILE, y * TILE);
+            draw(terrain.texture, onPath ? mask : 16 + ((x * 17 + y * 31) % 4), x * TILE, y * TILE);
           } else {
             const edgeX = west ? 0 : east ? 2 : 1;
             const edgeY = north ? 0 : south ? 2 : 1;
-            if (onPath || edgeX !== 1 || edgeY !== 1) draw('lpc-terrain', 68, x * TILE, y * TILE);
+            if (onPath || edgeX !== 1 || edgeY !== 1)
+              draw(terrain.texture, terrain.roadFrame, x * TILE, y * TILE);
             if (!onPath)
               draw(
-                'lpc-terrain',
+                terrain.texture,
                 edgeX !== 1 || edgeY !== 1
                   ? edgeY * 16 + edgeX
                   : (x * 13 + y * 7) % 9 === 0

@@ -6,6 +6,7 @@ import { presentTownScene } from './town-presentation';
 import { useSavedRpgWorld, type SavedRpgStatus } from './use-saved-rpg-world';
 import { useRpgPresence } from './use-rpg-presence';
 import { useRpgVoice } from './use-rpg-voice';
+import { sampleSceneId } from '../../domain/world/catalog/scenes';
 import './rpg.css';
 
 const failures: Record<
@@ -101,7 +102,7 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
   const connection = useRpgPresence({
     guildId,
     data,
-    scene: route.theme === 'dungeon' ? 'dungeon' : 'overworld',
+    scene: sampleSceneId({ id: route.theme }),
     active: status === 'ready',
     voice,
     onRefresh: retry,

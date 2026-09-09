@@ -1,62 +1,22 @@
 import type { RpgDestination, RpgThemeId } from './types';
+import { DUNGEON_PRESENTATION } from '../../domain/world/catalog/scenes';
+import {
+  DEFAULT_WORLD_THEME_ID,
+  isWorldThemeId,
+  WORLD_THEME_IDS,
+  WORLD_THEMES,
+  type WorldThemeId,
+} from '../../domain/world/catalog/themes';
 
-export type RpgWorldId = Exclude<RpgThemeId, 'dungeon'>;
+export type RpgWorldId = WorldThemeId;
 
-interface RpgThemeDetails {
-  name: string;
-  setting: string;
-  guide: string;
-  map: { ground: string; obstacle: string };
-}
-
-interface RpgWorldTheme extends RpgThemeDetails {
-  kind: 'world';
-  label: string;
-  appearances: readonly string[];
-  defaultAppearance: string;
-  dungeonHint: string;
-}
-
-interface RpgLocationTheme extends RpgThemeDetails {
-  kind: 'location';
-  label: string;
-}
-
-/** Presentation and travel context belong here; map geometry stays in sample-worlds. */
+/** Browser travel composes the shared world and location catalogs. */
 export const RPG_THEMES = {
-  village: {
-    kind: 'world',
-    name: 'Willowmere',
-    label: 'Warm village',
-    setting: 'Sunlit paths, gardens & familiar faces',
-    guide: 'Mira by the crossroads',
-    map: { ground: '#7c995a', obstacle: '#405736' },
-    appearances: ['rowan', 'ash'],
-    defaultAppearance: 'rowan',
-    dungeonHint: 'Look for the vault steps to enter the Lantern Vault beneath the village.',
-  },
-  norse: {
-    kind: 'world',
-    name: 'Frosthavn',
-    label: 'Norse village',
-    setting: 'Pine woods, timber halls & a glowing hearth',
-    guide: 'Sigrid near Hearth square',
-    map: { ground: '#8d9c99', obstacle: '#3b4b48' },
-    appearances: ['ivar', 'sigrid'],
-    defaultAppearance: 'ivar',
-    dungeonHint: 'Find the vault entrance to explore the Lantern Vault beneath Frosthavn.',
-  },
-  dungeon: {
-    kind: 'location',
-    name: 'Lantern Vault',
-    label: 'Dungeon',
-    setting: 'Stone chambers & lantern-lit passages',
-    guide: 'Oren in the arrival chamber',
-    map: { ground: '#65717b', obstacle: '#222b36' },
-  },
-} as const satisfies Record<RpgThemeId, RpgWorldTheme | RpgLocationTheme>;
+  ...WORLD_THEMES,
+  dungeon: DUNGEON_PRESENTATION,
+} as const;
 
-export const RPG_WORLD_IDS: readonly RpgWorldId[] = ['village', 'norse'];
+export const RPG_WORLD_IDS: readonly RpgWorldId[] = WORLD_THEME_IDS;
 
 export interface RpgRoute {
   theme: RpgThemeId;
@@ -68,9 +28,10 @@ export function readRpgRoute(search: string): RpgRoute {
   const params = new URLSearchParams(search);
   const requested = params.get('theme');
   const theme: RpgThemeId =
-    requested === 'norse' || requested === 'dungeon' ? requested : 'village';
+    isWorldThemeId(requested) || requested === 'dungeon' ? requested : DEFAULT_WORLD_THEME_ID;
+  const from = params.get('from');
   const world =
-    theme === 'dungeon' ? (params.get('from') === 'norse' ? 'norse' : 'village') : theme;
+    theme === 'dungeon' ? (isWorldThemeId(from) ? from : DEFAULT_WORLD_THEME_ID) : theme;
   const street = params.get('street');
   return { theme, world, ...(street !== null ? { street } : {}) };
 }
@@ -86,9 +47,9 @@ export function resolveRpgTravel(route: RpgRoute, destination: RpgDestination): 
 }
 
 export function writeRpgRoute(url: URL, route: RpgRoute): URL {
-  if (route.theme === 'village') url.searchParams.delete('theme');
+  if (route.theme === DEFAULT_WORLD_THEME_ID) url.searchParams.delete('theme');
   else url.searchParams.set('theme', route.theme);
-  if (route.theme === 'dungeon' && route.world === 'norse')
+  if (route.theme === 'dungeon' && route.world !== DEFAULT_WORLD_THEME_ID)
     url.searchParams.set('from', route.world);
   else url.searchParams.delete('from');
   if (route.street === undefined) url.searchParams.delete('street');

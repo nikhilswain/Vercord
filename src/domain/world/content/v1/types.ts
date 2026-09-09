@@ -1,3 +1,5 @@
+import type { WorldThemeId } from '../../catalog/themes';
+
 export interface Point {
   x: number;
   y: number;
@@ -7,7 +9,7 @@ export interface Rect extends Point {
   height: number;
 }
 
-export type RpgThemeId = 'village' | 'norse' | 'dungeon';
+export type RpgThemeId = WorldThemeId | 'dungeon';
 export type RpgDestination = RpgThemeId | 'return';
 export type RpgDirection = 'down' | 'left' | 'right' | 'up';
 export type RpgAction = 'idle' | 'walk' | 'run';

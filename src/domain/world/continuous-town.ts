@@ -3,14 +3,10 @@ import { at, ground, makeSample, signpost, TILE } from './content/v1/builder';
 import { NORSE_TEXTURES } from './content/v1/norse-props';
 import { addTree, createPrefab, type SettlementPrefab } from './content/v1/prefabs';
 import type { Point, Rect, RpgLandmark } from './content/v1/types';
-import {
-  parseWorldDocument,
-  type WorldDocument,
-  type WorldScene,
-  type WorldThemeId,
-} from './document';
+import { parseWorldDocument, type WorldDocument, type WorldScene } from './document';
 import { seededRandom, shuffled } from './random';
 import { containsRect, overlaps, WORLD_PLAYER_FEET } from './geometry';
+import { getWorldTheme } from './catalog/themes';
 
 export const MAX_CONTINUOUS_TOWN_HOUSES = 1998;
 import {
@@ -21,10 +17,6 @@ import {
 } from './continuous-town-lanes';
 export { CONTINUOUS_TOWN_BLOCK_SIZE } from './continuous-town-lanes';
 const MAX_BLOCKS = 256;
-const HOUSE_TYPES: Record<WorldThemeId, readonly SettlementPrefab[]> = {
-  village: ['hall', 'brick', 'paneled'],
-  norse: ['longhouse', 'cottage', 'smithy'],
-};
 
 export interface ContinuousTownPlot extends Point {
   variant: number;
@@ -335,7 +327,10 @@ function placePrefab(
   origin: Point,
   id: string,
 ): RpgLandmark {
-  const prefab = createPrefab(prefabKey, scene.id === 'norse');
+  const prefab = createPrefab(
+    prefabKey,
+    getWorldTheme(scene.id).generation.style === 'norse-timber',
+  );
   const shift = <T extends Point>(point: T): T => ({
     ...point,
     x: point.x + origin.x,
@@ -380,7 +375,7 @@ function placePrefab(
 }
 
 function addDecorations(scene: WorldScene, seed: string, block: ContinuousTownBlock): void {
-  const norse = scene.id === 'norse';
+  const norse = getWorldTheme(scene.id).generation.style === 'norse-timber';
   for (const [index, plot] of block.plots.entries()) {
     const garden = makeSample(scene.id, 'garden', 'garden', plot);
     const random = seededRandom(`${seed}:continuous-town-v1:garden:${block.id}:${index}`);
@@ -418,7 +413,7 @@ function addWoodland(
   layout: ContinuousTownLayout,
   block: ContinuousTownBlock,
 ): void {
-  const norse = scene.id === 'norse';
+  const norse = getWorldTheme(scene.id).generation.style === 'norse-timber';
   const random = seededRandom(`${layout.seed}:woodland-v2:${block.id}`);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
   const nature = makeSample(scene.id, 'woodland', 'woodland', block);
@@ -516,6 +511,7 @@ export function generateContinuousTownDocument(
 ): WorldDocument {
   const layout = parseContinuousTownLayout(savedLayout);
   const theme = base.themeId;
+  const pack = getWorldTheme(theme);
   const civicBlock = layout.blocks[0] ?? createBlock(0, 'civic', layout.seed);
   const blocks = layout.blocks.length ? layout.blocks : [civicBlock];
   if (!layout.blocks.length)
@@ -529,14 +525,7 @@ export function generateContinuousTownDocument(
     width: Math.max(...blocks.map((block) => block.x)) + CONTINUOUS_TOWN_BLOCK_SIZE,
     height: Math.max(...blocks.map((block) => block.y)) + CONTINUOUS_TOWN_BLOCK_SIZE,
   };
-  const sample = makeSample(
-    theme,
-    theme === 'norse' ? 'Frosthavn' : 'Willowmere',
-    theme === 'norse'
-      ? 'Timber homes and gardens along the northern lanes'
-      : 'Homes and gardens along the village lanes',
-    at(49, 56),
-  );
+  const sample = makeSample(theme, pack.name, pack.generation.townSubtitle, at(49, 56));
   const scene: WorldScene = {
     ...sample,
     bounds,
@@ -545,9 +534,9 @@ export function generateContinuousTownDocument(
     lights: [],
     terrain: { version: 1, roads: [] },
   };
-  if (theme === 'norse') {
+  scene.background = pack.generation.background;
+  if (pack.generation.style === 'norse-timber') {
     scene.textures = [...scene.textures, ...NORSE_TEXTURES];
-    scene.background = '#304f59';
   }
   const roads = scene.terrain!.roads;
   for (const block of blocks) {
@@ -561,7 +550,12 @@ export function generateContinuousTownDocument(
   for (const entry of layout.entries) {
     const block = layout.blocks[entry.blockId]!;
     const plot = block.plots[entry.plotIndex]!;
-    const entrance = placePrefab(scene, HOUSE_TYPES[theme][plot.variant]!, plot, entry.landmarkId);
+    const entrance = placePrefab(
+      scene,
+      pack.generation.housePrefabs[plot.variant]!,
+      plot,
+      entry.landmarkId,
+    );
     const row = Math.floor(((plot.y - block.y) / TILE - 3) / 14);
     const roadY = block.roadStyle === 2 ? frontage(plot).y : block.roadY + row * 14 * TILE;
     approach(roads, entrance, roadY);

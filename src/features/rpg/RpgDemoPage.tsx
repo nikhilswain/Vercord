@@ -19,7 +19,7 @@ export function RpgDemoPage() {
       route={route}
       sample={getRpgSample(route.theme)}
       samples={samples}
-      worldKey="demo"
+      worldKey={`demo/${route.world}`}
       onTravel={travel}
     />
   );

@@ -2,6 +2,8 @@ import * as Phaser from 'phaser';
 import { WorldInput, worldInputBlocked } from '../world/engine/input';
 import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
+import { sampleSceneId } from '../../domain/world/catalog/scenes';
+import { DEFAULT_RPG_CHARACTER_ID } from '../../domain/world/catalog/characters';
 import { preloadRpgCharacters, RpgCharacter } from './character';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
@@ -23,7 +25,7 @@ export class RpgScene extends Phaser.Scene {
   private signage: TownSignage | null = null;
   private marker: Phaser.GameObjects.Graphics | null = null;
   private playerMarker: Phaser.GameObjects.Ellipse | null = null;
-  private appearance = 'rowan';
+  private appearance: string = DEFAULT_RPG_CHARACTER_ID;
   private created = false;
   private failed = false;
   private disposed = false;
@@ -168,7 +170,7 @@ export class RpgScene extends Phaser.Scene {
   }
 
   public setPlayers(players: readonly RpgPresencePlayer[]): void {
-    const scene = this.simulation.sample.id === 'dungeon' ? 'dungeon' : 'overworld';
+    const scene = sampleSceneId(this.simulation.sample);
     this.players = players.filter((player) => player.scene === scene);
     this.remotes?.setPlayers(this.players, this.elapsed);
   }
@@ -418,7 +420,7 @@ export class RpgScene extends Phaser.Scene {
       ...this.simulation.player,
       direction: this.simulation.direction,
       action: this.simulation.action,
-      scene: this.simulation.sample.id === 'dungeon' ? 'dungeon' : 'overworld',
+      scene: sampleSceneId(this.simulation.sample),
     };
   }
 

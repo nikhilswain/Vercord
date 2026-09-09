@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { RPG_CHARACTER_IDS } from '../world/catalog/characters';
+import { RPG_SCENE_IDS } from '../world/catalog/scenes';
 
-export const RPG_APPEARANCE_IDS = ['rowan', 'ash', 'ivar', 'sigrid'] as const;
+export const RPG_APPEARANCE_IDS = RPG_CHARACTER_IDS;
 export const rpgAppearanceSchema = z.enum(RPG_APPEARANCE_IDS);
-export const rpgSceneSchema = z.enum(['overworld', 'dungeon']);
+export const rpgSceneSchema = z.enum(RPG_SCENE_IDS);
 export const rpgLocationSchema = z.strictObject({
   x: z.number().finite().min(0).max(32768),
   y: z.number().finite().min(0).max(32768),

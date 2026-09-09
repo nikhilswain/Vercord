@@ -3,10 +3,11 @@ import { RPG_TEXTURES } from './content/v1/assets';
 import { NORSE_TEXTURES } from './content/v1/norse-props';
 import type { Rect, RpgSample, RpgStamp } from './content/v1/types';
 import { containsRect, footprint, overlaps } from './geometry';
+import { WORLD_THEME_IDS, getWorldTheme, type WorldThemeId } from './catalog/themes';
 
 export const WORLD_GENERATOR_VERSION = 1;
 export const WORLD_CONTENT_VERSION = 'rpg-v1';
-export type WorldThemeId = 'village' | 'norse';
+export type { WorldThemeId } from './catalog/themes';
 export interface WorldScene extends Omit<RpgSample, 'stamps' | 'colliders' | 'lights'> {
   stamps: Array<RpgStamp & { id: string }>;
   colliders: Array<Rect & { id: string }>;
@@ -59,20 +60,21 @@ const landmark = point.extend({
   description: text,
   radius: z.number().finite().min(24).max(128),
   kind: z.enum(['sign', 'portal', 'view']),
-  destination: z.enum(['village', 'norse', 'dungeon', 'return']).optional(),
+  destination: z.enum([...WORLD_THEME_IDS, 'dungeon', 'return']).optional(),
   labelAnchor: point.optional(),
 });
 const npc = point.extend({
   id,
   name: text,
   role: text,
+  // Saved rpg-v1 NPC content keeps its historical allowlist when live appearances expand.
   appearance: z.enum(['rowan', 'ash', 'ivar', 'sigrid']),
   direction: z.enum(['up', 'down', 'left', 'right']),
   lines: z.array(text).min(1).max(12),
 });
 const scene = z
   .object({
-    id: z.enum(['village', 'norse', 'dungeon']),
+    id: z.enum([...WORLD_THEME_IDS, 'dungeon']),
     name: text,
     subtitle: text,
     bounds: rectangle,
@@ -101,7 +103,7 @@ const townDimension = z.number().finite().positive().max(32768);
 const townPoint = z.object({ x: townCoordinate, y: townCoordinate }).strict();
 const townRectangle = townPoint.extend({ width: townDimension, height: townDimension });
 const townScene = scene.extend({
-  id: z.enum(['village', 'norse']),
+  id: z.enum(WORLD_THEME_IDS),
   bounds: townRectangle,
   spawn: townPoint,
   stamps: z
@@ -133,7 +135,7 @@ const schema = z
     generatorVersion: z.literal(1),
     contentVersion: z.literal('rpg-v1'),
     worldId: z.uuid(),
-    themeId: z.enum(['village', 'norse']),
+    themeId: z.enum(WORLD_THEME_IDS),
     seed: z.uuid(),
     geometryRevision: z.literal(1),
     scenes: z.object({ overworld: z.union([scene, townScene]), dungeon: scene }).strict(),
@@ -214,7 +216,7 @@ function validateScene(value: WorldScene): void {
     fail();
   if (value.colliders.some((box) => !containsRect(value.bounds, box))) fail();
   if (value.terrain) {
-    const terrainTexture = value.id === 'norse' ? 'norse-terrain' : 'lpc-terrain';
+    const terrainTexture = getWorldTheme(value.id).generation.terrain.texture;
     if (!textures.has(terrainTexture)) fail();
     for (const road of value.terrain.roads) {
       if (

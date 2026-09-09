@@ -1,6 +1,7 @@
 import { containsPoint, overlaps, resolveMovement } from '../world/engine/collision';
 import { footprint, WORLD_PLAYER_FEET } from '../../domain/world/geometry';
 import type { RpgLocation } from '../../domain/presence/rpg-protocol';
+import { sampleSceneId } from '../../domain/world/catalog/scenes';
 import { RpgPathfinder } from './pathfinding';
 import type { MovementVector } from '../world/engine/input';
 import type { Point, Rect } from '../world/engine/types';
@@ -58,7 +59,7 @@ export class RpgSimulation {
 
   /** Corrections replan the remaining intent; fresh admissions and explicit stops clear it. */
   public setPlayerPosition(location: RpgLocation, resumeDestination = false): boolean {
-    const scene = this.sample.id === 'dungeon' ? 'dungeon' : 'overworld';
+    const scene = sampleSceneId(this.sample);
     if (location.scene !== scene || !this.isSafePosition(location)) return false;
     const destination = resumeDestination && !this.blocked ? this.destination : null;
     this.stop();

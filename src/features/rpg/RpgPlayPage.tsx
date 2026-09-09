@@ -7,7 +7,7 @@ import { VirtualJoystick } from '../world/VirtualJoystick';
 import { RPG_APPEARANCES } from './character';
 import { RpgIcon, type RpgIconName } from './RpgIcon';
 import { RpgPanels, type RpgPanel } from './RpgPanels';
-import { RPG_THEMES, type RpgRoute, type RpgWorldId } from './themes';
+import { RPG_THEMES, RPG_WORLD_IDS, type RpgRoute, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgDialogue, RpgSample, RpgUiState } from './types';
 import { useRpgGame } from './use-rpg-game';
 import type { RpgConnection } from './use-rpg-presence';
@@ -54,10 +54,12 @@ export function RpgPlayPage({
   pendingState,
 }: Props) {
   const { theme, world } = route;
-  const [appearances, setAppearances] = useState<Record<RpgWorldId, string>>({
-    village: RPG_THEMES.village.defaultAppearance,
-    norse: RPG_THEMES.norse.defaultAppearance,
-  });
+  const [appearances, setAppearances] = useState<Record<RpgWorldId, string>>(
+    () =>
+      Object.fromEntries(
+        RPG_WORLD_IDS.map((id) => [id, RPG_THEMES[id].defaultAppearance]),
+      ) as Record<RpgWorldId, string>,
+  );
   const appearance = server?.connection?.self?.appearance ?? appearances[world];
   const [panel, setPanel] = useState<RpgPanel | null>(null);
   const [speech, setSpeech] = useState<RpgDialogue | null>(null);

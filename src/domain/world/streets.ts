@@ -10,14 +10,11 @@ import {
 } from './document';
 import { overlaps, sceneIsReachable } from './geometry';
 import { seededRandom, shuffled } from './random';
+import { getWorldTheme } from './catalog/themes';
 
 export const STREET_HOUSE_COUNT = 6;
 const COLUMNS = 48;
 const ROWS = 38;
-const HOUSES: Record<WorldThemeId, readonly SettlementPrefab[]> = {
-  village: ['hall', 'brick', 'paneled', 'hall', 'brick', 'paneled'],
-  norse: ['longhouse', 'cottage', 'smithy', 'longhouse', 'cottage', 'smithy'],
-};
 
 function lane(paths: Set<string>, points: Point[]): void {
   for (let index = 1; index < points.length; index++) {
@@ -36,7 +33,7 @@ function lane(paths: Set<string>, points: Point[]): void {
 }
 
 function placePrefab(sample: RpgSample, key: SettlementPrefab, origin: Point, id: string): Point {
-  const prefab = createPrefab(key, sample.id === 'norse');
+  const prefab = createPrefab(key, getWorldTheme(sample.id).generation.style === 'norse-timber');
   const shift = <T extends Point>(point: T): T => ({
     ...point,
     x: point.x + origin.x,
@@ -67,6 +64,7 @@ function placePrefab(sample: RpgSample, key: SettlementPrefab, origin: Point, id
 }
 
 function paintTerrain(sample: RpgSample, paths: Set<string>): void {
+  const { terrain } = getWorldTheme(sample.id).generation;
   // Clip after all scenery is placed: no road tile may overlap a solid base.
   for (const key of paths) {
     const [x, y] = key.split(',').map(Number) as [number, number];
@@ -83,21 +81,22 @@ function paintTerrain(sample: RpgSample, paths: Set<string>): void {
   for (let y = 0; y < ROWS; y++)
     for (let x = 0; x < COLUMNS; x++) {
       const onPath = paths.has(cell(x, y));
-      if (sample.id === 'norse') {
+      if (terrain.style === 'cardinal-mask') {
         const mask =
           (paths.has(cell(x, y - 1)) ? 1 : 0) |
           (paths.has(cell(x + 1, y)) ? 2 : 0) |
           (paths.has(cell(x, y + 1)) ? 4 : 0) |
           (paths.has(cell(x - 1, y)) ? 8 : 0);
-        ground(sample, 'norse-terrain', onPath ? mask : 16 + ((x * 17 + y * 31) % 4), x, y);
+        ground(sample, terrain.texture, onPath ? mask : 16 + ((x * 17 + y * 31) % 4), x, y);
       } else {
         const edgeX = paths.has(cell(x - 1, y)) ? 0 : paths.has(cell(x + 1, y)) ? 2 : 1;
         const edgeY = paths.has(cell(x, y - 1)) ? 0 : paths.has(cell(x, y + 1)) ? 2 : 1;
-        if (onPath || edgeX !== 1 || edgeY !== 1) ground(sample, 'lpc-terrain', 68, x, y);
+        if (onPath || edgeX !== 1 || edgeY !== 1)
+          ground(sample, terrain.texture, terrain.roadFrame, x, y);
         if (!onPath)
           ground(
             sample,
-            'lpc-terrain',
+            terrain.texture,
             edgeX !== 1 || edgeY !== 1 ? edgeY * 16 + edgeX : (x * 13 + y * 7) % 9 === 0 ? 35 : 17,
             x,
             y,
@@ -114,19 +113,20 @@ function paintTerrain(sample: RpgSample, paths: Set<string>): void {
 function assembleStreet(theme: WorldThemeId, seed: string): WorldScene {
   const random = seededRandom(seed);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
-  const norse = theme === 'norse';
+  const { generation } = getWorldTheme(theme);
+  const norse = generation.style === 'norse-timber';
   const upperRoad = integer(13, 14);
   const lowerRoad = integer(33, 34);
   const crossLane = integer(16, 17);
   const otherLane = integer(32, 33);
   const sample = makeSample(
     theme,
-    norse ? 'Pine Street' : 'Willow Lane',
-    norse ? 'Timber homes along the stone lanes' : 'Homes and gardens along a quiet lane',
+    generation.streetName,
+    generation.streetSubtitle,
     at(9, upperRoad),
   );
   sample.bounds = { x: 0, y: 0, width: COLUMNS * TILE, height: ROWS * TILE };
-  sample.background = norse ? '#304f59' : '#4b8035';
+  sample.background = generation.background;
   if (norse) sample.textures = [...sample.textures, ...NORSE_TEXTURES];
   const paths = new Set<string>();
   const clearances: Rect[] = [];
@@ -134,7 +134,11 @@ function assembleStreet(theme: WorldThemeId, seed: string): WorldScene {
   lane(paths, [at(3, lowerRoad), at(45, lowerRoad)]);
   for (const x of [crossLane, otherLane]) lane(paths, [at(x, upperRoad), at(x, lowerRoad)]);
 
-  shuffled(HOUSES[theme], random).forEach((key, index) => {
+  const houses = Array.from(
+    { length: STREET_HOUSE_COUNT },
+    (_, index) => generation.housePrefabs[index % generation.housePrefabs.length]!,
+  );
+  shuffled(houses, random).forEach((key, index) => {
     const x = [2, 18, 34][index % 3]! + integer(0, 1);
     const y = index < 3 ? integer(2, 3) : integer(20, 22);
     const entrance = placePrefab(sample, key, at(x, y), `house:${index}`);

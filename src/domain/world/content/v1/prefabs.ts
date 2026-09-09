@@ -1,19 +1,9 @@
 import { at, block, ground, makeSample, object, signpost } from './builder';
 import { norseProp, NORSE_TEXTURES } from './norse-props';
 import type { Point, RpgLandmark, RpgSample } from './types';
+import type { WorldPrefabId } from '../../catalog/prefabs';
 
-export type SettlementPrefab =
-  | 'hall'
-  | 'brick'
-  | 'paneled'
-  | 'grove'
-  | 'garden'
-  | 'vault'
-  | 'longhouse'
-  | 'cottage'
-  | 'smithy'
-  | 'runes'
-  | 'landing';
+export type SettlementPrefab = WorldPrefabId;
 export interface AuthoredPrefab {
   key: SettlementPrefab;
   scene: RpgSample;
@@ -59,7 +49,7 @@ function addLandmark(
 export function createPrefab(key: SettlementPrefab, norse: boolean): AuthoredPrefab {
   const scene = makeSample(norse ? 'norse' : 'village', key, key, at(0, 0));
   if (norse) scene.textures = [...scene.textures, ...NORSE_TEXTURES];
-  let entrance = at(5, 9);
+  let entrance: Point;
   let approaches: Point[][] | undefined;
   switch (key) {
     case 'hall': {
@@ -242,6 +232,10 @@ export function createPrefab(key: SettlementPrefab, norse: boolean): AuthoredPre
       );
       signpost(scene, 8.5, 7);
       break;
+    }
+    default: {
+      const unsupported: never = key;
+      throw new Error(`Unsupported settlement prefab: ${unsupported}`);
     }
   }
   if (['hall', 'brick', 'paneled'].includes(key))

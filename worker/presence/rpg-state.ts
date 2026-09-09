@@ -3,13 +3,15 @@ import {
   rpgAdmissionSchema,
   rpgAppearanceSchema,
   rpgLocationSchema,
-  type RpgAppearanceId,
   type RpgLocation,
 } from '../../src/domain/presence/rpg-protocol';
 import type { WorldDocument } from '../../src/domain/world/document';
 import { worldThemeIdSchema, type WorldBindings } from '../../src/domain/world/protocol';
 import { WorldAccessError } from '../live-world/coordinator';
 import { RpgCollisionMap } from './rpg-geometry';
+import { appearanceFitsTheme, getWorldTheme } from '../../src/domain/world/catalog/themes';
+
+export { appearanceFitsTheme } from '../../src/domain/world/catalog/themes';
 
 export const rpgPartitionSchema = rpgAdmissionSchema.extend({
   theme: worldThemeIdSchema,
@@ -55,14 +57,6 @@ export function rpgPartitionKey(partition: RpgPartition): string {
 }
 export function sameRpgPartition(first: RpgPartition, second: RpgPartition): boolean {
   return first.theme === second.theme && rpgPartitionKey(first) === rpgPartitionKey(second);
-}
-export function appearanceFitsTheme(
-  appearance: RpgAppearanceId,
-  theme: RpgPartition['theme'],
-): boolean {
-  return theme === 'village'
-    ? appearance === 'rowan' || appearance === 'ash'
-    : appearance === 'ivar' || appearance === 'sigrid';
 }
 
 /** Geometry stays server-owned; socket attachments and saved progress contain only small state. */
@@ -133,9 +127,7 @@ export class RpgPresenceState {
           parsedAppearance.success &&
           appearanceFitsTheme(parsedAppearance.data.appearance, partition.theme)
             ? parsedAppearance.data.appearance
-            : partition.theme === 'village'
-              ? 'rowan'
-              : 'ivar',
+            : getWorldTheme(partition.theme).defaultAppearance,
         appearanceUpdatedAt: parsedAppearance.success ? parsedAppearance.data.updatedAt : 0,
         budget: BUDGET,
         budgetAt: now,

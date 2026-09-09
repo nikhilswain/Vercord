@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { RpgGame } from './rpg-game';
+import { sampleSceneId } from '../../domain/world/catalog/scenes';
 import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import type {
@@ -47,7 +48,7 @@ export function useRpgGame(options: Options) {
     onMove,
     onHouse,
   } = options;
-  const sceneKey = `${worldKey}/${sample.id}`;
+  const sceneKey = `${worldKey}/${sampleSceneId(sample)}`;
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<RpgRuntime | null>(null);

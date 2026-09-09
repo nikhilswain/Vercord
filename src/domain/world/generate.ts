@@ -1,6 +1,6 @@
 import { at, cell, ground, makeSample, paint, signpost } from './content/v1/builder';
 import { buildDungeon } from './content/v1/dungeon';
-import { addTree, createPrefab, type SettlementPrefab } from './content/v1/prefabs';
+import { addTree, createPrefab } from './content/v1/prefabs';
 import { norseProp, NORSE_TEXTURES } from './content/v1/norse-props';
 import type { Point, Rect, RpgSample } from './content/v1/types';
 import {
@@ -11,14 +11,11 @@ import {
 } from './document';
 import { overlaps, sceneIsReachable } from './geometry';
 import { seededRandom, shuffled } from './random';
+import { getWorldTheme } from './catalog/themes';
 
 const TILE = 32;
 const COLUMNS = 52;
 const ROWS = 42;
-const PREFABS: Record<WorldThemeId, SettlementPrefab[]> = {
-  village: ['hall', 'brick', 'paneled', 'grove', 'garden', 'vault'],
-  norse: ['longhouse', 'cottage', 'smithy', 'runes', 'landing', 'vault'],
-};
 
 function identify(sample: RpgSample, scene: 'overworld' | 'dungeon'): WorldScene {
   return {
@@ -45,16 +42,13 @@ function assembleOverworld(theme: WorldThemeId, seed: string): RpgSample {
   const random = seededRandom(seed);
   const integer = (minimum: number, maximum: number) =>
     minimum + Math.floor(random() * (maximum - minimum + 1));
-  const norse = theme === 'norse';
+  const pack = getWorldTheme(theme);
+  const { generation } = pack;
+  const norse = generation.style === 'norse-timber';
   const center = at(integer(23, 28), 21);
-  const sample = makeSample(
-    theme,
-    norse ? 'Frosthavn' : 'Willowmere',
-    norse ? 'Timber halls beside a northern lake' : 'A quiet village at the forest edge',
-    center,
-  );
+  const sample = makeSample(theme, pack.name, generation.subtitle, center);
   sample.bounds = { x: 0, y: 0, width: COLUMNS * TILE, height: ROWS * TILE };
-  sample.background = norse ? '#304f59' : '#4b8035';
+  sample.background = generation.background;
   if (norse) sample.textures = [...sample.textures, ...NORSE_TEXTURES];
   const paths = new Set<string>();
   const clearances: Rect[] = [];
@@ -72,7 +66,7 @@ function assembleOverworld(theme: WorldThemeId, seed: string): RpgSample {
   paint(paths, center.x / TILE - 4, 18, 9, 6);
   clearances.push({ x: center.x - 6 * TILE, y: 17 * TILE, width: 12 * TILE, height: 8 * TILE });
 
-  const modules = shuffled(PREFABS[theme], random);
+  const modules = shuffled(generation.prefabs, random);
   modules.forEach((key, index) => {
     const origin = at(
       [4, 20, 36][index % 3]! + integer(0, 1),
@@ -122,37 +116,25 @@ function assembleOverworld(theme: WorldThemeId, seed: string): RpgSample {
   });
 
   sample.npcs.push({
-    id: norse ? 'sigrid' : 'mira',
-    name: norse ? 'Sigrid' : 'Mira',
-    role: norse ? 'Keeper of the hearth' : 'Village keeper',
-    appearance: norse ? 'sigrid' : 'ash',
+    id: generation.keeper.id,
+    name: generation.keeper.name,
+    role: generation.keeper.role,
+    appearance: generation.keeper.appearance,
     direction: 'right',
     x: center.x - 64,
     y: center.y,
-    lines: norse
-      ? [
-          'Welcome to Frosthavn. Come closer to the hearth; the wind off the lake can find every gap in a good coat.',
-          'The stone lanes connect our longhouse, homes and smithy. Follow the loop to find the landing and the carved stones beneath the pines.',
-          'A sheltered stair leads down into the Lantern Vault. The lamps are still burning.',
-        ]
-      : [
-          'Welcome to Willowmere. The kettle is warm, and there is always room for one more traveler.',
-          'Our lanes wind past the gathering hall, the cottages and the listening grove. The bridge in the water garden is the best place to watch the afternoon drift by.',
-          'The old stone stairs lead to the Lantern Vault. Oren keeps the lamps lit down there. Tell him I have not forgotten his tea.',
-        ],
+    lines: [...generation.keeper.lines],
   });
   const square = norse
     ? norseProp(sample, 'hearth', center.x / TILE + 2, 21)
     : signpost(sample, center.x / TILE + 3, 22);
   sample.landmarks.push({
-    id: norse ? 'frosthavn-hearth' : 'willowmere-sign',
-    name: norse ? 'Hearth square' : 'Willowmere crossroads',
+    id: generation.square.id,
+    name: generation.square.name,
     ...square,
     radius: 64,
-    kind: norse ? 'view' : 'sign',
-    description: norse
-      ? 'A ring of worn stones holds the village fire, banked every night and coaxed back to life before dawn.'
-      : 'Willowmere welcomes travelers. Follow the lanes to the hall, listening grove, water garden, and the Lantern Vault. Please leave the gate as you found it.',
+    kind: generation.square.kind,
+    description: generation.square.description,
   });
   if (norse) sample.lights.push({ ...at(center.x / TILE + 3, 21.8), radius: 95, color: 0xe9a453 });
 
@@ -185,21 +167,28 @@ function assembleOverworld(theme: WorldThemeId, seed: string): RpgSample {
   for (let y = 0; y < ROWS; y++)
     for (let x = 0; x < COLUMNS; x++) {
       const onPath = paths.has(cell(x, y));
-      if (norse) {
+      if (generation.terrain.style === 'cardinal-mask') {
         const mask =
           (paths.has(cell(x, y - 1)) ? 1 : 0) |
           (paths.has(cell(x + 1, y)) ? 2 : 0) |
           (paths.has(cell(x, y + 1)) ? 4 : 0) |
           (paths.has(cell(x - 1, y)) ? 8 : 0);
-        ground(sample, 'norse-terrain', onPath ? mask : 16 + ((x * 17 + y * 31) % 4), x, y);
+        ground(
+          sample,
+          generation.terrain.texture,
+          onPath ? mask : 16 + ((x * 17 + y * 31) % 4),
+          x,
+          y,
+        );
       } else {
         const edgeX = paths.has(cell(x - 1, y)) ? 0 : paths.has(cell(x + 1, y)) ? 2 : 1;
         const edgeY = paths.has(cell(x, y - 1)) ? 0 : paths.has(cell(x, y + 1)) ? 2 : 1;
-        if (onPath || edgeX !== 1 || edgeY !== 1) ground(sample, 'lpc-terrain', 68, x, y);
+        if (onPath || edgeX !== 1 || edgeY !== 1)
+          ground(sample, generation.terrain.texture, generation.terrain.roadFrame, x, y);
         if (!onPath)
           ground(
             sample,
-            'lpc-terrain',
+            generation.terrain.texture,
             edgeX !== 1 || edgeY !== 1 ? edgeY * 16 + edgeX : (x * 13 + y * 7) % 9 === 0 ? 35 : 17,
             x,
             y,
@@ -218,7 +207,7 @@ export function generateWorldDocument(input: {
   themeId: WorldThemeId;
   seed: string;
 }): WorldDocument {
-  if (!PREFABS[input.themeId]) throw new Error('Unsupported world theme');
+  getWorldTheme(input.themeId);
   const dungeon = buildDungeon();
   if (!sceneIsReachable(dungeon)) throw new Error('Invalid pinned dungeon content');
   for (let attempt = 0; attempt < 4; attempt++) {
