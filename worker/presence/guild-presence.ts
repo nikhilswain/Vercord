@@ -37,7 +37,7 @@ import { sendDiscordGatewayCommand } from '../voice/bridge-client';
 import { MemberSlowmode } from '../messages/member-slowmode';
 import { worldThemeIdSchema, streetSelectionSchema } from '../../src/domain/world/protocol';
 import { WorldInstanceStore } from '../worlds/instance-store';
-import { TownStore } from '../worlds/town-store';
+import { ContinuousTownStore } from '../worlds/continuous-town-store';
 import { WorldSaveError } from '../worlds/save-error';
 
 const MAX_CONNECTIONS = 200;
@@ -189,7 +189,7 @@ export class GuildPresence extends DurableObject<Env> {
   private coordinator!: LiveWorldCoordinator;
   private readonly slowmode: MemberSlowmode;
   private readonly worldInstances: WorldInstanceStore;
-  private readonly towns: TownStore;
+  private readonly towns: ContinuousTownStore;
   private messageCoverage: MessageCoverage = {
     epoch: 0,
     online: false,
@@ -206,7 +206,7 @@ export class GuildPresence extends DurableObject<Env> {
     super(state, env);
     this.slowmode = new MemberSlowmode(state.storage);
     this.worldInstances = new WorldInstanceStore(env.AUTH_DB);
-    this.towns = new TownStore(env.AUTH_DB);
+    this.towns = new ContinuousTownStore(env.AUTH_DB);
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch, messageCoverage] =
         await Promise.all([

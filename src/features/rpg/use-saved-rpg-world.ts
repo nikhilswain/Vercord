@@ -89,6 +89,7 @@ export function useSavedRpgWorld(
             !parsed.success ||
             parsed.data.document.themeId !== world ||
             (street !== undefined &&
+              !parsed.data.town?.continuous &&
               (!parsed.data.town ||
                 parsed.data.town.activeStreetId !== (street === 'square' ? null : street)))
           ) {

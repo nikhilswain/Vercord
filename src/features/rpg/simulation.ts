@@ -1,6 +1,6 @@
 import { containsPoint, overlaps, resolveMovement } from '../world/engine/collision';
 import { footprint, WORLD_PLAYER_FEET } from '../../domain/world/geometry';
-import { findPath } from '../world/engine/pathfinding';
+import { RpgPathfinder } from './pathfinding';
 import type { MovementVector } from '../world/engine/input';
 import type { Point, Rect } from '../world/engine/types';
 import type { RpgAction, RpgDirection, RpgLandmark, RpgNearby, RpgNpc, RpgSample } from './types';
@@ -23,8 +23,7 @@ export class RpgSimulation {
   public action: RpgAction = 'idle';
   public blocked = false;
   private route: Point[] = [];
-  private colliders: Rect[] = [];
-  private readonly collisionCells = new Map<string, Rect[]>();
+  private pathfinder!: RpgPathfinder;
 
   public constructor(
     public sample: RpgSample,
@@ -82,7 +81,7 @@ export class RpgSimulation {
 
   public navigate(point: Point): void {
     if (this.blocked) return;
-    this.route = findPath(this.player, point, this.colliders, this.sample.bounds, RPG_FEET);
+    this.route = this.pathfinder.findPath(this.player, point);
   }
 
   public tick(delta: number, movement: MovementVector): void {
@@ -189,31 +188,15 @@ export class RpgSimulation {
   }
 
   private indexColliders(): void {
-    this.colliders = [...this.sample.colliders, ...this.sample.npcs.map(footprint)];
-    this.collisionCells.clear();
-    for (const box of this.colliders) {
-      for (const cell of this.cellsFor(box)) {
-        const entries = this.collisionCells.get(cell) ?? [];
-        entries.push(box);
-        this.collisionCells.set(cell, entries);
-      }
-    }
+    this.pathfinder = new RpgPathfinder(
+      this.sample.bounds,
+      [...this.sample.colliders, ...this.sample.npcs.map(footprint)],
+      RPG_FEET,
+      this.sample.terrain?.roads,
+    );
   }
 
   private queryColliders(box: Rect): Rect[] {
-    const result = new Set<Rect>();
-    for (const cell of this.cellsFor(box)) {
-      for (const collider of this.collisionCells.get(cell) ?? []) result.add(collider);
-    }
-    return [...result];
-  }
-
-  private cellsFor(box: Rect): string[] {
-    const keys: string[] = [];
-    for (let x = Math.floor(box.x / 128); x <= Math.floor((box.x + box.width) / 128); x += 1) {
-      for (let y = Math.floor(box.y / 128); y <= Math.floor((box.y + box.height) / 128); y += 1)
-        keys.push(`${x}:${y}`);
-    }
-    return keys;
+    return this.pathfinder.queryColliders(box);
   }
 }

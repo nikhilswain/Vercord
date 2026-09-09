@@ -60,6 +60,7 @@ const landmark = point.extend({
   radius: z.number().finite().min(24).max(128),
   kind: z.enum(['sign', 'portal', 'view']),
   destination: z.enum(['village', 'norse', 'dungeon', 'return']).optional(),
+  labelAnchor: point.optional(),
 });
 const npc = point.extend({
   id,
@@ -93,6 +94,39 @@ const scene = z
     background: z.string().regex(/^#[a-fA-F0-9]{6}$/),
   })
   .strict();
+// Only explicit terrain-v1 scenes opt in to larger geometry. Legacy documents retain
+// their original dimensions, coordinate ranges and collection limits above.
+const townCoordinate = z.number().finite().min(-256).max(33024);
+const townDimension = z.number().finite().positive().max(32768);
+const townPoint = z.object({ x: townCoordinate, y: townCoordinate }).strict();
+const townRectangle = townPoint.extend({ width: townDimension, height: townDimension });
+const townScene = scene.extend({
+  id: z.enum(['village', 'norse']),
+  bounds: townRectangle,
+  spawn: townPoint,
+  stamps: z
+    .array(stamp.extend({ ...townPoint.shape, depth: townCoordinate.optional() }))
+    .min(1)
+    .max(20000),
+  colliders: z.array(townRectangle.extend({ id })).max(10000),
+  npcs: z.array(npc.extend(townPoint.shape)).max(32),
+  landmarks: z
+    .array(landmark.extend({ ...townPoint.shape, labelAnchor: townPoint.optional() }))
+    .min(1)
+    .max(2000),
+  lights: z
+    .array(
+      townPoint.extend({
+        id,
+        radius: z.number().finite().positive().max(512),
+        color: z.number().int().min(0).max(0xffffff),
+      }),
+    )
+    .max(2000),
+  terrain: z
+    .object({ version: z.literal(1), roads: z.array(townRectangle).min(1).max(6000) })
+    .strict(),
+});
 const schema = z
   .object({
     schemaVersion: z.literal(1),
@@ -102,7 +136,7 @@ const schema = z
     themeId: z.enum(['village', 'norse']),
     seed: z.uuid(),
     geometryRevision: z.literal(1),
-    scenes: z.object({ overworld: scene, dungeon: scene }).strict(),
+    scenes: z.object({ overworld: z.union([scene, townScene]), dungeon: scene }).strict(),
   })
   .strict();
 
@@ -175,10 +209,57 @@ function validateScene(value: WorldScene): void {
   if (
     value.bounds.x !== 0 ||
     value.bounds.y !== 0 ||
-    value.bounds.width * value.bounds.height > 3_000_000
+    (!value.terrain && value.bounds.width * value.bounds.height > 3_000_000)
   )
     fail();
   if (value.colliders.some((box) => !containsRect(value.bounds, box))) fail();
+  if (value.terrain) {
+    const terrainTexture = value.id === 'norse' ? 'norse-terrain' : 'lpc-terrain';
+    if (!textures.has(terrainTexture)) fail();
+    for (const road of value.terrain.roads) {
+      if (
+        !containsRect(value.bounds, road) ||
+        [road.x, road.y, road.width, road.height].some((number) => number % 32 !== 0) ||
+        value.colliders.some((box) => overlaps(road, box))
+      )
+        fail();
+    }
+    // The compact road graph proves routes with room for the complete player feet;
+    // it never allocates a tile grid proportional to the world's area.
+    const connected = value.terrain.roads.filter((road) =>
+      containsRect(road, footprint(value.spawn)),
+    );
+    const remaining = new Set(value.terrain.roads.filter((road) => !connected.includes(road)));
+    for (let index = 0; index < connected.length; index++) {
+      const road = connected[index]!;
+      for (const other of remaining) {
+        const width =
+          Math.min(road.x + road.width, other.x + other.width) - Math.max(road.x, other.x);
+        const height =
+          Math.min(road.y + road.height, other.y + other.height) - Math.max(road.y, other.y);
+        if (width >= 32 && height >= 32) {
+          connected.push(other);
+          remaining.delete(other);
+        }
+      }
+    }
+    if (remaining.size || !connected.length) fail();
+    for (const target of [...value.landmarks, ...value.npcs]) {
+      if (!connected.some((road) => containsRect(road, footprint(target)))) fail();
+    }
+    for (const target of [
+      ...value.landmarks.map((entry) => entry.labelAnchor).filter((entry) => entry !== undefined),
+      ...value.lights,
+    ]) {
+      if (
+        target.x < 0 ||
+        target.y < 0 ||
+        target.x > value.bounds.width ||
+        target.y > value.bounds.height
+      )
+        fail();
+    }
+  }
   const obstacles = [...value.colliders, ...value.npcs.map(footprint)];
   if (
     !containsRect(value.bounds, footprint(value.spawn)) ||

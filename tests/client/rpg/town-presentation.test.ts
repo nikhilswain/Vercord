@@ -65,6 +65,59 @@ const sample: RpgSample = {
 };
 
 describe('saved town presentation', () => {
+  it('labels houses across all continuous neighborhoods using roof anchors and keeps titles above them', () => {
+    const continuous: WorldTown = {
+      continuous: true,
+      activeStreetId: null,
+      districts: [
+        town.districts[0]!,
+        {
+          key: 'd_two',
+          label: 'Gathering',
+          streets: [
+            {
+              id: 'second',
+              number: 1,
+              rooms: [
+                { key: 'r_two', label: 'fireside-chat', type: 'voice', landmarkId: 'house:1' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const saved = {
+      ...sample,
+      landmarks: sample.landmarks.map((landmark) => ({
+        ...landmark,
+        labelAnchor: { x: landmark.x + 3, y: landmark.y - 190 },
+      })),
+    };
+    const before = structuredClone(saved);
+    const result = presentTownScene(saved, 'A community', continuous);
+    expect(result.name).toBe('A community');
+    expect(
+      result.signage?.filter((label) => label.kind === 'room').map((label) => label.text),
+    ).toEqual(['日本語の庭 🌿', 'fireside-chat']);
+    expect(result.signage?.find((label) => label.text === 'fireside-chat')).toMatchObject({
+      x: 303,
+      y: -90,
+      roomType: 'voice',
+    });
+    expect(result.signage?.find((label) => label.text === 'Gathering')?.y).toBeLessThan(-90);
+    expect(result.signage?.some((label) => label.text === 'A community')).toBe(false);
+    expect(result.townSquareNavigation).toBe(false);
+    expect(result.stamps).toBe(saved.stamps);
+    expect(saved).toEqual(before);
+    const filtered = presentTownScene(saved, 'A community', {
+      ...continuous,
+      districts: [continuous.districts[1]!],
+    });
+    expect(filtered.landmarks.some((landmark) => landmark.id === 'house:0')).toBe(false);
+    expect(JSON.stringify(filtered.signage)).not.toContain('日本語');
+    expect(filtered.colliders).toBe(saved.colliders);
+  });
+
   it('binds authorized labels to saved houses without changing geometry or the saved document', () => {
     const before = structuredClone(sample);
     const result = presentTownScene(sample, 'A community', town);

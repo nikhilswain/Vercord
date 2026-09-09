@@ -157,7 +157,7 @@ export function RpgPlayPage({
           ref={canvasRef}
           className="rpg-canvas"
           tabIndex={0}
-          aria-label={`${sample.name}. Move with WASD or arrow keys; press E near a character or landmark.`}
+          aria-label={`${sample.name}. Move with WASD or arrow keys; drag to look around; double-click to walk to a place. Press E near a character or landmark.`}
         />
       </div>
       <div
@@ -181,7 +181,8 @@ export function RpgPlayPage({
             className={server ? 'rpg-kicker rpg-kicker--server' : 'rpg-kicker'}
             title={server?.displayName}
           >
-            {RPG_THEMES[theme].label} · {server?.displayName ?? 'Local preview'}
+            {RPG_THEMES[theme].label}
+            {server?.town?.continuous ? '' : ` · ${server?.displayName ?? 'Local preview'}`}
           </span>
           <h1 title={sample.name} className={server?.town ? 'rpg-town-location' : undefined}>
             {sample.name}
@@ -194,7 +195,7 @@ export function RpgPlayPage({
                 : sample.subtitle}
           </p>
         </header>
-        {status === 'ready' && ui.nearby && !panel && !speech && (
+        {status === 'ready' && ui.nearby && ui.following !== false && !panel && !speech && (
           <button
             className="rpg-interact rpg-button"
             onClick={() => runtimeRef.current?.interact()}
@@ -229,13 +230,22 @@ export function RpgPlayPage({
           >
             <RpgIcon name="plus" />
           </button>
-          <span aria-label={`Zoom ${ui.zoom} times`}>{ui.zoom}×</span>
+          <span aria-label={`Zoom ${Math.round(ui.zoom * 100)} percent`}>
+            {Number(ui.zoom.toFixed(2))}×
+          </span>
           <button
             aria-label="Zoom out"
-            disabled={status !== 'ready' || ui.zoom <= 1}
+            disabled={status !== 'ready' || ui.zoom <= (ui.minZoom ?? 0.25) + 0.001}
             onClick={() => runtimeRef.current?.zoomBy(0.5)}
           >
             <RpgIcon name="minus" />
+          </button>
+          <button
+            aria-label="View whole town"
+            disabled={status !== 'ready'}
+            onClick={() => runtimeRef.current?.overview?.()}
+          >
+            <RpgIcon name="map" />
           </button>
           <button
             aria-label="Center on traveler"
@@ -246,7 +256,8 @@ export function RpgPlayPage({
           </button>
         </div>
         <p className="rpg-movement-hint">
-          <kbd>W A S D</kbd> to walk <span>·</span> <kbd>Shift</kbd> to run
+          <kbd>W A S D</kbd> to walk <span>·</span> <kbd>Shift</kbd> to run <span>·</span> Drag to
+          look around
         </p>
         {status === 'ready' && !panel && !speech && (
           <VirtualJoystick
@@ -291,6 +302,10 @@ export function RpgPlayPage({
         onClose={() => setPanel(null)}
         onTheme={travel}
         onAppearance={(id) => setAppearances((current) => ({ ...current, [world]: id }))}
+        onFocus={(point) => {
+          runtimeRef.current?.focus?.(point);
+          setPanel(null);
+        }}
       />
       <Dialog
         open={!suspended && speech !== null}

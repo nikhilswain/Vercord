@@ -1,5 +1,6 @@
 import { Dialog } from '../../components/Dialog';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
+import type { Point } from '../world/engine/types';
 import { RPG_APPEARANCES } from './character';
 import { RpgIcon } from './RpgIcon';
 import { RpgSceneMap } from './RpgSceneMap';
@@ -32,6 +33,7 @@ interface Props {
   onClose(): void;
   onTheme(destination: RpgDestination): void;
   onAppearance(id: string): void;
+  onFocus?(point: Point): void;
 }
 
 export function RpgPanels({
@@ -45,6 +47,7 @@ export function RpgPanels({
   onClose,
   onTheme,
   onAppearance,
+  onFocus,
 }: Props) {
   const place = RPG_THEMES[theme];
   const home = RPG_THEMES[world];
@@ -79,6 +82,7 @@ export function RpgPanels({
             town={server.town}
             displayName={server.displayName}
             onStreet={server.onStreet}
+            onFocus={onFocus}
           />
         ) : (
           <RpgSceneMap theme={theme} ui={ui} sample={sample} bindings={server?.bindings} />
@@ -87,7 +91,9 @@ export function RpgPanels({
         <>
           <p>
             {server?.town && theme !== 'dungeon'
-              ? 'The Map lists your town’s neighborhoods and streets. Follow the paths to named channel houses, or read the town-square sign to visit the square.'
+              ? server.town.continuous
+                ? 'Follow the paths between neighborhoods and channel houses. Open Map to find every house or show a neighborhood.'
+                : 'The Map lists your town’s neighborhoods and streets. Follow the paths to named channel houses, or read the town-square sign to visit the square.'
               : `Take the paths at your own pace. Approach ${place.guide} to hear a little about this place.`}
           </p>
           <dl className="rpg-controls-list">
@@ -116,6 +122,10 @@ export function RpgPanels({
             <div>
               <dt>Touch movement</dt>
               <dd>Drag the thumbstick; drag further to run</dd>
+            </div>
+            <div>
+              <dt>Look around</dt>
+              <dd>Drag the map. Center returns to your traveler; walking resumes following.</dd>
             </div>
             <div>
               <dt>Zoom</dt>

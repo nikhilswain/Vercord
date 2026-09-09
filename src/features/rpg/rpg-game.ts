@@ -90,6 +90,12 @@ export class RpgGame implements RpgRuntime {
   public center(): void {
     this.scene?.center();
   }
+  public focus(point: Point): void {
+    this.scene?.focus(point);
+  }
+  public overview(): void {
+    this.scene?.overview();
+  }
 
   public destroy(): Promise<void> {
     if (this.teardown) return this.teardown;

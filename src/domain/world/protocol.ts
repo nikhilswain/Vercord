@@ -10,18 +10,25 @@ const townRoom = z.strictObject({
   key,
   label,
   type: z.enum(MAP_ROOM_TYPES),
-  landmarkId: z.string().regex(/^house:[0-5]$/u),
+  landmarkId: z.string().regex(/^house:[0-9]{1,5}$/u),
 });
 export const streetSelectionSchema = z.union([z.literal('square'), z.uuid()]).optional();
 export type StreetSelection = z.infer<typeof streetSelectionSchema>;
 export const worldTownSchema = z
   .strictObject({
+    continuous: z.literal(true).optional(),
     activeStreetId: z.uuid().nullable(),
     districts: z
       .array(
         z.strictObject({
           key,
           label,
+          anchors: z
+            .array(
+              z.strictObject({ x: z.number().min(0).max(32768), y: z.number().min(0).max(32768) }),
+            )
+            .max(256)
+            .optional(),
           streets: z
             .array(
               z.strictObject({
@@ -42,6 +49,7 @@ export const worldTownSchema = z
       rooms.length > 1000 ||
       new Set(rooms.map((room) => room.key)).size !== rooms.length ||
       new Set(streets.map((street) => street.id)).size !== streets.length ||
+      (town.continuous && new Set(rooms.map((room) => room.landmarkId)).size !== rooms.length) ||
       new Set(town.districts.map((district) => district.key)).size !== town.districts.length ||
       streets.some(
         (street) =>
@@ -69,7 +77,7 @@ export const worldBindingsSchema = z
         .max(1_000),
     }),
   )
-  .max(100);
+  .max(1000);
 
 export const savedWorldViewSchema = z.strictObject({
   document: z.unknown().transform((value, context) => {

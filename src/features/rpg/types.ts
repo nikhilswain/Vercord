@@ -23,6 +23,7 @@ export interface RpgSceneLabel extends Point {
   text: string;
   detail?: string;
   roomType?: MapRoomType;
+  kind?: 'room' | 'district' | 'place';
   maxWidth: number;
 }
 
@@ -43,6 +44,8 @@ export interface RpgUiState {
   nearby: RpgNearby | null;
   position: Point;
   zoom: number;
+  minZoom?: number;
+  following?: boolean;
 }
 
 export interface RpgDialogue {
@@ -72,4 +75,6 @@ export interface RpgRuntime {
   interact(): void;
   zoomBy(factor: number): void;
   center(): void;
+  focus?(point: Point): void;
+  overview?(): void;
 }

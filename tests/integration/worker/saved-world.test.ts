@@ -3,6 +3,8 @@ import { beforeEach, expect, it } from 'vitest';
 import { createWorker } from '../../../worker';
 import migration from '../../../migrations/0003_world_instances.sql?raw';
 import townMigration from '../../../migrations/0004_world_neighborhoods.sql?raw';
+import continuousMigration from '../../../migrations/0005_continuous_towns.sql?raw';
+import compressedMigration from '../../../migrations/0006_compressed_town_documents.sql?raw';
 import authMigration from '../../../migrations/0001_auth.sql?raw';
 import { createD1AuthRepository } from '../../../worker/auth/repository';
 import { encryptSessionValue, hashOpaqueToken } from '../../../worker/auth/crypto';
@@ -14,6 +16,8 @@ import { projectWorldBindings } from '../../../worker/worlds/bindings';
 import type { MapSnapshot } from '../../../src/domain/map/snapshot';
 import { savedWorldResponseSchema } from '../../../src/domain/world/protocol';
 import { TownStore } from '../../../worker/worlds/town-store';
+import { ContinuousTownStore } from '../../../worker/worlds/continuous-town-store';
+import { createContinuousTownRepository } from '../../../worker/worlds/continuous-town-repository';
 
 const guildId = '100000000000000001';
 const sessionSecret = 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM';
@@ -23,13 +27,18 @@ beforeEach(async () => {
     'CREATE TABLE IF NOT EXISTS worlds (guild_id TEXT PRIMARY KEY,map_slug TEXT UNIQUE,visibility TEXT,created_at INTEGER,updated_at INTEGER,last_synced_at INTEGER)',
   );
   // Exercise the actual production migration, including its uniqueness and document-size constraints.
-  for (const statement of (migration + '\n' + townMigration)
+  for (const statement of (migration + '\n' + townMigration + '\n' + continuousMigration)
     .split(';')
     .map((value) => value.trim())
     .filter(Boolean))
     await env.AUTH_DB.prepare(statement).run();
+  const columns = await env.AUTH_DB.prepare('PRAGMA table_info(world_towns)').all<{
+    name: string;
+  }>();
+  if (!columns.results.some((column) => column.name === 'document_gzip'))
+    await env.AUTH_DB.prepare(compressedMigration).run();
   await env.AUTH_DB.exec(
-    'DELETE FROM world_channel_addresses; DELETE FROM world_streets; DELETE FROM world_instances',
+    'DELETE FROM world_towns; DELETE FROM world_channel_addresses; DELETE FROM world_streets; DELETE FROM world_instances',
   );
   await createD1WorldRepository(env.AUTH_DB).recordSync(guildId, 'saved-world-test', 0);
 });
@@ -430,5 +439,240 @@ it('supports the full directory limit with bounded SQL batches and one generated
     await env.AUTH_DB.prepare(
       'SELECT COUNT(*) AS count FROM world_streets WHERE document_json IS NOT NULL',
     ).first('count'),
+  ).toBe(1);
+});
+
+it.each(['village', 'norse'] as const)(
+  'saves every channel in one continuous %s town and keeps old homes fixed',
+  async (theme) => {
+    const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, theme);
+    const snapshot = townSnapshot(17);
+    snapshot.areas.push({
+      key: 'a_voice',
+      label: 'Voice gardens',
+      order: 1,
+      rooms: [{ key: 'c_lounge', label: 'Evening lounge', type: 'voice', order: 0 }],
+    });
+    const store = new ContinuousTownStore(env.AUTH_DB);
+    const first = (await store.prepare(square, snapshot)).project(snapshot);
+    expect(first.town.continuous).toBe(true);
+    expect(first.town.activeStreetId).toBeNull();
+    expect(first.bindings).toHaveLength(18);
+    expect(
+      first.document.scenes.overworld.landmarks.filter((point) => point.id.startsWith('house:')),
+    ).toHaveLength(18);
+    expect(
+      savedWorldResponseSchema.safeParse({
+        ...first,
+        player: { displayName: 'Traveler', memberKey: `m_${'a'.repeat(43)}` },
+      }).success,
+    ).toBe(true);
+    const renamed = structuredClone(snapshot);
+    renamed.areas[0]!.rooms.reverse();
+    renamed.areas[0]!.rooms[0]!.label = 'Renamed gathering';
+    const reload = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, renamed)).project(
+      renamed,
+    );
+    expect(reload.document).toEqual(first.document);
+    expect(reload.checksum).toBe(first.checksum);
+    const expanded = structuredClone(snapshot);
+    expanded.areas[0]!.rooms.push({ key: 'c_new', label: 'New home', type: 'text', order: 18 });
+    const next = (await store.prepare(square, expanded)).project(expanded);
+    expect(next.bindings).toHaveLength(19);
+    for (const old of first.document.scenes.overworld.landmarks.filter((point) =>
+      point.id.startsWith('house:'),
+    ))
+      expect(next.document.scenes.overworld.landmarks.find((point) => point.id === old.id)).toEqual(
+        old,
+      );
+    expect((await new WorldInstanceStore(env.AUTH_DB).load(guildId, theme)).checksum).toBe(
+      square.checksum,
+    );
+  },
+);
+
+it('continuous towns project fresh permissions and preserve corrupt saves without replacing them', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot(9);
+  snapshot.areas[0]!.rooms[8]!.label = 'Private planning';
+  const store = new ContinuousTownStore(env.AUTH_DB);
+  const prepared = await store.prepare(square, snapshot);
+  const restricted = structuredClone(snapshot);
+  restricted.areas[0]!.rooms = restricted.areas[0]!.rooms.slice(0, 1);
+  const visible = prepared.project(restricted);
+  expect(visible.bindings).toHaveLength(1);
+  expect(JSON.stringify(visible)).not.toContain('Private planning');
+  expect(JSON.stringify(visible)).not.toContain('c_room_8');
+  expect(prepared.project({ ...snapshot, areas: [] }).bindings).toHaveLength(0);
+  const oldStreetId = visible.town.districts[0]!.streets[0]!.id;
+  expect((await store.prepare(square, restricted, oldStreetId)).project(restricted).checksum).toBe(
+    visible.checksum,
+  );
+  await env.AUTH_DB.prepare("UPDATE world_towns SET checksum = 'corrupt' WHERE world_id = ?")
+    .bind(square.document.worldId)
+    .run();
+  await expect(store.prepare(square, snapshot)).rejects.toMatchObject({
+    code: 'WORLD_SAVE_INVALID',
+  });
+  expect(
+    await env.AUTH_DB.prepare('SELECT checksum FROM world_towns WHERE world_id = ?')
+      .bind(square.document.worldId)
+      .first('checksum'),
+  ).toBe('corrupt');
+});
+
+it('concurrent continuous town saves merge discovered channels without losing earlier houses', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const left = townSnapshot(1),
+    right = townSnapshot(1);
+  right.areas[0]!.rooms[0]!.key = 'c_other';
+  await Promise.all(
+    [left, right].map(async (snapshot) =>
+      (await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot)).project(snapshot),
+    ),
+  );
+  const combined = structuredClone(left);
+  combined.areas[0]!.rooms.push(right.areas[0]!.rooms[0]!);
+  const final = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, combined)).project(
+    combined,
+  );
+  expect(final.bindings).toHaveLength(2);
+  expect(
+    final.document.scenes.overworld.landmarks.filter((point) => point.id.startsWith('house:')),
+  ).toHaveLength(2);
+  expect(new Set(final.bindings.map((binding) => binding.landmarkId)).size).toBe(2);
+  expect(
+    await env.AUTH_DB.prepare('SELECT COUNT(*) AS count FROM world_towns').first('count'),
+  ).toBe(1);
+});
+
+it.each(['village', 'norse'] as const)(
+  'stores and reloads a skewed 1000-channel %s town within the D1 row limit',
+  async (theme) => {
+    const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, theme);
+    const snapshot = townSnapshot(0);
+    snapshot.areas = Array.from({ length: 100 }, (_, index) => ({
+      key: `a_category_${index}`,
+      label: `Neighborhood ${index}`,
+      order: index,
+      rooms: Array.from({ length: index === 0 ? 901 : 1 }, (_, room) => ({
+        key: `c_room_${index}_${room}`,
+        label: `Channel ${index} ${room}`,
+        type: 'text' as const,
+        order: room,
+      })),
+    }));
+    const first = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot)).project(
+      snapshot,
+    );
+    expect(first.bindings).toHaveLength(1000);
+    expect(
+      first.document.scenes.overworld.landmarks.filter((landmark) =>
+        landmark.id.startsWith('house:'),
+      ),
+    ).toHaveLength(1000);
+    // Keep the storage boundary exercised when generator art/terrain becomes more compact.
+    // Descriptions are valid saved scene data; 1000 longer place descriptions exceed D1's row limit.
+    const large = structuredClone(first.document);
+    for (const landmark of large.scenes.overworld.landmarks)
+      landmark.description = 'A remembered place along the village paths. '.repeat(48);
+    const json = JSON.stringify(large);
+    expect(new TextEncoder().encode(json).byteLength).toBeGreaterThan(2_000_000);
+    const repository = createContinuousTownRepository(env.AUTH_DB);
+    const row = (await repository.read(square.document.worldId))!;
+    const checksum = await worldDocumentChecksum(json);
+    expect(
+      await repository.save(
+        { ...row, document_json: json, checksum, revision: row.revision + 1 },
+        row.revision,
+      ),
+    ).toBe(true);
+    const stored = await env.AUTH_DB.prepare(
+      'SELECT length(CAST(document_json AS BLOB)) + length(CAST(layout_json AS BLOB)) + length(document_gzip) AS bytes FROM world_towns WHERE world_id = ?',
+    )
+      .bind(square.document.worldId)
+      .first<{ bytes: number }>();
+    expect(stored!.bytes).toBeLessThan(1_900_000);
+    const reloaded = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot)).project(
+      snapshot,
+    );
+    expect(reloaded.document).toEqual(large);
+    expect(reloaded.checksum).toBe(checksum);
+  },
+  30_000,
+);
+
+it('reads legacy JSON towns exactly and compresses their next revision', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot(1);
+  const first = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot)).project(
+    snapshot,
+  );
+  const legacyDocument = structuredClone(first.document);
+  legacyDocument.scenes.overworld.subtitle = 'A preserved legacy scene';
+  const json = JSON.stringify(legacyDocument);
+  const checksum = await worldDocumentChecksum(json);
+  await env.AUTH_DB.prepare(
+    'UPDATE world_towns SET document_json = ?, document_gzip = NULL, checksum = ? WHERE world_id = ?',
+  )
+    .bind(json, checksum, square.document.worldId)
+    .run();
+  const reloaded = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot)).project(
+    snapshot,
+  );
+  expect(reloaded.document).toEqual(legacyDocument);
+  expect(reloaded.checksum).toBe(checksum);
+  expect(
+    await env.AUTH_DB.prepare('SELECT document_gzip FROM world_towns WHERE world_id = ?')
+      .bind(square.document.worldId)
+      .first('document_gzip'),
+  ).toBeNull();
+  const grown = townSnapshot(2);
+  const next = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, grown)).project(grown);
+  expect(next.bindings).toHaveLength(2);
+  expect(
+    await env.AUTH_DB.prepare(
+      'SELECT document_json, length(document_gzip) AS compressed_bytes FROM world_towns WHERE world_id = ?',
+    )
+      .bind(square.document.worldId)
+      .first(),
+  ).toMatchObject({ document_json: 'gzip:v1', compressed_bytes: expect.any(Number) });
+  expect(
+    (await new ContinuousTownStore(env.AUTH_DB).prepare(square, grown)).project(grown).document,
+  ).toEqual(next.document);
+});
+
+it('rejects damaged and oversized compressed towns without overwriting the saved revision', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot(1);
+  const first = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot)).project(
+    snapshot,
+  );
+  await env.AUTH_DB.prepare('UPDATE world_towns SET document_gzip = ? WHERE world_id = ?')
+    .bind(new Uint8Array([0]).buffer, square.document.worldId)
+    .run();
+  await expect(
+    new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot),
+  ).rejects.toMatchObject({ code: 'WORLD_SAVE_INVALID' });
+  expect(
+    await env.AUTH_DB.prepare(
+      'SELECT revision, checksum, length(document_gzip) AS compressed_bytes FROM world_towns WHERE world_id = ?',
+    )
+      .bind(square.document.worldId)
+      .first(),
+  ).toEqual({ revision: 1, checksum: first.checksum, compressed_bytes: 1 });
+  const oversized = await new Response(
+    new Response(' '.repeat(8_000_001)).body!.pipeThrough(new CompressionStream('gzip')),
+  ).arrayBuffer();
+  await env.AUTH_DB.prepare('UPDATE world_towns SET document_gzip = ? WHERE world_id = ?')
+    .bind(oversized, square.document.worldId)
+    .run();
+  await expect(
+    createContinuousTownRepository(env.AUTH_DB).read(square.document.worldId),
+  ).rejects.toMatchObject({ code: 'WORLD_SAVE_INVALID' });
+  expect(
+    await env.AUTH_DB.prepare('SELECT revision FROM world_towns WHERE world_id = ?')
+      .bind(square.document.worldId)
+      .first('revision'),
   ).toBe(1);
 });

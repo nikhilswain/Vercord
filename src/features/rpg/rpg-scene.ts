@@ -4,7 +4,7 @@ import type { Point } from '../world/engine/types';
 import { preloadRpgCharacters, RpgCharacter } from './character';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
-import { renderTownSignage } from './town-signage';
+import { TownSignage } from './town-signage';
 import type { RpgCallbacks, RpgSample, RpgUiState } from './types';
 
 export class RpgScene extends Phaser.Scene {
@@ -15,7 +15,7 @@ export class RpgScene extends Phaser.Scene {
   private avatar: RpgCharacter | null = null;
   private npcs: RpgCharacter[] = [];
   private labels: Phaser.GameObjects.Text[] = [];
-  private signage: Phaser.GameObjects.Container[] = [];
+  private signage: TownSignage | null = null;
   private marker: Phaser.GameObjects.Graphics | null = null;
   private playerMarker: Phaser.GameObjects.Ellipse | null = null;
   private appearance = 'rowan';
@@ -29,7 +29,9 @@ export class RpgScene extends Phaser.Scene {
   private lastUiTime = 0;
   private elapsed = 0;
   private previousTap: { point: Point; time: number } | null = null;
-  private pointerStart: Point | null = null;
+  private following = true;
+  private manualMovement = false;
+  private pointerDrag: { id: number; start: Point; last: Point; dragging: boolean } | null = null;
 
   public constructor(
     sample: RpgSample,
@@ -55,7 +57,10 @@ export class RpgScene extends Phaser.Scene {
     this.created = true;
     this.renderSample();
     this.game.canvas.addEventListener('pointerdown', this.onPointerDown);
+    this.game.canvas.addEventListener('pointermove', this.onPointerMove);
     this.game.canvas.addEventListener('pointerup', this.onPointerUp);
+    this.game.canvas.addEventListener('pointercancel', this.onPointerCancel);
+    this.game.canvas.addEventListener('lostpointercapture', this.onPointerCancel);
     this.game.canvas.addEventListener('wheel', this.onWheel, { passive: false });
     this.game.canvas.addEventListener('webglcontextlost', this.onContextLost);
     window.addEventListener('keydown', this.onKeyDown);
@@ -72,6 +77,15 @@ export class RpgScene extends Phaser.Scene {
     this.elapsed += dt;
     this.simulation.blocked = this.inputBlocked || worldInputBlocked();
     const input = this.movement?.getMovement() ?? { x: 0, y: 0, moving: false, sprinting: false };
+    // Only a new manual movement gesture resumes follow. An existing auto-run never does.
+    if (
+      !this.simulation.blocked &&
+      input.moving &&
+      !this.manualMovement &&
+      !this.pointerDrag?.dragging
+    )
+      this.following = true;
+    this.manualMovement = input.moving;
     this.simulation.tick(dt / 1000, input);
     const { player, direction, action } = this.simulation;
     this.avatar.update(player.x, player.y, direction, action, this.elapsed, this.motion.matches);
@@ -91,25 +105,35 @@ export class RpgScene extends Phaser.Scene {
     this.scenery?.update(this.elapsed, this.motion.matches);
     const camera = this.cameras.main;
     // Phaser applies zoom around the camera origin; scroll stays in unscaled world units.
-    const targetX = player.x - camera.width / 2;
-    const targetY = player.y - 18 - camera.height / 2;
-    const follow = this.motion.matches ? 1 : 1 - Math.exp((-10 * dt) / 1000);
-    camera.setScroll(
-      camera.scrollX + (targetX - camera.scrollX) * follow,
-      camera.scrollY + (targetY - camera.scrollY) * follow,
-    );
+    if (this.following) {
+      const targetX = camera.clampX(player.x - camera.width / 2);
+      const targetY = camera.clampY(player.y - 18 - camera.height / 2);
+      const follow = this.motion.matches ? 1 : 1 - Math.exp((-10 * dt) / 1000);
+      camera.setScroll(
+        camera.scrollX + (targetX - camera.scrollX) * follow,
+        camera.scrollY + (targetY - camera.scrollY) * follow,
+      );
+    }
+    this.signage?.update(camera);
     if (action !== 'idle') this.marker?.setVisible(false);
     if (this.elapsed - this.lastUiTime >= 100) this.publishUi();
   }
 
   public resize(width: number, height: number): void {
-    const previousCompact = this.width < 700;
+    const camera = this.created ? this.cameras.main : null;
+    const center = camera
+      ? { x: camera.scrollX + this.width / 2, y: camera.scrollY + this.height / 2 }
+      : null;
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
-    if (!this.created) return;
-    this.cameras.main.setSize(this.width, this.height);
-    if (previousCompact !== this.width < 700) this.cameras.main.setZoom(this.width < 700 ? 1 : 2);
-    this.center();
+    if (!camera || !center) return;
+    this.cancelPointer();
+    camera.setSize(this.width, this.height);
+    this.setCameraZoom(
+      Math.max(this.minimumZoom(), Math.min(this.width < 700 ? 3 : 4, camera.zoom)),
+    );
+    camera.centerOn(center.x, center.y);
+    this.publishUi();
   }
 
   public setScene(sample: RpgSample, sceneKey: string): void {
@@ -129,7 +153,11 @@ export class RpgScene extends Phaser.Scene {
   public setInputBlocked(blocked: boolean): void {
     this.inputBlocked = blocked;
     this.simulation.blocked = blocked;
-    if (blocked) this.simulation.stop();
+    if (blocked) {
+      this.simulation.stop();
+      this.cancelPointer();
+      this.previousTap = null;
+    }
   }
 
   public setVirtualAxis(x: number, y: number, sprinting = false): void {
@@ -163,20 +191,80 @@ export class RpgScene extends Phaser.Scene {
 
   public zoomBy(factor: number): void {
     if (!this.created) return;
-    const steps = this.width < 700 ? [1, 2, 3] : [1, 2, 3, 4];
-    const current = this.cameras.main.zoom;
+    const camera = this.cameras.main;
+    const steps = [
+      this.minimumZoom(),
+      0.25,
+      0.5,
+      0.75,
+      1,
+      1.5,
+      2,
+      3,
+      ...(this.width < 700 ? [] : [4]),
+    ];
+    const current = camera.zoom;
     const next =
       factor > 1
-        ? steps.find((step) => step > current)
-        : [...steps].reverse().find((step) => step < current);
-    this.cameras.main.setZoom(next ?? current);
-    this.center();
+        ? steps.find((step) => step > current + 0.001)
+        : [...steps].reverse().find((step) => step < current - 0.001);
+    const center = { x: camera.scrollX + camera.width / 2, y: camera.scrollY + camera.height / 2 };
+    this.cancelPointer();
+    this.setCameraZoom(next ?? current);
+    camera.centerOn(center.x, center.y);
+    this.publishUi();
   }
 
   public center(): void {
     if (!this.created) return;
+    this.cancelPointer();
+    this.following = true;
     this.cameras.main.centerOn(this.simulation.player.x, this.simulation.player.y - 18);
     this.publishUi();
+  }
+
+  public focus(point: Point): void {
+    if (!this.created) return;
+    this.cancelPointer();
+    this.following = false;
+    this.setCameraZoom(Math.max(1, this.cameras.main.zoom));
+    this.cameras.main.centerOn(point.x, point.y - 48);
+    this.publishUi();
+  }
+
+  public overview(): void {
+    if (!this.created) return;
+    this.cancelPointer();
+    this.following = false;
+    const bounds = this.simulation.sample.bounds;
+    this.setCameraZoom(
+      Math.max(
+        this.minimumZoom(),
+        Math.min(1, (this.width * 0.85) / bounds.width, (this.height * 0.85) / bounds.height),
+      ),
+    );
+    this.cameras.main.centerOn(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    this.publishUi();
+  }
+
+  private minimumZoom(): number {
+    const { bounds } = this.simulation.sample;
+    return Math.min(0.25, (this.width * 0.85) / bounds.width, (this.height * 0.85) / bounds.height);
+  }
+
+  private setCameraZoom(zoom: number): void {
+    const camera = this.cameras.main.setZoom(zoom);
+    const bounds = this.simulation.sample.bounds;
+    const width = Math.max(bounds.width, camera.width / zoom);
+    const height = Math.max(bounds.height, camera.height / zoom);
+    // Keep a small town centered when its full extent is smaller than the viewport.
+    camera.setBounds(
+      bounds.x - (width - bounds.width) / 2,
+      bounds.y - (height - bounds.height) / 2,
+      width,
+      height,
+      false,
+    );
   }
 
   public dispose(): void {
@@ -188,8 +276,12 @@ export class RpgScene extends Phaser.Scene {
     this.clearVisuals();
     this.load?.off('loaderror', this.onLoadError);
     const canvas = this.game?.canvas;
+    this.cancelPointer();
     canvas?.removeEventListener('pointerdown', this.onPointerDown);
+    canvas?.removeEventListener('pointermove', this.onPointerMove);
     canvas?.removeEventListener('pointerup', this.onPointerUp);
+    canvas?.removeEventListener('pointercancel', this.onPointerCancel);
+    canvas?.removeEventListener('lostpointercapture', this.onPointerCancel);
     canvas?.removeEventListener('wheel', this.onWheel);
     canvas?.removeEventListener('webglcontextlost', this.onContextLost);
     if (canvas) delete canvas.dataset.rpgReady;
@@ -201,7 +293,7 @@ export class RpgScene extends Phaser.Scene {
     this.clearVisuals();
     const sample = this.simulation.sample;
     this.scenery = new RpgSampleRenderer(this, sample);
-    this.signage = renderTownSignage(this, sample.signage ?? []);
+    this.signage = new TownSignage(this, sample.signage ?? []);
     const player = this.simulation.player;
     this.playerMarker = this.add
       .ellipse(player.x, player.y - 1, 27, 11)
@@ -223,11 +315,8 @@ export class RpgScene extends Phaser.Scene {
         .setVisible(false),
     );
     this.marker = this.add.graphics().setDepth(50000).setVisible(false);
-    this.cameras.main
-      .setBounds(sample.bounds.x, sample.bounds.y, sample.bounds.width, sample.bounds.height)
-      .setSize(this.width, this.height)
-      .setZoom(this.width < 700 ? 1 : 2)
-      .setRoundPixels(true);
+    this.cameras.main.setSize(this.width, this.height).setRoundPixels(true);
+    this.setCameraZoom(this.width < 700 || sample.terrain !== undefined ? 1 : 2);
     this.lastUi = '';
     this.center();
   }
@@ -241,8 +330,8 @@ export class RpgScene extends Phaser.Scene {
     this.npcs = [];
     this.labels.forEach((label) => label.destroy());
     this.labels = [];
-    this.signage.forEach((label) => label.destroy());
-    this.signage = [];
+    this.signage?.destroy();
+    this.signage = null;
     this.marker?.destroy();
     this.marker = null;
     this.playerMarker?.destroy();
@@ -261,6 +350,8 @@ export class RpgScene extends Phaser.Scene {
         y: Math.round(this.simulation.player.y),
       },
       zoom: this.cameras.main.zoom,
+      minZoom: this.minimumZoom(),
+      following: this.following,
     };
     const key = JSON.stringify(state);
     if (key !== this.lastUi) {
@@ -293,21 +384,54 @@ export class RpgScene extends Phaser.Scene {
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0 || this.inputBlocked) return;
-    this.pointerStart = { x: event.clientX, y: event.clientY };
-    this.game.canvas.focus({ preventScroll: true });
+    if (event.button !== 0 || !event.isPrimary || this.inputBlocked || worldInputBlocked()) return;
+    const canvas = this.game.canvas;
+    const point = { x: event.clientX, y: event.clientY };
+    this.pointerDrag = { id: event.pointerId, start: point, last: point, dragging: false };
+    canvas.setPointerCapture(event.pointerId);
+    canvas.focus({ preventScroll: true });
+  };
+
+  private readonly onPointerMove = (event: PointerEvent): void => {
+    const drag = this.pointerDrag;
+    if (!drag || drag.id !== event.pointerId) return;
+    if (this.inputBlocked || worldInputBlocked()) {
+      this.cancelPointer();
+      return;
+    }
+    const point = { x: event.clientX, y: event.clientY };
+    if (!drag.dragging && Math.hypot(point.x - drag.start.x, point.y - drag.start.y) < 6) return;
+    event.preventDefault();
+    drag.dragging = true;
+    this.following = false;
+    this.previousTap = null;
+    this.game.canvas.dataset.rpgPanning = 'true';
+    const camera = this.cameras.main;
+    const rect = this.game.canvas.getBoundingClientRect();
+    camera.setScroll(
+      camera.clampX(
+        camera.scrollX - ((point.x - drag.last.x) * this.width) / (rect.width * camera.zoom),
+      ),
+      camera.clampY(
+        camera.scrollY - ((point.y - drag.last.y) * this.height) / (rect.height * camera.zoom),
+      ),
+    );
+    drag.last = point;
   };
 
   private readonly onPointerUp = (event: PointerEvent): void => {
-    const start = this.pointerStart;
-    this.pointerStart = null;
+    const drag = this.pointerDrag;
+    if (!drag || drag.id !== event.pointerId) return;
+    this.cancelPointer();
     if (
-      !start ||
+      drag.dragging ||
       this.inputBlocked ||
       worldInputBlocked() ||
-      Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12
-    )
+      Math.hypot(event.clientX - drag.start.x, event.clientY - drag.start.y) >= 6
+    ) {
+      this.previousTap = null;
       return;
+    }
     const now = performance.now();
     const point = { x: event.clientX, y: event.clientY };
     if (
@@ -321,6 +445,7 @@ export class RpgScene extends Phaser.Scene {
         ((point.y - rect.top) * this.height) / rect.height,
       );
       this.simulation.navigate(worldPoint);
+      this.following = true;
       this.marker
         ?.clear()
         .lineStyle(1, 0xffe7a5, 0.9)
@@ -330,6 +455,22 @@ export class RpgScene extends Phaser.Scene {
     } else this.previousTap = { point, time: now };
   };
 
+  private readonly onPointerCancel = (event: PointerEvent): void => {
+    if (this.pointerDrag?.id !== event.pointerId) return;
+    this.previousTap = null;
+    this.cancelPointer();
+  };
+
+  private cancelPointer(): void {
+    const drag = this.pointerDrag;
+    this.pointerDrag = null;
+    const canvas = this.game?.canvas;
+    if (canvas) {
+      delete canvas.dataset.rpgPanning;
+      if (drag && canvas.hasPointerCapture(drag.id)) canvas.releasePointerCapture(drag.id);
+    }
+  }
+
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
     if (this.inputBlocked || worldInputBlocked()) return;
@@ -338,6 +479,7 @@ export class RpgScene extends Phaser.Scene {
   private readonly onBlur = (): void => {
     this.simulation.stop();
     this.previousTap = null;
+    this.cancelPointer();
   };
   private readonly onLoadError = (): void => {
     this.fail();

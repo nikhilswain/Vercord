@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
 import type { RpgSample, RpgStamp } from './types';
+import { TownTerrainRenderer } from './town-terrain-renderer';
+import { SceneryVisibility } from './scenery-visibility';
 
 export function preloadRpgWorlds(scene: Phaser.Scene, samples: readonly RpgSample[]): void {
   const queued = new Set<string>();
@@ -33,6 +35,8 @@ export function registerRpgFrames(scene: Phaser.Scene, samples: readonly RpgSamp
 export class RpgSampleRenderer {
   private readonly owned: Phaser.GameObjects.GameObject[] = [];
   private readonly flameLights: Phaser.GameObjects.Image[] = [];
+  private readonly terrain: TownTerrainRenderer | null;
+  private readonly visibility = new SceneryVisibility();
 
   public constructor(
     private readonly scene: Phaser.Scene,
@@ -40,26 +44,30 @@ export class RpgSampleRenderer {
   ) {
     const { bounds } = sample;
     scene.cameras.main.setBackgroundColor(sample.background);
-    const ground = scene.add
-      .renderTexture(bounds.x, bounds.y, bounds.width, bounds.height)
-      .setOrigin(0)
-      .setDepth(-10000);
-    this.owned.push(ground);
-    const groundParts = sample.stamps
-      .filter((stamp) => (stamp.depth ?? stamp.y) < 0)
-      .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0))
-      .map((stamp) => {
-        const part = this.makeStamp(stamp, false);
-        return part.setPosition(part.x - bounds.x, part.y - bounds.y);
-      });
-    // Phaser 4 reallocates dynamic texture storage when changing its filter.
-    // Configure it before baking, then flush before releasing temporary objects.
-    ground.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
-    ground.draw(groundParts).render();
-    groundParts.forEach((part) => part.destroy());
+    this.terrain = sample.terrain ? new TownTerrainRenderer(scene, sample) : null;
+    if (!this.terrain) {
+      const ground = scene.add
+        .renderTexture(bounds.x, bounds.y, bounds.width, bounds.height)
+        .setOrigin(0)
+        .setDepth(-10000);
+      this.owned.push(ground);
+      const groundParts = sample.stamps
+        .filter((stamp) => (stamp.depth ?? stamp.y) < 0)
+        .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0))
+        .map((stamp) => {
+          const part = this.makeStamp(stamp, false);
+          return part.setPosition(part.x - bounds.x, part.y - bounds.y);
+        });
+      // Phaser 4 reallocates dynamic texture storage when changing its filter.
+      // Configure it before baking, then flush before releasing temporary objects.
+      ground.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+      ground.draw(groundParts).render();
+      groundParts.forEach((part) => part.destroy());
+    }
     for (const stamp of sample.stamps) {
       if ((stamp.depth ?? stamp.y) < 0) continue;
       const object = this.makeStamp(stamp, true);
+      this.visibility.add(object);
       this.owned.push(object);
     }
     if (sample.id === 'dungeon') {
@@ -73,13 +81,18 @@ export class RpgSampleRenderer {
   }
 
   public update(time: number, reducedMotion: boolean): void {
+    this.terrain?.update();
+    this.visibility.update(this.scene.cameras.main);
     // Only a handful of torch lights animate; the environment never rebuilds during movement.
     this.flameLights.forEach((light, index) => {
+      if (!light.visible) return;
       light.setAlpha(reducedMotion ? 0.35 : 0.32 + Math.sin(time * 0.003 + index * 2.3) * 0.025);
     });
   }
 
   public destroy(): void {
+    this.terrain?.destroy();
+    this.visibility.destroy();
     this.owned.forEach((object) => object.destroy());
     this.owned.length = 0;
     this.flameLights.length = 0;
@@ -128,6 +141,7 @@ export class RpgSampleRenderer {
         .setBlendMode(Phaser.BlendModes.ADD)
         .setAlpha(0.35);
       this.owned.push(glow);
+      this.visibility.add(glow);
       this.flameLights.push(glow);
     }
   }

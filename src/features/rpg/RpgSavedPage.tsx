@@ -163,7 +163,7 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
       route={route}
       sample={sample}
       samples={samples}
-      worldKey={`${data.document.worldId}/${data.town?.activeStreetId ?? 'square'}`}
+      worldKey={`${data.document.worldId}/${data.town?.continuous ? 'town' : (data.town?.activeStreetId ?? 'square')}`}
       navigationKey={`${guildId}/${route.theme}/${route.street ?? ''}/${revision}`}
       onTravel={travel}
       server={{

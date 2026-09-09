@@ -48,6 +48,8 @@ export interface RpgLandmark extends Point {
   radius: number;
   kind: 'sign' | 'portal' | 'view';
   destination?: RpgDestination;
+  /** Optional roof position for a house label, separate from its walkable entrance. */
+  labelAnchor?: Point;
 }
 
 export interface RpgSample {
@@ -63,4 +65,6 @@ export interface RpgSample {
   landmarks: RpgLandmark[];
   lights: Array<Point & { radius: number; color: number }>;
   background: string;
+  /** Version-pinned, compact grass/road geometry rendered only near the viewport. */
+  terrain?: { version: 1; roads: Rect[] };
 }

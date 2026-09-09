@@ -46,40 +46,44 @@ remain at `/map/demo`.
 
 After signing in and syncing a connected server, choose **Explore town** on its dashboard card.
 `/play/:guildId` opens its saved village; `?theme=norse` opens its saved Norse town. Each Discord
-category has a neighborhood, and each permitted channel has a labeled house. The Map panel lists
-categories and streets; channel signs also appear on the houses in the canvas. Each street has six
-physical homes, with additional streets for larger categories. Unlabeled homes remain ordinary
-scenery. The signed-in Discord member is the traveler; NPCs and scenery belong to the game.
+category has a neighborhood, and every permitted channel has a house in one continuous town.
+Both themes use seeded house placement, connected lanes, trees and gardens. Names float above roofs;
+the Map panel lists all categories and channel houses with their full names. The signed-in Discord
+member is the traveler; NPCs and scenery belong to the game.
 
-First entry opens the first permitted street. Use the Map panel to visit another neighborhood or
-the original **Town square**, or follow the square sign on a street. `?street=<streetId>` preserves
-a street in a link; `?street=square` opens the original square. Dungeon travel returns to the same
-street, while changing overworld theme selects that theme's own saved neighborhood.
+Drag the canvas to look around, scroll or use the camera buttons to zoom, and choose **View whole
+town** for an overview. **Center on traveler** or movement resumes camera following. The Map panel
+can focus any house without loading another scene. Old `?street=<streetId>` bookmarks resolve into
+the continuous town while retaining their access check. Dungeon travel returns to that same town;
+changing the overworld theme opens that theme's separately saved layout.
 
 Each server has one map per overworld theme. First entry reserves a unique D1 `world_instances` row,
 assembles authored landmark plots around connected roads, validates movement clearances, then saves
 the complete scene documents with their seed, content/generator versions, revision and checksum.
-Simultaneous visits converge on the same saved output. Reloads, Discord syncs, channel changes and
-permission differences never move its terrain or buildings. The existing Lantern Vault is saved
+Simultaneous visits converge on the same saved output. Reloads, renames, ordering and permission
+differences never relocate existing houses. New channels fill reserved plots or extend the town.
+The existing Lantern Vault is saved
 alongside each town; procedural dungeon topology remains a later addition.
 
-The additive `0004_world_neighborhoods.sql` migration stores category/channel house addresses and
-versioned street documents separately from the original square. Addresses are allocated atomically;
-renames, sorting and new channels never move existing houses. A channel moved between categories
-uses an address in its new neighborhood; its former address is retained for a move back. Street
-geometry is generated only on first entry and then reused. Released street generator v1 and its
-content must remain pinned for interrupted initialization to resume consistently.
+Migrations `0005_continuous_towns.sql` and `0006_compressed_town_documents.sql` add the continuous
+layout without rewriting the earlier square/street saves. Private allocations and complete scene
+geometry are persisted together using conditional revisions; compressed documents keep large
+servers within D1's row limit. Checksums cover the uncompressed document, and decoding is bounded.
+A channel moved between categories uses an address in its new neighborhood; its former address is
+retained for a move back. Released generators and their content remain pinned.
 
 Membership is checked through the existing guild coordinator before initialization and again before
 returning the saved map. Category and channel names are projected from current permissions separately
-from shared geometry. Revoked street access fails closed. The **Open connected rooms** link retains
+from shared geometry. The **Open connected rooms** link retains
 the existing live presence, voice and chat experience. Those live spatial systems are not yet attached
 to the new RPG scene coordinates; houses currently identify channel locations only. Additional NPCs
 and theme-specific animals remain later work.
 
 `src/domain/world/` owns renderer-independent documents, generation, validation and the pinned v1
 content catalog; `worker/worlds/` owns storage and channel binding projection. The RPG adapter loads
-stored geometry without running a generator in the browser. Preserve released content versions and
+stored geometry without running a generator in the browser. Ground uses bounded visible texture
+chunks, scenery is culled around the camera, and long walking routes use an indexed road graph.
+Preserve released content versions and
 their asset files when introducing future generators. Invalid or unsupported saves report a loading
 error rather than being replaced. There is no reroll/editor control; map editing and player
 position/progression saves remain future scope.
