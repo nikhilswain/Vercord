@@ -87,6 +87,8 @@ describe('VoiceBeacon', () => {
       />,
     );
 
-    expect(screen.getByText(/Join a voice channel in Discord first/u)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Open this channel in Discord, then press Join Voice/u),
+    ).toBeInTheDocument();
   });
 });

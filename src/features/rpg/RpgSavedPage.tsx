@@ -4,6 +4,8 @@ import { readRpgRoute, resolveRpgTravel, RPG_THEMES, writeRpgRoute } from './the
 import type { RpgDestination } from './types';
 import { presentTownScene } from './town-presentation';
 import { useSavedRpgWorld, type SavedRpgStatus } from './use-saved-rpg-world';
+import { useRpgPresence } from './use-rpg-presence';
+import { useRpgVoice } from './use-rpg-voice';
 import './rpg.css';
 
 const failures: Record<
@@ -95,6 +97,15 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
   }));
   const { route, revision } = navigation;
   const { data, status, retry } = useSavedRpgWorld(guildId, route.world, revision, route.street);
+  const voice = useRpgVoice(guildId, status === 'ready');
+  const connection = useRpgPresence({
+    guildId,
+    data,
+    scene: route.theme === 'dungeon' ? 'dungeon' : 'overworld',
+    active: status === 'ready',
+    voice,
+    onRefresh: retry,
+  });
   useEffect(() => {
     if (!data) document.title = 'Your server town — Dmap';
   }, [data]);
@@ -173,6 +184,9 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
         bindings: data.bindings,
         town: data.town,
         onStreet: selectStreet,
+        connection,
+        voice,
+        onReconnect: retry,
       }}
       pendingState={gate}
     />

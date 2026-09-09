@@ -1,5 +1,6 @@
 import { containsPoint, overlaps, resolveMovement } from '../world/engine/collision';
 import { footprint, WORLD_PLAYER_FEET } from '../../domain/world/geometry';
+import type { RpgLocation } from '../../domain/presence/rpg-protocol';
 import { RpgPathfinder } from './pathfinding';
 import type { MovementVector } from '../world/engine/input';
 import type { Point, Rect } from '../world/engine/types';
@@ -50,28 +51,40 @@ export class RpgSimulation {
 
   private restoredPosition(): Point {
     const point = this.positions.get(this.sceneKey);
-    if (point) {
-      const feet = {
-        x: point.x + RPG_FEET.offsetX,
-        y: point.y + RPG_FEET.offsetY,
-        width: RPG_FEET.width,
-        height: RPG_FEET.height,
-      };
-      const bounds = this.sample.bounds;
-      if (
-        Number.isFinite(point.x) &&
-        Number.isFinite(point.y) &&
-        feet.x >= bounds.x &&
-        feet.y >= bounds.y &&
-        feet.x + feet.width <= bounds.x + bounds.width &&
-        feet.y + feet.height <= bounds.y + bounds.height &&
-        ![...this.sample.colliders, ...this.sample.npcs.map(footprint)].some((box) =>
-          overlaps(feet, box),
-        )
-      )
-        return { ...point };
-    }
+    if (point && this.isSafePosition(point)) return { ...point };
     return { ...this.sample.spawn };
+  }
+
+  /** A welcome/correction cancels local navigation and never restores inside an obstacle. */
+  public setPlayerPosition(location: RpgLocation): boolean {
+    const scene = this.sample.id === 'dungeon' ? 'dungeon' : 'overworld';
+    if (location.scene !== scene || !this.isSafePosition(location)) return false;
+    this.stop();
+    this.player = { x: location.x, y: location.y };
+    this.direction = location.direction;
+    this.rememberPosition();
+    return true;
+  }
+
+  private isSafePosition(point: Point): boolean {
+    const feet = {
+      x: point.x + RPG_FEET.offsetX,
+      y: point.y + RPG_FEET.offsetY,
+      width: RPG_FEET.width,
+      height: RPG_FEET.height,
+    };
+    const bounds = this.sample.bounds;
+    return (
+      Number.isFinite(point.x) &&
+      Number.isFinite(point.y) &&
+      feet.x >= bounds.x &&
+      feet.y >= bounds.y &&
+      feet.x + feet.width <= bounds.x + bounds.width &&
+      feet.y + feet.height <= bounds.y + bounds.height &&
+      ![...this.sample.colliders, ...this.sample.npcs.map(footprint)].some((box) =>
+        overlaps(feet, box),
+      )
+    );
   }
 
   public stop(): void {
@@ -138,7 +151,7 @@ export class RpgSimulation {
     if (!moved && !movement.moving) this.stop();
   }
 
-  public nearby(): { ui: RpgNearby; target: RpgNpc | RpgLandmark } | null {
+  public nearby(openHouses = false): { ui: RpgNearby; target: RpgNpc | RpgLandmark } | null {
     let nearest: { ui: RpgNearby; target: RpgNpc | RpgLandmark; distance: number } | null = null;
     for (const target of [...this.sample.npcs, ...this.sample.landmarks]) {
       const distance = Math.hypot(target.x - this.player.x, target.y - this.player.y);
@@ -154,10 +167,12 @@ export class RpgSimulation {
           action:
             'lines' in target
               ? 'Talk'
-              : target.kind === 'portal' ||
-                  (target.id === 'town-square' && this.sample.townSquareNavigation)
-                ? 'Explore'
-                : 'Read',
+              : openHouses && target.id.startsWith('house:')
+                ? 'Open'
+                : target.kind === 'portal' ||
+                    (target.id === 'town-square' && this.sample.townSquareNavigation)
+                  ? 'Explore'
+                  : 'Read',
         },
       };
     }

@@ -5,6 +5,7 @@ import type {
   RpgThemeId,
 } from '../../domain/world/content/v1/types';
 import type { MapRoomType } from '../../domain/map/snapshot';
+import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 
 // Renderer and generator share one scene contract; UI/runtime messages stay local to this feature.
 export type {
@@ -35,7 +36,7 @@ export interface RpgSample extends SavedRpgSample {
 export interface RpgNearby {
   id: string;
   label: string;
-  action: 'Talk' | 'Read' | 'Explore';
+  action: 'Talk' | 'Read' | 'Explore' | 'Open';
 }
 
 export interface RpgUiState {
@@ -62,6 +63,8 @@ export interface RpgCallbacks {
   onDialogue(dialogue: RpgDialogue): void;
   onTravel(destination: RpgDestination): void;
   onStreet?(street: string): void;
+  onMove?(location: RpgLocation): void;
+  onHouse?(landmarkId: string): void;
 }
 
 export interface RpgRuntime {
@@ -70,6 +73,8 @@ export interface RpgRuntime {
   resize(width: number, height: number): void;
   setScene(scene: RpgSample, sceneKey: string): void;
   setAppearance(id: string): void;
+  setPlayers(players: readonly RpgPresencePlayer[]): void;
+  setPlayerPosition(location: RpgLocation): void;
   setInputBlocked(blocked: boolean): void;
   setVirtualAxis(x: number, y: number, sprinting?: boolean): void;
   interact(): void;

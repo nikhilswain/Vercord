@@ -17,6 +17,20 @@ import type {
   VoiceServiceStatus,
   VoiceState,
 } from '../../../domain/voice/protocol';
+import type {
+  RpgAdmission,
+  RpgAppearanceId,
+  RpgLocation,
+  RpgPresencePlayer,
+  RpgWelcome,
+} from '../../../domain/presence/rpg-protocol';
+
+export interface RpgPresenceOptions {
+  admission: RpgAdmission & { theme: 'village' | 'norse' };
+  onWelcome(welcome: RpgWelcome): void;
+  onPlayers(players: readonly RpgPresencePlayer[]): void;
+  onPosition(player: RpgPresencePlayer): void;
+}
 
 const SEND_INTERVAL_MS = 90;
 const MAX_INCOMING_MESSAGE_BYTES = 768 * 1_024;
@@ -65,12 +79,13 @@ interface AdmissionFailure {
   scope?: 'admission' | 'mutation';
 }
 
-function socketUrl(guildId: string): string {
+function socketUrl(guildId: string, rpg?: RpgPresenceOptions): string {
   const url = new URL(
     `/api/auth/guilds/${encodeURIComponent(guildId)}/presence`,
     window.location.origin,
   );
   url.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  if (rpg) url.search = new URLSearchParams(rpg.admission).toString();
   return url.toString();
 }
 
@@ -132,6 +147,11 @@ export class WorldPresenceClient {
   private players = new Map<string, PresencePlayer>();
   private latestLocation: ClientPresenceLocation | null = null;
   private lastSentLocation: ClientPresenceLocation | null = null;
+  private rpgPlayers = new Map<string, RpgPresencePlayer>();
+  private latestRpgLocation: RpgLocation | null = null;
+  private lastSentRpgLocation: string | null = null;
+  private rpgReady = false;
+  private rpgPublishTimer: number | null = null;
   private lastSentAt = 0;
   private sendTimer: number | null = null;
   private reconnectTimer: number | null = null;
@@ -167,6 +187,7 @@ export class WorldPresenceClient {
   public constructor(
     private readonly guildId: string,
     private readonly callbacks: WorldPresenceCallbacks,
+    private readonly rpg?: RpgPresenceOptions,
   ) {}
 
   public connect(): void {
@@ -214,6 +235,7 @@ export class WorldPresenceClient {
   }
 
   public updateLocation(location: ClientPresenceLocation): void {
+    if (this.rpg) return;
     this.latestLocation = location;
     if (sameLocation(this.lastSentLocation, location)) return;
     if (this.lastSentLocation?.scene !== location.scene) {
@@ -222,6 +244,29 @@ export class WorldPresenceClient {
       return;
     }
     this.scheduleSend();
+  }
+
+  public updateRpgLocation(location: RpgLocation): void {
+    if (!this.rpgReady || location.scene !== this.rpg?.admission.scene) return;
+    this.latestRpgLocation = location;
+    if (location.action === 'idle') {
+      this.clearSendTimer();
+      this.flushLocation();
+      return;
+    }
+    this.scheduleSend();
+  }
+
+  public updateRpgAppearance(appearance: RpgAppearanceId): void {
+    if (!this.rpgReady || this.socket?.readyState !== WebSocket.OPEN) return;
+    this.socket.send(JSON.stringify({ type: 'rpg-appearance', appearance }));
+  }
+
+  public pauseRpgMovement(): void {
+    if (!this.latestRpgLocation) return;
+    this.latestRpgLocation = { ...this.latestRpgLocation, action: 'idle' };
+    this.clearSendTimer();
+    this.flushLocation();
   }
 
   public readMessages(roomKey: string): Promise<MessageHistory> {
@@ -269,6 +314,7 @@ export class WorldPresenceClient {
   }
 
   public disconnect(): void {
+    this.flushLocation();
     this.stopped = true;
     this.generation += 1;
     this.clearSendTimer();
@@ -284,6 +330,9 @@ export class WorldPresenceClient {
       socket.close(1000, 'World left');
     }
     this.selfId = null;
+    this.rpgReady = false;
+    this.rpgPlayers.clear();
+    this.clearRpgPublishTimer();
     this.players.clear();
     this.settlePendingMessages();
   }
@@ -301,7 +350,7 @@ export class WorldPresenceClient {
 
     let socket: WebSocket;
     try {
-      socket = new WebSocket(socketUrl(this.guildId));
+      socket = new WebSocket(socketUrl(this.guildId, this.rpg));
     } catch {
       this.handleSocketConstructionFailure();
       return;
@@ -311,6 +360,7 @@ export class WorldPresenceClient {
     socket.addEventListener('open', () => {
       if (this.stopped || socket !== this.socket) return;
       this.lastSentLocation = null;
+      this.lastSentRpgLocation = null;
       this.flushLocation();
     });
     socket.addEventListener('message', (event) => {
@@ -346,6 +396,39 @@ export class WorldPresenceClient {
     }
 
     const message = parsed.data;
+    if (message.type === 'rpg-player' || message.type === 'rpg-leave') {
+      if (!this.rpgReady) return;
+      if (message.type === 'rpg-leave') this.rpgPlayers.delete(message.id);
+      else if (
+        message.player.id !== this.selfId &&
+        message.player.scene === this.rpg?.admission.scene
+      )
+        this.rpgPlayers.set(message.player.id, message.player);
+      // A crowded town can deliver many members' packets in one render frame.
+      // Keep interpolation snapshots bounded independently of the peer count.
+      if (this.rpgPublishTimer === null) {
+        this.rpgPublishTimer = window.setTimeout(() => {
+          this.rpgPublishTimer = null;
+          if (this.stopped || !this.rpgReady || socket !== this.socket) return;
+          this.emitPlayers();
+          this.callbacks.onState({ connection: 'online', onlineCount: this.rpgPlayers.size + 1 });
+        }, 50);
+      }
+      return;
+    }
+    if (message.type === 'rpg-position') {
+      if (
+        !this.rpgReady ||
+        message.player.id !== this.selfId ||
+        message.player.scene !== this.rpg?.admission.scene
+      )
+        return;
+      this.clearSendTimer();
+      this.latestRpgLocation = null;
+      this.lastSentRpgLocation = null;
+      this.rpg?.onPosition(message.player);
+      return;
+    }
     if (message.type === 'world-invalidated') {
       // Temporary wire compatibility only. Content-free invalidations must not issue a GET.
       return;
@@ -402,6 +485,32 @@ export class WorldPresenceClient {
       }
 
       this.selfId = message.selfId;
+      if (this.rpg) {
+        const admission = this.rpg.admission;
+        if (
+          !message.rpg ||
+          message.rpg.worldId !== admission.worldId ||
+          message.rpg.checksum !== admission.checksum ||
+          message.rpg.scene !== admission.scene ||
+          message.rpg.self.id !== message.selfId ||
+          message.rpg.self.scene !== admission.scene
+        ) {
+          this.rejectInvalidFrame(socket, 1007, 'Wrong town admission');
+          return;
+        }
+        this.rpgPlayers = new Map(
+          message.rpg.players
+            .filter((player) => player.id !== this.selfId && player.scene === admission.scene)
+            .map((player) => [player.id, player]),
+        );
+        this.latestRpgLocation = null;
+        this.rpgReady = true;
+        this.rpg.onWelcome(message.rpg);
+        if (this.stopped || socket !== this.socket) return;
+      } else if (message.rpg) {
+        this.rejectInvalidFrame(socket, 1007, 'Unexpected town admission');
+        return;
+      }
       this.players = new Map(
         message.players
           .filter((player) => player.id !== this.selfId)
@@ -442,7 +551,10 @@ export class WorldPresenceClient {
     if (this.stopped || socket !== this.socket) return;
     this.emitPlayers();
     if (this.stopped || socket !== this.socket) return;
-    this.callbacks.onState({ connection: 'online', onlineCount: this.players.size + 1 });
+    this.callbacks.onState({
+      connection: 'online',
+      onlineCount: (this.rpg ? this.rpgPlayers.size : this.players.size) + 1,
+    });
   }
 
   private handleWorldSync(socket: WebSocket, sync: WorldSync): void {
@@ -498,6 +610,7 @@ export class WorldPresenceClient {
     if (socket !== this.socket) return;
     this.socket = null;
     this.selfId = null;
+    this.rpgReady = false;
     this.transportOffline = true;
     this.clearSendTimer();
     this.settlePendingMessages();
@@ -650,7 +763,12 @@ export class WorldPresenceClient {
 
   private scheduleSend(): void {
     const socket = this.socket;
-    if (!socket || socket.readyState !== WebSocket.OPEN || this.latestLocation === null) return;
+    if (
+      !socket ||
+      socket.readyState !== WebSocket.OPEN ||
+      (this.rpg ? !this.rpgReady || this.latestRpgLocation === null : this.latestLocation === null)
+    )
+      return;
     const remaining = SEND_INTERVAL_MS - (performance.now() - this.lastSentAt);
     if (remaining <= 0) {
       this.flushLocation();
@@ -665,6 +783,16 @@ export class WorldPresenceClient {
 
   private flushLocation(): void {
     const socket = this.socket;
+    if (this.rpg) {
+      const location = this.latestRpgLocation;
+      if (!this.rpgReady || !socket || socket.readyState !== WebSocket.OPEN || !location) return;
+      const encoded = JSON.stringify(location);
+      if (encoded === this.lastSentRpgLocation) return;
+      socket.send(JSON.stringify({ type: 'rpg-move', seq: ++this.sequence, ...location }));
+      this.lastSentRpgLocation = encoded;
+      this.lastSentAt = performance.now();
+      return;
+    }
     const location = this.latestLocation;
     if (!socket || socket.readyState !== WebSocket.OPEN || location === null) return;
     if (sameLocation(this.lastSentLocation, location)) return;
@@ -698,11 +826,23 @@ export class WorldPresenceClient {
   }
 
   private clearPlayers(): void {
+    this.clearRpgPublishTimer();
     this.players.clear();
+    this.rpgPlayers.clear();
+    this.rpg?.onPlayers([]);
     this.callbacks.onPlayers([]);
   }
 
   private emitPlayers(): void {
+    if (this.rpg) {
+      this.rpg.onPlayers([...this.rpgPlayers.values()]);
+      return;
+    }
     this.callbacks.onPlayers([...this.players.values()]);
+  }
+
+  private clearRpgPublishTimer(): void {
+    if (this.rpgPublishTimer !== null) window.clearTimeout(this.rpgPublishTimer);
+    this.rpgPublishTimer = null;
   }
 }

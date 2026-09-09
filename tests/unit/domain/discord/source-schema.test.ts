@@ -77,6 +77,7 @@ describe('Discord upstream source schemas', () => {
       name: 'general',
       parentId: TEST_IDS.category,
       nsfw: false,
+      rateLimitPerUser: 0,
       overwrites: [],
     });
     expect(channels[2]?.overwrites[0]).toEqual({
@@ -113,6 +114,7 @@ describe('Discord upstream source schemas', () => {
         name: 'general',
         parentId: null,
         nsfw: false,
+        rateLimitPerUser: 0,
         overwrites: [],
       },
     ]);

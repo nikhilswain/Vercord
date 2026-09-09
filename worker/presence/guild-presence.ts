@@ -39,6 +39,16 @@ import { worldThemeIdSchema, streetSelectionSchema } from '../../src/domain/worl
 import { WorldInstanceStore } from '../worlds/instance-store';
 import { ContinuousTownStore } from '../worlds/continuous-town-store';
 import { WorldSaveError } from '../worlds/save-error';
+import type { RpgPresencePlayer } from '../../src/domain/presence/rpg-protocol';
+import {
+  RpgPresenceState,
+  appearanceFitsTheme,
+  readRpgPartition,
+  rpgSocketSchema,
+  sameRpgPartition,
+  type RpgPartition,
+  type RpgSocket,
+} from './rpg-state';
 
 const MAX_CONNECTIONS = 200;
 const MAX_MESSAGE_BYTES = 16 * 1_024;
@@ -112,6 +122,7 @@ const socketAttachmentSchema = presencePlayerSchema.extend({
   sessionExpiresAt: safeIntegerSchema,
   subscriptionId: subscriptionIdSchema,
   viewVersion: worldViewVersionSchema.nullable(),
+  rpg: rpgSocketSchema.optional(),
 });
 
 type SocketAttachment = z.infer<typeof socketAttachmentSchema>;
@@ -167,6 +178,22 @@ function actorFromAttachment(attachment: SocketAttachment): WorldActor {
   };
 }
 
+function rpgPlayerFromAttachment(
+  attachment: SocketAttachment & { rpg: RpgSocket },
+): RpgPresencePlayer {
+  const { x, y, direction, action, scene, appearance } = attachment.rpg;
+  return {
+    id: attachment.id,
+    displayName: attachment.displayName,
+    x,
+    y,
+    direction,
+    action,
+    scene,
+    appearance,
+  };
+}
+
 function roomKeyForScene(scene: string): string | null {
   return scene.startsWith('room:') ? scene.slice('room:'.length) : null;
 }
@@ -190,6 +217,8 @@ export class GuildPresence extends DurableObject<Env> {
   private readonly slowmode: MemberSlowmode;
   private readonly worldInstances: WorldInstanceStore;
   private readonly towns: ContinuousTownStore;
+  private readonly rpgPresence: RpgPresenceState;
+  private readonly rpgSessionChecks = new WeakMap<WebSocket, number>();
   private messageCoverage: MessageCoverage = {
     epoch: 0,
     online: false,
@@ -207,6 +236,7 @@ export class GuildPresence extends DurableObject<Env> {
     this.slowmode = new MemberSlowmode(state.storage);
     this.worldInstances = new WorldInstanceStore(env.AUTH_DB);
     this.towns = new ContinuousTownStore(env.AUTH_DB);
+    this.rpgPresence = new RpgPresenceState(state.storage, (job) => state.waitUntil(job));
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch, messageCoverage] =
         await Promise.all([
@@ -245,6 +275,8 @@ export class GuildPresence extends DurableObject<Env> {
     if (pathname === '/internal/voice-service') return this.receiveVoiceService(request);
     if (pathname !== '/connect') return new Response(null, { status: 404 });
     if (request.method !== 'GET') return new Response(null, { status: 405 });
+    const partition = readRpgPartition(new URL(request.url).searchParams);
+    if (partition === null) return this.worldError(new WorldAccessError('INVALID_REQUEST', 400));
     const websocketUpgrade = request.headers.get('upgrade')?.toLowerCase() === 'websocket';
     if (this.state.getWebSockets().length >= MAX_CONNECTIONS) {
       return this.worldError(new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503));
@@ -259,6 +291,13 @@ export class GuildPresence extends DurableObject<Env> {
       // A socket starts as an expiring lease. It is promoted only after the
       // Durable Object has accepted, attached, and welcomed the WebSocket.
       view = await this.coordinator.read(admission.actor, admission.subscriptionId, 'lease');
+      if (partition)
+        view = await this.loadRpgPresence(
+          admission.actor,
+          admission.subscriptionId,
+          partition,
+          view,
+        );
     } catch (error) {
       if (websocketUpgrade) await this.releaseFailedAdmission(admission);
       return this.worldError(error);
@@ -269,16 +308,21 @@ export class GuildPresence extends DurableObject<Env> {
 
     let admittedServer: WebSocket | null = null;
     try {
+      const rpg = partition
+        ? await this.rpgPresence.restore(partition, admission.actor.userId, Date.now())
+        : undefined;
       let voiceState = this.latestVoiceState(admission.presenceId, view);
       if (voiceState === null) {
         voiceState = await this.initialVoiceState(admission.actor, view);
-        if (
-          admission.sessionExpiresAt <= Math.floor(Date.now() / 1_000) ||
-          !(await sessionIsCurrent(this.env, admission.actor, Date.now())) ||
-          this.coordinator.currentView(admission.actor) !== view
-        ) {
-          throw new WorldAccessError('UNAUTHENTICATED', 401);
-        }
+      }
+      const rpgPlayers = rpg ? await this.activeRpgPlayers({ id: admission.presenceId, rpg }) : [];
+      // Progress/geometry and voice admission both await external state.
+      if (
+        admission.sessionExpiresAt <= Math.floor(Date.now() / 1_000) ||
+        !(await sessionIsCurrent(this.env, admission.actor, Date.now())) ||
+        this.coordinator.currentView(admission.actor) !== view
+      ) {
+        throw new WorldAccessError('UNAUTHENTICATED', 401);
       }
       if (this.state.getWebSockets().length >= MAX_CONNECTIONS) {
         throw new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 503);
@@ -297,26 +341,39 @@ export class GuildPresence extends DurableObject<Env> {
         direction: 'down',
         moving: false,
         scene: 'exterior',
-        active: false,
-        lastMessageAt: 0,
+        active: rpg !== undefined,
+        lastMessageAt: rpg ? Date.now() : 0,
         seq: -1,
         voiceState,
         ...admission.actor,
         sessionExpiresAt: admission.sessionExpiresAt,
         subscriptionId: admission.subscriptionId,
         viewVersion: view.version,
+        ...(rpg ? { rpg } : {}),
       };
 
       this.state.acceptWebSocket(server);
       server.serializeAttachment(attachment);
+      if (rpg) this.rpgSessionChecks.set(server, Date.now());
       this.send(server, {
         type: 'welcome',
         selfId: attachment.id,
         selfAvatarId: attachment.avatarId,
-        players: this.activePlayers(attachment, view),
+        players: rpg ? [] : this.activePlayers(attachment, view),
         voiceService: this.voiceService,
         voiceState: attachment.voiceState,
         worldView: view,
+        ...(rpg
+          ? {
+              rpg: {
+                worldId: rpg.worldId,
+                checksum: rpg.checksum,
+                scene: rpg.scene,
+                self: rpgPlayerFromAttachment({ ...attachment, rpg }),
+                players: rpgPlayers,
+              },
+            }
+          : {}),
       });
 
       const promotedView = await this.coordinator.read(
@@ -324,6 +381,18 @@ export class GuildPresence extends DurableObject<Env> {
         admission.subscriptionId,
         'connected',
       );
+      if (rpg) {
+        if (
+          !(await sessionIsCurrent(this.env, admission.actor, Date.now())) ||
+          this.coordinator.currentView(admission.actor) !== promotedView
+        )
+          throw new WorldAccessError('UNAUTHENTICATED', 401);
+        this.broadcastRpg(
+          { type: 'rpg-player', player: rpgPlayerFromAttachment({ ...attachment, rpg }) },
+          rpg,
+          server,
+        );
+      }
       if (
         promotedView.version.epoch !== view.version.epoch ||
         promotedView.version.revision !== view.version.revision
@@ -334,6 +403,7 @@ export class GuildPresence extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: client });
     } catch (error) {
       if (admittedServer !== null) {
+        this.broadcastLeave(admittedServer);
         try {
           admittedServer.close(1011, 'Socket admission failed');
         } catch {
@@ -375,6 +445,18 @@ export class GuildPresence extends DurableObject<Env> {
     }
     const view = this.authorizeSocket(socket, previous);
     if (view === null) return;
+    if (parsed.data.type === 'rpg-move' || parsed.data.type === 'rpg-appearance') {
+      if (!previous.rpg) {
+        socket.close(1008, 'RPG admission required');
+        return;
+      }
+      await this.handleRpgCommand(socket, previous, parsed.data);
+      return;
+    }
+    if (parsed.data.type === 'move' && previous.rpg) {
+      socket.close(1008, 'RPG movement required');
+      return;
+    }
     if (parsed.data.type !== 'move') {
       await this.handleMessageCommand(socket, previous, parsed.data);
       return;
@@ -412,10 +494,13 @@ export class GuildPresence extends DurableObject<Env> {
   private async handleMessageCommand(
     socket: WebSocket,
     attachment: SocketAttachment,
-    command: Exclude<z.infer<typeof clientPresenceMessageSchema>, { type: 'move' }>,
+    command: Extract<
+      z.infer<typeof clientPresenceMessageSchema>,
+      { type: 'message-read' | 'message-send' }
+    >,
   ): Promise<void> {
     const roomKey = command.type === 'message-read' ? command.roomKey : command.input.roomKey;
-    if (attachment.scene !== `room:${roomKey}`) {
+    if (!this.socketCanUseRoom(attachment, roomKey)) {
       this.sendMessageFailure(socket, command.type, command.requestId, 'MESSAGE_MEMBER_FORBIDDEN');
       return;
     }
@@ -428,7 +513,7 @@ export class GuildPresence extends DurableObject<Env> {
           roomKey,
         );
         if (
-          attachmentOf(socket)?.scene === attachment.scene &&
+          this.messageReplyIsCurrent(socket, attachment, roomKey) &&
           socket.readyState === WebSocket.OPEN
         ) {
           this.send(socket, { type: 'message-history', requestId: command.requestId, result });
@@ -443,7 +528,10 @@ export class GuildPresence extends DurableObject<Env> {
       const result = await this.slowmode.run(policy, () =>
         this.coordinator.sendMessage(actor, attachment.subscriptionId, command.input),
       );
-      if (attachmentOf(socket)?.scene !== attachment.scene || socket.readyState !== WebSocket.OPEN)
+      if (
+        !this.messageReplyIsCurrent(socket, attachment, roomKey) ||
+        socket.readyState !== WebSocket.OPEN
+      )
         return;
       this.send(socket, {
         type: 'message-send-result',
@@ -463,6 +551,243 @@ export class GuildPresence extends DurableObject<Env> {
         parsedCode.success ? parsedCode.data : 'WORLD_SOURCE_UNAVAILABLE',
         error instanceof WorldAccessError ? error.retryAt : undefined,
       );
+    }
+  }
+
+  private async loadRpgPresence(
+    actor: WorldActor,
+    subscriptionId: string,
+    partition: RpgPartition,
+    initial: WorldView,
+  ): Promise<WorldView> {
+    try {
+      const saved = await this.worldInstances.load(actor.guildId, partition.theme);
+      const prepared = await this.towns.prepare(saved, initial.snapshot);
+      const view = await this.coordinator.read(actor, subscriptionId);
+      if (
+        !(await sessionIsCurrent(this.env, actor, Date.now())) ||
+        this.coordinator.currentView(actor) !== view
+      )
+        throw new WorldAccessError('UNAUTHENTICATED', 401);
+      const town = prepared.project(view.snapshot);
+      if (town.document.worldId !== partition.worldId || town.checksum !== partition.checksum)
+        throw new WorldAccessError('WORLD_SOURCE_UNAVAILABLE', 409);
+      this.invalidateStaleRpgSockets(town.document.worldId, town.checksum);
+      this.rpgPresence.register(town);
+      return view;
+    } catch (error) {
+      throw error instanceof WorldSaveError
+        ? new WorldAccessError(error.code, error.status)
+        : error;
+    }
+  }
+
+  private async rpgSessionIsCurrent(
+    socket: WebSocket,
+    attachment: SocketAttachment,
+    force = false,
+  ): Promise<boolean> {
+    if (!this.attachmentIsLocallyCurrent(attachment) || socket.readyState !== WebSocket.OPEN)
+      return false;
+    if (force || Date.now() - (this.rpgSessionChecks.get(socket) ?? 0) >= 10_000) {
+      if (!(await sessionIsCurrent(this.env, actorFromAttachment(attachment), Date.now()))) {
+        this.denySocket(socket, 'UNAUTHENTICATED');
+        return false;
+      }
+      this.rpgSessionChecks.set(socket, Date.now());
+    }
+    const latest = attachmentOf(socket);
+    return (
+      latest !== null &&
+      latest.sessionHash === attachment.sessionHash &&
+      this.attachmentIsLocallyCurrent(latest) &&
+      socket.readyState === WebSocket.OPEN
+    );
+  }
+
+  private async handleRpgCommand(
+    socket: WebSocket,
+    attachment: SocketAttachment,
+    command: Extract<
+      z.infer<typeof clientPresenceMessageSchema>,
+      { type: 'rpg-move' | 'rpg-appearance' }
+    >,
+  ): Promise<void> {
+    if (!(await this.rpgSessionIsCurrent(socket, attachment))) return;
+    const previous = attachmentOf(socket);
+    if (!previous?.rpg || !this.rpgPresence.has(previous.rpg)) return;
+    const now = Date.now();
+    if (command.type === 'rpg-move' && command.seq <= previous.seq) return;
+    // Blur/hidden can send the final stop immediately after a moving frame.
+    if (
+      now - previous.lastMessageAt < MIN_MESSAGE_INTERVAL_MS &&
+      command.type === 'rpg-move' &&
+      command.action !== 'idle'
+    )
+      return;
+    let rpg = previous.rpg;
+    let corrected = command.type === 'rpg-appearance';
+    if (command.type === 'rpg-move') {
+      const movement = this.rpgPresence.move(rpg, command, now);
+      rpg = movement.next;
+      corrected = !movement.accepted;
+    } else if (appearanceFitsTheme(command.appearance, rpg.theme)) {
+      rpg = {
+        ...rpg,
+        appearance: command.appearance,
+        appearanceUpdatedAt: Math.max(now, (rpg.appearanceUpdatedAt ?? 0) + 1),
+      };
+    }
+    const next = {
+      ...previous,
+      rpg,
+      active: true,
+      lastMessageAt: now,
+      seq: command.type === 'rpg-move' ? command.seq : previous.seq,
+    };
+    socket.serializeAttachment(next);
+    const player = rpgPlayerFromAttachment(next);
+    if (corrected) this.send(socket, { type: 'rpg-position', player });
+    this.broadcastRpg({ type: 'rpg-player', player }, rpg, socket);
+    if (
+      command.type === 'rpg-appearance' &&
+      rpg.appearanceUpdatedAt !== previous.rpg.appearanceUpdatedAt
+    ) {
+      for (const candidate of this.state.getWebSockets()) {
+        if (candidate === socket || candidate.readyState !== WebSocket.OPEN) continue;
+        const other = attachmentOf(candidate);
+        if (
+          !other?.rpg ||
+          other.userId !== previous.userId ||
+          other.rpg.worldId !== rpg.worldId ||
+          !this.attachmentIsLocallyCurrent(other)
+        )
+          continue;
+        const updated = {
+          ...other,
+          rpg: {
+            ...other.rpg,
+            appearance: rpg.appearance,
+            appearanceUpdatedAt: rpg.appearanceUpdatedAt,
+          },
+        };
+        candidate.serializeAttachment(updated);
+        this.send(candidate, { type: 'rpg-position', player: rpgPlayerFromAttachment(updated) });
+        this.broadcastRpg(
+          { type: 'rpg-player', player: rpgPlayerFromAttachment(updated) },
+          updated.rpg,
+          candidate,
+        );
+      }
+    }
+    const changed =
+      rpg.x !== previous.rpg.x ||
+      rpg.y !== previous.rpg.y ||
+      rpg.direction !== previous.rpg.direction ||
+      rpg.appearance !== previous.rpg.appearance ||
+      rpg.appearanceUpdatedAt !== previous.rpg.appearanceUpdatedAt;
+    const stopped = rpg.action === 'idle' && previous.rpg.action !== 'idle';
+    if (changed || stopped)
+      await this.rpgPresence.save(
+        previous.userId,
+        rpg,
+        now,
+        stopped || command.type === 'rpg-appearance',
+      );
+  }
+
+  private socketCanUseRoom(attachment: SocketAttachment, roomKey: string): boolean {
+    const view = this.coordinator.currentView(actorFromAttachment(attachment));
+    if (view === null || !worldIncludesScene(view, `room:${roomKey}`)) return false;
+    return attachment.rpg
+      ? this.rpgPresence.has(attachment.rpg) && this.rpgPresence.canUseRoom(attachment.rpg, roomKey)
+      : attachment.scene === `room:${roomKey}`;
+  }
+
+  private messageReplyIsCurrent(
+    socket: WebSocket,
+    before: SocketAttachment,
+    roomKey: string,
+  ): boolean {
+    const current = attachmentOf(socket);
+    return (
+      current !== null &&
+      current.sessionHash === before.sessionHash &&
+      this.attachmentIsLocallyCurrent(current) &&
+      this.socketCanUseRoom(current, roomKey)
+    );
+  }
+
+  private latestActiveRpgConnection(
+    memberId: string,
+    partition: RpgPartition,
+    excluded?: WebSocket,
+  ): SocketAttachment | null {
+    let latest: SocketAttachment | null = null;
+    for (const socket of this.state.getWebSockets()) {
+      if (socket === excluded || socket.readyState !== WebSocket.OPEN) continue;
+      const attachment = attachmentOf(socket);
+      if (
+        !attachment?.active ||
+        !attachment.rpg ||
+        attachment.id !== memberId ||
+        !sameRpgPartition(attachment.rpg, partition) ||
+        !this.attachmentIsLocallyCurrent(attachment)
+      )
+        continue;
+      if (!latest || attachment.lastMessageAt >= latest.lastMessageAt) latest = attachment;
+    }
+    return latest;
+  }
+
+  private async activeRpgPlayers(recipient: {
+    id: string;
+    rpg: RpgSocket;
+  }): Promise<RpgPresencePlayer[]> {
+    const latest = new Map<string, SocketAttachment & { rpg: RpgSocket }>();
+    for (const socket of this.state.getWebSockets()) {
+      const attachment = attachmentOf(socket);
+      if (
+        !attachment?.rpg ||
+        !attachment.active ||
+        attachment.id === recipient.id ||
+        !sameRpgPartition(attachment.rpg, recipient.rpg) ||
+        !(await this.rpgSessionIsCurrent(socket, attachment, true))
+      )
+        continue;
+      const current = attachmentOf(socket);
+      if (!current?.rpg || !current.active || !this.attachmentIsLocallyCurrent(current)) continue;
+      const previous = latest.get(current.id);
+      if (!previous || current.lastMessageAt >= previous.lastMessageAt)
+        latest.set(current.id, { ...current, rpg: current.rpg });
+    }
+    return [...latest.values()]
+      .filter((attachment) => this.attachmentIsLocallyCurrent(attachment))
+      .map(rpgPlayerFromAttachment);
+  }
+
+  private broadcastRpg(
+    message: Extract<ServerPresenceMessage, { type: 'rpg-player' | 'rpg-leave' }>,
+    partition: RpgPartition,
+    excluded?: WebSocket,
+  ): void {
+    const encoded = JSON.stringify(message);
+    for (const socket of this.state.getWebSockets()) {
+      if (socket === excluded || socket.readyState !== WebSocket.OPEN) continue;
+      const attachment = attachmentOf(socket);
+      if (
+        !attachment?.rpg ||
+        !sameRpgPartition(attachment.rpg, partition) ||
+        !this.attachmentExpiryIsCurrent(attachment)
+      )
+        continue;
+      // A leave also clears previous presence during permission recovery.
+      if (message.type !== 'rpg-leave' && !this.attachmentIsLocallyCurrent(attachment)) continue;
+      try {
+        socket.send(encoded);
+      } catch {
+        /* The close callback owns cleanup. */
+      }
     }
   }
 
@@ -489,11 +814,13 @@ export class GuildPresence extends DurableObject<Env> {
   }
 
   public webSocketClose(socket: WebSocket): void {
+    this.saveRpgSocket(socket);
     this.broadcastLeave(socket);
     this.releaseSocket(socket);
   }
 
   public webSocketError(socket: WebSocket): void {
+    this.saveRpgSocket(socket);
     this.broadcastLeave(socket);
     this.releaseSocket(socket);
   }
@@ -506,6 +833,7 @@ export class GuildPresence extends DurableObject<Env> {
         attachment === null ? null : this.coordinator.currentView(actorFromAttachment(attachment));
       if (
         !attachment?.active ||
+        attachment.rpg !== undefined ||
         attachment.id === recipient.id ||
         !this.attachmentExpiryIsCurrent(attachment) ||
         candidateView === null ||
@@ -524,6 +852,20 @@ export class GuildPresence extends DurableObject<Env> {
   private broadcastLeave(socket: WebSocket): void {
     const attachment = attachmentOf(socket);
     if (!attachment?.active) return;
+    if (attachment.rpg) {
+      const replacement = this.latestActiveRpgConnection(attachment.id, attachment.rpg, socket);
+      this.broadcastRpg(
+        replacement?.rpg
+          ? {
+              type: 'rpg-player',
+              player: rpgPlayerFromAttachment({ ...replacement, rpg: replacement.rpg }),
+            }
+          : { type: 'rpg-leave', id: attachment.id },
+        attachment.rpg,
+        socket,
+      );
+      return;
+    }
     const replacement = this.latestActiveConnection(attachment.id, socket);
     this.broadcast(
       replacement
@@ -546,6 +888,7 @@ export class GuildPresence extends DurableObject<Env> {
         attachment === null ? null : this.coordinator.currentView(actorFromAttachment(attachment));
       if (
         !attachment?.active ||
+        attachment.rpg !== undefined ||
         attachment.id !== memberId ||
         !this.attachmentExpiryIsCurrent(attachment) ||
         view === null ||
@@ -755,7 +1098,7 @@ export class GuildPresence extends DurableObject<Env> {
       const attachment = attachmentOf(socket);
       if (
         attachment === null ||
-        attachment.scene !== scene ||
+        !this.socketCanUseRoom(attachment, parsed.data.message.roomKey) ||
         !this.attachmentIsLocallyCurrent(attachment)
       ) {
         continue;
@@ -788,7 +1131,9 @@ export class GuildPresence extends DurableObject<Env> {
       if (!(await sessionIsCurrent(this.env, actor, Date.now())))
         throw new WorldAccessError('UNAUTHENTICATED', 401);
       if (this.coordinator.currentView(actor) !== view) throw new WorldAccessError();
-      return Response.json(town.project(view.snapshot), {
+      const projected = town.project(view.snapshot);
+      this.invalidateStaleRpgSockets(projected.document.worldId, projected.checksum);
+      return Response.json(projected, {
         headers: { 'cache-control': 'no-store' },
       });
     } catch (error) {
@@ -916,10 +1261,18 @@ export class GuildPresence extends DurableObject<Env> {
         continue;
       }
       try {
-        const view = await this.coordinator.read(actor, attachment.subscriptionId, 'connected');
+        let view = await this.coordinator.read(actor, attachment.subscriptionId, 'connected');
+        if (attachment.rpg) {
+          view = await this.loadRpgPresence(actor, attachment.subscriptionId, attachment.rpg, view);
+          this.rpgSessionChecks.set(socket, Date.now());
+        }
         await this.deliverWorld(attachment.userId, view, { state: 'ready' });
         return;
       } catch (error) {
+        if (attachment.rpg && error instanceof WorldAccessError && error.status === 409) {
+          this.refreshRpgSocket(socket);
+          continue;
+        }
         const sync = this.syncForError(error);
         if (sync.state === 'denied') this.denySocket(socket, sync.code);
         else if (socket.readyState === WebSocket.OPEN) this.send(socket, worldSyncMessage(sync));
@@ -984,6 +1337,14 @@ export class GuildPresence extends DurableObject<Env> {
         continue;
       let next = latest;
       if (view !== null) {
+        if (
+          next.rpg &&
+          next.viewVersion?.epoch === view.version.epoch &&
+          next.viewVersion.revision !== view.version.revision
+        ) {
+          this.refreshRpgSocket(socket);
+          continue;
+        }
         if (!worldIncludesScene(view, next.scene)) {
           if (next.active) this.broadcastLeave(socket);
           next = { ...next, scene: 'exterior', active: false };
@@ -1002,9 +1363,15 @@ export class GuildPresence extends DurableObject<Env> {
         if (!sameVersion && socket.readyState === WebSocket.OPEN)
           this.send(socket, { type: 'world-view', view });
       } else {
+        this.saveRpgSocket(socket);
         if (next.active) this.broadcastLeave(socket);
         next = { ...next, viewVersion: null, voiceState: null, active: false, scene: 'exterior' };
         socket.serializeAttachment(next);
+        if (next.rpg && socket.readyState === WebSocket.OPEN) {
+          this.send(socket, worldSyncMessage(sync));
+          socket.close(sync.state === 'denied' ? 1008 : 1012, 'RPG access requires readmission');
+          continue;
+        }
       }
       if (socket.readyState === WebSocket.OPEN) this.send(socket, worldSyncMessage(sync));
       if (sync.state === 'denied') socket.close(1008, sync.code);
@@ -1015,9 +1382,45 @@ export class GuildPresence extends DurableObject<Env> {
     socket: WebSocket,
     code: 'UNAUTHENTICATED' | 'GUILD_MEMBERSHIP_REQUIRED',
   ): void {
+    this.saveRpgSocket(socket);
+    this.broadcastLeave(socket);
+    const attachment = attachmentOf(socket);
+    if (attachment) socket.serializeAttachment({ ...attachment, active: false, viewVersion: null });
     if (socket.readyState === WebSocket.OPEN)
       this.send(socket, { type: 'world-sync', sync: { state: 'denied', code } });
     socket.close(1008, code);
+  }
+
+  private saveRpgSocket(socket: WebSocket): void {
+    const attachment = attachmentOf(socket);
+    if (!attachment?.rpg) return;
+    const replacement = this.latestActiveRpgConnection(attachment.id, attachment.rpg, socket);
+    if (replacement && replacement.lastMessageAt > attachment.lastMessageAt) return;
+    this.state.waitUntil(
+      this.rpgPresence.save(attachment.userId, attachment.rpg, attachment.lastMessageAt, true),
+    );
+  }
+
+  private refreshRpgSocket(socket: WebSocket): void {
+    this.saveRpgSocket(socket);
+    this.broadcastLeave(socket);
+    const attachment = attachmentOf(socket);
+    if (attachment) socket.serializeAttachment({ ...attachment, active: false, viewVersion: null });
+    if (socket.readyState === WebSocket.OPEN) {
+      this.send(socket, {
+        type: 'world-sync',
+        sync: { state: 'recovering', code: 'WORLD_SOURCE_UNAVAILABLE' },
+      });
+      socket.close(1012, 'Saved town changed');
+    }
+  }
+
+  private invalidateStaleRpgSockets(worldId: string, checksum: string): void {
+    for (const socket of this.state.getWebSockets()) {
+      const attachment = attachmentOf(socket);
+      if (attachment?.rpg?.worldId === worldId && attachment.rpg.checksum !== checksum)
+        this.refreshRpgSocket(socket);
+    }
   }
 
   private attachmentExpiryIsCurrent(attachment: SocketAttachment): boolean {
@@ -1214,6 +1617,7 @@ export class GuildPresence extends DurableObject<Env> {
       if (socket === excluded || socket.readyState !== WebSocket.OPEN) continue;
       const attachment = attachmentOf(socket);
       if (attachment === null || !this.attachmentIsLocallyCurrent(attachment)) continue;
+      if ((message.type === 'player' || message.type === 'leave') && attachment.rpg) continue;
       const view = this.coordinator.currentView(actorFromAttachment(attachment));
       if (
         view === null ||

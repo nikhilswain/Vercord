@@ -9,6 +9,12 @@ import {
   roomMessageSchema,
 } from '../messages/protocol';
 import { voiceServiceStatusSchema, voiceStateSchema } from '../voice/protocol';
+import {
+  rpgAppearanceMessageSchema,
+  rpgMoveSchema,
+  rpgPlayerSchema,
+  rpgWelcomeSchema,
+} from './rpg-protocol';
 
 const directionSchema = z.enum(['down', 'left', 'right', 'up']);
 const sceneSchema = z.union([
@@ -21,6 +27,8 @@ const presenceIdSchema = z.string().regex(/^p_[A-Za-z0-9_-]{43}$/u);
 const requestIdSchema = z.uuid();
 
 export const clientPresenceMessageSchema = z.discriminatedUnion('type', [
+  rpgMoveSchema,
+  rpgAppearanceMessageSchema,
   z.strictObject({
     type: z.literal('move'),
     seq: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
@@ -63,11 +71,15 @@ export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
     voiceService: voiceServiceStatusSchema,
     voiceState: voiceStateSchema.nullable(),
     worldView: worldViewSchema.optional(),
+    rpg: rpgWelcomeSchema.optional(),
   }),
   z.strictObject({
     type: z.literal('player'),
     player: presencePlayerSchema,
   }),
+  z.strictObject({ type: z.literal('rpg-player'), player: rpgPlayerSchema }),
+  z.strictObject({ type: z.literal('rpg-position'), player: rpgPlayerSchema }),
+  z.strictObject({ type: z.literal('rpg-leave'), id: presenceIdSchema }),
   z.strictObject({
     type: z.literal('leave'),
     id: presenceIdSchema,

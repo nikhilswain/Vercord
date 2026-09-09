@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
+import { rpgAppearanceSchema } from '../../domain/presence/rpg-protocol';
+import type { MapRoom } from '../../domain/map/snapshot';
 import { Dialog } from '../../components/Dialog';
 import { VirtualJoystick } from '../world/VirtualJoystick';
 import { RPG_APPEARANCES } from './character';
@@ -8,6 +10,9 @@ import { RpgPanels, type RpgPanel } from './RpgPanels';
 import { RPG_THEMES, type RpgRoute, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgDialogue, RpgSample, RpgUiState } from './types';
 import { useRpgGame } from './use-rpg-game';
+import type { RpgConnection } from './use-rpg-presence';
+import type { RpgVoiceController } from './use-rpg-voice';
+import { RpgChannelPanel, RpgVoiceStatus } from './RpgChannelPanel';
 import './rpg.css';
 
 const actions: Array<{ panel: RpgPanel; icon: RpgIconName; label: string }> = [
@@ -31,6 +36,9 @@ interface Props {
     bindings: SavedWorldResponse['bindings'];
     town?: WorldTown;
     onStreet(street: string): void;
+    connection?: RpgConnection;
+    voice?: RpgVoiceController;
+    onReconnect?(): void;
   };
   pendingState?: ReactNode;
 }
@@ -50,9 +58,13 @@ export function RpgPlayPage({
     village: RPG_THEMES.village.defaultAppearance,
     norse: RPG_THEMES.norse.defaultAppearance,
   });
-  const appearance = appearances[world];
+  const appearance = server?.connection?.self?.appearance ?? appearances[world];
   const [panel, setPanel] = useState<RpgPanel | null>(null);
   const [speech, setSpeech] = useState<RpgDialogue | null>(null);
+  const [houseId, setHouseId] = useState<string | null>(null);
+  const houseRoom = server?.bindings.find((binding) => binding.landmarkId === houseId)?.rooms[0];
+  const channelRoom: MapRoom | null = houseRoom ? { ...houseRoom, order: 0 } : null;
+  const networkPending = Boolean(server?.connection && !server.connection.ready);
   const [line, setLine] = useState(0);
   const advanceRef = useRef<HTMLButtonElement>(null);
   const [ui, setUi] = useState<RpgUiState>(() => ({
@@ -85,35 +97,66 @@ export function RpgPlayPage({
     },
     [server],
   );
+  const openHouse = useCallback(
+    (landmarkId: string) => {
+      if (
+        !server?.connection?.ready ||
+        !server.bindings.some((binding) => binding.landmarkId === landmarkId)
+      )
+        return;
+      setHouseId(landmarkId);
+      setPanel(null);
+      setSpeech(null);
+    },
+    [server],
+  );
   const { hostRef, canvasRef, runtimeRef, canvasKey, status, retry } = useRpgGame({
     sample,
     samples,
     worldKey,
     appearance,
-    blocked: Boolean(pendingState) || panel !== null || speech !== null,
+    blocked:
+      Boolean(pendingState) ||
+      networkPending ||
+      panel !== null ||
+      speech !== null ||
+      channelRoom !== null,
     onUi: setUi,
     onDialogue: talk,
     onTravel: travel,
     onStreet: server ? selectStreet : undefined,
+    onHouse: server?.connection ? openHouse : undefined,
+    onMove: server?.connection?.updateLocation,
+    players: server?.connection?.players,
+    playerPosition: server?.connection?.position,
   });
-  const suspended = Boolean(pendingState) || status !== 'ready';
+  const suspended = Boolean(pendingState) || networkPending || status !== 'ready';
   const [overlayOwner, setOverlayOwner] = useState({
     sample,
     navigationKey,
     canvasKey,
     pending: Boolean(pendingState),
+    networkPending,
   });
   if (
     overlayOwner.sample !== sample ||
     overlayOwner.navigationKey !== navigationKey ||
     overlayOwner.canvasKey !== canvasKey ||
-    overlayOwner.pending !== Boolean(pendingState)
+    overlayOwner.pending !== Boolean(pendingState) ||
+    overlayOwner.networkPending !== networkPending
   ) {
     // Reset before React commits: Back/refresh must never reopen another street's dialogue.
-    setOverlayOwner({ sample, navigationKey, canvasKey, pending: Boolean(pendingState) });
+    setOverlayOwner({
+      sample,
+      navigationKey,
+      canvasKey,
+      pending: Boolean(pendingState),
+      networkPending,
+    });
     setPanel(null);
     setSpeech(null);
     setLine(0);
+    setHouseId(null);
   }
   const advance = useCallback(() => {
     if (speech && line < speech.lines.length - 1) setLine((value) => value + 1);
@@ -143,6 +186,18 @@ export function RpgPlayPage({
     window.addEventListener('keydown', handle);
     return () => window.removeEventListener('keydown', handle);
   }, [speech, advance]);
+
+  const connectedKey = server?.voice?.state.voiceState?.channelKey;
+  const connectedBinding = connectedKey
+    ? server?.bindings.find((binding) => binding.rooms.some((room) => room.key === connectedKey))
+    : undefined;
+  const connected = connectedBinding?.rooms.find((room) => room.key === connectedKey);
+  const connectedRoom: MapRoom | null = connected ? { ...connected, order: 0 } : null;
+  const returnToCall = () => {
+    const landmark = sample.landmarks.find((entry) => entry.id === connectedBinding?.landmarkId);
+    if (landmark) runtimeRef.current?.focus?.(landmark);
+    setHouseId(null);
+  };
 
   return (
     <main className="rpg-page" data-game-theme={theme}>
@@ -259,12 +314,28 @@ export function RpgPlayPage({
           <kbd>W A S D</kbd> to walk <span>·</span> <kbd>Shift</kbd> to run <span>·</span> Drag to
           look around
         </p>
-        {status === 'ready' && !panel && !speech && (
+        {status === 'ready' && !suspended && !panel && !speech && !channelRoom && (
           <VirtualJoystick
             onChange={(x, y, sprint) => runtimeRef.current?.setVirtualAxis(x, y, sprint)}
           />
         )}
       </div>
+      {server?.voice && !suspended && !channelRoom && (
+        <RpgVoiceStatus
+          className="rpg-call-status"
+          guildId={server.guildId}
+          currentRoom={null}
+          connectedRoom={connectedRoom}
+          voice={server.voice}
+          onReturn={returnToCall}
+        />
+      )}
+      {server?.connection && !suspended && (
+        <span className="rpg-town-presence" role="status">
+          {server.connection.onlineCount}{' '}
+          {server.connection.onlineCount === 1 ? 'traveler' : 'travelers'} here
+        </span>
+      )}
       {pendingState ??
         (status !== 'ready' && (
           <div className="rpg-state" role={status === 'error' ? 'alert' : 'status'}>
@@ -291,6 +362,25 @@ export function RpgPlayPage({
             </div>
           </div>
         ))}
+      {!pendingState && status === 'ready' && networkPending && (
+        <div className="rpg-state" role="status">
+          <div className="rpg-frame">
+            <span className="rpg-kicker">{server?.displayName}</span>
+            <h2>
+              {server?.connection?.connection === 'offline'
+                ? 'Reconnecting to town…'
+                : 'Joining your town…'}
+            </h2>
+            <p>Waiting for your traveler and the other members to arrive.</p>
+            <div className="rpg-state-actions">
+              <button className="rpg-button" onClick={server?.onReconnect}>
+                Try again
+              </button>
+              <a href="/dashboard">Choose another server</a>
+            </div>
+          </div>
+        </div>
+      )}
       <RpgPanels
         panel={suspended ? null : panel}
         theme={theme}
@@ -301,12 +391,42 @@ export function RpgPlayPage({
         server={server ? { ...server, onStreet: selectStreet } : undefined}
         onClose={() => setPanel(null)}
         onTheme={travel}
-        onAppearance={(id) => setAppearances((current) => ({ ...current, [world]: id }))}
+        onAppearance={(id) => {
+          const parsed = rpgAppearanceSchema.safeParse(id);
+          if (server?.connection && parsed.success) server.connection.setAppearance(parsed.data);
+          else setAppearances((current) => ({ ...current, [world]: id }));
+        }}
         onFocus={(point) => {
           runtimeRef.current?.focus?.(point);
           setPanel(null);
         }}
       />
+      <Dialog
+        open={!suspended && channelRoom !== null}
+        title={channelRoom ? `# ${channelRoom.label}` : ''}
+        className="rpg-dialog rpg-dialog--channel"
+        onClose={() => setHouseId(null)}
+        footer={
+          <button className="rpg-button" onClick={() => setHouseId(null)}>
+            Back to town <kbd>Esc</kbd>
+          </button>
+        }
+      >
+        {!suspended && channelRoom && server?.connection && server.voice && (
+          <RpgChannelPanel
+            key={channelRoom.key}
+            guildId={server.guildId}
+            room={channelRoom}
+            connection={server.connection.connection}
+            liveMessage={server.connection.liveMessage}
+            readMessages={server.connection.readMessages}
+            sendMessage={server.connection.sendMessage}
+            voice={server.voice}
+            connectedRoom={connectedRoom}
+            onReturnToCall={returnToCall}
+          />
+        )}
+      </Dialog>
       <Dialog
         open={!suspended && speech !== null}
         title={speech?.name ?? ''}

@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { RpgScene } from './rpg-scene';
 import type { Point } from '../world/engine/types';
+import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import type { RpgCallbacks, RpgRuntime, RpgSample } from './types';
 
 /** React-facing lifecycle adapter. Game state and drawing live in separate modules. */
@@ -10,6 +11,8 @@ export class RpgGame implements RpgRuntime {
   private width = 1;
   private height = 1;
   private appearance = 'rowan';
+  private players: readonly RpgPresencePlayer[] = [];
+  private playerPosition: RpgLocation | null = null;
   private blocked = false;
   private destroyed = false;
   private teardown: Promise<void> | null = null;
@@ -35,6 +38,8 @@ export class RpgGame implements RpgRuntime {
       );
       this.scene.resize(this.width, this.height);
       this.scene.setAppearance(this.appearance);
+      this.scene.setPlayers(this.players);
+      if (this.playerPosition) this.scene.setPlayerPosition(this.playerPosition);
       this.scene.setInputBlocked(this.blocked);
       this.game = new Phaser.Game({
         type: Phaser.WEBGL,
@@ -66,6 +71,10 @@ export class RpgGame implements RpgRuntime {
     this.scene?.resize(this.width, this.height);
   }
   public setScene(sample: RpgSample, sceneKey: string): void {
+    if (sceneKey !== this.sceneKey) {
+      this.players = [];
+      this.playerPosition = null;
+    }
     this.sample = sample;
     this.sceneKey = sceneKey;
     this.scene?.setScene(sample, sceneKey);
@@ -73,6 +82,14 @@ export class RpgGame implements RpgRuntime {
   public setAppearance(id: string): void {
     this.appearance = id;
     this.scene?.setAppearance(id);
+  }
+  public setPlayers(players: readonly RpgPresencePlayer[]): void {
+    this.players = players;
+    this.scene?.setPlayers(players);
+  }
+  public setPlayerPosition(location: RpgLocation): void {
+    this.playerPosition = location;
+    this.scene?.setPlayerPosition(location);
   }
   public setInputBlocked(blocked: boolean): void {
     this.blocked = blocked;
@@ -111,6 +128,8 @@ export class RpgGame implements RpgRuntime {
       : Promise.resolve();
     this.game = null;
     this.scene = null;
+    this.players = [];
+    this.playerPosition = null;
     return this.teardown;
   }
 }

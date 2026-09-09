@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RpgGame } from './rpg-game';
 import type { Point } from '../world/engine/types';
+import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import type { RpgDestination, RpgDialogue, RpgRuntime, RpgSample, RpgUiState } from './types';
 
 interface Options {
@@ -9,24 +10,50 @@ interface Options {
   worldKey: string;
   appearance: string;
   blocked: boolean;
+  players?: readonly RpgPresencePlayer[];
+  playerPosition?: RpgLocation | null;
   onUi(state: RpgUiState): void;
   onDialogue(dialogue: RpgDialogue): void;
   onTravel(destination: RpgDestination): void;
   onStreet?(street: string): void;
+  onMove?(location: RpgLocation): void;
+  onHouse?(landmarkId: string): void;
 }
 
 let previousTeardown: Promise<void> = Promise.resolve();
+const NO_PLAYERS: readonly RpgPresencePlayer[] = [];
 
 /** Owns the React/Phaser boundary, including Strict Mode, sizing and retry cleanup. */
 export function useRpgGame(options: Options) {
-  const { sample, samples, worldKey, appearance, blocked, onUi, onDialogue, onTravel, onStreet } =
-    options;
+  const {
+    sample,
+    samples,
+    worldKey,
+    appearance,
+    blocked,
+    players = NO_PLAYERS,
+    playerPosition = null,
+    onUi,
+    onDialogue,
+    onTravel,
+    onStreet,
+    onMove,
+    onHouse,
+  } = options;
   const sceneKey = `${worldKey}/${sample.id}`;
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<RpgRuntime | null>(null);
-  const settings = useRef({ sample, samples, sceneKey, appearance, blocked });
-  const callbacks = useRef({ onUi, onDialogue, onTravel, onStreet });
+  const settings = useRef({
+    sample,
+    samples,
+    sceneKey,
+    appearance,
+    blocked,
+    players,
+    playerPosition,
+  });
+  const callbacks = useRef({ onUi, onDialogue, onTravel, onStreet, onMove, onHouse });
   const positions = useRef(new Map<string, Point>());
   const [attempt, setAttempt] = useState(0);
   const runtimeKey = `${worldKey}:${attempt}`;
@@ -35,11 +62,37 @@ export function useRpgGame(options: Options) {
   const inputBlocked = blocked || status !== 'ready';
 
   useEffect(() => {
-    settings.current = { sample, samples, sceneKey, appearance, blocked: inputBlocked };
-    callbacks.current = { onUi, onDialogue, onTravel, onStreet };
-  }, [sample, samples, sceneKey, appearance, inputBlocked, onUi, onDialogue, onTravel, onStreet]);
+    settings.current = {
+      sample,
+      samples,
+      sceneKey,
+      appearance,
+      blocked: inputBlocked,
+      players,
+      playerPosition,
+    };
+    callbacks.current = { onUi, onDialogue, onTravel, onStreet, onMove, onHouse };
+  }, [
+    sample,
+    samples,
+    sceneKey,
+    appearance,
+    inputBlocked,
+    players,
+    playerPosition,
+    onUi,
+    onDialogue,
+    onTravel,
+    onStreet,
+    onMove,
+    onHouse,
+  ]);
   useEffect(() => runtimeRef.current?.setScene(sample, sceneKey), [sample, sceneKey]);
   useEffect(() => runtimeRef.current?.setAppearance(appearance), [appearance]);
+  useEffect(() => runtimeRef.current?.setPlayers(players), [players, sceneKey]);
+  useEffect(() => {
+    if (playerPosition) runtimeRef.current?.setPlayerPosition(playerPosition);
+  }, [playerPosition]);
   useEffect(() => runtimeRef.current?.setInputBlocked(inputBlocked), [inputBlocked]);
 
   useEffect(() => {
@@ -67,6 +120,12 @@ export function useRpgGame(options: Options) {
           onDialogue: (dialogue) => active && callbacks.current.onDialogue(dialogue),
           onTravel: (next) => active && callbacks.current.onTravel(next),
           onStreet: (next) => active && callbacks.current.onStreet?.(next),
+          onMove: (location) => active && callbacks.current.onMove?.(location),
+          get onHouse() {
+            return callbacks.current.onHouse
+              ? (id: string) => active && callbacks.current.onHouse?.(id)
+              : undefined;
+          },
         },
         current.samples,
         current.sceneKey,
@@ -74,6 +133,9 @@ export function useRpgGame(options: Options) {
       );
       runtimeRef.current = runtime;
       runtime.setAppearance(settings.current.appearance);
+      runtime.setPlayers(settings.current.players);
+      if (settings.current.playerPosition)
+        runtime.setPlayerPosition(settings.current.playerPosition);
       runtime.setInputBlocked(settings.current.blocked);
       const resize = () => {
         const bounds = host.getBoundingClientRect();

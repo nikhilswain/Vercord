@@ -92,7 +92,7 @@ export function RpgPanels({
           <p>
             {server?.town && theme !== 'dungeon'
               ? server.town.continuous
-                ? 'Follow the paths between neighborhoods and channel houses. Open Map to find every house or show a neighborhood.'
+                ? 'Follow the paths between neighborhoods and channel houses. Open Map to find every house, then approach a doorway and press E to open its chat or voice controls.'
                 : 'The Map lists your town’s neighborhoods and streets. Follow the paths to named channel houses, or read the town-square sign to visit the square.'
               : `Take the paths at your own pace. Approach ${place.guide} to hear a little about this place.`}
           </p>
@@ -114,7 +114,7 @@ export function RpgPanels({
               <dd>Double-click or double-tap the ground</dd>
             </div>
             <div>
-              <dt>Talk / explore</dt>
+              <dt>Open / talk / explore</dt>
               <dd>
                 <kbd>E</kbd> or the nearby action button
               </dd>
@@ -142,7 +142,10 @@ export function RpgPanels({
       )}
       {panel === 'appearance' && (
         <>
-          <p>Choose your traveler for {home.name}. Your look stays with you in the dungeon.</p>
+          <p>
+            Choose your traveler for {home.name}. Your look stays with you in the dungeon.
+            {server ? ' Your look and position are saved for this server.' : ''}
+          </p>
           <div className="rpg-appearance-list">
             {appearances.map((option) => (
               <button

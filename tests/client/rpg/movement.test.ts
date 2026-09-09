@@ -52,6 +52,33 @@ describe('auto-run', () => {
 });
 
 describe('saved scene positions', () => {
+  it('restores authoritative positions safely and cancels the previous route', () => {
+    const simulation = createSimulation();
+    simulation.navigate({ x: 1000, y: 104 });
+    simulation.tick(1 / 60, idle);
+    const location = {
+      x: 200,
+      y: 200,
+      direction: 'left',
+      action: 'run',
+      scene: 'overworld',
+    } as const;
+    expect(simulation.setPlayerPosition(location)).toBe(true);
+    simulation.tick(1 / 60, idle);
+    expect(simulation.player).toEqual({ x: 200, y: 200 });
+    expect(simulation.direction).toBe('left');
+    expect(simulation.action).toBe('idle');
+    expect(simulation.setPlayerPosition({ ...location, scene: 'dungeon' })).toBe(false);
+    expect(simulation.setPlayerPosition({ ...location, x: Number.NaN })).toBe(false);
+    simulation.sample.colliders.push({ x: 285, y: 185, width: 30, height: 30 });
+    expect(simulation.setPlayerPosition({ ...location, x: 300 })).toBe(false);
+    expect(simulation.player).toEqual({ x: 200, y: 200 });
+    const original = simulation.sample;
+    simulation.changeSample({ ...original, id: 'dungeon' });
+    simulation.changeSample(original);
+    expect(simulation.player).toEqual({ x: 200, y: 200 });
+  });
+
   it('keeps dungeon and server positions separate and rejects positions inside new obstacles', () => {
     const sample = {
       ...getRpgSample('village'),

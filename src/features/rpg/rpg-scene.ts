@@ -1,10 +1,12 @@
 import * as Phaser from 'phaser';
 import { WorldInput, worldInputBlocked } from '../world/engine/input';
 import type { Point } from '../world/engine/types';
+import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { preloadRpgCharacters, RpgCharacter } from './character';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
 import { TownSignage } from './town-signage';
+import { RpgRemoteCharacters } from './remote-characters';
 import type { RpgCallbacks, RpgSample, RpgUiState } from './types';
 
 export class RpgScene extends Phaser.Scene {
@@ -13,6 +15,9 @@ export class RpgScene extends Phaser.Scene {
   private movement: WorldInput | null = null;
   private scenery: RpgSampleRenderer | null = null;
   private avatar: RpgCharacter | null = null;
+  private remotes: RpgRemoteCharacters | null = null;
+  private players: readonly RpgPresencePlayer[] = [];
+  private positionReady = false;
   private npcs: RpgCharacter[] = [];
   private labels: Phaser.GameObjects.Text[] = [];
   private signage: TownSignage | null = null;
@@ -27,6 +32,8 @@ export class RpgScene extends Phaser.Scene {
   private height = 1;
   private lastUi = '';
   private lastUiTime = 0;
+  private lastMove = '';
+  private lastMoveTime = 0;
   private elapsed = 0;
   private previousTap: { point: Point; time: number } | null = null;
   private following = true;
@@ -37,7 +44,7 @@ export class RpgScene extends Phaser.Scene {
     sample: RpgSample,
     private readonly callbacks: RpgCallbacks,
     private readonly samples: readonly RpgSample[],
-    sceneKey: string,
+    private sceneKey: string,
     positions: Map<string, Point>,
   ) {
     super({ key: 'rpg-sample' });
@@ -65,6 +72,7 @@ export class RpgScene extends Phaser.Scene {
     this.game.canvas.addEventListener('webglcontextlost', this.onContextLost);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('blur', this.onBlur);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.dispose, this);
     this.events.once(Phaser.Scenes.Events.DESTROY, this.dispose, this);
     this.game.canvas.dataset.rpgReady = 'true';
@@ -115,6 +123,8 @@ export class RpgScene extends Phaser.Scene {
       );
     }
     this.signage?.update(camera);
+    this.remotes?.update(camera, this.elapsed, this.motion.matches);
+    this.publishMove();
     if (action !== 'idle') this.marker?.setVisible(false);
     if (this.elapsed - this.lastUiTime >= 100) this.publishUi();
   }
@@ -137,7 +147,14 @@ export class RpgScene extends Phaser.Scene {
   }
 
   public setScene(sample: RpgSample, sceneKey: string): void {
-    if (this.simulation.sample === sample) return;
+    if (this.simulation.sample === sample && this.sceneKey === sceneKey) return;
+    if (this.sceneKey !== sceneKey) {
+      this.players = [];
+      this.positionReady = false;
+      this.lastMove = '';
+      this.lastMoveTime = this.elapsed;
+    }
+    this.sceneKey = sceneKey;
     this.simulation.changeSample(sample, sceneKey);
     if (this.created && !this.failed && !this.disposed) {
       this.renderSample();
@@ -148,6 +165,32 @@ export class RpgScene extends Phaser.Scene {
   public setAppearance(id: string): void {
     this.appearance = id;
     this.avatar?.setAppearance(id);
+  }
+
+  public setPlayers(players: readonly RpgPresencePlayer[]): void {
+    const scene = this.simulation.sample.id === 'dungeon' ? 'dungeon' : 'overworld';
+    this.players = players.filter((player) => player.scene === scene);
+    this.remotes?.setPlayers(this.players, this.elapsed);
+  }
+
+  public setPlayerPosition(location: RpgLocation): void {
+    if (!this.simulation.setPlayerPosition(location)) return;
+    this.positionReady = true;
+    this.lastMove = JSON.stringify(this.location());
+    this.lastMoveTime = this.elapsed;
+    this.cancelPointer();
+    this.previousTap = null;
+    this.marker?.setVisible(false);
+    this.avatar?.update(
+      location.x,
+      location.y,
+      location.direction,
+      'idle',
+      this.elapsed,
+      this.motion.matches,
+    );
+    if (this.created && this.following) this.cameras.main.centerOn(location.x, location.y - 18);
+    this.publishUi();
   }
 
   public setInputBlocked(blocked: boolean): void {
@@ -178,7 +221,9 @@ export class RpgScene extends Phaser.Scene {
         lines: target.lines,
         appearance: target.appearance,
       });
-    } else if (target.id === 'town-square' && this.simulation.sample.townSquareNavigation)
+    } else if (target.id.startsWith('house:') && this.callbacks.onHouse)
+      this.callbacks.onHouse(target.id);
+    else if (target.id === 'town-square' && this.simulation.sample.townSquareNavigation)
       this.callbacks.onStreet?.('square');
     else if (target.destination) this.callbacks.onTravel(target.destination);
     else
@@ -274,6 +319,8 @@ export class RpgScene extends Phaser.Scene {
     this.movement?.destroy();
     this.movement = null;
     this.clearVisuals();
+    this.players = [];
+    this.positionReady = false;
     this.load?.off('loaderror', this.onLoadError);
     const canvas = this.game?.canvas;
     this.cancelPointer();
@@ -287,6 +334,7 @@ export class RpgScene extends Phaser.Scene {
     if (canvas) delete canvas.dataset.rpgReady;
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('blur', this.onBlur);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 
   private renderSample(): void {
@@ -300,6 +348,8 @@ export class RpgScene extends Phaser.Scene {
       .setStrokeStyle(1, 0xffdfa4, 0.8)
       .setDepth(player.y - 0.1);
     this.avatar = new RpgCharacter(this, this.appearance, player.x, player.y);
+    this.remotes = new RpgRemoteCharacters(this);
+    this.remotes.setPlayers(this.players, this.elapsed);
     this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
       this.add
@@ -326,6 +376,8 @@ export class RpgScene extends Phaser.Scene {
     this.scenery = null;
     this.avatar?.destroy();
     this.avatar = null;
+    this.remotes?.destroy();
+    this.remotes = null;
     this.npcs.forEach((npc) => npc.destroy());
     this.npcs = [];
     this.labels.forEach((label) => label.destroy());
@@ -344,7 +396,7 @@ export class RpgScene extends Phaser.Scene {
     const state: RpgUiState = {
       theme: this.simulation.sample.id,
       place: this.simulation.place(),
-      nearby: this.simulation.nearby()?.ui ?? null,
+      nearby: this.simulation.nearby(Boolean(this.callbacks.onHouse))?.ui ?? null,
       position: {
         x: Math.round(this.simulation.player.x),
         y: Math.round(this.simulation.player.y),
@@ -358,6 +410,33 @@ export class RpgScene extends Phaser.Scene {
       this.lastUi = key;
       this.callbacks.onUi(state);
     }
+  }
+
+  private location(): RpgLocation {
+    return {
+      ...this.simulation.player,
+      direction: this.simulation.direction,
+      action: this.simulation.action,
+      scene: this.simulation.sample.id === 'dungeon' ? 'dungeon' : 'overworld',
+    };
+  }
+
+  private publishMove(immediate = false): void {
+    // Admission restores the authoritative spawn before any local state may be published.
+    if (
+      this.disposed ||
+      this.failed ||
+      !this.positionReady ||
+      !this.callbacks.onMove ||
+      (!immediate && this.elapsed - this.lastMoveTime < 100)
+    )
+      return;
+    const location = this.location();
+    const key = JSON.stringify(location);
+    if (key === this.lastMove) return;
+    this.lastMove = key;
+    this.lastMoveTime = this.elapsed;
+    this.callbacks.onMove(location);
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -480,6 +559,11 @@ export class RpgScene extends Phaser.Scene {
     this.simulation.stop();
     this.previousTap = null;
     this.cancelPointer();
+    // A hidden tab may receive no further animation frames to publish its final idle state.
+    this.publishMove(true);
+  };
+  private readonly onVisibilityChange = (): void => {
+    if (document.hidden) this.onBlur();
   };
   private readonly onLoadError = (): void => {
     this.fail();

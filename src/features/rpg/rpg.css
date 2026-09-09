@@ -81,6 +81,37 @@
   cursor: default;
   opacity: 0.45;
 }
+
+.rpg-town-presence {
+  position: absolute;
+  left: 28px;
+  top: 116px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  color: var(--rpg-label-ink);
+  background: var(--rpg-label-panel);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.rpg-call-status {
+  position: absolute;
+  left: 24px;
+  bottom: 98px;
+  width: min(400px, calc(100% - 48px));
+}
+
+@media (max-width: 700px) {
+  .rpg-town-presence {
+    top: 92px;
+    left: 16px;
+  }
+  .rpg-call-status {
+    left: 16px;
+    bottom: 110px;
+    width: calc(100% - 32px);
+  }
+}
 .rpg-page a {
   color: inherit;
   text-underline-offset: 4px;

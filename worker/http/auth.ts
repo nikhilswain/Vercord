@@ -47,6 +47,7 @@ import {
 } from '../live-world/service';
 import { worldThemeIdSchema, streetSelectionSchema } from '../../src/domain/world/protocol';
 import { publicLabel } from '../../src/domain/map/labels';
+import { readRpgPartition } from '../presence/rpg-state';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
 const SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
@@ -793,6 +794,8 @@ async function handleGuildChannels(
 
 async function handleGuildPresence(request: Request, env: Env, guildId: string): Promise<Response> {
   if (request.method !== 'GET') return authError('METHOD_NOT_ALLOWED', 405);
+  const partition = readRpgPartition(new URL(request.url).searchParams);
+  if (partition === null) return authError('INVALID_REQUEST', 400);
   const websocketUpgrade = request.headers.get('upgrade')?.toLowerCase() === 'websocket';
   if (websocketUpgrade && !sameOrigin(request)) return authError('INVALID_ORIGIN', 403);
 
@@ -825,8 +828,11 @@ async function handleGuildPresence(request: Request, env: Env, guildId: string):
       'x-dmap-session-expires-at': String(session.sessionExpiresAt),
     });
     if (websocketUpgrade) headers.set('upgrade', 'websocket');
+    const connectUrl = new URL('https://presence.dmap/connect');
+    if (partition)
+      for (const [key, value] of Object.entries(partition)) connectUrl.searchParams.set(key, value);
     const response = await stub.fetch(
-      new Request('https://presence.dmap/connect', {
+      new Request(connectUrl, {
         headers,
       }),
     );

@@ -1,0 +1,365 @@
+.rpg-page .rpg-dialog--channel {
+  width: min(640px, calc(100% - 32px));
+}
+
+.rpg-channel-panel {
+  min-width: 0;
+}
+
+.rpg-channel-panel .room-chat {
+  position: relative;
+  z-index: auto;
+  inset: auto;
+  width: 100%;
+  max-height: none;
+  border: 1px solid var(--rpg-edge);
+  border-radius: 2px;
+  color: var(--rpg-ink);
+  background: var(--rpg-panel-dark);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.rpg-channel-panel .room-chat__toggle {
+  background: var(--rpg-panel);
+}
+
+.rpg-channel-panel .room-chat__toggle:hover,
+.rpg-channel-panel .room-chat__message:hover {
+  background: color-mix(in srgb, var(--rpg-accent) 10%, var(--rpg-panel));
+}
+
+.rpg-channel-panel .room-chat__toggle:active {
+  background: var(--rpg-panel-dark);
+}
+
+.rpg-channel-panel .room-chat__heading strong {
+  font:
+    500 1.2rem/1.3 'Pixelify Sans',
+    monospace;
+}
+
+.rpg-channel-panel .room-chat__heading small,
+.rpg-channel-panel .room-chat__chevron,
+.rpg-channel-panel .room-chat__message-copy time,
+.rpg-channel-panel .room-chat__message-copy small,
+.rpg-channel-panel .room-chat__composer-meta span,
+.rpg-channel-panel .room-chat__state,
+.rpg-channel-panel .room-chat__status {
+  color: var(--rpg-muted);
+}
+
+.rpg-channel-panel .room-chat__sigil,
+.rpg-channel-panel .room-chat__avatar {
+  border: 1px solid var(--rpg-edge);
+  border-radius: 2px;
+  color: var(--rpg-accent);
+  background: var(--rpg-panel);
+}
+
+.rpg-channel-panel .room-chat__bot,
+.rpg-channel-panel .room-chat__unread {
+  color: var(--rpg-panel);
+  background: var(--rpg-ink);
+}
+
+.rpg-channel-panel .room-chat__body,
+.rpg-channel-panel .room-chat__composer {
+  border-color: var(--rpg-edge);
+}
+
+.rpg-channel-panel .room-chat__messages {
+  min-height: 9rem;
+  max-height: min(20rem, 34dvh);
+  scrollbar-gutter: stable;
+}
+
+.rpg-channel-panel .room-chat__message-copy header strong,
+.rpg-channel-panel .room-chat__message-copy p {
+  font-size: 0.8125rem;
+}
+
+.rpg-channel-panel .room-chat__message-copy p {
+  margin: 0.15rem 0 0;
+}
+
+.rpg-channel-panel .room-chat__composer {
+  background: var(--rpg-panel);
+}
+
+.rpg-channel-panel .room-chat__composer textarea {
+  border-color: var(--rpg-edge);
+  border-radius: 2px;
+  color: var(--rpg-ink);
+  background: var(--rpg-panel-dark);
+  font: inherit;
+}
+
+.rpg-channel-panel .room-chat__composer textarea::placeholder {
+  color: var(--rpg-muted);
+  opacity: 1;
+}
+
+.rpg-channel-panel .room-chat__composer textarea:focus-visible {
+  border-color: var(--rpg-accent);
+  outline: 2px solid var(--rpg-accent);
+  outline-offset: 2px;
+}
+
+.rpg-channel-panel .room-chat__composer-meta button,
+.rpg-voice-status .voice-beacon__actions button,
+.rpg-voice-status .voice-beacon__actions a,
+.rpg-voice-status .confirm-dialog__actions button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rpg-edge);
+  border-radius: 2px;
+  padding: 8px 12px;
+  color: var(--rpg-ink);
+  background: var(--rpg-panel);
+  cursor: pointer;
+  font:
+    600 0.8125rem/1.4 'Inter Variable',
+    sans-serif;
+  text-decoration: none;
+}
+
+.rpg-channel-panel .room-chat__composer-meta button {
+  min-width: 6rem;
+}
+
+.rpg-channel-panel .room-chat__composer-meta button:hover:not(:disabled),
+.rpg-voice-status .voice-beacon__actions :is(button, a):hover:not(:disabled),
+.rpg-voice-status .confirm-dialog__actions button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rpg-accent) 14%, var(--rpg-panel));
+}
+
+.rpg-channel-panel .room-chat__composer-meta button:active:not(:disabled),
+.rpg-voice-status .voice-beacon__actions :is(button, a):active:not(:disabled),
+.rpg-voice-status .confirm-dialog__actions button:active:not(:disabled) {
+  box-shadow: inset 0 2px 0 var(--rpg-edge);
+}
+
+.rpg-channel-panel .room-chat__error,
+.rpg-channel-panel .room-chat__notice,
+.rpg-voice-status .voice-beacon__error,
+.rpg-voice-status .confirm-dialog__error {
+  color: var(--rpg-ink);
+  border-left: 3px solid var(--rpg-accent);
+  padding-left: 10px;
+}
+
+.rpg-channel-panel .room-chat__state,
+.rpg-channel-panel .room-chat__status,
+.rpg-channel-panel .room-chat__error,
+.rpg-channel-panel .room-chat__notice {
+  margin: 0;
+}
+
+.rpg-channel-panel__call-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.rpg-channel-panel__call-action p,
+.rpg-channel-panel .rpg-channel-panel__note {
+  margin: 0;
+  color: var(--rpg-muted);
+  font-size: 0.8125rem;
+}
+
+.rpg-channel-panel .rpg-channel-panel__note {
+  margin-top: 16px;
+}
+
+.rpg-channel-panel .rpg-channel-panel__note:only-child {
+  margin-top: 0;
+}
+
+.rpg-voice-status {
+  min-width: 0;
+  color: var(--rpg-ink);
+  font-family: 'Inter Variable', sans-serif;
+}
+
+.rpg-voice-status:has(> .voice-beacon) {
+  pointer-events: auto;
+}
+
+.rpg-voice-status .voice-beacon {
+  position: relative;
+  z-index: auto;
+  inset: auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  min-height: 4.25rem;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid var(--rpg-frame);
+  border-radius: 2px;
+  color: var(--rpg-ink);
+  background: var(--rpg-panel);
+  background-image: var(--rpg-surface-texture, none);
+  box-shadow: inset 0 0 0 1px var(--rpg-edge);
+  transform: none;
+  backdrop-filter: none;
+}
+
+.rpg-voice-status .voice-beacon__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--rpg-edge);
+  border-radius: 2px;
+  color: var(--rpg-accent);
+  background: var(--rpg-panel-dark);
+}
+
+.rpg-voice-status .voice-beacon__icon svg,
+.rpg-voice-status .voice-beacon__dismiss svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.rpg-voice-status .voice-beacon__body {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.rpg-voice-status .voice-beacon__body > strong {
+  font:
+    500 1.125rem/1.2 'Pixelify Sans',
+    monospace;
+}
+
+.rpg-voice-status .voice-beacon__body > span:not(.voice-beacon__flags, .voice-beacon__error) {
+  color: var(--rpg-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.rpg-voice-status .voice-beacon__flags,
+.rpg-voice-status .voice-beacon__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rpg-voice-status .voice-beacon__flags span {
+  padding: 2px 5px;
+  border-radius: 2px;
+  color: var(--rpg-ink);
+  background: var(--rpg-panel-dark);
+  font-size: 0.6875rem;
+}
+
+.rpg-voice-status .voice-beacon__actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+
+.rpg-voice-status .voice-beacon__actions:empty {
+  display: none;
+}
+
+.rpg-voice-status .voice-beacon__actions .voice-beacon__join {
+  min-inline-size: 10rem;
+}
+
+.rpg-voice-status .voice-beacon__actions .voice-beacon__dismiss {
+  min-width: 44px;
+  padding: 8px;
+}
+
+.rpg-voice-status .voice-beacon__actions .voice-beacon__disconnect,
+.rpg-voice-status .confirm-dialog__actions .confirm-dialog__danger {
+  border-bottom: 3px solid var(--color-danger);
+}
+
+.rpg-voice-status .confirm-dialog {
+  width: min(28rem, calc(100% - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 2px;
+  color: var(--rpg-ink);
+  background: transparent;
+  font: inherit;
+}
+
+.rpg-voice-status .confirm-dialog::backdrop {
+  background: #0a141680;
+  backdrop-filter: none;
+}
+
+.rpg-voice-status .confirm-dialog__panel {
+  padding: 24px;
+  border: 3px solid var(--rpg-frame);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--rpg-edge);
+  background: var(--rpg-panel);
+}
+
+.rpg-voice-status .confirm-dialog h2 {
+  max-width: none;
+  margin: 0 0 16px;
+  padding: 0;
+  overflow-wrap: anywhere;
+  font:
+    500 1.75rem/1.2 'Pixelify Sans',
+    monospace;
+}
+
+.rpg-voice-status .confirm-dialog__copy {
+  color: var(--rpg-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.rpg-voice-status .confirm-dialog__copy p {
+  margin: 0;
+}
+
+.rpg-voice-status .confirm-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+@media (max-width: 35rem) {
+  .rpg-channel-panel .room-chat__composer textarea {
+    font-size: 16px;
+  }
+
+  .rpg-channel-panel .room-chat__messages {
+    min-height: 7rem;
+    max-height: 30dvh;
+  }
+
+  .rpg-channel-panel__call-action .rpg-button {
+    width: 100%;
+  }
+}
