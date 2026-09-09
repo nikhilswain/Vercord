@@ -40,6 +40,7 @@ export class RpgScene extends Phaser.Scene {
   private lastMove = '';
   private lastMoveTime = 0;
   private elapsed = 0;
+  private previousFrameTime: number | null = null;
   private previousTap: { point: Point; time: number } | null = null;
   private following = true;
   private manualMovement = false;
@@ -88,9 +89,15 @@ export class RpgScene extends Phaser.Scene {
     this.callbacks.onReady();
   }
 
-  public update(_time: number, delta: number): void {
+  public update(time: number): void {
     if (!this.created || this.failed || this.disposed || document.hidden || !this.avatar) return;
-    const dt = Math.min(50, delta);
+    // The FPS limiter's delta includes its carried remainder, which may already have been
+    // simulated. Use elapsed RAF timestamps so local travel cannot outrun the server clock.
+    const dt =
+      this.previousFrameTime === null
+        ? 0
+        : Math.min(50, Math.max(0, time - this.previousFrameTime));
+    this.previousFrameTime = time;
     this.elapsed += dt;
     this.simulation.blocked = this.inputBlocked || worldInputBlocked();
     const input = this.movement?.getMovement() ?? { x: 0, y: 0, moving: false, sprinting: false };
@@ -618,6 +625,7 @@ export class RpgScene extends Phaser.Scene {
     this.zoomBy(event.deltaY < 0 ? 2 : 0.5);
   };
   private readonly onBlur = (): void => {
+    this.previousFrameTime = null;
     this.simulation.stop();
     this.previousTap = null;
     this.cancelPointer();
