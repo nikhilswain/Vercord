@@ -139,6 +139,7 @@ export class RpgSimulation {
       return;
     }
     const dt = Math.min(0.05, Math.max(0, delta));
+    if (dt === 0) return;
     let dx = movement.x;
     let dy = movement.y;
     let autoRunning = false;
@@ -205,7 +206,8 @@ export class RpgSimulation {
       this.recordMovement(point);
       next = point;
     }
-    const moved = Math.hypot(next.x - this.player.x, next.y - this.player.y) > 0.01;
+    // A fractional final step still reaches a waypoint; only no progress means a collision.
+    const moved = next.x !== this.player.x || next.y !== this.player.y;
     this.direction = directionToward({ x: 0, y: 0 }, { x: dx, y: dy });
     this.action = moved ? (autoRunning || movement.sprinting ? 'run' : 'walk') : 'idle';
     this.player = next;
