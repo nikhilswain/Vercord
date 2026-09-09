@@ -1,9 +1,8 @@
 import { containsPoint, overlaps, resolveMovement } from '../world/engine/collision';
 import { footprint, WORLD_PLAYER_FEET } from '../../domain/world/geometry';
-import type { RpgLocation } from '../../domain/presence/rpg-protocol';
+import { RPG_MAX_MOVEMENT_POINTS, type RpgMovement } from '../../domain/presence/rpg-protocol';
 import { sampleSceneId } from '../../domain/world/catalog/scenes';
 import { RpgPathfinder } from './pathfinding';
-import type { MovementVector } from '../world/engine/input';
 import type { Point, Rect } from '../world/engine/types';
 import type { RpgAction, RpgDirection, RpgLandmark, RpgNearby, RpgNpc, RpgSample } from './types';
 
@@ -11,6 +10,7 @@ export const RPG_FEET = WORLD_PLAYER_FEET;
 const WALK_SPEED = 108;
 const RUN_SPEED = 174;
 const AUTO_RUN_SPEED = 240;
+type MovementVector = Point & { moving: boolean; sprinting: boolean };
 
 export function directionToward(from: Point, to: Point): RpgDirection {
   const dx = to.x - from.x;
@@ -24,6 +24,8 @@ export class RpgSimulation {
   public direction: RpgDirection = 'down';
   public action: RpgAction = 'idle';
   public blocked = false;
+  public movementRevision = 0;
+  private movementPath: Point[] = [];
   private route: Point[] = [];
   private destination: Point | null = null;
   private pathfinder!: RpgPathfinder;
@@ -43,6 +45,10 @@ export class RpgSimulation {
 
   public changeSample(sample: RpgSample, sceneKey: string = sample.id): void {
     this.rememberPosition();
+    if (sceneKey !== this.sceneKey) {
+      this.movementPath = [];
+      this.movementRevision = 0;
+    }
     this.sample = sample;
     this.sceneKey = sceneKey;
     this.player = this.restoredPosition();
@@ -58,16 +64,40 @@ export class RpgSimulation {
   }
 
   /** Corrections replan the remaining intent; fresh admissions and explicit stops clear it. */
-  public setPlayerPosition(location: RpgLocation, resumeDestination = false): boolean {
+  public setPlayerPosition(location: RpgMovement, resumeDestination = false): boolean {
     const scene = sampleSceneId(this.sample);
     if (location.scene !== scene || !this.isSafePosition(location)) return false;
     const destination = resumeDestination && !this.blocked ? this.destination : null;
     this.stop();
     this.player = { x: location.x, y: location.y };
+    this.movementRevision = location.revision ?? 0;
+    this.movementPath = [{ ...this.player }];
     this.direction = location.direction;
     this.rememberPosition();
     if (destination) this.navigate(destination);
     return true;
+  }
+
+  /** Drain only after publishing: intermediate corners must survive both network throttles. */
+  public takeMovementPath(): Point[] {
+    const via = this.movementPath.slice(1, -1);
+    this.movementPath = [{ ...this.player }];
+    return via;
+  }
+
+  private recordMovement(point: Point): void {
+    if (this.movementPath.length === 0) return;
+    const last = this.movementPath.at(-1)!;
+    if (Math.hypot(point.x - last.x, point.y - last.y) < 0.000001) return;
+    const before = this.movementPath.at(-2);
+    if (before) {
+      const dx = last.x - before.x;
+      const dy = last.y - before.y;
+      const nx = point.x - last.x;
+      const ny = point.y - last.y;
+      if (Math.abs(dx * ny - dy * nx) < 0.000001 && dx * nx + dy * ny >= 0) this.movementPath.pop();
+    }
+    this.movementPath.push({ ...point });
   }
 
   private isSafePosition(point: Point): boolean {
@@ -119,7 +149,7 @@ export class RpgSimulation {
     } else {
       while (
         this.route[0] &&
-        Math.hypot(this.route[0].x - this.player.x, this.route[0].y - this.player.y) < 2
+        Math.hypot(this.route[0].x - this.player.x, this.route[0].y - this.player.y) < 0.000001
       ) {
         this.route.shift();
       }
@@ -151,8 +181,30 @@ export class RpgSimulation {
       width: feet.width + Math.abs(dx) * 2,
       height: feet.height + Math.abs(dy) * 2,
     });
-    const result = resolveMovement(feet, dx, dy, obstacles, this.sample.bounds);
-    const next = { x: result.x - RPG_FEET.offsetX, y: result.y - RPG_FEET.offsetY };
+    let next = { ...this.player };
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 5));
+    for (let step = 0; step < steps; step++) {
+      // At most 32 turns can wait for a publication; a stalled consumer cannot grow a history.
+      if (this.movementPath.length > RPG_MAX_MOVEMENT_POINTS - 1) break;
+      const result = resolveMovement(
+        { ...feet, x: next.x + RPG_FEET.offsetX, y: next.y + RPG_FEET.offsetY },
+        dx / steps,
+        dy / steps,
+        obstacles,
+        this.sample.bounds,
+      );
+      const point = { x: result.x - RPG_FEET.offsetX, y: result.y - RPG_FEET.offsetY };
+      // Collision resolution moves x then y. Preserve that elbow only when its diagonal is unsafe.
+      if (
+        this.movementPath.length > 0 &&
+        point.x !== next.x &&
+        point.y !== next.y &&
+        !this.pathfinder.canTravel(next, point)
+      )
+        this.recordMovement({ x: point.x, y: next.y });
+      this.recordMovement(point);
+      next = point;
+    }
     const moved = Math.hypot(next.x - this.player.x, next.y - this.player.y) > 0.01;
     this.direction = directionToward({ x: 0, y: 0 }, { x: dx, y: dy });
     this.action = moved ? (autoRunning || movement.sprinting ? 'run' : 'walk') : 'idle';

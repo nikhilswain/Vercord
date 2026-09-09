@@ -10,20 +10,33 @@ import { rpgAppearanceSchema } from '../../../src/domain/presence/rpg-protocol';
 import { RpgPortrait } from '../../../src/features/rpg/RpgPortrait';
 
 describe('shared traveler appearances', () => {
-  it('offers five complete outfits per theme without adding animation textures', () => {
-    expect(RPG_CHARACTER_DEFINITIONS).toHaveLength(10);
-    expect(new Set(RPG_CHARACTER_DEFINITIONS.map(({ id }) => id)).size).toBe(10);
+  it('offers ten complete outfits per theme and preserves saved appearance IDs', () => {
+    expect(RPG_CHARACTER_DEFINITIONS).toHaveLength(20);
+    expect(new Set(RPG_CHARACTER_DEFINITIONS.map(({ id }) => id)).size).toBe(20);
     for (const theme of Object.values(WORLD_THEMES)) {
-      expect(theme.appearances).toHaveLength(5);
+      expect(theme.appearances).toHaveLength(10);
       for (const id of theme.appearances)
         expect(rpgAppearanceSchema.safeParse(id).success).toBe(true);
     }
     for (const character of RPG_CHARACTER_DEFINITIONS) {
       for (const layer of RPG_CHARACTER_LAYERS) {
         const { source } = character.layers[layer];
-        expect(['rowan', 'ash', 'ivar', 'sigrid']).toContain(source);
+        expect(source).toMatch(/^[a-z0-9-]+$/u);
       }
     }
+    for (const id of [
+      'rowan',
+      'ash',
+      'ivar',
+      'sigrid',
+      'tamsin',
+      'emery',
+      'linden',
+      'leif',
+      'runa',
+      'eirik',
+    ])
+      expect(rpgAppearanceSchema.safeParse(id).success).toBe(true);
   });
 
   it('renders the same six idle layers and RGB tints as the playable outfit', () => {

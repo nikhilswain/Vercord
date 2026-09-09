@@ -10,6 +10,7 @@ import { directionToward, RpgSimulation } from './simulation';
 import { TownSignage } from './town-signage';
 import { RpgRemoteCharacters } from './remote-characters';
 import { RpgAmbientEntities } from './entities/renderer';
+import { preloadRpgAnimals } from './entities/animal';
 import type { RpgCallbacks, RpgSample, RpgUiState, RpgPositionUpdate } from './types';
 
 export class RpgScene extends Phaser.Scene {
@@ -42,6 +43,9 @@ export class RpgScene extends Phaser.Scene {
   private previousTap: { point: Point; time: number } | null = null;
   private following = true;
   private manualMovement = false;
+  private lastWheelTime = -Infinity;
+  private talkingTo: string | null = null;
+  private feedback: { message: string; until: number } | null = null;
   private pointerDrag: { id: number; start: Point; last: Point; dragging: boolean } | null = null;
 
   public constructor(
@@ -59,6 +63,7 @@ export class RpgScene extends Phaser.Scene {
     this.load.on('loaderror', this.onLoadError);
     preloadRpgWorlds(this, this.samples);
     preloadRpgCharacters(this);
+    preloadRpgAnimals(this);
   }
 
   public create(): void {
@@ -112,7 +117,9 @@ export class RpgScene extends Phaser.Scene {
         this.elapsed,
         this.motion.matches,
       );
-      this.labels[index]?.setVisible(nearby?.target.id === npc.id);
+      this.labels[index]
+        ?.setScale(1 / this.cameras.main.zoom)
+        .setVisible(this.cameras.main.zoom >= 0.75 || nearby?.target.id === npc.id);
     });
     this.scenery?.update(this.elapsed, this.motion.matches);
     const camera = this.cameras.main;
@@ -202,6 +209,10 @@ export class RpgScene extends Phaser.Scene {
   public setInputBlocked(blocked: boolean): void {
     this.inputBlocked = blocked;
     this.simulation.blocked = blocked;
+    if (!blocked && this.talkingTo) {
+      this.ambient?.release(this.talkingTo);
+      this.talkingTo = null;
+    }
     if (blocked) {
       this.simulation.stop();
       this.cancelPointer();
@@ -220,10 +231,19 @@ export class RpgScene extends Phaser.Scene {
     if (!nearby) return;
     this.simulation.stop();
     const target = nearby.target;
+    const interaction = this.ambient?.interact(target.id, this.simulation.player);
+    if (interaction === 'busy') return;
+    if (interaction === 'pet') {
+      this.simulation.direction = directionToward(this.simulation.player, target);
+      this.feedback = { message: `You petted ${target.name}.`, until: Date.now() + 1400 };
+      this.publishUi();
+      return;
+    }
+    if (interaction === 'talk') this.talkingTo = target.id;
     if ('lines' in target) {
       this.callbacks.onDialogue({
         name: target.name,
-        role: target.role,
+        role: `${target.role} · NPC`,
         lines: target.lines,
         appearance: target.appearance,
       });
@@ -270,6 +290,7 @@ export class RpgScene extends Phaser.Scene {
     if (!this.created) return;
     this.cancelPointer();
     this.following = true;
+    this.setCameraZoom(this.exploringZoom());
     this.cameras.main.centerOn(this.simulation.player.x, this.simulation.player.y - 18);
     this.publishUi();
   }
@@ -301,6 +322,20 @@ export class RpgScene extends Phaser.Scene {
   private minimumZoom(): number {
     const { bounds } = this.simulation.sample;
     return Math.min(0.25, (this.width * 0.85) / bounds.width, (this.height * 0.85) / bounds.height);
+  }
+
+  private exploringZoom(): number {
+    const sample = this.simulation.sample;
+    if (isHouseSceneId(sampleSceneId(sample)))
+      return Math.max(
+        0.75,
+        Math.min(
+          1.5,
+          (this.width - 64) / sample.bounds.width,
+          (this.height - 160) / sample.bounds.height,
+        ),
+      );
+    return this.width < 700 || sample.terrain !== undefined ? 1 : 2;
   }
 
   private setCameraZoom(zoom: number): void {
@@ -363,7 +398,7 @@ export class RpgScene extends Phaser.Scene {
     this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
       this.add
-        .text(npc.x, npc.y - 64, npc.name, {
+        .text(npc.x, npc.y - 64, `${npc.name} · NPC`, {
           fontFamily: 'Inter Variable, sans-serif',
           fontSize: '11px',
           color: '#fff5da',
@@ -376,25 +411,13 @@ export class RpgScene extends Phaser.Scene {
     );
     this.marker = this.add.graphics().setDepth(50000).setVisible(false);
     this.cameras.main.setSize(this.width, this.height).setRoundPixels(true);
-    this.setCameraZoom(
-      isHouseSceneId(sampleSceneId(sample))
-        ? Math.max(
-            0.75,
-            Math.min(
-              1.5,
-              (this.width - 64) / sample.bounds.width,
-              (this.height - 160) / sample.bounds.height,
-            ),
-          )
-        : this.width < 700 || sample.terrain !== undefined
-          ? 1
-          : 2,
-    );
     this.lastUi = '';
     this.center();
   }
 
   private clearVisuals(): void {
+    this.talkingTo = null;
+    this.feedback = null;
     this.scenery?.destroy();
     this.scenery = null;
     this.avatar?.destroy();
@@ -433,6 +456,7 @@ export class RpgScene extends Phaser.Scene {
       zoom: this.cameras.main.zoom,
       minZoom: this.minimumZoom(),
       following: this.following,
+      feedback: this.feedback && Date.now() < this.feedback.until ? this.feedback.message : '',
     };
     const key = JSON.stringify(state);
     if (key !== this.lastUi) {
@@ -462,10 +486,15 @@ export class RpgScene extends Phaser.Scene {
       return;
     const location = this.location();
     const key = JSON.stringify(location);
-    if (key === this.lastMove) return;
+    const via = this.simulation.takeMovementPath();
+    if (key === this.lastMove && via.length === 0) return;
     this.lastMove = key;
     this.lastMoveTime = this.elapsed;
-    this.callbacks.onMove(location);
+    this.callbacks.onMove({
+      ...location,
+      revision: this.simulation.movementRevision,
+      ...(via.length ? { via } : {}),
+    });
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -581,7 +610,11 @@ export class RpgScene extends Phaser.Scene {
 
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
-    if (this.inputBlocked || worldInputBlocked()) return;
+    if (this.inputBlocked || worldInputBlocked() || event.deltaY === 0) return;
+    // Trackpads emit many events per gesture; let each zoom level render before advancing.
+    const now = performance.now();
+    if (now - this.lastWheelTime < 120) return;
+    this.lastWheelTime = now;
     this.zoomBy(event.deltaY < 0 ? 2 : 0.5);
   };
   private readonly onBlur = (): void => {

@@ -5,12 +5,17 @@ import type {
   RpgThemeId,
 } from '../../domain/world/content/v1/types';
 import type { MapRoomType } from '../../domain/map/snapshot';
-import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
+import type {
+  RpgLocation,
+  RpgMovement,
+  RpgPresencePlayer,
+} from '../../domain/presence/rpg-protocol';
 import type { RpgSceneId } from '../../domain/world/catalog/scenes';
 
 /** Local reconciliation intent; never sent as a movement packet. */
 export interface RpgPositionUpdate extends RpgLocation {
   resumeDestination?: boolean;
+  revision?: number;
 }
 
 // Renderer and generator share one scene contract; UI/runtime messages stay local to this feature.
@@ -43,7 +48,7 @@ export interface RpgSample extends SavedRpgSample {
 export interface RpgNearby {
   id: string;
   label: string;
-  action: 'Talk' | 'Read' | 'Explore' | 'Open';
+  action: 'Talk' | 'Read' | 'Explore' | 'Open' | 'Pet';
 }
 
 export interface RpgUiState {
@@ -54,6 +59,7 @@ export interface RpgUiState {
   zoom: number;
   minZoom?: number;
   following?: boolean;
+  feedback?: string;
 }
 
 export interface RpgDialogue {
@@ -70,7 +76,7 @@ export interface RpgCallbacks {
   onDialogue(dialogue: RpgDialogue): void;
   onTravel(destination: RpgDestination): void;
   onStreet?(street: string): void;
-  onMove?(location: RpgLocation): void;
+  onMove?(location: RpgMovement): void;
   onHouse?(landmarkId: string): void;
 }
 

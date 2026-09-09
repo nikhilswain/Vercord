@@ -3,7 +3,8 @@ import {
   rpgAdmissionSchema,
   rpgAppearanceSchema,
   rpgLocationSchema,
-  type RpgLocation,
+  RPG_MAX_MOVEMENT_POINTS,
+  type RpgMovement,
 } from '../../src/domain/presence/rpg-protocol';
 import type { WorldDocument } from '../../src/domain/world/document';
 import type { HouseInterior } from '../../src/domain/world/interiors';
@@ -25,6 +26,7 @@ export const rpgSocketSchema = rpgPartitionSchema.extend({
   appearanceUpdatedAt: z.number().int().nonnegative().optional(),
   budget: z.number().finite().min(0).max(96),
   budgetAt: z.number().int().nonnegative(),
+  revision: z.number().int().nonnegative().optional(),
 });
 export type RpgPartition = z.infer<typeof rpgPartitionSchema>;
 export type RpgSocket = z.infer<typeof rpgSocketSchema>;
@@ -156,7 +158,7 @@ export class RpgPresenceState {
 
   public move(
     previous: RpgSocket,
-    location: RpgLocation,
+    location: RpgMovement,
     now: number,
   ): { accepted: boolean; next: RpgSocket } {
     const budget = Math.min(
@@ -165,13 +167,24 @@ export class RpgPresenceState {
     );
     const next = { ...previous, budget, budgetAt: now };
     const collision = this.collision(previous);
-    const distance = Math.hypot(location.x - previous.x, location.y - previous.y);
+    let distance = 0;
+    let point = previous;
+    const path = [...(location.via ?? []), location];
+    const clear =
+      path.length <= RPG_MAX_MOVEMENT_POINTS + 1 &&
+      path.every((nextPoint) => {
+        distance += Math.hypot(nextPoint.x - point.x, nextPoint.y - point.y);
+        // Reject long/invalid legs before asking the spatial index to enumerate their buckets.
+        if (!Number.isFinite(distance) || distance > budget + 0.01) return false;
+        const valid = collision.safe(nextPoint) && collision.sweptClear(point, nextPoint);
+        point = { ...point, x: nextPoint.x, y: nextPoint.y };
+        return valid;
+      });
     if (
       location.scene !== previous.scene ||
       !Number.isFinite(distance) ||
       distance > budget + 0.01 ||
-      !collision.safe(location) ||
-      !collision.sweptClear(previous, location)
+      !clear
     ) {
       return { accepted: false, next: { ...next, action: 'idle' } };
     }

@@ -11,10 +11,6 @@ const DIRECTIONS = [
   [-1, 0],
   [0, 1],
   [0, -1],
-  [1, 1],
-  [1, -1],
-  [-1, 1],
-  [-1, -1],
 ] as const;
 
 interface Budget {
@@ -180,6 +176,10 @@ export class RpgPathfinder {
     return this.collisionIndex.query(box);
   }
 
+  public canTravel(from: Point, to: Point): boolean {
+    return this.segmentIsClear(from, to, 0);
+  }
+
   /** Road graph and local A* share one hard budget; an incomplete search never starts a route. */
   public findPath(from: Point, to: Point, maxVisited = MAX_VISITED): Point[] {
     if (![from.x, from.y, to.x, to.y, maxVisited].every(Number.isFinite)) return [];
@@ -292,6 +292,36 @@ export class RpgPathfinder {
     return true;
   }
 
+  /** Four-direction rigs use straight legs and right-angle turns, including grid attachments. */
+  private cardinalConnection(
+    from: Point,
+    to: Point,
+    clearance = CLEARANCE,
+    onRoads = false,
+  ): Point[] {
+    const candidates =
+      from.x === to.x || from.y === to.y
+        ? [[to]]
+        : [
+            [{ x: to.x, y: from.y }, to],
+            [{ x: from.x, y: to.y }, to],
+          ];
+    for (const candidate of candidates) {
+      let previous = from;
+      if (
+        candidate.every((point) => {
+          const clear =
+            this.segmentIsClear(previous, point, clearance) &&
+            (!onRoads || this.segmentStaysOnRoads(previous, point));
+          previous = point;
+          return clear;
+        })
+      )
+        return candidate;
+    }
+    return [];
+  }
+
   private smoothRoute(from: Point, route: Point[], budget: Budget, onRoads = false): Point[] {
     const points = route.filter(
       (point, index) => distance(index > 0 ? route[index - 1]! : from, point) > 0.00001,
@@ -310,6 +340,7 @@ export class RpgPathfinder {
     let previous = from;
     for (let index = 0; index < corners.length;) {
       let furthest = index;
+      let connection = this.cardinalConnection(previous, corners[index]!, 0, onRoads);
       for (
         let next = Math.min(corners.length - 1, index + SMOOTH_LOOKAHEAD);
         next > index;
@@ -318,16 +349,27 @@ export class RpgPathfinder {
         // Smoothing has a bounded horizon and shares the graph's edge budget.
         if (--budget.edges <= 0) break;
         const point = corners[next]!;
-        if (
-          this.segmentIsClear(previous, point) &&
-          (!onRoads || this.segmentStaysOnRoads(previous, point))
-        ) {
+        const shortcut = this.cardinalConnection(previous, point, CLEARANCE, onRoads);
+        if (shortcut.length > 0) {
           furthest = next;
+          connection = shortcut;
           break;
         }
       }
+      if (connection.length === 0) return [];
       previous = corners[furthest]!;
-      result.push(previous);
+      for (const point of connection) {
+        const before = result.at(-2) ?? from;
+        const last = result.at(-1);
+        if (
+          last &&
+          ((before.x === last.x && last.x === point.x) ||
+            (before.y === last.y && last.y === point.y)) &&
+          (last.x - before.x) * (point.x - last.x) + (last.y - before.y) * (point.y - last.y) >= 0
+        )
+          result.pop();
+        result.push(point);
+      }
       index = furthest + 1;
     }
     return result;
@@ -358,7 +400,7 @@ export class RpgPathfinder {
           const candidate = { x: col * CELL_SIZE + 8, y: row * CELL_SIZE + 8 };
           const length = distance(point, candidate);
           if (length >= nearestDistance || !this.walkable(candidate)) continue;
-          if (connect && !this.segmentIsClear(point, candidate, 0)) continue;
+          if (connect && this.cardinalConnection(point, candidate, 0).length === 0) continue;
           nearest = candidate;
           nearestDistance = length;
         }
@@ -370,7 +412,8 @@ export class RpgPathfinder {
 
   private localRoute(from: Point, to: Point, budget: Budget): Point[] {
     if (budget.remaining <= 0) return [];
-    if (this.segmentIsClear(from, to)) return [to];
+    const direct = this.cardinalConnection(from, to);
+    if (direct.length > 0) return direct;
     const start = this.nearestGrid(from, true);
     const target = this.nearestGrid(to, true);
     if (!start || !target) return [];
@@ -378,7 +421,7 @@ export class RpgPathfinder {
     const estimate = (point: Point) => {
       const dx = Math.abs(point.x - target.x);
       const dy = Math.abs(point.y - target.y);
-      return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
+      return dx + dy;
     };
     const open = new MinHeap();
     const scores = new Map<string | number, number>();
@@ -412,7 +455,7 @@ export class RpgPathfinder {
           free.set(id, walkable);
         }
         if (!walkable || !this.segmentIsClear(current.point, point)) continue;
-        const cost = current.cost + CELL_SIZE * (dx !== 0 && dy !== 0 ? Math.SQRT2 : 1);
+        const cost = current.cost + CELL_SIZE;
         if (cost >= (scores.get(id) ?? Number.POSITIVE_INFINITY)) continue;
         scores.set(id, cost);
         open.push({ id, point, cost, estimate: estimate(point), parent: current });

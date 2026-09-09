@@ -13,9 +13,15 @@ export interface AmbientPopulationEntry {
   color?: number;
   behavior: EntityBehaviorId;
   lines: readonly string[];
+  interaction: AmbientInteraction;
 }
 
-export const AMBIENT_POPULATION_LIMITS = { overworld: 8, dungeon: 2, house: 0 } as const;
+export interface AmbientInteraction {
+  kind: 'talk' | 'pet';
+  durationMs?: number;
+}
+
+export const AMBIENT_POPULATION_LIMITS = { overworld: 32, dungeon: 2, house: 0 } as const;
 const person = (
   id: string,
   name: string,
@@ -23,7 +29,16 @@ const person = (
   appearance: RpgCharacterId,
   behavior: EntityBehaviorId,
   ...lines: string[]
-): AmbientPopulationEntry => ({ id, kind: 'humanoid', name, role, appearance, behavior, lines });
+): AmbientPopulationEntry => ({
+  id,
+  kind: 'humanoid',
+  name,
+  role,
+  appearance,
+  behavior,
+  lines,
+  interaction: { kind: 'talk' },
+});
 const animal = (
   id: string,
   name: string,
@@ -31,7 +46,16 @@ const animal = (
   role: string,
   color: number,
   ...lines: string[]
-): AmbientPopulationEntry => ({ id, name, kind, role, color, behavior: 'wander', lines });
+): AmbientPopulationEntry => ({
+  id,
+  name,
+  kind,
+  role,
+  color,
+  behavior: 'wander',
+  lines,
+  interaction: { kind: 'pet', durationMs: 1400 },
+});
 
 /** Decorative residents are runtime content; they never become Discord members or saved NPCs. */
 export const WORLD_POPULATIONS = {
@@ -188,14 +212,68 @@ export const VAULT_POPULATION: readonly AmbientPopulationEntry[] = [
   ),
 ];
 
+const NEIGHBOR_NAMES = {
+  village: {
+    humanoid: [
+      'Hazel',
+      'Jasper',
+      'Nell',
+      'Otis',
+      'Faye',
+      'Bram',
+      'Cora',
+      'Hollis',
+      'Ada',
+      'Felix',
+      'June',
+      'Milo',
+    ],
+    dog: ['Clover', 'Rusty', 'Poppy', 'Teddy', 'Scout', 'Maple'],
+    cat: ['Peaches', 'Juniper', 'Olive', 'Acorn', 'Moss', 'Thimble'],
+  },
+  norse: {
+    humanoid: [
+      'Freya',
+      'Soren',
+      'Inga',
+      'Arvid',
+      'Liv',
+      'Torsten',
+      'Kari',
+      'Sten',
+      'Alva',
+      'Nils',
+      'Tove',
+      'Vidar',
+    ],
+    dog: ['Flint', 'Rune', 'Frost', 'Alder', 'Storm', 'Ridge'],
+    cat: ['Ashen', 'Pebble', 'Snow', 'Lichen', 'Glimmer', 'Slate'],
+  },
+} as const;
+
 export function ambientPopulationFor(
   theme: RpgThemeId,
   scene: RpgSceneId,
+  requestedCount = 8,
 ): readonly AmbientPopulationEntry[] {
   if (isHouseSceneId(scene)) return [];
   if (scene === 'dungeon') return VAULT_POPULATION.slice(0, AMBIENT_POPULATION_LIMITS.dungeon);
-  return WORLD_POPULATIONS[theme === 'dungeon' ? 'village' : theme].slice(
-    0,
-    AMBIENT_POPULATION_LIMITS.overworld,
+  const world = theme === 'dungeon' ? 'village' : theme;
+  const roster = WORLD_POPULATIONS[world];
+  const count = Math.max(
+    8,
+    Math.min(AMBIENT_POPULATION_LIMITS.overworld, Math.floor(requestedCount)),
   );
+  const extra = { humanoid: 0, dog: 0, cat: 0 };
+  return Array.from({ length: count }, (_, index) => {
+    const entry = roster[index % roster.length]!;
+    if (index < roster.length) return entry;
+    const name = NEIGHBOR_NAMES[world][entry.kind][extra[entry.kind]++]!;
+    return {
+      ...entry,
+      id: `${entry.id}-${Math.floor(index / roster.length) + 1}`,
+      name,
+      lines: entry.lines.map((line) => line.replaceAll(entry.name, name)),
+    };
+  });
 }

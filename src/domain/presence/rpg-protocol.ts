@@ -40,7 +40,16 @@ export const rpgWelcomeSchema = rpgAdmissionSchema.extend({
   self: rpgPlayerSchema,
   players: z.array(rpgPlayerSchema).max(200),
 });
-export const rpgMoveSchema = rpgLocationSchema.extend({
+export const RPG_MAX_MOVEMENT_POINTS = 32;
+export const rpgRevisionSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+export const rpgMovementSchema = rpgLocationSchema.extend({
+  via: z
+    .array(rpgLocationSchema.pick({ x: true, y: true }))
+    .max(RPG_MAX_MOVEMENT_POINTS)
+    .optional(),
+  revision: rpgRevisionSchema.optional(),
+});
+export const rpgMoveSchema = rpgMovementSchema.extend({
   type: z.literal('rpg-move'),
   seq: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
 });
@@ -50,6 +59,7 @@ export const rpgAppearanceMessageSchema = z.strictObject({
 });
 export type RpgAppearanceId = z.infer<typeof rpgAppearanceSchema>;
 export type RpgLocation = z.infer<typeof rpgLocationSchema>;
+export type RpgMovement = z.infer<typeof rpgMovementSchema>;
 export type RpgPresencePlayer = z.infer<typeof rpgPlayerSchema>;
 export type RpgAdmission = z.infer<typeof rpgAdmissionSchema>;
 export type RpgWelcome = z.infer<typeof rpgWelcomeSchema>;

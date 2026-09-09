@@ -1,6 +1,8 @@
 import { env, runInDurableObject } from 'cloudflare:test';
 import { expect, it } from 'vitest';
 import { generateWorldDocument } from '../../../src/domain/world/generate';
+import { RpgSimulation } from '../../../src/features/rpg/simulation';
+import type { RpgMovement } from '../../../src/domain/presence/rpg-protocol';
 import {
   RpgPresenceState,
   readRpgPartition,
@@ -118,6 +120,49 @@ it('checks the swept feet between safe endpoints and discards unsafe saved progr
   });
 });
 
+it('validates every sampled corner and charges the travelled path instead of its shortcut', async () => {
+  await runInDurableObject(env.WORLD_PRESENCE.getByName(crypto.randomUUID()), async (_, state) => {
+    const presence = new RpgPresenceState(state.storage, (job) => state.waitUntil(job));
+    presence.register({
+      document: {
+        ...document,
+        scenes: {
+          ...document.scenes,
+          overworld: {
+            ...document.scenes.overworld,
+            bounds: { x: 0, y: 0, width: 500, height: 500 },
+            spawn: { x: 112, y: 118 },
+            npcs: [],
+            colliders: [{ id: 'corner', x: 125, y: 112, width: 50, height: 50 }],
+          },
+        },
+      },
+      checksum: partition.checksum,
+      bindings: [],
+    });
+    const first = await presence.restore(partition, 'member-one', 1_000);
+    const move = {
+      x: 132,
+      y: 102,
+      scene: 'overworld' as const,
+      direction: 'right' as const,
+      action: 'run' as const,
+      via: [{ x: 112, y: 102 }],
+    };
+    // The endpoint chord crosses the expanded corner; the real 36px L-shaped path is safe.
+    expect(presence.move(first, { ...move, via: undefined }, 1_100).accepted).toBe(false);
+    const accepted = presence.move(first, move, 1_100);
+    expect(accepted.accepted).toBe(true);
+    expect(accepted.next.budget).toBe(60);
+    expect(presence.move({ ...first, budget: 30, budgetAt: 1_100 }, move, 1_100).accepted).toBe(
+      false,
+    );
+    expect(presence.move(first, { ...move, via: [{ x: 132, y: 118 }] }, 1_100).accepted).toBe(
+      false,
+    );
+  });
+});
+
 it.each([false, true])(
   'retains the latest world appearance across delayed scene closes (cold=%s)',
   async (cold) => {
@@ -152,6 +197,78 @@ it.each([false, true])(
     );
   },
 );
+
+it('keeps a real auto-run in sync through repeated corners and delayed, bunched 100ms packets', async () => {
+  await runInDurableObject(env.WORLD_PRESENCE.getByName(crypto.randomUUID()), async (_, state) => {
+    const presence = new RpgPresenceState(state.storage, (job) => state.waitUntil(job));
+    const scene = {
+      ...document.scenes.overworld,
+      bounds: { x: 0, y: 0, width: 500, height: 500 },
+      spawn: { x: 112, y: 118 },
+      npcs: [],
+      terrain: undefined,
+      colliders: [{ id: 'corner', x: 125, y: 112, width: 50, height: 50 }],
+    };
+    presence.register({
+      document: { ...document, scenes: { ...document.scenes, overworld: scene } },
+      checksum: partition.checksum,
+      bindings: [],
+    });
+    let server = await presence.restore(partition, 'member-one', 1_000);
+    const simulation = new RpgSimulation(scene);
+    simulation.setPlayerPosition(server);
+    const destinations = [
+      { x: 124, y: 110 },
+      { x: 188, y: 110 },
+      { x: 188, y: 180 },
+      { x: 112, y: 180 },
+      scene.spawn,
+    ];
+    const queue: Array<{ at: number; movement: RpgMovement }> = [];
+    let destination = 0;
+    let arrivedAt = 0;
+    let obsoleteChordRejections = 0;
+    const deliver = () => {
+      const packet = queue.shift()!;
+      if (!presence.move(server, { ...packet.movement, via: undefined }, packet.at).accepted)
+        obsoleteChordRejections++;
+      const result = presence.move(server, packet.movement, packet.at);
+      expect(result.accepted).toBe(true);
+      server = result.next;
+    };
+    simulation.navigate(destinations[destination]!);
+    for (let frame = 1; frame <= 2_400; frame++) {
+      if (
+        simulation.player.x === destinations[destination]!.x &&
+        simulation.player.y === destinations[destination]!.y
+      ) {
+        destination = (destination + 1) % destinations.length;
+        simulation.navigate(destinations[destination]!);
+      }
+      simulation.tick(1 / 60, { x: 0, y: 0, moving: false, sprinting: false });
+      const now = 1_000 + (frame * 1_000) / 60;
+      if (frame % 6 === 0) {
+        // WebSockets preserve order but scheduling/network latency can batch several messages.
+        arrivedAt = Math.max(arrivedAt, now + 80 + [0, 120, 30, 70, 0][(frame / 6) % 5]!);
+        queue.push({
+          at: arrivedAt,
+          movement: {
+            ...simulation.player,
+            direction: simulation.direction,
+            action: simulation.action,
+            scene: 'overworld',
+            via: simulation.takeMovementPath(),
+          },
+        });
+      }
+      while (queue[0] && queue[0].at <= now) deliver();
+    }
+    while (queue.length) deliver();
+    expect(obsoleteChordRejections).toBeGreaterThan(0);
+    expect(server.x).toBe(simulation.player.x);
+    expect(server.y).toBe(simulation.player.y);
+  });
+});
 
 it('checks durable progress recency before a cold save and serializes overlapping scene saves', async () => {
   await runInDurableObject(env.WORLD_PRESENCE.getByName(crypto.randomUUID()), async (_, state) => {

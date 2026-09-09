@@ -668,11 +668,12 @@ export class GuildPresence extends DurableObject<Env> {
     }
     const now = Date.now();
     if (command.type === 'rpg-move' && command.seq <= previous.seq) return;
-    // Blur/hidden can send the final stop immediately after a moving frame.
+    // A correction invalidates packets already in flight. Their old origins must not start
+    // another correction chain while React/Phaser applies the authoritative position.
     if (
-      now - previous.lastMessageAt < MIN_MESSAGE_INTERVAL_MS &&
       command.type === 'rpg-move' &&
-      command.action !== 'idle'
+      command.revision !== undefined &&
+      command.revision !== (previous.rpg.revision ?? 0)
     )
       return;
     let rpg = previous.rpg;
@@ -681,6 +682,7 @@ export class GuildPresence extends DurableObject<Env> {
       const movement = this.rpgPresence.move(rpg, command, now);
       rpg = movement.next;
       corrected = !movement.accepted;
+      if (corrected) rpg = { ...rpg, revision: (rpg.revision ?? 0) + 1 };
     } else if (appearanceFitsTheme(command.appearance, rpg.theme)) {
       rpg = {
         ...rpg,
@@ -697,7 +699,14 @@ export class GuildPresence extends DurableObject<Env> {
     };
     socket.serializeAttachment(next);
     const player = rpgPlayerFromAttachment(next);
-    if (corrected) this.send(socket, { type: 'rpg-position', player });
+    if (corrected)
+      this.send(socket, {
+        type: 'rpg-position',
+        player,
+        ...(command.type === 'rpg-move'
+          ? { seq: command.seq, revision: rpg.revision }
+          : { appearanceOnly: true }),
+      });
     this.broadcastRpg({ type: 'rpg-player', player }, rpg, socket);
     if (
       command.type === 'rpg-appearance' &&
@@ -722,7 +731,11 @@ export class GuildPresence extends DurableObject<Env> {
           },
         };
         candidate.serializeAttachment(updated);
-        this.send(candidate, { type: 'rpg-position', player: rpgPlayerFromAttachment(updated) });
+        this.send(candidate, {
+          type: 'rpg-position',
+          player: rpgPlayerFromAttachment(updated),
+          appearanceOnly: true,
+        });
         this.broadcastRpg(
           { type: 'rpg-player', player: rpgPlayerFromAttachment(updated) },
           updated.rpg,

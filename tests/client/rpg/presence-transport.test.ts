@@ -153,6 +153,77 @@ it('rejects a welcome for different saved geometry before exposing or sending a 
   client.disconnect();
 });
 
+it('preserves intermediate turns across coalesced updates and flushes a final stop once', async () => {
+  const rpg = options();
+  const { client, socket } = await connect(rpg);
+  socket.receive({ ...welcome(), rpg: { ...rpg.admission, theme: undefined, self, players: [] } });
+  let now = 1_000;
+  vi.spyOn(performance, 'now').mockImplementation(() => now);
+  client.updateRpgLocation({ ...self, x: 110, action: 'run', revision: 0 });
+  now += 10;
+  client.updateRpgLocation({
+    ...self,
+    x: 112,
+    y: 110,
+    action: 'run',
+    revision: 0,
+    via: [{ x: 112, y: 100 }],
+  });
+  now += 10;
+  client.updateRpgLocation({
+    ...self,
+    x: 120,
+    y: 112,
+    action: 'run',
+    revision: 0,
+    via: [{ x: 120, y: 110 }],
+  });
+  client.pauseRpgMovement();
+  expect(socket.sent.at(-1)).toMatchObject({
+    x: 120,
+    y: 112,
+    action: 'idle',
+    via: [
+      { x: 112, y: 100 },
+      { x: 112, y: 110 },
+      { x: 120, y: 110 },
+    ],
+  });
+  expect(socket.sent).toHaveLength(2);
+  client.pauseRpgMovement();
+  expect(socket.sent).toHaveLength(2);
+  client.disconnect();
+});
+
+it('waits for the corrected simulation revision and ignores delayed old movement and duplicate corrections', async () => {
+  const rpg = options();
+  const { client, socket } = await connect(rpg);
+  socket.receive({ ...welcome(), rpg: { ...rpg.admission, theme: undefined, self, players: [] } });
+  client.updateRpgLocation({ ...self, x: 110, action: 'idle', revision: 0 });
+  socket.receive({ type: 'rpg-position', player: self, seq: 1, revision: 1 });
+  client.updateRpgLocation({ ...self, x: 115, action: 'idle', revision: 0 });
+  expect(socket.sent).toHaveLength(1);
+  client.updateRpgLocation({ ...self, x: 101, action: 'idle', revision: 1 });
+  expect(socket.sent.at(-1)).toMatchObject({ x: 101, revision: 1 });
+  socket.receive({ type: 'rpg-position', player: self, seq: 1, revision: 1 });
+  expect(rpg.onPosition).toHaveBeenCalledExactlyOnceWith(self, 1);
+  client.disconnect();
+});
+
+it('updates an appearance acknowledgement without replacing predicted movement', async () => {
+  const rpg = { ...options(), onAppearance: vi.fn() };
+  const { client, socket } = await connect(rpg);
+  socket.receive({ ...welcome(), rpg: { ...rpg.admission, theme: undefined, self, players: [] } });
+  socket.receive({
+    type: 'rpg-position',
+    player: { ...self, appearance: 'rowan' },
+    appearanceOnly: true,
+  });
+  expect(rpg.onPosition).not.toHaveBeenCalled();
+  expect(rpg.onAppearance).toHaveBeenCalledWith({ ...self, appearance: 'rowan' });
+  client.disconnect();
+});
+
 it('preserves legacy movement and settles shared chat requests without RPG admission', async () => {
   const { client, socket } = await connect();
   expect(new URL(socket.url).search).toBe('');

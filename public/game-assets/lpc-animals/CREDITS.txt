@@ -1,0 +1,13 @@
+[LPC] Cats and Dogs
+Artist: bluecarrot16
+Selected license: OGA-BY 3.0
+Source and attribution link: https://opengameart.org/content/lpc-cats-and-dogs
+Full license: LICENSE.txt
+
+Original 512x256 cat and dog PNGs are distributed unchanged.
+Dmap selects authored 32x32 frames and coat palettes at runtime.
+The four walking directions use atlas rows right, up, down, left;
+columns 0-2 in each four-column coat block. No pixels are repainted.
+
+Per-file original URLs, hashes and dimensions: manifest.json
+Reproduce with: node scripts/import-lpc-animals.mjs

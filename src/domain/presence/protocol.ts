@@ -13,6 +13,7 @@ import {
   rpgAppearanceMessageSchema,
   rpgMoveSchema,
   rpgPlayerSchema,
+  rpgRevisionSchema,
   rpgWelcomeSchema,
 } from './rpg-protocol';
 
@@ -78,7 +79,13 @@ export const serverPresenceMessageSchema = z.discriminatedUnion('type', [
     player: presencePlayerSchema,
   }),
   z.strictObject({ type: z.literal('rpg-player'), player: rpgPlayerSchema }),
-  z.strictObject({ type: z.literal('rpg-position'), player: rpgPlayerSchema }),
+  z.strictObject({
+    type: z.literal('rpg-position'),
+    player: rpgPlayerSchema,
+    seq: rpgRevisionSchema.optional(),
+    revision: rpgRevisionSchema.optional(),
+    appearanceOnly: z.boolean().optional(),
+  }),
   z.strictObject({ type: z.literal('rpg-leave'), id: presenceIdSchema }),
   z.strictObject({
     type: z.literal('leave'),

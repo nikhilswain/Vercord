@@ -62,6 +62,7 @@ describe('RPG pause presence', () => {
           direction: 'down',
           action: 'idle',
           scene: 'overworld',
+          revision: 0,
         });
         scene['simulation'].tick(0.05, { x: 1, y: 0, moving: true, sprinting: true });
         // No animation frame or 100ms publisher interval elapses before the browser pauses.
@@ -72,6 +73,7 @@ describe('RPG pause presence', () => {
           direction: 'right',
           action: 'idle',
           scene: 'overworld',
+          revision: 0,
         });
         pause();
         expect(onMove).toHaveBeenCalledTimes(1);

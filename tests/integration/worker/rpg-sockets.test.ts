@@ -562,3 +562,48 @@ it('publishes the final idle transition even immediately after a movement frame'
     }),
   );
 });
+
+it('accepts bunched movement and sends one correction for an obsolete in-flight chain', async () => {
+  const { stub, partition, town } = await setup();
+  const first = await open(stub, actor, partition);
+  await runInDurableObject(stub, async (instance, state) => {
+    const socket = state.getWebSockets()[0]!;
+    const previous = socket.deserializeAttachment() as { lastMessageAt: number };
+    const now = previous.lastMessageAt + 100;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    const move = {
+      type: 'rpg-move',
+      seq: 1,
+      revision: 0,
+      ...town.document.scenes.overworld.spawn,
+      y: town.document.scenes.overworld.spawn.y + 8,
+      direction: 'down',
+      action: 'run',
+      scene: 'overworld',
+    };
+    await instance.webSocketMessage(socket, JSON.stringify(move));
+    vi.spyOn(Date, 'now').mockReturnValue(now + 1);
+    await instance.webSocketMessage(socket, JSON.stringify({ ...move, seq: 2, y: move.y + 8 }));
+    expect(socket.deserializeAttachment()).toMatchObject({ seq: 2, rpg: { y: move.y + 8 } });
+    await instance.webSocketMessage(socket, JSON.stringify({ ...move, seq: 3, x: 0, y: 0 }));
+    await instance.webSocketMessage(socket, JSON.stringify({ ...move, seq: 4, x: 0, y: 0 }));
+    await instance.webSocketMessage(socket, JSON.stringify({ ...move, seq: 5, x: 0, y: 0 }));
+    expect(socket.deserializeAttachment()).toMatchObject({ seq: 3, rpg: { revision: 1 } });
+    await instance.webSocketMessage(
+      socket,
+      JSON.stringify({ ...move, seq: 6, revision: 1, y: move.y + 9 }),
+    );
+    expect(socket.deserializeAttachment()).toMatchObject({
+      seq: 6,
+      rpg: { revision: 1, y: move.y + 9 },
+    });
+    vi.restoreAllMocks();
+  });
+  await vi.waitFor(() =>
+    expect(first.messages.filter((message) => message.type === 'rpg-position')).toHaveLength(1),
+  );
+  expect(first.messages.find((message) => message.type === 'rpg-position')).toMatchObject({
+    seq: 3,
+    revision: 1,
+  });
+});

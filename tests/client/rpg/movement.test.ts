@@ -13,6 +13,32 @@ const createSimulation = () =>
   });
 
 describe('auto-run', () => {
+  it('reaches exact cardinal corners and retains them between presence samples', () => {
+    const simulation = createSimulation();
+    simulation.setPlayerPosition({
+      ...simulation.player,
+      direction: 'down',
+      action: 'idle',
+      scene: 'overworld',
+    });
+    simulation.navigate({ x: 117, y: 119 });
+    let previous = { ...simulation.player };
+    for (let frame = 0; frame < 20; frame++) {
+      simulation.tick(1 / 60, idle);
+      expect(simulation.player.x === previous.x || simulation.player.y === previous.y).toBe(true);
+      previous = { ...simulation.player };
+    }
+    expect(simulation.player).toEqual({ x: 117, y: 119 });
+    const via = simulation.takeMovementPath();
+    expect(via).toHaveLength(1);
+    expect(via[0]!.x === 104 || via[0]!.y === 104).toBe(true);
+    expect(via[0]!.x === 117 || via[0]!.y === 119).toBe(true);
+    expect(simulation.takeMovementPath()).toEqual([]);
+    simulation.tick(0.05, running);
+    simulation.tick(0.05, { ...running, x: 0, y: 1 });
+    expect(simulation.takeMovementPath()).toEqual([{ x: expect.closeTo(125.7), y: 119 }]);
+  });
+
   it('travels faster than manual running and uses the run animation', () => {
     const auto = createSimulation();
     const manual = createSimulation();

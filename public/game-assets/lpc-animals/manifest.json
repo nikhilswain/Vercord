@@ -1,0 +1,41 @@
+{
+  "title": "[LPC] Cats and Dogs",
+  "sourcePage": "https://opengameart.org/content/lpc-cats-and-dogs",
+  "importedAt": "2026-09-09",
+  "assets": [
+    {
+      "file": "cat.png",
+      "source": "https://opengameart.org/sites/default/files/cat_0.png",
+      "author": "bluecarrot16",
+      "license": "OGA-BY-3.0",
+      "sha256": "914bae85486052a70d29b26d881bfce3dcaa987f6f95cab08e4a65e30fa13f97",
+      "bytes": 8348,
+      "width": 512,
+      "height": 256,
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "directions": ["right", "up", "down", "left"],
+      "walkColumns": [0, 1, 2, 1],
+      "colorColumns": [0, 4, 8, 12],
+      "modifications": "None. Original PNG, unchanged."
+    },
+    {
+      "file": "dog.png",
+      "source": "https://opengameart.org/sites/default/files/dog_2.png",
+      "author": "bluecarrot16",
+      "license": "OGA-BY-3.0",
+      "sha256": "77f4667ab3f681408a8afa528f3fff0bea3e3cd7d0e28d5c11f2d09c7729b891",
+      "bytes": 9202,
+      "width": 512,
+      "height": 256,
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "directions": ["right", "up", "down", "left"],
+      "walkColumns": [0, 1, 2, 1],
+      "colorColumns": [0, 4, 8, 12],
+      "modifications": "None. Original PNG, unchanged."
+    }
+  ],
+  "license": "OGA-BY-3.0",
+  "licenseUrl": "https://static.opengameart.org/OGA-BY-3.0.txt"
+}

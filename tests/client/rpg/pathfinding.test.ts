@@ -119,10 +119,13 @@ describe('bounded RPG pathfinding', () => {
     const destination = { x: 200, y };
     const route = pathfinder.findPath(from, destination);
     expect(route.at(-1)).toEqual(destination);
-    // Approach the obstacle diagonally, with only the two necessary corner turns.
-    expect(route.length).toBeLessThanOrEqual(3);
-    expect(route[0]!.x).toBeGreaterThan(from.x);
-    expect(route[0]!.y).toBeLessThan(from.y);
+    // Four-direction rigs turn at corners instead of sliding along diagonal shortcuts.
+    let previous = from;
+    for (const point of route) {
+      expect(point.x === previous.x || point.y === previous.y).toBe(true);
+      previous = point;
+    }
+    expect(route.length).toBeLessThanOrEqual(5);
     expectClearRoute(from, route, colliders);
   });
 

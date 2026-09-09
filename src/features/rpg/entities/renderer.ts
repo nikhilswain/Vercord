@@ -6,6 +6,7 @@ import type { RpgNpc, RpgNearby, RpgSample } from '../types';
 import type { Point } from '../../../domain/world/content/v1/types';
 import { containsPoint } from '../../world/engine/collision';
 import { DEFAULT_RPG_CHARACTER_ID } from '../../../domain/world/catalog/characters';
+import { PetEffects } from './pet-effects';
 
 type EntityView = { rig: RpgAnimal | RpgCharacter; label: Phaser.GameObjects.Text };
 
@@ -13,6 +14,8 @@ type EntityView = { rig: RpgAnimal | RpgCharacter; label: Phaser.GameObjects.Tex
 export class RpgAmbientEntities {
   readonly simulation: AmbientSimulation;
   private readonly views = new Map<string, EntityView>();
+  private readonly effects: PetEffects;
+  private clock = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -20,6 +23,7 @@ export class RpgAmbientEntities {
     seed: string,
   ) {
     this.simulation = new AmbientSimulation(sample, seed);
+    this.effects = new PetEffects(scene);
   }
 
   update(
@@ -28,7 +32,9 @@ export class RpgAmbientEntities {
     reducedMotion: boolean,
     player: Point,
   ): void {
-    this.simulation.update(reducedMotion ? 0 : Date.now());
+    this.clock = Date.now();
+    this.simulation.update(this.clock, reducedMotion);
+    this.effects.update(this.clock, reducedMotion);
     const width = camera.width / camera.zoom;
     const height = camera.height / camera.zoom;
     const left = camera.scrollX + (camera.width - width) / 2;
@@ -59,7 +65,9 @@ export class RpgAmbientEntities {
         .setPosition(entity.x, entity.y - (entity.kind === 'humanoid' ? 65 : 38))
         .setScale(1 / camera.zoom)
         .setVisible(
-          camera.zoom >= 0.5 && Math.hypot(player.x - entity.x, player.y - entity.y) < 72,
+          !this.effects.has(entity.id) &&
+            (camera.zoom >= 0.75 ||
+              (camera.zoom >= 0.5 && Math.hypot(player.x - entity.x, player.y - entity.y) < 72)),
         );
     }
   }
@@ -81,7 +89,11 @@ export class RpgAmbientEntities {
       }
       if (clear)
         return {
-          ui: { id: entity.id, label: entity.name, action: 'Talk' },
+          ui: {
+            id: entity.id,
+            label: entity.name,
+            action: entity.kind === 'humanoid' ? 'Talk' : 'Pet',
+          },
           target: {
             ...entity,
             appearance: entity.appearance ?? '',
@@ -93,7 +105,22 @@ export class RpgAmbientEntities {
     return null;
   }
 
+  interact(id: string, player: Point): 'talk' | 'pet' | 'busy' | null {
+    const entity = this.simulation.entities.find((resident) => resident.id === id);
+    if (!entity) return null;
+    if (this.effects.has(id)) return 'busy';
+    const interaction = entity.interaction;
+    this.simulation.hold(id, { facing: player, durationMs: interaction.durationMs });
+    if (interaction.kind === 'pet') this.effects.start(id, entity, this.clock);
+    return interaction.kind;
+  }
+
+  release(id: string): void {
+    this.simulation.release(id);
+  }
+
   destroy(): void {
+    this.effects.destroy();
     for (const view of this.views.values()) {
       view.rig.destroy();
       view.label.destroy();
@@ -112,14 +139,19 @@ export class RpgAmbientEntities {
           )
         : new RpgAnimal(this.scene, entity.kind, entity.color ?? 0xa97d52);
     const label = this.scene.add
-      .text(entity.x, entity.y, entity.name, {
-        fontFamily: 'Inter Variable, system-ui, sans-serif',
-        fontSize: '11px',
-        color: '#fff4dc',
-        backgroundColor: '#253328',
-        padding: { x: 5, y: 3 },
-        resolution: 2,
-      })
+      .text(
+        entity.x,
+        entity.y,
+        `${entity.name} · ${entity.kind === 'humanoid' ? 'NPC' : entity.kind}`,
+        {
+          fontFamily: 'Inter Variable, system-ui, sans-serif',
+          fontSize: '11px',
+          color: '#fff4dc',
+          backgroundColor: '#253328',
+          padding: { x: 5, y: 3 },
+          resolution: 2,
+        },
+      )
       .setOrigin(0.5, 1)
       .setDepth(95003);
     const view = { rig, label };

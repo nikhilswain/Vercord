@@ -17,19 +17,22 @@ import type {
   VoiceServiceStatus,
   VoiceState,
 } from '../../../domain/voice/protocol';
-import type {
-  RpgAdmission,
-  RpgAppearanceId,
-  RpgLocation,
-  RpgPresencePlayer,
-  RpgWelcome,
+import {
+  RPG_MAX_MOVEMENT_POINTS,
+  type RpgMovement,
+  type RpgAdmission,
+  type RpgAppearanceId,
+  type RpgLocation,
+  type RpgPresencePlayer,
+  type RpgWelcome,
 } from '../../../domain/presence/rpg-protocol';
 
 export interface RpgPresenceOptions {
   admission: RpgAdmission & { theme: 'village' | 'norse' };
   onWelcome(welcome: RpgWelcome): void;
   onPlayers(players: readonly RpgPresencePlayer[]): void;
-  onPosition(player: RpgPresencePlayer): void;
+  onPosition(player: RpgPresencePlayer, revision?: number): void;
+  onAppearance?(player: RpgPresencePlayer): void;
 }
 
 const SEND_INTERVAL_MS = 90;
@@ -148,7 +151,10 @@ export class WorldPresenceClient {
   private latestLocation: ClientPresenceLocation | null = null;
   private lastSentLocation: ClientPresenceLocation | null = null;
   private rpgPlayers = new Map<string, RpgPresencePlayer>();
-  private latestRpgLocation: RpgLocation | null = null;
+  private latestRpgLocation: RpgMovement | null = null;
+  private pendingRpgVia: Array<Pick<RpgLocation, 'x' | 'y'>> = [];
+  private rpgLocationPending = false;
+  private rpgRevision = 0;
   private lastSentRpgLocation: string | null = null;
   private rpgReady = false;
   private rpgPublishTimer: number | null = null;
@@ -246,9 +252,34 @@ export class WorldPresenceClient {
     this.scheduleSend();
   }
 
-  public updateRpgLocation(location: RpgLocation): void {
-    if (!this.rpgReady || location.scene !== this.rpg?.admission.scene) return;
-    this.latestRpgLocation = location;
+  public updateRpgLocation(location: RpgMovement): void {
+    if (
+      !this.rpgReady ||
+      location.scene !== this.rpg?.admission.scene ||
+      (location.revision ?? 0) !== this.rpgRevision
+    )
+      return;
+    const via = location.via ?? [];
+    if (via.length > RPG_MAX_MOVEMENT_POINTS) return;
+    if (
+      this.rpgLocationPending &&
+      this.pendingRpgVia.length + via.length + 1 > RPG_MAX_MOVEMENT_POINTS
+    ) {
+      this.clearSendTimer();
+      this.flushLocation();
+    }
+    if (this.rpgLocationPending && this.latestRpgLocation)
+      this.pendingRpgVia.push({ x: this.latestRpgLocation.x, y: this.latestRpgLocation.y });
+    this.pendingRpgVia.push(...via);
+    this.latestRpgLocation = {
+      x: location.x,
+      y: location.y,
+      direction: location.direction,
+      action: location.action,
+      scene: location.scene,
+      revision: location.revision ?? 0,
+    };
+    this.rpgLocationPending = true;
     if (location.action === 'idle') {
       this.clearSendTimer();
       this.flushLocation();
@@ -332,6 +363,8 @@ export class WorldPresenceClient {
     this.selfId = null;
     this.rpgReady = false;
     this.rpgPlayers.clear();
+    this.pendingRpgVia = [];
+    this.rpgLocationPending = false;
     this.clearRpgPublishTimer();
     this.players.clear();
     this.settlePendingMessages();
@@ -423,10 +456,21 @@ export class WorldPresenceClient {
         message.player.scene !== this.rpg?.admission.scene
       )
         return;
+      if (message.appearanceOnly) {
+        this.rpg?.onAppearance?.(message.player);
+        return;
+      }
+      if (message.revision !== undefined) {
+        if (message.revision <= this.rpgRevision) return;
+        this.rpgRevision = message.revision;
+      }
       this.clearSendTimer();
       this.latestRpgLocation = null;
+      this.pendingRpgVia = [];
+      this.rpgLocationPending = false;
       this.lastSentRpgLocation = null;
-      this.rpg?.onPosition(message.player);
+      if (message.revision === undefined) this.rpg?.onPosition(message.player);
+      else this.rpg?.onPosition(message.player, message.revision);
       return;
     }
     if (message.type === 'world-invalidated') {
@@ -504,6 +548,9 @@ export class WorldPresenceClient {
             .map((player) => [player.id, player]),
         );
         this.latestRpgLocation = null;
+        this.pendingRpgVia = [];
+        this.rpgLocationPending = false;
+        this.rpgRevision = 0;
         this.rpgReady = true;
         this.rpg.onWelcome(message.rpg);
         if (this.stopped || socket !== this.socket) return;
@@ -611,6 +658,9 @@ export class WorldPresenceClient {
     this.socket = null;
     this.selfId = null;
     this.rpgReady = false;
+    this.latestRpgLocation = null;
+    this.pendingRpgVia = [];
+    this.rpgLocationPending = false;
     this.transportOffline = true;
     this.clearSendTimer();
     this.settlePendingMessages();
@@ -787,8 +837,20 @@ export class WorldPresenceClient {
       const location = this.latestRpgLocation;
       if (!this.rpgReady || !socket || socket.readyState !== WebSocket.OPEN || !location) return;
       const encoded = JSON.stringify(location);
-      if (encoded === this.lastSentRpgLocation) return;
-      socket.send(JSON.stringify({ type: 'rpg-move', seq: ++this.sequence, ...location }));
+      if (encoded === this.lastSentRpgLocation && this.pendingRpgVia.length === 0) {
+        this.rpgLocationPending = false;
+        return;
+      }
+      socket.send(
+        JSON.stringify({
+          type: 'rpg-move',
+          seq: ++this.sequence,
+          ...location,
+          ...(this.pendingRpgVia.length ? { via: this.pendingRpgVia } : {}),
+        }),
+      );
+      this.pendingRpgVia = [];
+      this.rpgLocationPending = false;
       this.lastSentRpgLocation = encoded;
       this.lastSentAt = performance.now();
       return;

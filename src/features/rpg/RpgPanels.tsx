@@ -247,11 +247,16 @@ export function RpgPanels({
             <summary>Art &amp; font credits</summary>
             <p>
               LPC Revised and Expanded, with full contributor credits below. Selected artwork uses
-              OGA-BY 3.0. Frosthavn buildings and ground artwork are original to Dmap. Pixelify Sans
-              uses the SIL Open Font License.
+              OGA-BY 3.0. Cats and dogs are by bluecarrot16, also under OGA-BY 3.0. Frosthavn
+              buildings and ground artwork are original to Dmap. Pixelify Sans uses the SIL Open
+              Font License.
             </p>
             <a href="/game-assets/lpc-characters/CREDITS.txt" target="_blank" rel="noreferrer">
               Character credits
+            </a>
+            {' · '}
+            <a href="/game-assets/lpc-animals/CREDITS.txt" target="_blank" rel="noreferrer">
+              Animal credits
             </a>
             {' · '}
             <a href="/game-assets/lpc-world/CREDITS.md" target="_blank" rel="noreferrer">

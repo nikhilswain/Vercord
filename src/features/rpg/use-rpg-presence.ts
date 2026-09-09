@@ -5,6 +5,7 @@ import type { RoomMessage } from '../../domain/messages/protocol';
 import type {
   RpgAppearanceId,
   RpgLocation,
+  RpgMovement,
   RpgPresencePlayer,
 } from '../../domain/presence/rpg-protocol';
 import type { SavedWorldResponse } from '../../domain/world/protocol';
@@ -151,11 +152,16 @@ export function useRpgPresence(options: Options) {
         },
         onWelcome: (welcome) => {
           admitted = true;
-          patch({ self: welcome.self, position: welcome.self, players: welcome.players });
+          patch({
+            self: welcome.self,
+            position: { ...welcome.self, revision: 0 },
+            players: welcome.players,
+          });
         },
         onPlayers: (players) => patch({ players }),
-        onPosition: (player) =>
-          patch({ self: player, position: { ...player, resumeDestination: true } }),
+        onPosition: (player, revision) =>
+          patch({ self: player, position: { ...player, revision, resumeDestination: true } }),
+        onAppearance: (player) => patch({ self: player }),
       },
     );
     client.current = presence;
@@ -188,7 +194,7 @@ export function useRpgPresence(options: Options) {
   useEffect(() => {
     readyRef.current = ready;
   }, [ready]);
-  const updateLocation = useCallback((location: RpgLocation) => {
+  const updateLocation = useCallback((location: RpgMovement) => {
     if (readyRef.current) client.current?.updateRpgLocation(location);
   }, []);
   const setAppearance = useCallback((appearance: RpgAppearanceId) => {

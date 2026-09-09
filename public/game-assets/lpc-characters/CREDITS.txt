@@ -1,6 +1,39 @@
 LPC Revised / Expanded — Dmap character appearances
 =================================================
 
+Current wardrobe refresh (2026-09-09)
+------------------------------------
+Twenty selectable looks reuse original LPC body, head, trousers and boots,
+with eight newly imported buttoned long-sleeve shirt palettes and ten original
+hair style/color combinations. Female looks now use high-neck buttoned shirts
+in forest, wine, indigo or charcoal. The earlier yellow shirt and female plate
+silhouette are no longer selected by the live catalog. Saved appearance IDs
+remain valid; some of their clothing and hairstyles have been refreshed.
+
+All new human art is from the same ElizaWy/LPC revision below, selected under
+OGA-BY 3.0. New PNGs are unchanged originals: no recoloring, painted clothing,
+resampling or baked frame substitutions. Existing runtime skin and trouser
+tints remain where configured; light hair uses the artist's actual blonde,
+platinum, silver, orange and white palettes. The portraits and playable rigs
+share these source layers and runtime tints.
+
+Buttoned Longsleeve Shirt 07, Curly and Parted hair: Eliza Wyatt (DeathsDarling).
+Bob with Bangs, Bangs & Bun, Cowlick, Natural, Twists and Cornrows hair:
+bluecarrot16 and Eliza Wyatt (DeathsDarling).
+Page hair: Johannes Sjölund (wulax) and Eliza Wyatt (DeathsDarling).
+All hair inherits the LPC body credit to Stephen Challener (Redshrike).
+The new ivory bodies/heads use the same contributor declarations as the
+original body/head import below. Per-entry upstream credits are preserved in
+upstream-clothing-credits.txt, upstream-hair-credits.txt and
+upstream-characters-credits.txt.
+
+New original source URLs, commit, hashes and dimensions: wardrobe-manifest.json.
+Reproduce with: node scripts/import-rpg-wardrobe.mjs.
+Current source selection: src/domain/world/catalog/characters.ts.
+The original manifest and art files below remain as historical source records.
+
+Authored cat/dog art has separate credits in ../lpc-animals/CREDITS.txt.
+
 Live outfit variants (2026-09-09): Tamsin, Emery, Linden, Leif, Runa and Eirik
 reuse the credited layers below with runtime skin/clothing/hair color tints.
 No imported PNG files were changed. The layered SVG portraits apply those same
@@ -15,8 +48,8 @@ Full license: LICENSE.txt
 License publisher: https://static.opengameart.org/OGA-BY-3.0.txt
 Per-file source URLs, SHA-256 hashes, recipes, frames, and validation: manifest.json
 
-Ivar and Sigrid — Frosthavn travelers
------------------------------------
+Original Ivar and Sigrid import (historical source record)
+--------------------------------------------------------
 Ivar wears original iron plate armor over a forest V-neck longsleeve layer,
 with leather boots, charcoal trousers, ash-brown page hair and a medium beard.
 Sigrid wears original copper plate armor over a wine scoop-neck longsleeve
@@ -68,8 +101,8 @@ Shirt 01 - Longsleeve Shirt / Teal, Pants 03 - Pants / Charcoal,
 Shoes 02 - Boots / Leather, Short 02 - Parted hair / Chestnut.
 The body-specific clothing uses the Masculine, Thin source variant.
 
-Ash appearance
---------------
+Original Ash appearance (yellow shirt no longer selected)
+--------------------------------------------------------
 Body 01 - Feminine, Thin / Bronze and Head 01 - Feminine / Bronze.
 Shirt 01 - Longsleeve Shirt / Ochre, Pants 03 - Pants / Midnight,
 Shoes 02 - Boots / Coffee, Medium 02 - Curly hair / Black.

@@ -319,6 +319,9 @@ export function RpgPlayPage({
             </span>
           </button>
         )}
+        <span className="rpg-feedback-accessible" role="status">
+          {ui.feedback}
+        </span>
         <nav className="rpg-action-bar rpg-frame" aria-label="Exploration tools">
           {actions.map((action) => (
             <button

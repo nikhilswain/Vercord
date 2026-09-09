@@ -9,6 +9,8 @@ let terrainId = 0;
 interface Chunk {
   image: Phaser.GameObjects.Image;
   texture: string;
+  used: number;
+  bounds: Rect;
 }
 
 /** Visible, bounded terrain textures: world size never determines GPU texture size. */
@@ -17,7 +19,10 @@ export class TownTerrainRenderer {
   private readonly roads = new Map<string, Rect[]>();
   private readonly decorations = new Map<string, RpgStamp[]>();
   private readonly chunks = new Map<string, Chunk>();
+  private readonly patterns = new Map<string, HTMLCanvasElement>();
   private chunkSize = 0;
+  private generation = 0;
+  private lastViewport = '';
 
   public constructor(
     private readonly scene: Phaser.Scene,
@@ -45,11 +50,8 @@ export class TownTerrainRenderer {
     const camera = this.scene.cameras.main;
     const zoom = camera.zoom;
     // Keep each backing canvas <=512px and roughly constant visible chunk counts when zoomed out.
-    const size = zoom < 0.25 ? 4096 : zoom < 0.5 ? 2048 : zoom < 1 ? 1024 : 512;
-    if (size !== this.chunkSize) {
-      this.clear();
-      this.chunkSize = size;
-    }
+    const size = 512 * 2 ** Math.max(0, Math.ceil(Math.log2(1 / zoom)));
+    this.chunkSize = size;
     const { bounds } = this.sample;
     const cx = camera.scrollX + camera.width / 2;
     const cy = camera.scrollY + camera.height / 2;
@@ -63,28 +65,68 @@ export class TownTerrainRenderer {
       Math.ceil(bounds.height / size) - 1,
       Math.floor((cy + camera.height / (2 * zoom) + TILE) / size),
     );
+    const viewport = `${size}:${left}:${top}:${right}:${bottom}`;
+    if (viewport === this.lastViewport) return;
+    const generation = ++this.generation;
     const visible = new Set<string>();
+    const started = performance.now();
     let built = 0;
+    let pending = false;
     for (let row = top; row <= bottom; row++)
       for (let col = left; col <= right; col++) {
-        const key = `${col}:${row}`;
+        const key = `${size}:${col}:${row}`;
         visible.add(key);
-        if (!this.chunks.has(key) && built < 3) {
-          this.chunks.set(key, this.build(col, row));
+        let chunk = this.chunks.get(key);
+        if (!chunk) {
+          if (built >= 2 || (built > 0 && performance.now() - started >= 4)) {
+            pending = true;
+            continue;
+          }
+          chunk = this.build(col, row);
+          this.chunks.set(key, chunk);
           built++;
         }
+        chunk.used = generation;
+        chunk.image.setVisible(true).setDepth(-10000);
       }
-    for (const [key, chunk] of this.chunks)
-      if (!visible.has(key)) {
-        this.release(chunk);
-        this.chunks.delete(key);
-      }
+    let fallbackSlots = Math.max(0, 48 - visible.size);
+    const viewportLeft = cx - camera.width / (2 * zoom) - TILE;
+    const viewportTop = cy - camera.height / (2 * zoom) - TILE;
+    const viewportRight = cx + camera.width / (2 * zoom) + TILE;
+    const viewportBottom = cy + camera.height / (2 * zoom) + TILE;
+    for (const [key, chunk] of [...this.chunks].sort((a, b) => b[1].used - a[1].used)) {
+      if (visible.has(key)) continue;
+      const box = chunk.bounds;
+      // Keep only overlapping, budgeted fallback tiles during a resolution change.
+      const fallback =
+        pending &&
+        chunk.image.visible &&
+        fallbackSlots > 0 &&
+        box.x < viewportRight &&
+        box.y < viewportBottom &&
+        box.x + box.width > viewportLeft &&
+        box.y + box.height > viewportTop;
+      if (fallback) fallbackSlots--;
+      chunk.image.setVisible(fallback).setDepth(-10001);
+    }
+    // Reuse recently visited terrain across panning and zoom, with a bounded texture budget.
+    const spare = [...this.chunks].filter(
+      ([key, chunk]) => !visible.has(key) && !chunk.image.visible,
+    );
+    spare.sort((a, b) => a[1].used - b[1].used);
+    for (const [key, chunk] of spare) {
+      if (this.chunks.size <= Math.max(48, visible.size)) break;
+      this.release(chunk);
+      this.chunks.delete(key);
+    }
+    if (!pending) this.lastViewport = viewport;
   }
 
   public destroy(): void {
     this.clear();
     this.roads.clear();
     this.decorations.clear();
+    this.patterns.clear();
   }
 
   private index<T>(index: Map<string, T[]>, box: Rect, entry: T): void {
@@ -116,6 +158,32 @@ export class TownTerrainRenderer {
     );
   }
 
+  private tileCanvas(key: string, frameId: string | number | undefined): HTMLCanvasElement {
+    const cacheKey = `${key}:${frameId ?? ''}`;
+    let tile = this.patterns.get(cacheKey);
+    if (!tile) {
+      const frame = this.scene.textures.getFrame(key, frameId);
+      tile = document.createElement('canvas');
+      tile.width = TILE;
+      tile.height = TILE;
+      tile
+        .getContext('2d')!
+        .drawImage(
+          frame.source.image as CanvasImageSource,
+          frame.cutX,
+          frame.cutY,
+          frame.cutWidth,
+          frame.cutHeight,
+          0,
+          0,
+          TILE,
+          TILE,
+        );
+      this.patterns.set(cacheKey, tile);
+    }
+    return tile;
+  }
+
   private build(col: number, row: number): Chunk {
     const size = this.chunkSize;
     const ox = col * size,
@@ -134,6 +202,7 @@ export class TownTerrainRenderer {
     const context = texture.context;
     context.imageSmoothingEnabled = false;
     context.scale(scale, scale);
+    const terrain = getWorldTheme(this.sample.id).generation.terrain;
     const frameCache = new Map<string, Phaser.Textures.Frame>();
     const draw = (
       key: string,
@@ -143,6 +212,17 @@ export class TownTerrainRenderer {
       drawWidth?: number,
       drawHeight?: number,
     ) => {
+      // SVG terrain atlases are expensive to rasterize for every tile. Cache each 32px cell once.
+      if (key === terrain.texture) {
+        context.drawImage(
+          this.tileCanvas(key, frameId),
+          x - ox,
+          y - oy,
+          drawWidth ?? TILE,
+          drawHeight ?? TILE,
+        );
+        return;
+      }
       const cacheKey = `${key}:${frameId ?? ''}`;
       let frame = frameCache.get(cacheKey);
       if (!frame) {
@@ -161,29 +241,11 @@ export class TownTerrainRenderer {
         drawHeight ?? frame.realHeight,
       );
     };
-    const terrain = getWorldTheme(this.sample.id).generation.terrain;
-    if (size >= 4096) {
+    if (size >= 2048) {
       // At town-wide scale, fill repeating ground and road rectangles directly.
       // Painting every 32px tile would do world-sized CPU work just to draw an overview.
       const pattern = (key: string, frameId: number) => {
-        const tile = document.createElement('canvas');
-        tile.width = TILE;
-        tile.height = TILE;
-        const frame = this.scene.textures.getFrame(key, frameId);
-        tile
-          .getContext('2d')!
-          .drawImage(
-            frame.source.image as CanvasImageSource,
-            frame.cutX,
-            frame.cutY,
-            frame.cutWidth,
-            frame.cutHeight,
-            0,
-            0,
-            TILE,
-            TILE,
-          );
-        return context.createPattern(tile, 'repeat')!;
+        return context.createPattern(this.tileCanvas(key, frameId), 'repeat')!;
       };
       context.fillStyle = pattern(terrain.texture, terrain.groundFrame);
       context.fillRect(0, 0, width, height);
@@ -242,6 +304,8 @@ export class TownTerrainRenderer {
     }
     texture.refresh();
     return {
+      used: this.generation,
+      bounds: { x: ox, y: oy, width, height },
       texture: textureKey,
       image: this.scene.add
         .image(ox, oy, textureKey)
