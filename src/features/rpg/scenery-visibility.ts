@@ -7,6 +7,10 @@ export class SceneryVisibility {
   private visible = new Set<Phaser.GameObjects.Image>();
   private previous = '';
 
+  public get visibleImages(): ReadonlySet<Phaser.GameObjects.Image> {
+    return this.visible;
+  }
+
   public add(image: Phaser.GameObjects.Image): void {
     const bounds = image.getBounds();
     for (let y = Math.floor(bounds.top / CELL); y <= Math.floor(bounds.bottom / CELL); y++)

@@ -61,6 +61,14 @@ Ambient residents avoid walls and furniture but are not solid obstacles for play
 
 New artwork belongs under `public/game-assets/` with its source, author, license and modification notes beside the assets. Existing LPC art is not automatically CC0; retain its credits and license. Repo-authored vector art can stay as maintainable SVG source.
 
+## Rendering and movement budgets
+
+Keep theme artwork in the shared scenery renderer. `scenery-visibility.ts` indexes static stamps in spatial cells; `scenery-detail.ts` shares filtered, downsampled frames across visible copies at distant zoom. Close views use the original frames. Detail textures are built gradually, reuse their cached versions on return visits, and have a two-million-pixel budget with eviction of unused variants. Scene disposal releases them. This changes presentation without rewriting saved geometry, collision boxes or texture sources.
+
+Detailed roof patterns can shimmer under nearest-neighbor minification even when buildings remain continuously visible. Check fractional zoom while the camera moves, not just a stationary screenshot. Keep Phaser's pixel-art settings for characters and nearby art; distant scenery applies its own filter after canvas upload. Terrain uses a separate bounded chunk cache in `town-terrain-renderer.ts`; a terrain-cache change alone does not address building sampling.
+
+`RpgScene.update` measures elapsed frame timestamps because the FPS limiter can include previously counted time in its supplied delta. Keep simulation steps bounded, preserve tiny successful waypoint steps, and retain server speed/collision validation. Browser movement checks should use actual frame scheduling and the server movement validator; perfect fixed-step simulations can miss timing bugs.
+
 ## Required checks
 
 Run the affected RPG client tests and worker presence/saved-world tests, then `pnpm build`. Use browser fixtures for multiplayer, scene switching and chat/voice so verification does not send messages or move a real Discord call. Check small screens and keyboard controls. Do not add broad snapshot suites for a palette or label change.

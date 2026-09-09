@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import type { RpgSample, RpgStamp } from './types';
 import { TownTerrainRenderer } from './town-terrain-renderer';
 import { SceneryVisibility } from './scenery-visibility';
+import { SceneryDetail } from './scenery-detail';
 
 export function preloadRpgWorlds(scene: Phaser.Scene, samples: readonly RpgSample[]): void {
   const queued = new Set<string>();
@@ -37,12 +38,14 @@ export class RpgSampleRenderer {
   private readonly flameLights: Phaser.GameObjects.Image[] = [];
   private readonly terrain: TownTerrainRenderer | null;
   private readonly visibility = new SceneryVisibility();
+  private readonly detail: SceneryDetail;
 
   public constructor(
     private readonly scene: Phaser.Scene,
     sample: RpgSample,
   ) {
     const { bounds } = sample;
+    this.detail = new SceneryDetail(scene);
     scene.cameras.main.setBackgroundColor(sample.background);
     this.terrain = sample.terrain ? new TownTerrainRenderer(scene, sample) : null;
     if (!this.terrain) {
@@ -68,6 +71,7 @@ export class RpgSampleRenderer {
       if ((stamp.depth ?? stamp.y) < 0) continue;
       const object = this.makeStamp(stamp, true);
       this.visibility.add(object);
+      this.detail.add(object);
       this.owned.push(object);
     }
     if (sample.id === 'dungeon') {
@@ -83,6 +87,7 @@ export class RpgSampleRenderer {
   public update(time: number, reducedMotion: boolean): void {
     this.terrain?.update();
     this.visibility.update(this.scene.cameras.main);
+    this.detail.update(this.visibility.visibleImages, this.scene.cameras.main.zoom);
     // Only a handful of torch lights animate; the environment never rebuilds during movement.
     this.flameLights.forEach((light, index) => {
       if (!light.visible) return;
@@ -93,6 +98,7 @@ export class RpgSampleRenderer {
   public destroy(): void {
     this.terrain?.destroy();
     this.visibility.destroy();
+    this.detail.destroy();
     this.owned.forEach((object) => object.destroy());
     this.owned.length = 0;
     this.flameLights.length = 0;
