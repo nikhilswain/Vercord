@@ -5,11 +5,16 @@ import { overlaps } from '../world/engine/collision';
 const CELL_SIZE = 16;
 const CLEARANCE = 2;
 const MAX_VISITED = 6000;
+const SMOOTH_LOOKAHEAD = 64;
 const DIRECTIONS = [
   [1, 0],
   [-1, 0],
   [0, 1],
   [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ] as const;
 
 interface Budget {
@@ -118,6 +123,27 @@ function distance(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+/** The portion of a line inside a rectangle, including its boundary. */
+function segmentInterval(from: Point, to: Point, box: Rect): [number, number] | null {
+  let low = 0;
+  let high = 1;
+  for (const axis of ['x', 'y'] as const) {
+    const delta = to[axis] - from[axis];
+    const min = box[axis];
+    const max = min + (axis === 'x' ? box.width : box.height);
+    if (delta === 0) {
+      if (from[axis] < min || from[axis] > max) return null;
+      continue;
+    }
+    const first = (min - from[axis]) / delta;
+    const last = (max - from[axis]) / delta;
+    low = Math.max(low, Math.min(first, last));
+    high = Math.min(high, Math.max(first, last));
+    if (low > high) return null;
+  }
+  return [low, high];
+}
+
 function reconstruct(end: SearchNode): Point[] {
   const points: Point[] = [];
   for (let node: SearchNode | null = end; node; node = node.parent) points.push(node.point);
@@ -199,7 +225,7 @@ export class RpgPathfinder {
     );
   }
 
-  private segmentIsClear(from: Point, to: Point): boolean {
+  private segmentIsClear(from: Point, to: Point, clearance = CLEARANCE): boolean {
     if (!this.inside(this.boxAt(from)) || !this.inside(this.boxAt(to))) return false;
     // Bounded strips avoid querying every bucket in a map-wide diagonal's bounding box.
     const steps = Math.max(1, Math.ceil(distance(from, to) / 128));
@@ -210,15 +236,101 @@ export class RpgPathfinder {
         y: from.y + ((to.y - from.y) * step) / steps,
       };
       const swept = {
-        x: Math.min(previous.x, next.x) + this.feet.offsetX,
-        y: Math.min(previous.y, next.y) + this.feet.offsetY,
-        width: Math.abs(next.x - previous.x) + this.feet.width,
-        height: Math.abs(next.y - previous.y) + this.feet.height,
+        x: Math.min(previous.x, next.x) + this.feet.offsetX - clearance,
+        y: Math.min(previous.y, next.y) + this.feet.offsetY - clearance,
+        width: Math.abs(next.x - previous.x) + this.feet.width + clearance * 2,
+        height: Math.abs(next.y - previous.y) + this.feet.height + clearance * 2,
       };
-      if (this.queryColliders(swept).some((collider) => overlaps(swept, collider))) return false;
+      // Test the line against expanded walls; a diagonal's bounding box is only broad phase.
+      if (
+        this.queryColliders(swept).some((collider) => {
+          if (!overlaps(swept, collider)) return false;
+          const epsilon = 0.00001;
+          return (
+            segmentInterval(previous, next, {
+              x: collider.x - this.feet.offsetX - this.feet.width - clearance + epsilon,
+              y: collider.y - this.feet.offsetY - this.feet.height - clearance + epsilon,
+              width: collider.width + this.feet.width + clearance * 2 - epsilon * 2,
+              height: collider.height + this.feet.height + clearance * 2 - epsilon * 2,
+            }) !== null
+          );
+        })
+      )
+        return false;
       previous = next;
     }
     return true;
+  }
+
+  private segmentStaysOnRoads(from: Point, to: Point): boolean {
+    const steps = Math.max(1, Math.ceil(distance(from, to) / 128));
+    let previous = from;
+    for (let step = 1; step <= steps; step++) {
+      const next = {
+        x: from.x + ((to.x - from.x) * step) / steps,
+        y: from.y + ((to.y - from.y) * step) / steps,
+      };
+      const box = {
+        x: Math.min(previous.x, next.x),
+        y: Math.min(previous.y, next.y),
+        width: Math.abs(next.x - previous.x),
+        height: Math.abs(next.y - previous.y),
+      };
+      const intervals = this.roadIndex
+        .query(box)
+        .map((road) => segmentInterval(previous, next, road))
+        .filter((interval): interval is [number, number] => interval !== null)
+        .sort((a, b) => a[0] - b[0]);
+      let covered = 0;
+      for (const [low, high] of intervals) {
+        if (low > covered + 0.00001) return false;
+        covered = Math.max(covered, high);
+      }
+      if (covered < 1) return false;
+      previous = next;
+    }
+    return true;
+  }
+
+  private smoothRoute(from: Point, route: Point[], budget: Budget, onRoads = false): Point[] {
+    const points = route.filter(
+      (point, index) => distance(index > 0 ? route[index - 1]! : from, point) > 0.00001,
+    );
+    const corners = points.filter((point, index) => {
+      const previous = index > 0 ? points[index - 1]! : from;
+      const next = points[index + 1];
+      if (!next) return true;
+      const dx = point.x - previous.x;
+      const dy = point.y - previous.y;
+      const nx = next.x - point.x;
+      const ny = next.y - point.y;
+      return Math.abs(dx * ny - dy * nx) > 0.00001 || dx * nx + dy * ny < 0;
+    });
+    const result: Point[] = [];
+    let previous = from;
+    for (let index = 0; index < corners.length;) {
+      let furthest = index;
+      for (
+        let next = Math.min(corners.length - 1, index + SMOOTH_LOOKAHEAD);
+        next > index;
+        next--
+      ) {
+        // Smoothing has a bounded horizon and shares the graph's edge budget.
+        if (--budget.edges <= 0) break;
+        const point = corners[next]!;
+        if (
+          this.segmentIsClear(previous, point) &&
+          (!onRoads || this.segmentStaysOnRoads(previous, point))
+        ) {
+          furthest = next;
+          break;
+        }
+      }
+      previous = corners[furthest]!;
+      result.push(previous);
+      index = furthest + 1;
+    }
+    return result;
   }
 
   private nearestGrid(point: Point, connect: boolean): Point | null {
@@ -246,7 +358,7 @@ export class RpgPathfinder {
           const candidate = { x: col * CELL_SIZE + 8, y: row * CELL_SIZE + 8 };
           const length = distance(point, candidate);
           if (length >= nearestDistance || !this.walkable(candidate)) continue;
-          if (connect && !this.segmentIsClear(point, candidate)) continue;
+          if (connect && !this.segmentIsClear(point, candidate, 0)) continue;
           nearest = candidate;
           nearestDistance = length;
         }
@@ -263,7 +375,11 @@ export class RpgPathfinder {
     const target = this.nearestGrid(to, true);
     if (!start || !target) return [];
     const key = (point: Point) => `${point.x}:${point.y}`;
-    const estimate = (point: Point) => Math.abs(point.x - target.x) + Math.abs(point.y - target.y);
+    const estimate = (point: Point) => {
+      const dx = Math.abs(point.x - target.x);
+      const dy = Math.abs(point.y - target.y);
+      return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
+    };
     const open = new MinHeap();
     const scores = new Map<string | number, number>();
     const closed = new Set<string | number>();
@@ -284,14 +400,7 @@ export class RpgPathfinder {
       closed.add(current.id);
       budget.remaining--;
       if (current.point.x === target.x && current.point.y === target.y) {
-        const route = reconstruct(current);
-        const corners = route.filter((_point, index) => {
-          const previous = route[index - 1];
-          const next = route[index + 1];
-          return !previous || !next || (previous.x !== next.x && previous.y !== next.y);
-        });
-        corners.push(to);
-        return corners;
+        return this.smoothRoute(from, [...reconstruct(current), to], budget);
       }
       for (const [dx, dy] of DIRECTIONS) {
         const point = { x: current.point.x + dx * CELL_SIZE, y: current.point.y + dy * CELL_SIZE };
@@ -303,7 +412,7 @@ export class RpgPathfinder {
           free.set(id, walkable);
         }
         if (!walkable || !this.segmentIsClear(current.point, point)) continue;
-        const cost = current.cost + CELL_SIZE;
+        const cost = current.cost + CELL_SIZE * (dx !== 0 && dy !== 0 ? Math.SQRT2 : 1);
         if (cost >= (scores.get(id) ?? Number.POSITIVE_INFINITY)) continue;
         scores.set(id, cost);
         open.push({ id, point, cost, estimate: estimate(point), parent: current });
@@ -361,13 +470,17 @@ export class RpgPathfinder {
       budget.remaining--;
       if (current.id === target.road.id) {
         const waypoints = [...reconstruct(current), target.point];
-        const route = [...start.route];
+        const route: Point[] = [];
         for (let index = 1; index < waypoints.length; index++) {
           const section = this.localRoute(waypoints[index - 1]!, waypoints[index]!, budget);
           if (section.length === 0) return [];
           route.push(...section);
         }
-        return [...route, ...target.route];
+        const middle = this.smoothRoute(start.point, route, budget, true);
+        return [...start.route, ...middle, ...target.route].filter(
+          (point, index, points) =>
+            distance(index > 0 ? points[index - 1]! : from, point) > 0.00001,
+        );
       }
       const road = roadsById.get(current.id as number)!;
       for (const next of this.roadIndex.query(road)) {

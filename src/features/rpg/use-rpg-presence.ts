@@ -15,6 +15,7 @@ import {
   type WorldPresenceState,
 } from '../world/presence/world-presence-client';
 import type { RpgVoiceController } from './use-rpg-voice';
+import type { RpgPositionUpdate } from './types';
 
 type Directory = {
   key: string;
@@ -64,7 +65,7 @@ interface SessionState extends WorldPresenceState {
   sync: WorldSync;
   players: readonly RpgPresencePlayer[];
   self: RpgPresencePlayer | null;
-  position: RpgLocation | null;
+  position: RpgPositionUpdate | null;
   liveMessage: RoomMessage | null;
 }
 const EMPTY_PLAYERS: readonly RpgPresencePlayer[] = [];
@@ -153,7 +154,8 @@ export function useRpgPresence(options: Options) {
           patch({ self: welcome.self, position: welcome.self, players: welcome.players });
         },
         onPlayers: (players) => patch({ players }),
-        onPosition: (player) => patch({ self: player, position: player }),
+        onPosition: (player) =>
+          patch({ self: player, position: { ...player, resumeDestination: true } }),
       },
     );
     client.current = presence;

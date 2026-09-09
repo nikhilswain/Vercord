@@ -1,8 +1,8 @@
 import * as Phaser from 'phaser';
 import { RpgScene } from './rpg-scene';
 import type { Point } from '../world/engine/types';
-import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
-import type { RpgCallbacks, RpgRuntime, RpgSample } from './types';
+import type { RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
+import type { RpgCallbacks, RpgRuntime, RpgSample, RpgPositionUpdate } from './types';
 
 /** React-facing lifecycle adapter. Game state and drawing live in separate modules. */
 export class RpgGame implements RpgRuntime {
@@ -12,7 +12,7 @@ export class RpgGame implements RpgRuntime {
   private height = 1;
   private appearance = 'rowan';
   private players: readonly RpgPresencePlayer[] = [];
-  private playerPosition: RpgLocation | null = null;
+  private playerPosition: RpgPositionUpdate | null = null;
   private blocked = false;
   private destroyed = false;
   private teardown: Promise<void> | null = null;
@@ -87,7 +87,7 @@ export class RpgGame implements RpgRuntime {
     this.players = players;
     this.scene?.setPlayers(players);
   }
-  public setPlayerPosition(location: RpgLocation): void {
+  public setPlayerPosition(location: RpgPositionUpdate): void {
     this.playerPosition = location;
     this.scene?.setPlayerPosition(location);
   }

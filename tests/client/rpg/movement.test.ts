@@ -52,6 +52,37 @@ describe('auto-run', () => {
 });
 
 describe('saved scene positions', () => {
+  it('replans to the clicked destination after a delayed movement correction', () => {
+    const simulation = createSimulation();
+    simulation.navigate({ x: 1000, y: 104 });
+    for (let frame = 0; frame < 60; frame++) simulation.tick(1 / 60, idle);
+    const correction = {
+      x: 200,
+      y: 104,
+      direction: 'right',
+      action: 'idle',
+      scene: 'overworld',
+    } as const;
+    expect(simulation.setPlayerPosition(correction, true)).toBe(true);
+    for (let frame = 0; frame < 250; frame++) simulation.tick(1 / 60, idle);
+    expect(simulation.player.x).toBeCloseTo(1000, 0);
+    expect(simulation.action).toBe('idle');
+  });
+
+  it('does not resume a cancelled click after a later correction', () => {
+    const simulation = createSimulation();
+    simulation.navigate({ x: 1000, y: 104 });
+    simulation.tick(1 / 60, idle);
+    simulation.stop();
+    simulation.setPlayerPosition(
+      { x: 108, y: 104, direction: 'right', action: 'idle', scene: 'overworld' },
+      true,
+    );
+    simulation.tick(1 / 60, idle);
+    expect(simulation.player.x).toBe(108);
+    expect(simulation.action).toBe('idle');
+  });
+
   it('restores authoritative positions safely and cancels the previous route', () => {
     const simulation = createSimulation();
     simulation.navigate({ x: 1000, y: 104 });

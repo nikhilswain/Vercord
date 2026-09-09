@@ -7,6 +7,11 @@ import type {
 import type { MapRoomType } from '../../domain/map/snapshot';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 
+/** Local reconciliation intent; never sent as a movement packet. */
+export interface RpgPositionUpdate extends RpgLocation {
+  resumeDestination?: boolean;
+}
+
 // Renderer and generator share one scene contract; UI/runtime messages stay local to this feature.
 export type {
   RpgAction,
@@ -74,7 +79,7 @@ export interface RpgRuntime {
   setScene(scene: RpgSample, sceneKey: string): void;
   setAppearance(id: string): void;
   setPlayers(players: readonly RpgPresencePlayer[]): void;
-  setPlayerPosition(location: RpgLocation): void;
+  setPlayerPosition(location: RpgPositionUpdate): void;
   setInputBlocked(blocked: boolean): void;
   setVirtualAxis(x: number, y: number, sprinting?: boolean): void;
   interact(): void;

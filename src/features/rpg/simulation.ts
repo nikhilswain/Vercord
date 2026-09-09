@@ -24,6 +24,7 @@ export class RpgSimulation {
   public action: RpgAction = 'idle';
   public blocked = false;
   private route: Point[] = [];
+  private destination: Point | null = null;
   private pathfinder!: RpgPathfinder;
 
   public constructor(
@@ -55,14 +56,16 @@ export class RpgSimulation {
     return { ...this.sample.spawn };
   }
 
-  /** A welcome/correction cancels local navigation and never restores inside an obstacle. */
-  public setPlayerPosition(location: RpgLocation): boolean {
+  /** Corrections replan the remaining intent; fresh admissions and explicit stops clear it. */
+  public setPlayerPosition(location: RpgLocation, resumeDestination = false): boolean {
     const scene = this.sample.id === 'dungeon' ? 'dungeon' : 'overworld';
     if (location.scene !== scene || !this.isSafePosition(location)) return false;
+    const destination = resumeDestination && !this.blocked ? this.destination : null;
     this.stop();
     this.player = { x: location.x, y: location.y };
     this.direction = location.direction;
     this.rememberPosition();
+    if (destination) this.navigate(destination);
     return true;
   }
 
@@ -89,12 +92,14 @@ export class RpgSimulation {
 
   public stop(): void {
     this.route = [];
+    this.destination = null;
     this.action = 'idle';
   }
 
   public navigate(point: Point): void {
     if (this.blocked) return;
     this.route = this.pathfinder.findPath(this.player, point);
+    this.destination = this.route.at(-1) ?? null;
   }
 
   public tick(delta: number, movement: MovementVector): void {
@@ -107,8 +112,10 @@ export class RpgSimulation {
     let dy = movement.y;
     let autoRunning = false;
     let travel = (movement.sprinting ? RUN_SPEED : WALK_SPEED) * dt;
-    if (movement.moving) this.route = [];
-    else {
+    if (movement.moving) {
+      this.route = [];
+      this.destination = null;
+    } else {
       while (
         this.route[0] &&
         Math.hypot(this.route[0].x - this.player.x, this.route[0].y - this.player.y) < 2
@@ -116,6 +123,7 @@ export class RpgSimulation {
         this.route.shift();
       }
       const target = this.route[0];
+      if (!target) this.destination = null;
       if (target) {
         autoRunning = true;
         dx = target.x - this.player.x;

@@ -7,7 +7,7 @@ import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample
 import { directionToward, RpgSimulation } from './simulation';
 import { TownSignage } from './town-signage';
 import { RpgRemoteCharacters } from './remote-characters';
-import type { RpgCallbacks, RpgSample, RpgUiState } from './types';
+import type { RpgCallbacks, RpgSample, RpgUiState, RpgPositionUpdate } from './types';
 
 export class RpgScene extends Phaser.Scene {
   private readonly simulation: RpgSimulation;
@@ -173,8 +173,8 @@ export class RpgScene extends Phaser.Scene {
     this.remotes?.setPlayers(this.players, this.elapsed);
   }
 
-  public setPlayerPosition(location: RpgLocation): void {
-    if (!this.simulation.setPlayerPosition(location)) return;
+  public setPlayerPosition(location: RpgPositionUpdate): void {
+    if (!this.simulation.setPlayerPosition(location, location.resumeDestination)) return;
     this.positionReady = true;
     this.lastMove = JSON.stringify(this.location());
     this.lastMoveTime = this.elapsed;
@@ -189,7 +189,8 @@ export class RpgScene extends Phaser.Scene {
       this.elapsed,
       this.motion.matches,
     );
-    if (this.created && this.following) this.cameras.main.centerOn(location.x, location.y - 18);
+    if (this.created && this.following && !location.resumeDestination)
+      this.cameras.main.centerOn(location.x, location.y - 18);
     this.publishUi();
   }
 

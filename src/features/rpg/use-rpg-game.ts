@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { RpgGame } from './rpg-game';
 import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
-import type { RpgDestination, RpgDialogue, RpgRuntime, RpgSample, RpgUiState } from './types';
+import type {
+  RpgDestination,
+  RpgDialogue,
+  RpgRuntime,
+  RpgSample,
+  RpgUiState,
+  RpgPositionUpdate,
+} from './types';
 
 interface Options {
   sample: RpgSample;
@@ -11,7 +18,7 @@ interface Options {
   appearance: string;
   blocked: boolean;
   players?: readonly RpgPresencePlayer[];
-  playerPosition?: RpgLocation | null;
+  playerPosition?: RpgPositionUpdate | null;
   onUi(state: RpgUiState): void;
   onDialogue(dialogue: RpgDialogue): void;
   onTravel(destination: RpgDestination): void;
