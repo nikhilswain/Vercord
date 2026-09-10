@@ -225,6 +225,8 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
         guildId,
         displayName: data.server.displayName,
         playerName: data.player.displayName,
+        worldId: data.document.worldId,
+        memberKey: data.player.memberKey,
         bindings: data.bindings,
         town: data.town,
         onStreet: selectStreet,

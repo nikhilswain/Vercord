@@ -55,6 +55,7 @@ export function Dialog({
       aria-busy={busy}
       onCancel={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         if (!busy) onClose();
       }}
       onClick={(event) => {

@@ -53,6 +53,8 @@ interface Props {
     guildId: string;
     displayName: string;
     playerName: string;
+    worldId?: string;
+    memberKey?: string;
     bindings: SavedWorldResponse['bindings'];
     town?: WorldTown;
     onStreet(street: string): void;

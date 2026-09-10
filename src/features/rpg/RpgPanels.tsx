@@ -7,6 +7,7 @@ import { RpgPortrait } from './RpgPortrait';
 import { RpgIcon } from './RpgIcon';
 import { RpgSceneMap } from './RpgSceneMap';
 import { RpgTownMap } from './RpgTownMap';
+import RpgAtlasDialog from './atlas/RpgAtlasDialog';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgSample, RpgThemeId, RpgUiState } from './types';
 
@@ -28,6 +29,8 @@ interface Props {
   house?: HouseSceneId;
   server?: {
     guildId: string;
+    worldId?: string;
+    memberKey?: string;
     displayName: string;
     bindings: SavedWorldResponse['bindings'];
     town?: WorldTown;
@@ -58,6 +61,22 @@ export function RpgPanels({
   const appearances = RPG_APPEARANCES.filter((option) =>
     (home.appearances as readonly string[]).includes(option.id),
   );
+  if (panel === 'map' && !house && theme !== 'dungeon' && (!server || server.town?.continuous)) {
+    const scope = server
+      ? JSON.stringify([server.memberKey, server.guildId, server.worldId, world, theme])
+      : JSON.stringify(['demo', world, theme]);
+    return (
+      <RpgAtlasDialog
+        sample={sample}
+        town={server?.town}
+        name={server?.displayName ?? sample.name}
+        scope={scope}
+        position={ui.position}
+        onClose={onClose}
+        onFocus={onFocus}
+      />
+    );
+  }
   return (
     <Dialog
       open={panel !== null}
@@ -269,6 +288,10 @@ export function RpgPanels({
             {' · '}
             <a href="/game-assets/rpg-ui/OFL.txt" target="_blank" rel="noreferrer">
               Font license
+            </a>
+            {' · '}
+            <a href="/game-assets/atlas/OFL.txt" target="_blank" rel="noreferrer">
+              Atlas font license
             </a>
           </details>
         </>
