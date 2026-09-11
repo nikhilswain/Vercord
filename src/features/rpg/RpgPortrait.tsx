@@ -5,7 +5,6 @@ import {
   RPG_CHARACTER_LAYERS,
 } from '../../domain/world/catalog/characters';
 import './rpg-portrait.css';
-import { getTiagoDemoCharacter } from './demo/tiago-assets';
 
 /** The rig's down-facing idle frame (6): column 0, row 2 of a 3 × 4 LPC sheet. */
 export function RpgPortrait({
@@ -20,21 +19,6 @@ export function RpgPortrait({
   className?: string;
 }) {
   const id = useId();
-  const demo = getTiagoDemoCharacter(appearance);
-  if (demo)
-    return (
-      <svg
-        className={`rpg-portrait ${className}`}
-        viewBox="0 0 48 64"
-        width={width}
-        height={height}
-        aria-hidden="true"
-        focusable="false"
-        data-appearance={demo.id}
-      >
-        <image href={demo.previewUrl} x="8" y="0" width="32" height="64" />
-      </svg>
-    );
   const character = getRpgCharacter(appearance);
   return (
     <svg

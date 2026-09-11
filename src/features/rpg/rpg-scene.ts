@@ -4,8 +4,13 @@ import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { sampleSceneId, sceneDefinition, isHouseSceneId } from '../../domain/world/catalog/scenes';
 import { DEFAULT_RPG_CHARACTER_ID } from '../../domain/world/catalog/characters';
-import { preloadRpgCharacters } from './character';
-import { preloadTiagoTravelers, RpgTraveler } from './demo/traveler';
+import {
+  preloadRpgCharacters,
+  RpgCharacter,
+  RPG_CAST_DURATION_MS,
+  RPG_CAST_RELEASE_MS,
+} from './character';
+import type { SpellId } from './demo/types';
 import { JungleAdventure } from './demo/adventure';
 import { JungleAdventureRenderer, preloadJungleCreatures } from './demo/adventure-renderer';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
@@ -21,14 +26,14 @@ export class RpgScene extends Phaser.Scene {
   private readonly motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   private movement: WorldInput | null = null;
   private scenery: RpgSampleRenderer | null = null;
-  private avatar: RpgTraveler | null = null;
+  private avatar: RpgCharacter | null = null;
   private adventureSession: JungleAdventure | null = null;
   private adventureRenderer: JungleAdventureRenderer | null = null;
   private remotes: RpgRemoteCharacters | null = null;
   private ambient: RpgAmbientEntities | null = null;
   private players: readonly RpgPresencePlayer[] = [];
   private positionReady = false;
-  private npcs: RpgTraveler[] = [];
+  private npcs: RpgCharacter[] = [];
   private labels: Phaser.GameObjects.Text[] = [];
   private signage: TownSignage | null = null;
   private marker: Phaser.GameObjects.Graphics | null = null;
@@ -69,10 +74,12 @@ export class RpgScene extends Phaser.Scene {
   public preload(): void {
     this.load.on('loaderror', this.onLoadError);
     preloadRpgWorlds(this, this.samples);
-    preloadRpgCharacters(this);
+    preloadRpgCharacters(
+      this,
+      this.samples.some((sample) => sample.demo),
+    );
     preloadRpgAnimals(this);
     if (this.samples.some((sample) => sample.demo)) {
-      preloadTiagoTravelers(this);
       preloadJungleCreatures(this);
     }
   }
@@ -115,7 +122,7 @@ export class RpgScene extends Phaser.Scene {
     const adventure = this.activeAdventure();
     const blocked =
       this.inputBlocked || worldInputBlocked() || Boolean(adventure && !this.demoFocused);
-    this.simulation.blocked = blocked || Boolean(adventure?.swing);
+    this.simulation.blocked = blocked || Boolean(adventure?.cast);
     const input = this.movement?.getMovement() ?? { x: 0, y: 0, moving: false, sprinting: false };
     // Only a new manual movement gesture resumes follow. An existing auto-run never does.
     if (
@@ -133,7 +140,15 @@ export class RpgScene extends Phaser.Scene {
       this.center();
     }
     const { player, direction, action } = this.simulation;
-    this.avatar.update(player.x, player.y, direction, action, this.elapsed, this.motion.matches);
+    this.avatar.update(
+      player.x,
+      player.y,
+      direction,
+      action,
+      this.elapsed,
+      this.motion.matches,
+      adventure?.cast ? (adventure.time - adventure.cast.at) * 1000 : null,
+    );
     this.playerMarker?.setPosition(player.x, player.y - 1).setDepth(player.y - 0.1);
     this.avatar.container.setAlpha(
       adventure && adventure.time < adventure.invincibleUntil
@@ -366,6 +381,19 @@ export class RpgScene extends Phaser.Scene {
     this.publishUi();
   }
 
+  public selectSpell(spell: SpellId): void {
+    if (
+      !this.created ||
+      this.disposed ||
+      this.inputBlocked ||
+      !this.demoFocused ||
+      worldInputBlocked()
+    )
+      return;
+    this.activeAdventure()?.selectSpell(spell);
+    this.publishUi();
+  }
+
   private activeAdventure(): JungleAdventure | null {
     return this.simulation.sample.demo?.area === 'jungle' ? this.adventureSession : null;
   }
@@ -473,7 +501,7 @@ export class RpgScene extends Phaser.Scene {
       .ellipse(player.x, player.y - 1, 27, 11)
       .setStrokeStyle(1, 0xffdfa4, 0.8)
       .setDepth(player.y - 0.1);
-    this.avatar = new RpgTraveler(this, this.appearance, player.x, player.y);
+    this.avatar = new RpgCharacter(this, this.appearance, player.x, player.y);
     this.remotes = new RpgRemoteCharacters(
       this,
       sceneDefinition(sampleSceneId(this.simulation.sample)).visiblePlayerLimit - 1,
@@ -486,10 +514,11 @@ export class RpgScene extends Phaser.Scene {
         sample.colliders,
         sample.bounds,
         sample.spawn,
+        { durationMs: RPG_CAST_DURATION_MS, releaseMs: RPG_CAST_RELEASE_MS },
       );
       this.adventureRenderer = new JungleAdventureRenderer(this, this.adventureSession);
     }
-    this.npcs = sample.npcs.map((npc) => new RpgTraveler(this, npc.appearance, npc.x, npc.y));
+    this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
       this.add
         .text(npc.x, npc.y - 64, `${npc.name} · NPC`, {
@@ -626,6 +655,10 @@ export class RpgScene extends Phaser.Scene {
     if (this.activeAdventure() && event.code === 'KeyH') {
       event.preventDefault();
       this.heal();
+    }
+    if (this.activeAdventure() && (event.code === 'Digit1' || event.code === 'Digit2')) {
+      event.preventDefault();
+      this.selectSpell(event.code === 'Digit1' ? 'fire' : 'water');
     }
     if (event.code === 'Equal' || event.code === 'NumpadAdd') {
       event.preventDefault();

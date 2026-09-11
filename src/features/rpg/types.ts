@@ -11,7 +11,7 @@ import type {
   RpgPresencePlayer,
 } from '../../domain/presence/rpg-protocol';
 import type { RpgSceneId } from '../../domain/world/catalog/scenes';
-import type { AdventureStatus, DemoArea, DemoSceneContent } from './demo/types';
+import type { AdventureStatus, DemoArea, DemoSceneContent, SpellId } from './demo/types';
 
 /** Local reconciliation intent; never sent as a movement packet. */
 export interface RpgPositionUpdate extends RpgLocation {
@@ -97,6 +97,7 @@ export interface RpgRuntime {
   interact(): void;
   attack?(): void;
   heal?(): void;
+  selectSpell?(spell: SpellId): void;
   zoomBy(factor: number): void;
   center(): void;
   focus?(point: Point): void;

@@ -1,0 +1,1394 @@
+{
+  "publisher": "CraftPix / Free Game Assets (GUI, Sprite, Tilesets)",
+  "licenseUrl": "https://craftpix.net/file-licenses/",
+  "licenseSection": "2. FREEBIE PRODUCTS",
+  "downloadMethod": "Normal author itch.io free-download browser controls, without accounts or payments",
+  "sourceArchives": {
+    "spells": {
+      "filename": "free-water-and-fire-magic-sprite-vector-pack.zip",
+      "sha256": "e1445f9ea1c049bbf8f4ec9540b739b753f3052694cb4b7092bbbd67e27eeee4",
+      "sourceUrl": "https://craftpix.net/freebies/free-water-and-fire-magic-sprite-vector-pack/",
+      "downloadPage": "https://free-game-assets.itch.io/free-fire-water-magic-spell-vector-pack"
+    },
+    "traps": {
+      "filename": "Free-Magic-and-Traps-Top-Down-Pixel-Art-Asset.zip",
+      "sha256": "1cc50d7c51d8735a18e040c3a0dedc29cb29e110fb2926484a2b32b3e94a031e",
+      "sourceUrl": "https://craftpix.net/freebies/free-magic-and-traps-top-down-pixel-art-asset/",
+      "downloadPage": "https://free-game-assets.itch.io/free-magic-and-traps-top-down-pixel-art-asset"
+    },
+    "vectorExplosions": {
+      "filename": "Free-Animated-Explosions.zip",
+      "sha256": "226dcf963fcedc78072a239501e54afe416176ccdec09d9fa2ef2a8f5efba8e5",
+      "sourceUrl": "https://craftpix.net/freebies/free-animated-explosion-sprite-pack/",
+      "downloadPage": "https://free-game-assets.itch.io/free-animated-explosion-sprite-pack"
+    },
+    "pixelExplosions": {
+      "filename": "Free Pixel Art Explosions.zip",
+      "sha256": "09653dfa7537deee70c1538572bf32e8e2abdd58ac510da6865840cf1468992a",
+      "sourceUrl": "https://craftpix.net/freebies/11-free-pixel-art-explosion-sprites/",
+      "downloadPage": "https://free-game-assets.itch.io/11-free-pixel-art-explosion-sprites"
+    },
+    "forestBosses": {
+      "filename": "Free-Forest-Bosses-Pixel-Art-Sprite-Sheet-Pack.zip",
+      "sha256": "f62de17653cffb76aa63a975de9450101c327e9a1ced54911960c84191894d8c",
+      "sourceUrl": "https://craftpix.net/freebies/free-forest-bosses-pixel-art-sprite-sheet-pack/",
+      "downloadPage": "https://free-game-assets.itch.io/free-forest-bosses-pixel-art-sprite-sheet-pack"
+    }
+  },
+  "assets": {
+    "fire-bolt": {
+      "pack": "spells",
+      "sourceFiles": [
+        "Fire Spell/PNG/Fire Spell_Frame_01.png",
+        "Fire Spell/PNG/Fire Spell_Frame_02.png",
+        "Fire Spell/PNG/Fire Spell_Frame_03.png",
+        "Fire Spell/PNG/Fire Spell_Frame_04.png",
+        "Fire Spell/PNG/Fire Spell_Frame_05.png",
+        "Fire Spell/PNG/Fire Spell_Frame_06.png",
+        "Fire Spell/PNG/Fire Spell_Frame_07.png",
+        "Fire Spell/PNG/Fire Spell_Frame_08.png"
+      ],
+      "durationMs": 400,
+      "loop": true,
+      "origin": {
+        "x": 0.72,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "640x360 PNG -> 64x36 nearest, alpha threshold 96, horizontal mirror; points east",
+      "file": "fire-bolt.png",
+      "sha256": "93740352f8887bb1f5061200448ef7c30240e3c90527ddf81d86b0c57c872398",
+      "frameWidth": 64,
+      "frameHeight": 36,
+      "columns": 8,
+      "frameCount": 8,
+      "atlasCellCount": 8,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 1,
+          "x": 64,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 2,
+          "x": 128,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 3,
+          "x": 192,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 4,
+          "x": 256,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 5,
+          "x": 320,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 6,
+          "x": 384,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 7,
+          "x": 448,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        }
+      ]
+    },
+    "fire-cast": {
+      "pack": "spells",
+      "sourceFiles": [
+        "Fire Ball/PNG/Fire Ball_Frame_01.png",
+        "Fire Ball/PNG/Fire Ball_Frame_02.png",
+        "Fire Ball/PNG/Fire Ball_Frame_03.png",
+        "Fire Ball/PNG/Fire Ball_Frame_04.png",
+        "Fire Ball/PNG/Fire Ball_Frame_05.png",
+        "Fire Ball/PNG/Fire Ball_Frame_06.png",
+        "Fire Ball/PNG/Fire Ball_Frame_07.png",
+        "Fire Ball/PNG/Fire Ball_Frame_08.png"
+      ],
+      "durationMs": 360,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "640x640 PNG -> 32x32 nearest, alpha threshold 96",
+      "file": "fire-cast.png",
+      "sha256": "f324cb8cd3af72bbd0090339cdbdc92832f7eea9f0b9f13b136b5d9a64422cc5",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "columns": 8,
+      "frameCount": 8,
+      "atlasCellCount": 8,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 1,
+          "x": 32,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 2,
+          "x": 64,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 3,
+          "x": 96,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 4,
+          "x": 128,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 5,
+          "x": 160,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 6,
+          "x": 192,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 7,
+          "x": 224,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
+      ]
+    },
+    "water-bolt": {
+      "pack": "spells",
+      "sourceFiles": [
+        "Water Spell/PNG/Water Spell_Frame_01.png",
+        "Water Spell/PNG/Water Spell_Frame_02.png",
+        "Water Spell/PNG/Water Spell_Frame_03.png",
+        "Water Spell/PNG/Water Spell_Frame_04.png",
+        "Water Spell/PNG/Water Spell_Frame_05.png",
+        "Water Spell/PNG/Water Spell_Frame_06.png",
+        "Water Spell/PNG/Water Spell_Frame_07.png",
+        "Water Spell/PNG/Water Spell_Frame_08.png"
+      ],
+      "durationMs": 400,
+      "loop": true,
+      "origin": {
+        "x": 0.72,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "640x360 PNG -> 64x36 nearest, alpha threshold 96, horizontal mirror; points east",
+      "file": "water-bolt.png",
+      "sha256": "fa017c36ad8370e57a55881c97aa5866d78dd72c91831bb15e553be90fcd7f27",
+      "frameWidth": 64,
+      "frameHeight": 36,
+      "columns": 8,
+      "frameCount": 8,
+      "atlasCellCount": 8,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 1,
+          "x": 64,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 2,
+          "x": 128,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 3,
+          "x": 192,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 4,
+          "x": 256,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 5,
+          "x": 320,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 6,
+          "x": 384,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        },
+        {
+          "index": 7,
+          "x": 448,
+          "y": 0,
+          "width": 64,
+          "height": 36
+        }
+      ]
+    },
+    "water-cast": {
+      "pack": "spells",
+      "sourceFiles": [
+        "Water Ball/PNG/Water Ball_Frame_01.png",
+        "Water Ball/PNG/Water Ball_Frame_02.png",
+        "Water Ball/PNG/Water Ball_Frame_03.png",
+        "Water Ball/PNG/Water Ball_Frame_04.png",
+        "Water Ball/PNG/Water Ball_Frame_05.png",
+        "Water Ball/PNG/Water Ball_Frame_06.png",
+        "Water Ball/PNG/Water Ball_Frame_07.png",
+        "Water Ball/PNG/Water Ball_Frame_08.png",
+        "Water Ball/PNG/Water Ball_Frame_09.png",
+        "Water Ball/PNG/Water Ball_Frame_10.png",
+        "Water Ball/PNG/Water Ball_Frame_11.png",
+        "Water Ball/PNG/Water Ball_Frame_12.png"
+      ],
+      "durationMs": 360,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "640x640 PNG -> 32x32 nearest, alpha threshold 96",
+      "file": "water-cast.png",
+      "sha256": "27a85dee4515b144b803ee95a5006e368bfa928e7647a75ec735e5e1b72f89c7",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "columns": 8,
+      "frameCount": 12,
+      "atlasCellCount": 16,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 1,
+          "x": 32,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 2,
+          "x": 64,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 3,
+          "x": 96,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 4,
+          "x": 128,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 5,
+          "x": 160,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 6,
+          "x": 192,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 7,
+          "x": 224,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 8,
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 9,
+          "x": 32,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 10,
+          "x": 64,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 11,
+          "x": 96,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ]
+    },
+    "fire-impact": {
+      "pack": "traps",
+      "sourceFiles": ["4 Barrel/Boom1.png"],
+      "durationMs": 480,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "Eight native 48x48 pixel frames, unchanged",
+      "file": "fire-impact.png",
+      "sha256": "f7035c6a777a6339a51edb2afcdcce6ed70bd82fcbbd48f030569db7274de540",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "columns": 8,
+      "frameCount": 8,
+      "atlasCellCount": 8,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 1,
+          "x": 48,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 2,
+          "x": 96,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 3,
+          "x": 144,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 4,
+          "x": 192,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 5,
+          "x": 240,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 6,
+          "x": 288,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 7,
+          "x": 336,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        }
+      ]
+    },
+    "water-impact": {
+      "pack": "vectorExplosions",
+      "sourceFiles": [
+        "PNG/Explosion_7/4/Explosion_3_1.png",
+        "PNG/Explosion_7/4/Explosion_3_2.png",
+        "PNG/Explosion_7/4/Explosion_3_3.png",
+        "PNG/Explosion_7/4/Explosion_3_4.png"
+      ],
+      "durationMs": 240,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "150x150 PNG -> 48x48 nearest, alpha threshold 96",
+      "file": "water-impact.png",
+      "sha256": "ddbdf4ca2dac584f6cb901973b53db2ea6afc7d6ea00e9477b64b3bc53cd4d56",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "columns": 4,
+      "frameCount": 4,
+      "atlasCellCount": 4,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 1,
+          "x": 48,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 2,
+          "x": 96,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 3,
+          "x": 144,
+          "y": 0,
+          "width": 48,
+          "height": 48
+        }
+      ]
+    },
+    "fire-death": {
+      "pack": "pixelExplosions",
+      "sourceFiles": [
+        "PNG/Circle_explosion/Circle_explosion1.png",
+        "PNG/Circle_explosion/Circle_explosion2.png",
+        "PNG/Circle_explosion/Circle_explosion3.png",
+        "PNG/Circle_explosion/Circle_explosion4.png",
+        "PNG/Circle_explosion/Circle_explosion5.png",
+        "PNG/Circle_explosion/Circle_explosion6.png",
+        "PNG/Circle_explosion/Circle_explosion7.png",
+        "PNG/Circle_explosion/Circle_explosion8.png",
+        "PNG/Circle_explosion/Circle_explosion9.png",
+        "PNG/Circle_explosion/Circle_explosion10.png"
+      ],
+      "durationMs": 650,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "256x256 source -> 128x128 nearest; visible peak approximately 90px; numeric frame order 1..10",
+      "file": "fire-death.png",
+      "sha256": "ddd995e43520be5e4692d375eae4d9d7b65ede62fb483d6248dfe681d90febb4",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "columns": 8,
+      "frameCount": 10,
+      "atlasCellCount": 16,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 1,
+          "x": 128,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 2,
+          "x": 256,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 3,
+          "x": 384,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 4,
+          "x": 512,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 5,
+          "x": 640,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 6,
+          "x": 768,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 7,
+          "x": 896,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 8,
+          "x": 0,
+          "y": 128,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 9,
+          "x": 128,
+          "y": 128,
+          "width": 128,
+          "height": 128
+        }
+      ]
+    },
+    "water-death": {
+      "pack": "pixelExplosions",
+      "sourceFiles": [
+        "PNG/Explosion_blue_circle/Explosion_blue_circle1.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle2.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle3.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle4.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle5.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle6.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle7.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle8.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle9.png",
+        "PNG/Explosion_blue_circle/Explosion_blue_circle10.png"
+      ],
+      "durationMs": 650,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "256x256 source -> 128x128 nearest; visible peak approximately 90px; numeric frame order 1..10",
+      "file": "water-death.png",
+      "sha256": "2ef9d4f400ee6141af43c217a9f6ca8cae3dcee93df7c5fdd9361e5c0c19c92f",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "columns": 8,
+      "frameCount": 10,
+      "atlasCellCount": 16,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 1,
+          "x": 128,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 2,
+          "x": 256,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 3,
+          "x": 384,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 4,
+          "x": 512,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 5,
+          "x": 640,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 6,
+          "x": 768,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 7,
+          "x": 896,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 8,
+          "x": 0,
+          "y": 128,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 9,
+          "x": 128,
+          "y": 128,
+          "width": 128,
+          "height": 128
+        }
+      ]
+    },
+    "poison-death": {
+      "pack": "pixelExplosions",
+      "sourceFiles": [
+        "PNG/Explosion_gas_circle/Explosion_gas_circle1.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle2.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle3.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle4.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle5.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle6.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle7.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle8.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle9.png",
+        "PNG/Explosion_gas_circle/Explosion_gas_circle10.png"
+      ],
+      "durationMs": 650,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 1,
+      "transform": "256x256 source -> 128x128 nearest; visible peak approximately 90px; numeric frame order 1..10",
+      "file": "poison-death.png",
+      "sha256": "04ef31717c678bde7049ec103e72919f0d31df162685b82fa0e97d6b28a6109b",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "columns": 8,
+      "frameCount": 10,
+      "atlasCellCount": 16,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 1,
+          "x": 128,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 2,
+          "x": 256,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 3,
+          "x": 384,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 4,
+          "x": 512,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 5,
+          "x": 640,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 6,
+          "x": 768,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 7,
+          "x": 896,
+          "y": 0,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 8,
+          "x": 0,
+          "y": 128,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 9,
+          "x": 128,
+          "y": 128,
+          "width": 128,
+          "height": 128
+        }
+      ]
+    },
+    "spike-trap": {
+      "pack": "traps",
+      "sourceFiles": ["1 Spikes/1.png"],
+      "durationMs": 720,
+      "loop": false,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "suggestedScale": 2,
+      "impactAtMs": 240,
+      "transform": "Six native 32x32 pixel frames, unchanged",
+      "file": "spike-trap.png",
+      "sha256": "e48a9bc6de31eb32be57e415c70a9a1eea32388f27bb9d6b91bf610d8eabea4b",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "columns": 6,
+      "frameCount": 6,
+      "atlasCellCount": 6,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 1,
+          "x": 32,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 2,
+          "x": 64,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 3,
+          "x": 96,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 4,
+          "x": 128,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 5,
+          "x": 160,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
+      ]
+    },
+    "forest-guardian": {
+      "pack": "forestBosses",
+      "sourceFiles": ["1/Idle.png", "1/Walk.png", "1/Attack1.png", "1/Hurt.png", "1/Death.png"],
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "feet": {
+        "x": 64,
+        "y": 96
+      },
+      "suggestedScale": 2,
+      "animations": {
+        "idle": {
+          "durationMs": 800,
+          "loop": true,
+          "frames": {
+            "left": [0, 1, 2, 3],
+            "right": [4, 5, 6, 7],
+            "down": [4, 5, 6, 7],
+            "up": [4, 5, 6, 7]
+          }
+        },
+        "walk": {
+          "durationMs": 600,
+          "loop": true,
+          "frames": {
+            "left": [8, 9, 10, 11, 12, 13],
+            "right": [14, 15, 16, 17, 18, 19],
+            "down": [14, 15, 16, 17, 18, 19],
+            "up": [14, 15, 16, 17, 18, 19]
+          }
+        },
+        "attack": {
+          "durationMs": 720,
+          "loop": false,
+          "frames": {
+            "left": [20, 21, 22, 23, 24, 25],
+            "right": [26, 27, 28, 29, 30, 31],
+            "down": [26, 27, 28, 29, 30, 31],
+            "up": [26, 27, 28, 29, 30, 31]
+          },
+          "impactAtMs": 360
+        },
+        "hurt": {
+          "durationMs": 240,
+          "loop": false,
+          "frames": {
+            "left": [32, 33, 34, 35],
+            "right": [36, 37, 38, 39],
+            "down": [36, 37, 38, 39],
+            "up": [36, 37, 38, 39]
+          }
+        },
+        "death": {
+          "durationMs": 780,
+          "loop": false,
+          "frames": {
+            "left": [40, 41, 42, 43, 44, 45],
+            "right": [46, 47, 48, 49, 50, 51],
+            "down": [46, 47, 48, 49, 50, 51],
+            "up": [46, 47, 48, 49, 50, 51]
+          }
+        }
+      },
+      "transform": "Native 96x96 frames padded to 128x96; exact horizontal mirror for right; up/down reuse right side view",
+      "file": "forest-guardian.png",
+      "sha256": "d104ae40c7ba2ff88df13f119fa8463e22d039c106304fe80fa153c41873549e",
+      "frameWidth": 128,
+      "frameHeight": 96,
+      "columns": 8,
+      "frameCount": 52,
+      "atlasCellCount": 56,
+      "frames": [
+        {
+          "index": 0,
+          "x": 0,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 1,
+          "x": 128,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 2,
+          "x": 256,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 3,
+          "x": 384,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 4,
+          "x": 512,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 5,
+          "x": 640,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 6,
+          "x": 768,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 7,
+          "x": 896,
+          "y": 0,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 8,
+          "x": 0,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 9,
+          "x": 128,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 10,
+          "x": 256,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 11,
+          "x": 384,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 12,
+          "x": 512,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 13,
+          "x": 640,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 14,
+          "x": 768,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 15,
+          "x": 896,
+          "y": 96,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 16,
+          "x": 0,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 17,
+          "x": 128,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 18,
+          "x": 256,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 19,
+          "x": 384,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 20,
+          "x": 512,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 21,
+          "x": 640,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 22,
+          "x": 768,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 23,
+          "x": 896,
+          "y": 192,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 24,
+          "x": 0,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 25,
+          "x": 128,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 26,
+          "x": 256,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 27,
+          "x": 384,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 28,
+          "x": 512,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 29,
+          "x": 640,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 30,
+          "x": 768,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 31,
+          "x": 896,
+          "y": 288,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 32,
+          "x": 0,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 33,
+          "x": 128,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 34,
+          "x": 256,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 35,
+          "x": 384,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 36,
+          "x": 512,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 37,
+          "x": 640,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 38,
+          "x": 768,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 39,
+          "x": 896,
+          "y": 384,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 40,
+          "x": 0,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 41,
+          "x": 128,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 42,
+          "x": 256,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 43,
+          "x": 384,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 44,
+          "x": 512,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 45,
+          "x": 640,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 46,
+          "x": 768,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 47,
+          "x": 896,
+          "y": 480,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 48,
+          "x": 0,
+          "y": 576,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 49,
+          "x": 128,
+          "y": 576,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 50,
+          "x": 256,
+          "y": 576,
+          "width": 128,
+          "height": 96
+        },
+        {
+          "index": 51,
+          "x": 384,
+          "y": 576,
+          "width": 128,
+          "height": 96
+        }
+      ]
+    },
+    "green-slime": {
+      "file": "green-slime.png",
+      "sha256": "2ea69c50dfe0e3c77cd724081d385f1bf6f55650e412df138d27c1018337624e",
+      "sourceFile": "public/game-assets/jungle-demo/slime.png",
+      "sourceSha256": "09046741978144335241619767891c460e081a901a40259f21b8e7e8efd20e33",
+      "sourceUrl": "https://rvros.itch.io/pixel-art-animated-slime",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "frameWidth": 32,
+      "frameHeight": 25,
+      "columns": 5,
+      "frameCount": 50,
+      "transform": "Exact five-shade palette substitution; red mouth, transparency and source animation geometry preserved",
+      "palette": [
+        {
+          "from": [35, 64, 117, 255],
+          "to": [30, 70, 46, 255]
+        },
+        {
+          "from": [58, 91, 148, 255],
+          "to": [48, 114, 57, 255]
+        },
+        {
+          "from": [88, 138, 224, 255],
+          "to": [96, 184, 73, 255]
+        },
+        {
+          "from": [176, 203, 245, 255],
+          "to": [187, 225, 139, 255]
+        },
+        {
+          "from": [210, 224, 247, 255],
+          "to": [234, 248, 205, 255]
+        }
+      ]
+    }
+  },
+  "timingNote": "Durations and impact timings are game-design choices, not author-supplied timing claims."
+}

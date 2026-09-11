@@ -13,7 +13,6 @@ import { buildVillage } from '../../../domain/world/content/v1/village';
 import { containsPoint } from '../../world/engine/collision';
 import type { RpgSample } from '../types';
 import type { JungleDefinition } from './types';
-import { TIAGO_DEMO_CHARACTERS } from './tiago-assets';
 
 export function buildComparisonVillage(): RpgSample {
   const sample: RpgSample = buildVillage();
@@ -38,24 +37,21 @@ export function buildComparisonVillage(): RpgSample {
       maxWidth: 200,
     },
   ];
-  const spots = [at(24.5, 17), at(27.5, 18.5), at(25.5, 20.5)];
-  for (const [index, character] of TIAGO_DEMO_CHARACTERS.entries()) {
-    sample.npcs.push({
-      id: character.id,
-      name: character.name,
-      role: 'Tiago traveler',
-      appearance: character.id,
-      direction: 'down',
-      ...spots[index]!,
-      lines: [
-        'Try my look from the Look menu. Mira beside the square uses the LPC style, so you can compare us in the same world.',
-        'My free sample has walking and idle poses. In the jungle I keep this body and use the same sword effect as the other travelers.',
-        'Follow the northwest path, past the gathering hall, to the jungle sign. Press E at the entrance.',
-      ],
-    });
-  }
+  sample.npcs.push({
+    id: 'demo-naturalist',
+    name: 'Juniper',
+    role: 'Forest naturalist',
+    appearance: 'juniper',
+    direction: 'down',
+    ...at(11.5, 14),
+    lines: [
+      'Moonblossoms grow in the forest clearings. Golden herbs can heal you. Gather either with E.',
+      'Your first spell is Ember. Press Space to cast toward a nearby creature, or in the direction you face. Gathering and combat teach you Tide at level 2.',
+      'Watch the ground before a creature lunges. Return to this village to rest; your discoveries will stay with you during this visit.',
+    ],
+  });
   sample.npcs[0]!.lines = [
-    'The visiting travelers around this square wear the Tiago style. I use the taller LPC style you already know. Open Look to try either one.',
+    'Choose your traveler in Look. Your appearance stays with you as you explore and learn magic.',
     'The northwest grove opens into Mosswild Jungle. Slimes, wild animals and collectible flowers wait along the trail. Press E by the jungle sign to enter.',
   ];
   return sample;
@@ -69,14 +65,15 @@ export function buildJungleDemo(): RpgSample {
     at(23, 33),
   );
   sample.bounds = { x: 0, y: 0, width: 46 * 32, height: 38 * 32 };
-  sample.background = '#294b35';
+  sample.background = '#4d8231';
   const jungle: JungleDefinition = {
     enemies: [
       { id: 'slime-south', kind: 'slime', ...at(23, 28) },
-      { id: 'slime-west', kind: 'slime', ...at(18, 23) },
+      { id: 'slime-west', kind: 'slime', variant: 'green', ...at(18, 23) },
       { id: 'slime-east', kind: 'slime', ...at(28, 23) },
       { id: 'snake-fern', kind: 'snake', ...at(12, 14) },
       { id: 'bear-hollow', kind: 'bear', ...at(36, 23) },
+      { id: 'bloom-guardian', kind: 'guardian', ...at(23, 14.5) },
     ],
     flowers: [
       { id: 'herb-camp', kind: 'healing', ...at(20.5, 32.5) },
@@ -88,6 +85,10 @@ export function buildJungleDemo(): RpgSample {
       { id: 'bloom-hollow', kind: 'collection', ...at(39, 22) },
     ],
     water: [{ x: 31 * 32, y: 7 * 32, width: 8 * 32, height: 9 * 32 }],
+    traps: [
+      { id: 'fern-spikes', offset: 0, ...at(16.5, 20) },
+      { id: 'pool-spikes', offset: 1.5, ...at(28.5, 18) },
+    ],
   };
   sample.demo = { area: 'jungle', portal: { id: 'demo-jungle-return', target: 'village' }, jungle };
   const paths = new Set<string>();
@@ -119,7 +120,8 @@ export function buildJungleDemo(): RpgSample {
           y,
           -90,
         );
-      sample.stamps[sample.stamps.length - 1]!.tint = onPath ? 0xc1c3a7 : 0x91bca0;
+      // Keep the existing grass bright while the licensed ELV forest art is pending.
+      if (onPath) sample.stamps[sample.stamps.length - 1]!.tint = 0xeff2d5;
     }
   for (let y = 7; y < 16; y++)
     for (let x = 31; x < 39; x++) {
@@ -159,7 +161,7 @@ export function buildJungleDemo(): RpgSample {
       )
         continue;
       addTree(sample, tx, ty, false, Math.floor(x + y) % 3 === 0 ? 'tallOak' : 'oldOak');
-      sample.stamps[sample.stamps.length - 1]!.tint = Math.floor(x) % 2 ? 0x7cba9b : 0x9abc88;
+      if (Math.floor(x) % 3 === 0) sample.stamps[sample.stamps.length - 1]!.tint = 0xe3edbb;
     }
   for (const [x, y] of [
     [18, 30],
@@ -193,6 +195,13 @@ export function buildJungleDemo(): RpgSample {
       maxWidth: 190,
     },
     { ...at(12, 9), text: 'Fern clearing', kind: 'place', maxWidth: 170 },
+    {
+      ...at(23, 11.5),
+      text: 'Thornbloom grove',
+      detail: 'Guardian ahead',
+      kind: 'place',
+      maxWidth: 190,
+    },
     { ...at(35, 5.5), text: 'Stillwater pool', kind: 'place', maxWidth: 170 },
     { ...at(36, 18.5), text: 'Bear hollow', kind: 'place', maxWidth: 170 },
   ];

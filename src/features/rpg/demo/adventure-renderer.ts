@@ -1,10 +1,23 @@
 import type Phaser from 'phaser';
 import type { Point } from '../../world/engine/types';
-import { JungleAdventure, type Enemy } from './adventure';
+import { JungleAdventure, trapState, type Enemy } from './adventure';
 import { JUNGLE_WILDLIFE_ASSETS } from './wildlife-assets';
+import { MAGIC_EFFECT_ASSETS, FOREST_GUARDIAN_ASSET, GREEN_SLIME_ASSET } from './magic-assets';
+
+const creatureAsset = (enemy: Enemy) =>
+  enemy.kind === 'guardian'
+    ? FOREST_GUARDIAN_ASSET
+    : enemy.kind === 'slime' && enemy.variant === 'green'
+      ? GREEN_SLIME_ASSET
+      : JUNGLE_WILDLIFE_ASSETS[enemy.kind];
 
 export function preloadJungleCreatures(scene: Phaser.Scene): void {
-  for (const asset of Object.values(JUNGLE_WILDLIFE_ASSETS)) {
+  for (const asset of [
+    ...Object.values(JUNGLE_WILDLIFE_ASSETS),
+    FOREST_GUARDIAN_ASSET,
+    GREEN_SLIME_ASSET,
+    ...Object.values(MAGIC_EFFECT_ASSETS),
+  ]) {
     if (!scene.textures.exists(asset.textureKey))
       scene.load.spritesheet(asset.textureKey, asset.imageUrl, {
         frameWidth: asset.frameWidth,
@@ -24,13 +37,17 @@ export class JungleAdventureRenderer {
   private readonly flowers: Phaser.GameObjects.Image[];
   private readonly effects: Phaser.GameObjects.Graphics;
   private readonly water: Phaser.GameObjects.Graphics;
+  private readonly projectiles: Phaser.GameObjects.Image[];
+  private readonly bursts: Phaser.GameObjects.Image[];
+  private readonly traps: Phaser.GameObjects.Image[];
+  private readonly charge: Phaser.GameObjects.Image;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly model: JungleAdventure,
   ) {
     this.creatures = model.enemies.map((enemy) => {
-      const asset = JUNGLE_WILDLIFE_ASSETS[enemy.kind];
+      const asset = creatureAsset(enemy);
       return {
         sprite: scene.add
           .image(enemy.x, enemy.y, asset.textureKey, asset.animations.idle.frames.down[0]!)
@@ -54,6 +71,18 @@ export class JungleAdventureRenderer {
     );
     this.water = scene.add.graphics().setDepth(-40);
     this.effects = scene.add.graphics().setDepth(50000);
+    const pool = (count: number) =>
+      Array.from({ length: count }, () =>
+        scene.add.image(0, 0, MAGIC_EFFECT_ASSETS['fire-bolt'].textureKey).setVisible(false),
+      );
+    this.projectiles = pool(8);
+    this.bursts = pool(16);
+    this.charge = pool(1)[0]!;
+    this.traps = (model.content.traps ?? []).map((trap) =>
+      scene.add
+        .image(trap.x, trap.y, MAGIC_EFFECT_ASSETS['spike-trap'].textureKey)
+        .setDepth(trap.y),
+    );
   }
 
   update(player: Point, reducedMotion: boolean): void {
@@ -69,7 +98,7 @@ export class JungleAdventureRenderer {
       view.sprite.setVisible(shown);
       view.shadow.setVisible(shown && enemy.health > 0);
       if (!shown) return;
-      const asset = JUNGLE_WILDLIFE_ASSETS[enemy.kind];
+      const asset = creatureAsset(enemy);
       const animation = asset.animations[enemy.phase === 'windup' ? 'idle' : enemy.phase];
       const frames = animation.frames[enemy.direction];
       const cycle = (age * 1000) / animation.durationMs;
@@ -92,6 +121,7 @@ export class JungleAdventureRenderer {
         .setAlpha(enemy.health === 0 ? Math.max(0, 1 - age) : 1);
       view.shadow.setPosition(enemy.x, enemy.y - 1).setDepth(enemy.y - 0.2);
       if (enemy.phase === 'hurt') view.sprite.setTint(0xffc7b2);
+      else if (this.model.time < enemy.slowedUntil) view.sprite.setTint(0x91deff);
       else view.sprite.clearTint();
       if (enemy.phase === 'windup') this.warning(g, enemy, age);
       if (
@@ -99,7 +129,8 @@ export class JungleAdventureRenderer {
         Math.hypot(enemy.x - player.x, enemy.y - player.y) < 190 &&
         camera.zoom >= 0.65
       ) {
-        const y = enemy.y - asset.feet.y * asset.suggestedScale - 9;
+        const y =
+          enemy.y - (enemy.kind === 'guardian' ? 94 : asset.feet.y * asset.suggestedScale) - 9;
         g.fillStyle(0x18251d, 0.9).fillRoundedRect(enemy.x - 20, y, 40, 5, 2);
         g.fillStyle(enemy.kind === 'slime' ? 0x98d6ba : 0xe5b887, 1).fillRoundedRect(
           enemy.x - 19,
@@ -128,10 +159,12 @@ export class JungleAdventureRenderer {
         2,
       );
     });
-    this.drawSwing(g, player);
+    this.drawMagic(g);
     for (const effect of this.model.effects) {
       const age = this.model.time - effect.at;
       const progress = age / 0.85;
+      if (effect.kind === 'fire' || effect.kind === 'water' || effect.kind.endsWith('-death'))
+        continue;
       const color = effect.kind === 'hit' ? 0xffe1b0 : effect.kind === 'heal' ? 0xbbeca8 : 0xd4edfa;
       g.lineStyle(2, color, 1 - progress).strokeCircle(effect.x, effect.y - 14, 9 + progress * 20);
       for (let i = 0; i < 5; i++) {
@@ -156,10 +189,12 @@ export class JungleAdventureRenderer {
     this.flowers.forEach((flower) => flower.destroy());
     this.effects.destroy();
     this.water.destroy();
+    [...this.projectiles, ...this.bursts, ...this.traps].forEach((sprite) => sprite.destroy());
+    this.charge.destroy();
   }
 
   private warning(g: Phaser.GameObjects.Graphics, enemy: Enemy, age: number): void {
-    const size = enemy.kind === 'bear' ? 48 : 34;
+    const size = enemy.kind === 'bear' || enemy.kind === 'guardian' ? 48 : 34;
     g.fillStyle(0xd87348, 0.14).fillEllipse(enemy.target.x, enemy.target.y, size * 2, size);
     g.lineStyle(2, 0xffcd83, 0.9).strokeEllipse(enemy.target.x, enemy.target.y, size * 2, size);
     const rise = Math.min(1, age / 0.6);
@@ -172,34 +207,97 @@ export class JungleAdventureRenderer {
     g.fillStyle(0xffe3a4, 1).fillCircle(enemy.x, enemy.y - 49, 2);
   }
 
-  private drawSwing(g: Phaser.GameObjects.Graphics, player: Point): void {
-    const swing = this.model.swing;
-    if (!swing) return;
-    const progress = Math.min(1, (this.model.time - swing.at) / 0.32);
-    const facing = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[
-      swing.direction
-    ];
-    const angle = facing - 1.1 + progress * 2.2;
-    const x = player.x,
-      y = player.y - 20;
-    g.lineStyle(9, 0xddeebf, (1 - progress) * 0.5)
-      .beginPath()
-      .arc(x, y, 53, angle - 0.5, angle, false)
-      .strokePath();
-    const point = (r: number, side = 0) => ({
-      x: x + Math.cos(angle) * r + Math.cos(angle + Math.PI / 2) * side,
-      y: y + Math.sin(angle) * r + Math.sin(angle + Math.PI / 2) * side,
+  private drawMagic(g: Phaser.GameObjects.Graphics): void {
+    const show = (
+      sprite: Phaser.GameObjects.Image,
+      id: keyof typeof MAGIC_EFFECT_ASSETS,
+      x: number,
+      y: number,
+      age: number,
+      rotation = 0,
+    ) => {
+      const asset = MAGIC_EFFECT_ASSETS[id];
+      const cycle = Math.max(0, (age * 1000) / asset.durationMs);
+      const frame =
+        asset.frames[
+          asset.loop
+            ? Math.floor(cycle * asset.frames.length) % asset.frames.length
+            : Math.min(asset.frames.length - 1, Math.floor(cycle * asset.frames.length))
+        ]!;
+      if (sprite.texture.key !== asset.textureKey) sprite.setTexture(asset.textureKey, frame);
+      else if (String(sprite.frame.name) !== String(frame)) sprite.setFrame(frame);
+      sprite
+        .setPosition(x, y)
+        .setOrigin(asset.origin.x, asset.origin.y)
+        .setScale(asset.suggestedScale)
+        .setRotation(rotation)
+        .setDepth(y + 40)
+        .setVisible(true);
+    };
+    this.projectiles.forEach((sprite, i) => {
+      const p = this.model.projectiles[i];
+      if (!p) {
+        sprite.setVisible(false);
+        return;
+      }
+      show(
+        sprite,
+        p.spell === 'fire' ? 'fire-bolt' : 'water-bolt',
+        p.x,
+        p.y - 22,
+        this.model.time - p.at,
+        Math.atan2(p.velocity.y, p.velocity.x),
+      );
     });
-    const hilt = point(18),
-      tip = point(67),
-      a = point(25, 3),
-      b = point(25, -3);
-    g.fillStyle(0xe6edf0, 1).fillTriangle(a.x, a.y, tip.x, tip.y, b.x, b.y);
-    g.lineStyle(2, 0x53676a, 1).strokeTriangle(a.x, a.y, tip.x, tip.y, b.x, b.y);
-    const guardA = point(24, 7),
-      guardB = point(24, -7);
-    g.lineStyle(4, 0xdab46e, 1).lineBetween(guardA.x, guardA.y, guardB.x, guardB.y);
-    g.lineStyle(4, 0x6c4931, 1).lineBetween(hilt.x, hilt.y, a.x, a.y);
+    this.bursts.forEach((sprite, i) => {
+      const effect = this.model.effects[i];
+      const id =
+        effect?.kind === 'fire'
+          ? 'fire-impact'
+          : effect?.kind === 'water'
+            ? 'water-impact'
+            : effect?.kind === 'fire-death'
+              ? 'fire-death'
+              : effect?.kind === 'water-death'
+                ? 'water-death'
+                : effect?.kind === 'poison-death'
+                  ? 'poison-death'
+                  : null;
+      if (
+        !effect ||
+        !id ||
+        (this.model.time - effect.at) * 1000 > MAGIC_EFFECT_ASSETS[id].durationMs
+      ) {
+        sprite.setVisible(false);
+        return;
+      }
+      show(sprite, id, effect.x, effect.y - 20, this.model.time - effect.at);
+    });
+    (this.model.content.traps ?? []).forEach((trap, index) => {
+      const state = trapState(this.model.time, trap.offset);
+      const asset = MAGIC_EFFECT_ASSETS['spike-trap'];
+      this.traps[index]!.setFrame(asset.frames[state.frame]!)
+        .setOrigin(asset.origin.x, asset.origin.y)
+        .setScale(asset.suggestedScale);
+      if (state.warning) {
+        g.lineStyle(2, 0xffda7a, 0.8).strokeEllipse(trap.x, trap.y, 48, 25);
+      }
+    });
+    const cast = this.model.cast;
+    this.charge.setVisible(Boolean(cast && !cast.released));
+    if (cast && !cast.released) {
+      const age = Math.min(1, ((this.model.time - cast.at) * 1000) / this.model.casting.releaseMs);
+      const x = cast.origin.x + cast.aim.x * 14,
+        y = cast.origin.y - 24 + cast.aim.y * 6;
+      show(
+        this.charge,
+        cast.spell === 'fire' ? 'fire-cast' : 'water-cast',
+        x,
+        y,
+        this.model.time - cast.at,
+      );
+      this.charge.setScale(0.35 + age * 0.4);
+    }
   }
 
   private drawWater(reducedMotion: boolean): void {

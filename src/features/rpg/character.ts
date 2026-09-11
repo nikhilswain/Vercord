@@ -11,12 +11,17 @@ import {
 const FRAME_SIZE = 64;
 const FEET_Y = 62;
 const LAYERS = RPG_CHARACTER_LAYERS;
-const ACTIONS: RpgAction[] = ['idle', 'walk', 'run'];
+type CharacterPose = RpgAction | 'cast';
+const ACTIONS: CharacterPose[] = ['idle', 'walk', 'run', 'cast'];
+/** Seven authored LPC spellcast poses; release begins at the extended-arm frame. */
+export const RPG_CAST_DURATION_MS = 700;
+export const RPG_CAST_RELEASE_MS = 400;
 const DIRECTION_ROW: Record<RpgDirection, number> = { up: 0, left: 1, down: 2, right: 3 };
-const ANIMATION: Record<RpgAction, { frames: number; frameMs: number }> = {
+const ANIMATION: Record<CharacterPose, { frames: number; frameMs: number }> = {
   idle: { frames: 3, frameMs: 420 },
   walk: { frames: 8, frameMs: 110 },
   run: { frames: 8, frameMs: 75 },
+  cast: { frames: 7, frameMs: 100 },
 };
 
 export const RPG_APPEARANCES = RPG_CHARACTER_DEFINITIONS;
@@ -25,15 +30,16 @@ function appearanceOrDefault(id: string): string {
   return getRpgCharacter(id).id;
 }
 
-function textureKey(appearance: string, layer: RpgCharacterLayer, action: RpgAction): string {
+function textureKey(appearance: string, layer: RpgCharacterLayer, action: CharacterPose): string {
   return `rpg-character-${getRpgCharacter(appearance).layers[layer].source}-${layer}-${action}`;
 }
 
-export function preloadRpgCharacters(scene: Phaser.Scene): void {
+export function preloadRpgCharacters(scene: Phaser.Scene, includeCasting = false): void {
   const queued = new Set<string>();
   for (const { id } of RPG_APPEARANCES) {
     for (const layer of LAYERS) {
       for (const action of ACTIONS) {
+        if (action === 'cast' && !includeCasting) continue;
         const key = textureKey(id, layer, action);
         if (scene.textures.exists(key) || queued.has(key)) continue;
         queued.add(key);
@@ -57,7 +63,7 @@ export class RpgCharacter {
   private readonly layers: Phaser.GameObjects.Image[];
   private appearance: string;
   private direction: RpgDirection = 'down';
-  private action: RpgAction = 'idle';
+  private action: CharacterPose = 'idle';
   private startedAt = 0;
   private frame = -1;
 
@@ -84,6 +90,7 @@ export class RpgCharacter {
     this.applyTextures();
   }
 
+  /** castElapsedMs is local pose state; it never extends the live presence action contract. */
   update(
     x: number,
     y: number,
@@ -91,21 +98,30 @@ export class RpgCharacter {
     action: RpgAction,
     time: number,
     reducedMotion: boolean,
+    castElapsedMs?: number | null,
   ): void {
     this.container.setPosition(x, y).setDepth(y);
-    if (action !== this.action || direction !== this.direction) {
-      const changedAction = action !== this.action;
+    const casting =
+      castElapsedMs !== undefined &&
+      castElapsedMs !== null &&
+      Number.isFinite(castElapsedMs) &&
+      castElapsedMs >= 0 &&
+      castElapsedMs < RPG_CAST_DURATION_MS;
+    const pose: CharacterPose = casting ? 'cast' : action;
+    if (pose !== this.action || direction !== this.direction) {
+      const changedAction = pose !== this.action;
       this.direction = direction;
-      this.action = action;
+      this.action = pose;
       this.startedAt = time;
       this.frame = -1;
       if (changedAction) this.applyTextures();
     }
 
-    const animation = ANIMATION[action];
+    const animation = ANIMATION[pose];
     // Idle breathing is decorative; retain movement feedback with reduced motion.
-    const column =
-      reducedMotion && action === 'idle'
+    const column = casting
+      ? Math.min(animation.frames - 1, Math.floor(castElapsedMs / animation.frameMs))
+      : reducedMotion && pose === 'idle'
         ? 0
         : Math.floor(Math.max(0, time - this.startedAt) / animation.frameMs) % animation.frames;
     const frame = DIRECTION_ROW[direction] * animation.frames + column;

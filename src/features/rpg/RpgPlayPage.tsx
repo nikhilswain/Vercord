@@ -16,7 +16,6 @@ import type { RpgVoiceController } from './use-rpg-voice';
 import { RpgChannelPanel, RpgVoiceStatus } from './RpgChannelPanel';
 import { RpgHouseRoster } from './RpgHouseRoster';
 import { RpgPortrait } from './RpgPortrait';
-import { getTiagoDemoCharacter } from './demo/tiago-assets';
 import { AdventureHud } from './demo/AdventureHud';
 import type { DemoArea } from './demo/types';
 import './rpg.css';
@@ -121,12 +120,8 @@ export function RpgPlayPage({
     zoom: 2,
   }));
   const traveler =
-    getTiagoDemoCharacter(appearance) ??
-    RPG_APPEARANCES.find((option) => option.id === appearance) ??
-    RPG_APPEARANCES[0]!;
-  const speaker =
-    getTiagoDemoCharacter(speech?.appearance ?? '') ??
-    RPG_APPEARANCES.find((option) => option.id === speech?.appearance);
+    RPG_APPEARANCES.find((option) => option.id === appearance) ?? RPG_APPEARANCES[0]!;
+  const speaker = RPG_APPEARANCES.find((option) => option.id === speech?.appearance);
   const travel = useCallback(
     (destination: RpgDestination) => {
       onTravel(destination);
@@ -323,13 +318,14 @@ export function RpgPlayPage({
             status={ui.adventure}
             onAttack={() => runtimeRef.current?.attack?.()}
             onHeal={() => runtimeRef.current?.heal?.()}
+            onSpell={(spell) => runtimeRef.current?.selectSpell?.(spell)}
           />
         )}
         {!suspended && !panel && !speech && sample.demo?.area === 'village' && (
           <aside className="rpg-demo-hint rpg-frame">
             <p>
-              Try the Tiago visitors in <strong>Look</strong>. The jungle trail begins in the
-              northwest grove.
+              Choose your traveler in <strong>Look</strong>. Meet Juniper by the northwest grove,
+              then enter the jungle to learn magic.
             </p>
             <button
               onClick={() => {

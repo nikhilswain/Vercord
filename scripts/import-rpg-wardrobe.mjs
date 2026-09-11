@@ -22,8 +22,8 @@ for (const [body, short] of [
   ['Masculine', 'm'],
 ]) {
   for (const color of short === 'f'
-    ? ['Forest', 'Indigo', 'Wine', 'Charcoal']
-    : ['Forest', 'Linen', 'Wine', 'Blue']) {
+    ? ['Forest', 'Indigo', 'Wine', 'Charcoal', 'Sky', 'Linen', 'Pink', 'Red']
+    : ['Forest', 'Linen', 'Wine', 'Blue', 'Red']) {
     sources.push({
       key: `shirt-${short}-${color.toLowerCase()}`,
       layer: 'shirt',
@@ -45,6 +45,9 @@ for (const [key, style, color, artists] of [
   ['cornrows-brown', 'Medium 05 - Cornrows', 'Brown', ['bluecarrot16', eliza]],
   ['bob-violet', 'Medium 08 - Bob, Bangs', 'Violet', ['bluecarrot16', eliza]],
   ['page-white', 'Medium 01 - Page', 'White', ['Johannes Sjölund (wulax)', eliza]],
+  ['bob-pink', 'Medium 08 - Bob, Bangs', 'Pink', ['bluecarrot16', eliza]],
+  ['bob-red', 'Medium 08 - Bob, Bangs', 'Red', ['bluecarrot16', eliza]],
+  ['cowlick-blue', 'Short 04 - Cowlick', 'Blue', ['bluecarrot16', eliza]],
 ])
   sources.push({
     key: `hair-${key}`,
@@ -141,7 +144,7 @@ await writeFile(
       title: 'Dmap modest wardrobe and expanded hair palettes',
       revision,
       license: 'OGA-BY-3.0',
-      importedAt: '2026-09-09',
+      importedAt: '2026-09-12',
       assets,
       notes:
         'Original high-neck buttoned long sleeves replace the prior female yellow-shirt and plate silhouettes. Original light hair palettes are used without multiplicative darkening. All saved character IDs remain valid.',

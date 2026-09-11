@@ -1,5 +1,15 @@
 export type RpgIconName =
-  'map' | 'guide' | 'person' | 'menu' | 'close' | 'plus' | 'minus' | 'center' | 'sword' | 'herb';
+  | 'map'
+  | 'guide'
+  | 'person'
+  | 'menu'
+  | 'close'
+  | 'plus'
+  | 'minus'
+  | 'center'
+  | 'fire'
+  | 'water'
+  | 'herb';
 
 const paths: Record<RpgIconName, string> = {
   map: 'm3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16',
@@ -10,7 +20,8 @@ const paths: Record<RpgIconName, string> = {
   plus: 'M12 4v16M4 12h16',
   minus: 'M4 12h16',
   center: 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M9 9h6v6H9Z',
-  sword: 'm4 20 5-5m-3-4 7 7M9 13l9-10h3v3l-10 9M3 18l3 3',
+  fire: 'M13 2c2 7-5 7-3 12 2 0 3-2 4-4 7 6 5 12-2 12S1 15 6 9c0 3 2 4 2 4-1-5 4-7 5-11Z',
+  water: 'M12 2C10 6 4 11 4 15a8 8 0 0 0 16 0c0-4-6-9-8-13Zm-4 13a4 4 0 0 0 4 4',
   herb: 'M12 21V9m0 7C5 16 3 12 3 7c5 0 9 3 9 9Zm0-4c0-6 3-9 9-10 0 6-3 10-9 10Z',
 };
 

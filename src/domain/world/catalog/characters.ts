@@ -211,6 +211,42 @@ export const RPG_CHARACTER_DEFINITIONS = [
     portraitUrl: `${RPG_CHARACTER_ASSET_ROOT}/ash/portrait.png`,
     layers: wardrobeOutfit('ash', 'shirt-f-indigo', 'hair-curly-silver', 'skin-f-ivory'),
   },
+  {
+    id: 'elin',
+    name: 'Elin',
+    portraitUrl: `${RPG_CHARACTER_ASSET_ROOT}/ash/portrait.png`,
+    layers: wardrobeOutfit('ash', 'shirt-f-sky', 'hair-bob-blonde', 'skin-f-ivory'),
+  },
+  {
+    id: 'astrid',
+    name: 'Astrid',
+    portraitUrl: `${RPG_CHARACTER_ASSET_ROOT}/ash/portrait.png`,
+    layers: wardrobeOutfit('ash', 'shirt-f-red', 'hair-page-white', 'skin-f-ivory'),
+  },
+  {
+    id: 'kaia',
+    name: 'Kaia',
+    portraitUrl: `${RPG_CHARACTER_ASSET_ROOT}/ash/portrait.png`,
+    layers: wardrobeOutfit('ash', 'shirt-f-linen', 'hair-bob-red', 'skin-f-ivory'),
+  },
+  {
+    id: 'mira',
+    name: 'Mira',
+    portraitUrl: `${RPG_CHARACTER_ASSET_ROOT}/ash/portrait.png`,
+    layers: wardrobeOutfit('ash', 'shirt-f-indigo', 'hair-bob-pink', 'skin-f-ivory'),
+  },
+  {
+    id: 'finn',
+    name: 'Finn',
+    portraitUrl: `${RPG_CHARACTER_ASSET_ROOT}/rowan/portrait.png`,
+    layers: wardrobeOutfit('rowan', 'shirt-m-blue', 'hair-cowlick-blue', 'skin-m-ivory'),
+  },
+  {
+    id: 'lumi',
+    name: 'Lumi',
+    portraitUrl: `${RPG_CHARACTER_ASSET_ROOT}/ash/portrait.png`,
+    layers: wardrobeOutfit('ash', 'shirt-f-pink', 'hair-page-white', 'skin-f-ivory'),
+  },
 ] as const satisfies readonly RpgCharacterDefinition[];
 
 export type RpgCharacterId = (typeof RPG_CHARACTER_DEFINITIONS)[number]['id'];

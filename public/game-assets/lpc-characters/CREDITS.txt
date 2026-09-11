@@ -1,6 +1,51 @@
 LPC Revised / Expanded — Dmap character appearances
 =================================================
 
+Native spellcasting and light travelers (2026-09-12)
+--------------------------------------------------
+Twenty-six selectable travelers include six additional ivory-skin looks:
+Elin (blonde hair, sky shirt), Astrid (white hair, red shirt), Kaia (red hair,
+linen shirt), Mira (pink hair, indigo shirt), Finn (blue hair, linen shirt),
+and Lumi (white hair, pink shirt). Their original Ivory body/head PNGs and
+new modest buttoned shirts/hair palettes come unchanged from the pinned
+ElizaWy/LPC revision. Credits and hashes: wardrobe-manifest.json.
+
+All travelers now have seven authored LPC spellcast poses in four directions.
+These body, trouser, boot, and long-sleeve shirt poses were authored for the
+compatible Expanded LPC set, pinned at:
+https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator
+Revision: 675e21e04aaff8486a3a24e09573b3d5af9d28b9
+Reproduce: node scripts/import-rpg-wardrobe.mjs
+           node scripts/import-lpc-casting.mjs
+Per-file licenses, source URLs, source/output SHA-256, palette correspondences,
+and frame validation: casting-manifest.json.
+Exact upstream per-entry declarations: upstream-casting-credits.txt.
+
+Casting body licenses are recorded separately: the upstream masculine thin
+("teen") body package offers CC-BY-SA 3.0 and GPL 3.0. Dmap selects CC-BY-SA
+3.0 for rowan/body-cast.png and skin-m-ivory/body-cast.png, and distributes
+those two derived files under CC-BY-SA 3.0. Its full text is retained as
+LICENSE-CC-BY-SA-3.0.txt and is published at:
+https://creativecommons.org/licenses/by-sa/3.0/
+All other resulting casting layer PNGs retain OGA-BY 3.0 (LICENSE.txt).
+
+Upstream thin-body contributors: bluecarrot16, Evert, TheraHedwig, Benjamin K.
+Smith (BenCreating), MuffinElZangano, Durrani, Pierre Vigier (pvigier), Eliza
+Wyatt (ElizaWy), Matthew Krohn (makrohn), Johannes Sjölund (wulax), and Stephen
+Challener (Redshrike). The source credit record is retained verbatim as well.
+Revised long-sleeve shirts, trousers, and boots: original art by ElizaWy;
+remaining animations, including spellcast, by JaidynReiman.
+Ivar's original iron armor casting frames retain the armor credits below.
+
+Modifications: extract authored spellcast rows 0–3, columns 0–6 at 64 pixels;
+restore the original traveler's exact source palette by matched idle colors;
+compose Ivar's original armor over his original V-neck shirt animation.
+The source small-head casting pose is pixel-identical to idle in every frame
+at native offsets: up/down unchanged, left/right one pixel down. The existing
+head and hairstyle (including Ivar's beard) follow those verified offsets,
+retaining the existing appearance. No body motion or sleeve shapes are drawn.
+The importer validates every cast frame and rejects unmapped source colors.
+
 Current wardrobe refresh (2026-09-09)
 ------------------------------------
 Twenty selectable looks reuse original LPC body, head, trousers and boots,

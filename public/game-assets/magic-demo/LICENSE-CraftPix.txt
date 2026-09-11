@@ -1,0 +1,20 @@
+CraftPix free asset permission note
+
+Publisher: CraftPix / Free Game Assets (GUI, Sprite, Tilesets)
+Authoritative license: https://craftpix.net/file-licenses/
+Applicable section: 2. FREEBIE PRODUCTS
+Reviewed: 2026-09-12
+
+The author permits personal and commercial game use, modification, and game
+distribution. Attribution is optional. Standalone resale and redistribution as
+reusable artwork, including artwork-export applications, are prohibited.
+This note is a summary, not a replacement for the author's terms.
+
+These prepared PNGs support gameplay in this application. They are not offered
+as an asset library, download pack, editor export, or a sublicensed art product.
+Original ZIPs, AI/EPS/PSD source documents and unused pack contents are excluded.
+See provenance.json for exact source pages, source archive hashes and transforms.
+
+green-slime.png is separately derived from rvros' Animated Pixel Slime (CC0-1.0):
+https://rvros.itch.io/pixel-art-animated-slime
+https://creativecommons.org/publicdomain/zero/1.0/

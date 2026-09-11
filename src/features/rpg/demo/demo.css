@@ -69,6 +69,52 @@
   gap: 8px;
   min-height: 52px;
 }
+.rpg-spellbook {
+  position: absolute;
+  bottom: 102px;
+  left: 24px;
+  display: flex;
+  padding: 4px;
+  gap: 4px;
+}
+.rpg-spellbook button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--rpg-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rpg-spellbook button[aria-pressed='true'] {
+  border-color: var(--rpg-accent);
+  background: #41533a;
+}
+.rpg-spellbook button:first-child svg {
+  color: #ffbb77;
+}
+.rpg-spellbook button:last-child svg {
+  color: #91ddea;
+}
+.rpg-spellbook small {
+  display: block;
+  font-size: 10px;
+}
+.rpg-spellbook button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.rpg-spellbook button:focus-visible {
+  outline: 2px solid var(--rpg-accent);
+  outline-offset: 2px;
+}
+.rpg-combat-actions .rpg-attack {
+  min-width: 145px;
+}
 .rpg-adventure-message {
   position: absolute;
   bottom: 101px;
@@ -187,6 +233,22 @@
   .rpg-combat-actions > button {
     padding: 7px 12px;
     min-height: 48px;
+  }
+  .rpg-spellbook {
+    left: 12px;
+    bottom: 246px;
+    max-width: 132px;
+    flex-direction: column;
+  }
+  .rpg-spellbook button {
+    min-height: 44px;
+    padding: 6px 9px;
+  }
+  .rpg-spellbook kbd {
+    display: none;
+  }
+  .rpg-combat-actions .rpg-attack {
+    min-width: 116px;
   }
   .rpg-combat-actions kbd {
     display: none;

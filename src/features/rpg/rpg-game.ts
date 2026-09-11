@@ -4,6 +4,7 @@ import { DEFAULT_RPG_CHARACTER_ID } from '../../domain/world/catalog/characters'
 import type { Point } from '../world/engine/types';
 import type { RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import type { RpgCallbacks, RpgRuntime, RpgSample, RpgPositionUpdate } from './types';
+import type { SpellId } from './demo/types';
 
 /** React-facing lifecycle adapter. Game state and drawing live in separate modules. */
 export class RpgGame implements RpgRuntime {
@@ -107,6 +108,9 @@ export class RpgGame implements RpgRuntime {
   }
   public heal(): void {
     this.scene?.heal();
+  }
+  public selectSpell(spell: SpellId): void {
+    this.scene?.selectSpell(spell);
   }
   public zoomBy(factor: number): void {
     this.scene?.zoomBy(factor);
