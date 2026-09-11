@@ -10,6 +10,7 @@ import { RpgTownMap } from './RpgTownMap';
 import RpgAtlasDialog from './atlas/RpgAtlasDialog';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgSample, RpgThemeId, RpgUiState } from './types';
+import { TIAGO_DEMO_CHARACTERS } from './demo/tiago-assets';
 
 export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu';
 const titles: Record<RpgPanel, string> = {
@@ -64,7 +65,11 @@ export function RpgPanels({
   if (panel === 'map' && !house && theme !== 'dungeon' && (!server || server.town?.continuous)) {
     const scope = server
       ? JSON.stringify([server.memberKey, server.guildId, server.worldId, world, theme])
-      : JSON.stringify(['demo', world, theme]);
+      : JSON.stringify(
+          sample.demo?.area === 'jungle'
+            ? ['demo', world, theme, 'jungle']
+            : ['demo', world, theme],
+        );
     return (
       <RpgAtlasDialog
         sample={sample}
@@ -120,6 +125,15 @@ export function RpgPanels({
         ))}
       {panel === 'guide' && (
         <>
+          {sample.demo && (
+            <p>
+              <strong>Mosswild Jungle:</strong> follow the northwest village path and press E at the
+              jungle sign. Space or J swings your sword; step away from an enemy’s warning circle to
+              dodge. Gather flowers with E. H uses a healing herb. The southern trail returns to
+              Willowmere. Your progress stays between those two areas; reloading or changing world
+              themes starts a new adventure.
+            </p>
+          )}
           <p>
             {house
               ? 'Walk around and meet the travelers in this house. Use Chat or Voice to open the channel’s controls, or In this room to see everyone here. Leave house returns you to the doorway outside.'
@@ -177,6 +191,29 @@ export function RpgPanels({
       )}
       {panel === 'appearance' && (
         <>
+          {!server && world === 'village' && (
+            <section className="rpg-demo-choices" aria-label="Tiago character comparison">
+              <h3>Try the Tiago visitors</h3>
+              <p>
+                Same village, different proportions. These free samples have idle/walk poses and use
+                a shared sword effect in combat. Your chosen traveler stays with you in the jungle.
+              </p>
+              <div className="rpg-appearance-list">
+                {TIAGO_DEMO_CHARACTERS.map((option) => (
+                  <button
+                    key={option.id}
+                    className="rpg-appearance"
+                    aria-pressed={appearance === option.id}
+                    onClick={() => onAppearance(option.id)}
+                  >
+                    <RpgPortrait appearance={option.id} width={72} height={72} />
+                    <strong>{option.name}</strong>
+                    <span>{appearance === option.id ? 'Your traveler' : 'Try this look'}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           <p>
             Choose your traveler for {home.name}. Your look stays with you in the dungeon.
             {server ? ' Your look and position are saved for this server.' : ''}
@@ -264,6 +301,19 @@ export function RpgPanels({
           </nav>
           <details className="rpg-credits">
             <summary>Art &amp; font credits</summary>
+            {!server && world === 'village' && (
+              <p>
+                Demo travelers:{' '}
+                <a href="/game-assets/tiago-demo/README.md" target="_blank" rel="noreferrer">
+                  Tiago Patrício
+                </a>
+                . Jungle bear and snake: Electric Lemon; slime: rvros (CC0).{' '}
+                <a href="/game-assets/jungle-demo/CREDITS.md" target="_blank" rel="noreferrer">
+                  Jungle sources &amp; licenses
+                </a>
+                .
+              </p>
+            )}
             <p>
               LPC Revised and Expanded, with full contributor credits below. Selected artwork uses
               OGA-BY 3.0. Cats and dogs are by bluecarrot16, also under OGA-BY 3.0. Frosthavn

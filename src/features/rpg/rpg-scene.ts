@@ -4,7 +4,10 @@ import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { sampleSceneId, sceneDefinition, isHouseSceneId } from '../../domain/world/catalog/scenes';
 import { DEFAULT_RPG_CHARACTER_ID } from '../../domain/world/catalog/characters';
-import { preloadRpgCharacters, RpgCharacter } from './character';
+import { preloadRpgCharacters } from './character';
+import { preloadTiagoTravelers, RpgTraveler } from './demo/traveler';
+import { JungleAdventure } from './demo/adventure';
+import { JungleAdventureRenderer, preloadJungleCreatures } from './demo/adventure-renderer';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
 import { TownSignage } from './town-signage';
@@ -18,12 +21,14 @@ export class RpgScene extends Phaser.Scene {
   private readonly motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   private movement: WorldInput | null = null;
   private scenery: RpgSampleRenderer | null = null;
-  private avatar: RpgCharacter | null = null;
+  private avatar: RpgTraveler | null = null;
+  private adventureSession: JungleAdventure | null = null;
+  private adventureRenderer: JungleAdventureRenderer | null = null;
   private remotes: RpgRemoteCharacters | null = null;
   private ambient: RpgAmbientEntities | null = null;
   private players: readonly RpgPresencePlayer[] = [];
   private positionReady = false;
-  private npcs: RpgCharacter[] = [];
+  private npcs: RpgTraveler[] = [];
   private labels: Phaser.GameObjects.Text[] = [];
   private signage: TownSignage | null = null;
   private marker: Phaser.GameObjects.Graphics | null = null;
@@ -33,6 +38,7 @@ export class RpgScene extends Phaser.Scene {
   private failed = false;
   private disposed = false;
   private inputBlocked = false;
+  private demoFocused = document.hasFocus();
   private width = 1;
   private height = 1;
   private lastUi = '';
@@ -65,6 +71,10 @@ export class RpgScene extends Phaser.Scene {
     preloadRpgWorlds(this, this.samples);
     preloadRpgCharacters(this);
     preloadRpgAnimals(this);
+    if (this.samples.some((sample) => sample.demo)) {
+      preloadTiagoTravelers(this);
+      preloadJungleCreatures(this);
+    }
   }
 
   public create(): void {
@@ -81,7 +91,10 @@ export class RpgScene extends Phaser.Scene {
     this.game.canvas.addEventListener('wheel', this.onWheel, { passive: false });
     this.game.canvas.addEventListener('webglcontextlost', this.onContextLost);
     window.addEventListener('keydown', this.onKeyDown);
+    // Loading can outlast a window switch, before these listeners existed.
+    this.demoFocused = document.hasFocus();
     window.addEventListener('blur', this.onBlur);
+    window.addEventListener('focus', this.onFocus);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.dispose, this);
     this.events.once(Phaser.Scenes.Events.DESTROY, this.dispose, this);
@@ -99,7 +112,10 @@ export class RpgScene extends Phaser.Scene {
         : Math.min(50, Math.max(0, time - this.previousFrameTime));
     this.previousFrameTime = time;
     this.elapsed += dt;
-    this.simulation.blocked = this.inputBlocked || worldInputBlocked();
+    const adventure = this.activeAdventure();
+    const blocked =
+      this.inputBlocked || worldInputBlocked() || Boolean(adventure && !this.demoFocused);
+    this.simulation.blocked = blocked || Boolean(adventure?.swing);
     const input = this.movement?.getMovement() ?? { x: 0, y: 0, moving: false, sprinting: false };
     // Only a new manual movement gesture resumes follow. An existing auto-run never does.
     if (
@@ -111,9 +127,22 @@ export class RpgScene extends Phaser.Scene {
       this.following = true;
     this.manualMovement = input.moving;
     this.simulation.tick(dt / 1000, input);
+    if (adventure && !blocked && adventure.tick(dt / 1000, this.simulation.player)) {
+      this.simulation.stop();
+      this.simulation.player = { ...this.simulation.sample.spawn };
+      this.center();
+    }
     const { player, direction, action } = this.simulation;
     this.avatar.update(player.x, player.y, direction, action, this.elapsed, this.motion.matches);
     this.playerMarker?.setPosition(player.x, player.y - 1).setDepth(player.y - 0.1);
+    this.avatar.container.setAlpha(
+      adventure && adventure.time < adventure.invincibleUntil
+        ? this.motion.matches
+          ? 0.7
+          : 0.65 + Math.sin(adventure.time * 22) * 0.25
+        : 1,
+    );
+    this.adventureRenderer?.update(player, this.motion.matches);
     const nearby = this.simulation.nearby();
     this.simulation.sample.npcs.forEach((npc, index) => {
       this.npcs[index]?.update(
@@ -234,10 +263,21 @@ export class RpgScene extends Phaser.Scene {
   public interact(): void {
     if (!this.created || this.failed || this.disposed || this.inputBlocked || worldInputBlocked())
       return;
+    if (this.activeAdventure()?.gather(this.simulation.player)) {
+      this.simulation.stop();
+      this.publishUi();
+      return;
+    }
     const nearby = this.simulation.nearby() ?? this.ambient?.nearby(this.simulation.player);
     if (!nearby) return;
     this.simulation.stop();
     const target = nearby.target;
+    const portal = this.simulation.sample.demo?.portal;
+    if (portal?.id === target.id) {
+      this.adventureSession?.rest();
+      this.callbacks.onDemoTravel?.(portal.target);
+      return;
+    }
     const interaction = this.ambient?.interact(target.id, this.simulation.player);
     if (interaction === 'busy') return;
     if (interaction === 'pet') {
@@ -291,6 +331,43 @@ export class RpgScene extends Phaser.Scene {
     this.setCameraZoom(next ?? current);
     camera.centerOn(center.x, center.y);
     this.publishUi();
+  }
+
+  public attack(): void {
+    const adventure = this.activeAdventure();
+    if (
+      !this.created ||
+      this.disposed ||
+      this.inputBlocked ||
+      !this.demoFocused ||
+      worldInputBlocked() ||
+      !adventure
+    )
+      return;
+    const direction = adventure.attack(this.simulation.player, this.simulation.direction);
+    if (direction) {
+      this.simulation.stop();
+      this.simulation.direction = direction;
+      this.following = true;
+      this.publishUi();
+    }
+  }
+
+  public heal(): void {
+    if (
+      !this.created ||
+      this.disposed ||
+      this.inputBlocked ||
+      !this.demoFocused ||
+      worldInputBlocked()
+    )
+      return;
+    this.activeAdventure()?.heal(this.simulation.player);
+    this.publishUi();
+  }
+
+  private activeAdventure(): JungleAdventure | null {
+    return this.simulation.sample.demo?.area === 'jungle' ? this.adventureSession : null;
   }
 
   public center(): void {
@@ -382,6 +459,7 @@ export class RpgScene extends Phaser.Scene {
     if (canvas) delete canvas.dataset.rpgReady;
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('blur', this.onBlur);
+    window.removeEventListener('focus', this.onFocus);
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 
@@ -395,14 +473,23 @@ export class RpgScene extends Phaser.Scene {
       .ellipse(player.x, player.y - 1, 27, 11)
       .setStrokeStyle(1, 0xffdfa4, 0.8)
       .setDepth(player.y - 0.1);
-    this.avatar = new RpgCharacter(this, this.appearance, player.x, player.y);
+    this.avatar = new RpgTraveler(this, this.appearance, player.x, player.y);
     this.remotes = new RpgRemoteCharacters(
       this,
       sceneDefinition(sampleSceneId(this.simulation.sample)).visiblePlayerLimit - 1,
     );
     this.remotes.setPlayers(this.players, this.elapsed);
-    this.ambient = new RpgAmbientEntities(this, sample, this.sceneKey);
-    this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
+    if (!sample.demo) this.ambient = new RpgAmbientEntities(this, sample, this.sceneKey);
+    if (sample.demo?.jungle) {
+      this.adventureSession ??= new JungleAdventure(
+        sample.demo.jungle,
+        sample.colliders,
+        sample.bounds,
+        sample.spawn,
+      );
+      this.adventureRenderer = new JungleAdventureRenderer(this, this.adventureSession);
+    }
+    this.npcs = sample.npcs.map((npc) => new RpgTraveler(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
       this.add
         .text(npc.x, npc.y - 64, `${npc.name} · NPC`, {
@@ -423,6 +510,8 @@ export class RpgScene extends Phaser.Scene {
   }
 
   private clearVisuals(): void {
+    this.adventureRenderer?.destroy();
+    this.adventureRenderer = null;
     this.talkingTo = null;
     this.feedback = null;
     this.scenery?.destroy();
@@ -465,6 +554,19 @@ export class RpgScene extends Phaser.Scene {
       following: this.following,
       feedback: this.feedback && Date.now() < this.feedback.until ? this.feedback.message : '',
     };
+    const adventure = this.activeAdventure();
+    if (adventure) {
+      state.adventure = adventure.status();
+      const flower = adventure.nearbyFlower(this.simulation.player);
+      if (flower)
+        state.nearby = {
+          id: flower.id,
+          label: flower.kind === 'healing' ? 'healing herb' : 'moonblossom',
+          action: 'Gather',
+        };
+    }
+    if (state.nearby && state.nearby.id === this.simulation.sample.demo?.portal.id)
+      state.nearby.action = 'Enter';
     const key = JSON.stringify(state);
     if (key !== this.lastUi) {
       this.lastUi = key;
@@ -516,6 +618,14 @@ export class RpgScene extends Phaser.Scene {
     if (event.code === 'KeyE') {
       event.preventDefault();
       this.interact();
+    }
+    if (this.activeAdventure() && (event.code === 'Space' || event.code === 'KeyJ')) {
+      event.preventDefault();
+      this.attack();
+    }
+    if (this.activeAdventure() && event.code === 'KeyH') {
+      event.preventDefault();
+      this.heal();
     }
     if (event.code === 'Equal' || event.code === 'NumpadAdd') {
       event.preventDefault();
@@ -625,6 +735,7 @@ export class RpgScene extends Phaser.Scene {
     this.zoomBy(event.deltaY < 0 ? 2 : 0.5);
   };
   private readonly onBlur = (): void => {
+    this.demoFocused = false;
     this.previousFrameTime = null;
     this.simulation.stop();
     this.previousTap = null;
@@ -632,8 +743,13 @@ export class RpgScene extends Phaser.Scene {
     // A hidden tab may receive no further animation frames to publish its final idle state.
     this.publishMove(true);
   };
+  private readonly onFocus = (): void => {
+    this.demoFocused = true;
+    this.previousFrameTime = null;
+  };
   private readonly onVisibilityChange = (): void => {
     if (document.hidden) this.onBlur();
+    else if (document.hasFocus()) this.onFocus();
   };
   private readonly onLoadError = (): void => {
     this.fail();

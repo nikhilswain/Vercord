@@ -102,6 +102,12 @@ export class RpgGame implements RpgRuntime {
   public interact(): void {
     this.scene?.interact();
   }
+  public attack(): void {
+    this.scene?.attack();
+  }
+  public heal(): void {
+    this.scene?.heal();
+  }
   public zoomBy(factor: number): void {
     this.scene?.zoomBy(factor);
   }

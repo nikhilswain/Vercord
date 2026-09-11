@@ -11,6 +11,7 @@ import type {
   RpgPresencePlayer,
 } from '../../domain/presence/rpg-protocol';
 import type { RpgSceneId } from '../../domain/world/catalog/scenes';
+import type { AdventureStatus, DemoArea, DemoSceneContent } from './demo/types';
 
 /** Local reconciliation intent; never sent as a movement packet. */
 export interface RpgPositionUpdate extends RpgLocation {
@@ -43,12 +44,13 @@ export interface RpgSample extends SavedRpgSample {
   sceneId?: RpgSceneId;
   signage?: RpgSceneLabel[];
   townSquareNavigation?: boolean;
+  demo?: DemoSceneContent;
 }
 
 export interface RpgNearby {
   id: string;
   label: string;
-  action: 'Talk' | 'Read' | 'Explore' | 'Open' | 'Pet';
+  action: 'Talk' | 'Read' | 'Explore' | 'Open' | 'Pet' | 'Gather' | 'Enter';
 }
 
 export interface RpgUiState {
@@ -60,6 +62,7 @@ export interface RpgUiState {
   minZoom?: number;
   following?: boolean;
   feedback?: string;
+  adventure?: AdventureStatus;
 }
 
 export interface RpgDialogue {
@@ -78,6 +81,7 @@ export interface RpgCallbacks {
   onStreet?(street: string): void;
   onMove?(location: RpgMovement): void;
   onHouse?(landmarkId: string): void;
+  onDemoTravel?(area: DemoArea): void;
 }
 
 export interface RpgRuntime {
@@ -91,6 +95,8 @@ export interface RpgRuntime {
   setInputBlocked(blocked: boolean): void;
   setVirtualAxis(x: number, y: number, sprinting?: boolean): void;
   interact(): void;
+  attack?(): void;
+  heal?(): void;
   zoomBy(factor: number): void;
   center(): void;
   focus?(point: Point): void;

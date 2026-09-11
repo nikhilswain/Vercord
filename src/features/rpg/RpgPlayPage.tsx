@@ -16,8 +16,12 @@ import type { RpgVoiceController } from './use-rpg-voice';
 import { RpgChannelPanel, RpgVoiceStatus } from './RpgChannelPanel';
 import { RpgHouseRoster } from './RpgHouseRoster';
 import { RpgPortrait } from './RpgPortrait';
+import { getTiagoDemoCharacter } from './demo/tiago-assets';
+import { AdventureHud } from './demo/AdventureHud';
+import type { DemoArea } from './demo/types';
 import './rpg.css';
 import './rpg-house.css';
+import './demo/demo.css';
 
 function houseTravelers(
   house: HouseSceneId | undefined,
@@ -49,6 +53,8 @@ interface Props {
   worldKey: string;
   navigationKey?: string;
   onTravel(destination: RpgDestination): void;
+  onDemoTravel?(area: DemoArea): void;
+  demoTransition?: boolean;
   server?: {
     guildId: string;
     displayName: string;
@@ -73,6 +79,8 @@ export function RpgPlayPage({
   worldKey,
   navigationKey,
   onTravel,
+  onDemoTravel,
+  demoTransition = false,
   server,
   pendingState,
 }: Props) {
@@ -113,8 +121,12 @@ export function RpgPlayPage({
     zoom: 2,
   }));
   const traveler =
-    RPG_APPEARANCES.find((option) => option.id === appearance) ?? RPG_APPEARANCES[0]!;
-  const speaker = RPG_APPEARANCES.find((option) => option.id === speech?.appearance);
+    getTiagoDemoCharacter(appearance) ??
+    RPG_APPEARANCES.find((option) => option.id === appearance) ??
+    RPG_APPEARANCES[0]!;
+  const speaker =
+    getTiagoDemoCharacter(speech?.appearance ?? '') ??
+    RPG_APPEARANCES.find((option) => option.id === speech?.appearance);
   const travel = useCallback(
     (destination: RpgDestination) => {
       onTravel(destination);
@@ -155,6 +167,7 @@ export function RpgPlayPage({
     worldKey,
     appearance,
     blocked:
+      demoTransition ||
       Boolean(pendingState) ||
       networkPending ||
       panel !== null ||
@@ -164,13 +177,14 @@ export function RpgPlayPage({
     onUi: setUi,
     onDialogue: talk,
     onTravel: travel,
+    onDemoTravel,
     onStreet: server ? selectStreet : undefined,
     onHouse: server?.connection ? openHouse : undefined,
     onMove: server?.connection?.updateLocation,
     players: server?.connection?.players,
     playerPosition: server?.connection?.position,
   });
-  const suspended = Boolean(pendingState) || networkPending || status !== 'ready';
+  const suspended = Boolean(pendingState) || networkPending || status !== 'ready' || demoTransition;
   const [overlayOwner, setOverlayOwner] = useState({
     sample,
     navigationKey,
@@ -246,7 +260,11 @@ export function RpgPlayPage({
   };
 
   return (
-    <main className={`rpg-page${route.house ? ' rpg-page--house' : ''}`} data-game-theme={theme}>
+    <main
+      className={`rpg-page${route.house ? ' rpg-page--house' : ''}`}
+      data-game-theme={theme}
+      data-demo-area={sample.demo?.area}
+    >
       <div
         ref={hostRef}
         className="rpg-stage"
@@ -282,20 +300,47 @@ export function RpgPlayPage({
             className={server ? 'rpg-kicker rpg-kicker--server' : 'rpg-kicker'}
             title={server?.displayName}
           >
-            {route.house ? 'Inside a channel house' : RPG_THEMES[theme].label}
+            {sample.demo?.area === 'jungle'
+              ? 'Forest adventure'
+              : route.house
+                ? 'Inside a channel house'
+                : RPG_THEMES[theme].label}
             {server?.town?.continuous ? '' : ` · ${server?.displayName ?? 'Local preview'}`}
           </span>
           <h1 title={sample.name} className={server?.town ? 'rpg-town-location' : undefined}>
             {sample.name}
           </h1>
           <p title={sample.subtitle}>
-            {route.house || (server?.town && theme !== 'dungeon')
+            {sample.demo?.area === 'jungle' || route.house || (server?.town && theme !== 'dungeon')
               ? sample.subtitle
               : ui.theme === theme
                 ? ui.place
                 : sample.subtitle}
           </p>
         </header>
+        {!suspended && !panel && !speech && sample.demo?.area === 'jungle' && ui.adventure && (
+          <AdventureHud
+            status={ui.adventure}
+            onAttack={() => runtimeRef.current?.attack?.()}
+            onHeal={() => runtimeRef.current?.heal?.()}
+          />
+        )}
+        {!suspended && !panel && !speech && sample.demo?.area === 'village' && (
+          <aside className="rpg-demo-hint rpg-frame">
+            <p>
+              Try the Tiago visitors in <strong>Look</strong>. The jungle trail begins in the
+              northwest grove.
+            </p>
+            <button
+              onClick={() => {
+                const entrance = sample.landmarks.find((p) => p.id === sample.demo?.portal.id);
+                if (entrance) runtimeRef.current?.focus?.(entrance);
+              }}
+            >
+              Find jungle entrance ↖
+            </button>
+          </aside>
+        )}
         {channelRoom && (
           <nav className="rpg-house-tools" aria-label="House tools">
             <button className="rpg-button" onClick={() => setChannelOpen(true)}>
