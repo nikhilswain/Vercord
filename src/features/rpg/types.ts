@@ -98,6 +98,9 @@ export interface RpgRuntime {
   attack?(): void;
   heal?(): void;
   selectSpell?(spell: SpellId): void;
+  selectMelee?(): void;
+  equipWeapon?(id: string): void;
+  setEnemyLevel?(level: number): void;
   zoomBy(factor: number): void;
   center(): void;
   focus?(point: Point): void;

@@ -112,6 +112,15 @@ export class RpgGame implements RpgRuntime {
   public selectSpell(spell: SpellId): void {
     this.scene?.selectSpell(spell);
   }
+  public selectMelee(): void {
+    this.scene?.selectMelee();
+  }
+  public equipWeapon(id: string): void {
+    this.scene?.equipWeapon(id);
+  }
+  public setEnemyLevel(level: number): void {
+    this.scene?.setEnemyLevel(level);
+  }
   public zoomBy(factor: number): void {
     this.scene?.zoomBy(factor);
   }

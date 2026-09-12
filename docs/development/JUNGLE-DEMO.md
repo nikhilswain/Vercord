@@ -3,6 +3,10 @@
 Updated September 12, 2026. Open `http://localhost:3000/play/demo` with the local
 frontend running. No gateway is needed for this standalone demo.
 
+The equipment pass adds native LPC melee, 24 equipable weapon illustrations and
+two animated forest fighters. See [Shared equipment and adventure combat](ADVENTURE-COMBAT.md)
+for the reusable balance/profile modules, normal-world integration and demo overrides.
+
 The demo now uses LPC travelers throughout. Tiago's trial characters and the
 rotating sword have been removed following visual review. Six additional ivory
 variants add blonde, white, red, pink and blue hairstyles and different full shirts:
@@ -15,6 +19,10 @@ Mira, Finn and Lumi in Willowmere; Elin, Astrid and Kaia in Frosthavn.
 - Move and face with **WASD** or the touch stick. **Space/J** casts toward the
   nearest visible creature ahead, otherwise along your facing direction. The
   target is locked when casting starts; projectiles do not home or pass through trees.
+- **I / Equipment:** equip swords, axes, spears or staves at any tier in the demo.
+  **3** selects melee; **Space/J** plays native slash/thrust frames and deals damage
+  at contact. The enemy level slider resets encounters at levels 1–20 and returns
+  you to camp without clearing XP or flowers. Repeated defeats do not award extra XP.
 - **1 / Ember:** a fire bolt deals 30 impact damage and burns for up to 2 seconds.
   **2 / Tide:** unlocked at level 2; deals 24 damage, extinguishes the target's burn,
   slows it for 2.6 seconds and pushes it away within collision bounds.
@@ -23,11 +31,13 @@ Mira, Finn and Lumi in Willowmere; Elin, Astrid and Kaia in Frosthavn.
 - **E** gathers golden herbs or blue moonblossoms. **H** consumes one herb to
   restore up to 40 health. Full health does not consume herbs.
 - Gathering and combat award experience. Level 2 requires 30 XP and teaches Tide;
-  level 3 requires 100 XP and adds 3 damage per hit or burn tick.
-- Three slimes (blue and green), a snake, a bear and a Thornbloom guardian occupy
+  level 3 requires 100 XP and adds 3 spell impact damage; later levels add another
+  3 each. Staff bonuses also apply to spell impacts. Burn ticks remain 4 damage.
+- Three slimes (blue and green), a snake, a bear, a Thornbloom guardian, a Forest
+  brute and a Forest skirmisher occupy
   separate clearings. Move out of enemy warning circles before their locked attack.
   Two spike traps warn, rise, hold, and retract; damage follows the same state as the art.
-- Collect all three moonblossoms and clear the six encounters. The south trail
+- Collect all three moonblossoms and clear the eight encounters. The south trail
   returns to Willowmere. A defeated traveler recovers at the safe arrival camp.
 
 Progress, appearance and positions survive village/jungle crossings in one runtime
@@ -55,14 +65,15 @@ an original Dmap experiment, not a reproduction of vanilla Stardew combat.
 
 ## Module boundaries
 
-| Module                                            | Responsibility                                                                         |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `src/features/rpg/demo/scenes.ts`                 | Village entry, authored forest, clearings, enemies, flowers and traps                  |
-| `demo/adventure.ts`                               | Renderer-free casting, projectiles, damage, effects, experience, collection and rescue |
-| `demo/adventure-renderer.ts`                      | Fixed sprite pools, frame playback, telegraphs, spell effects and ripples              |
-| `demo/magic-assets.ts`, `demo/wildlife-assets.ts` | Asset dimensions, origins, action frames, timing and provenance                        |
-| `demo/AdventureHud.tsx`, `demo/demo.css`          | Health, level, objectives, spell choice and touch controls                             |
-| `character.ts`                                    | Shared LPC rig; optional local `castElapsedMs` synchronizes six authored layers        |
+| Module                                            | Responsibility                                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `src/features/rpg/demo/scenes.ts`                 | Village entry, authored forest, clearings, enemies, flowers and traps                |
+| `adventure/session.ts`                            | Shared casting/melee simulation, projectiles, damage, rewards, collection and rescue |
+| `adventure/renderer.ts`                           | Fixed sprite pools, frame playback, telegraphs, spell effects and ripples            |
+| `src/domain/adventure/`                           | Shared weapon/enemy balance, equipment policy and versioned player progression       |
+| `demo/magic-assets.ts`, `demo/wildlife-assets.ts` | Asset dimensions, origins, action frames, timing and provenance                      |
+| `demo/AdventureHud.tsx`, `demo/demo.css`          | Health, level, objectives, spell choice and touch controls                           |
+| `character.ts`                                    | Shared LPC rig; optional local `castElapsedMs` synchronizes six authored layers      |
 
 `RpgDemoPage` owns `?area=jungle` and the entry/return transition. `RpgSample.demo`
 is runtime-only metadata. Village and jungle have distinct local position and atlas
@@ -70,14 +81,14 @@ pin keys. The optional runtime `selectSpell` command stays in the demo; server
 movement messages still carry only their existing locomotion actions. New wardrobe
 IDs participate in the existing catalog-derived appearance validation.
 
-To add a spell, extend the demo spell ID and status, define its cast/release/recovery
+To add a spell, extend the shared adventure spell ID and status, define its cast/release/recovery
 and hit behavior in the model, prepare a licensed atlas with metadata, then add its
 selection control. To add a creature, add stats, a verified action mapping and one
 encounter spawn. Keep the model's impact timing aligned with the chosen sprite pose.
 Do not derive collision dimensions from transparent sheet padding. For a persistent
 theme, use [Adding themes](ADDING-THEMES.md).
 
-The renderer allocates six creature views, two traps, eight projectile sprites,
+The renderer allocates eight creature views, two traps, eight projectile sprites,
 sixteen effect sprites and one casting orb. Static scenery uses the existing baked
 ground and cached textures. Zoom does not rebuild the world. Source textures remain
 cached across scene crossings; casts load only in demo runtimes. UI publication uses
@@ -112,7 +123,7 @@ frames/release, level-2 unlock, water slow/push, map pause, and herb/appearance/
 retention through both portal directions. The 390×844 touch layout had no document
 overflow or overlapping action controls. Console checks reported no errors.
 
-A short desktop movement/zoom/casting sample recorded 217 scene updates at a mean
+Before the equipment pass, a short desktop movement/zoom/casting sample recorded 217 scene updates at a mean
 0.28ms and p95 0.5ms of JavaScript scene-update time. Object count stayed at 234 and
 texture count at 224; pools stayed at 8 projectile and 16 effect sprites. This is a
 local CPU sample, not a GPU or all-device frame-rate guarantee. The production build

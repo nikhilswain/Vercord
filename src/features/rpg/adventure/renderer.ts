@@ -1,21 +1,31 @@
 import type Phaser from 'phaser';
 import type { Point } from '../../world/engine/types';
-import { JungleAdventure, trapState, type Enemy } from './adventure';
-import { JUNGLE_WILDLIFE_ASSETS } from './wildlife-assets';
-import { MAGIC_EFFECT_ASSETS, FOREST_GUARDIAN_ASSET, GREEN_SLIME_ASSET } from './magic-assets';
+import { AdventureSession, trapState, type Enemy } from './session';
+import { JUNGLE_WILDLIFE_ASSETS } from '../demo/wildlife-assets';
+import {
+  MAGIC_EFFECT_ASSETS,
+  FOREST_GUARDIAN_ASSET,
+  GREEN_SLIME_ASSET,
+} from '../demo/magic-assets';
+import { FOREST_ENEMY_ASSETS } from '../demo/enemy-assets';
+import { ENEMY_DEFINITIONS } from '../../../domain/adventure/enemies';
+import { attackAnimationTime } from './animation-clock';
 
 const creatureAsset = (enemy: Enemy) =>
-  enemy.kind === 'guardian'
-    ? FOREST_GUARDIAN_ASSET
-    : enemy.kind === 'slime' && enemy.variant === 'green'
-      ? GREEN_SLIME_ASSET
-      : JUNGLE_WILDLIFE_ASSETS[enemy.kind];
+  enemy.kind === 'forest-brute' || enemy.kind === 'forest-skirmisher'
+    ? FOREST_ENEMY_ASSETS[enemy.kind]
+    : enemy.kind === 'guardian'
+      ? FOREST_GUARDIAN_ASSET
+      : enemy.kind === 'slime' && enemy.variant === 'green'
+        ? GREEN_SLIME_ASSET
+        : JUNGLE_WILDLIFE_ASSETS[enemy.kind];
 
 export function preloadJungleCreatures(scene: Phaser.Scene): void {
   for (const asset of [
     ...Object.values(JUNGLE_WILDLIFE_ASSETS),
     FOREST_GUARDIAN_ASSET,
     GREEN_SLIME_ASSET,
+    ...Object.values(FOREST_ENEMY_ASSETS),
     ...Object.values(MAGIC_EFFECT_ASSETS),
   ]) {
     if (!scene.textures.exists(asset.textureKey))
@@ -29,10 +39,11 @@ export function preloadJungleCreatures(scene: Phaser.Scene): void {
 interface CreatureView {
   sprite: Phaser.GameObjects.Image;
   shadow: Phaser.GameObjects.Ellipse;
+  label: Phaser.GameObjects.Text;
 }
 
 /** Fixed sprite pools and one effects layer; static forest art stays in RpgSampleRenderer. */
-export class JungleAdventureRenderer {
+export class AdventureSessionRenderer {
   private readonly creatures: CreatureView[];
   private readonly flowers: Phaser.GameObjects.Image[];
   private readonly effects: Phaser.GameObjects.Graphics;
@@ -44,11 +55,22 @@ export class JungleAdventureRenderer {
 
   constructor(
     private readonly scene: Phaser.Scene,
-    private readonly model: JungleAdventure,
+    private readonly model: AdventureSession,
   ) {
     this.creatures = model.enemies.map((enemy) => {
       const asset = creatureAsset(enemy);
       return {
+        label: scene.add
+          .text(enemy.x, enemy.y, '', {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: '12px',
+            color: '#f1e5c4',
+            backgroundColor: '#15291fe6',
+            padding: { x: 5, y: 3 },
+          })
+          .setOrigin(0.5, 1)
+          .setDepth(50001)
+          .setVisible(false),
         sprite: scene.add
           .image(enemy.x, enemy.y, asset.textureKey, asset.animations.idle.frames.down[0]!)
           .setOrigin(asset.origin.x, asset.origin.y)
@@ -97,11 +119,16 @@ export class JungleAdventureRenderer {
       const shown = visible(enemy) && (enemy.health > 0 || age < 1);
       view.sprite.setVisible(shown);
       view.shadow.setVisible(shown && enemy.health > 0);
+      view.label.setVisible(false);
       if (!shown) return;
       const asset = creatureAsset(enemy);
       const animation = asset.animations[enemy.phase === 'windup' ? 'idle' : enemy.phase];
       const frames = animation.frames[enemy.direction];
-      const cycle = (age * 1000) / animation.durationMs;
+      const elapsedMs =
+        enemy.phase === 'attack'
+          ? attackAnimationTime(age * 1000, ENEMY_DEFINITIONS[enemy.kind], animation)
+          : age * 1000;
+      const cycle = elapsedMs / animation.durationMs;
       const frame =
         reducedMotion && enemy.phase === 'idle'
           ? frames[0]!
@@ -131,6 +158,9 @@ export class JungleAdventureRenderer {
       ) {
         const y =
           enemy.y - (enemy.kind === 'guardian' ? 94 : asset.feet.y * asset.suggestedScale) - 9;
+        const label = `${ENEMY_DEFINITIONS[enemy.kind].name} · Lv ${enemy.level}`;
+        if (view.label.text !== label) view.label.setText(label);
+        view.label.setPosition(enemy.x, y - 4).setVisible(true);
         g.fillStyle(0x18251d, 0.9).fillRoundedRect(enemy.x - 20, y, 40, 5, 2);
         g.fillStyle(enemy.kind === 'slime' ? 0x98d6ba : 0xe5b887, 1).fillRoundedRect(
           enemy.x - 19,
@@ -182,9 +212,10 @@ export class JungleAdventureRenderer {
   }
 
   destroy(): void {
-    this.creatures.forEach(({ sprite, shadow }) => {
+    this.creatures.forEach(({ sprite, shadow, label }) => {
       sprite.destroy();
       shadow.destroy();
+      label.destroy();
     });
     this.flowers.forEach((flower) => flower.destroy());
     this.effects.destroy();
@@ -194,10 +225,10 @@ export class JungleAdventureRenderer {
   }
 
   private warning(g: Phaser.GameObjects.Graphics, enemy: Enemy, age: number): void {
-    const size = enemy.kind === 'bear' || enemy.kind === 'guardian' ? 48 : 34;
+    const size = ENEMY_DEFINITIONS[enemy.kind].hitRadius;
     g.fillStyle(0xd87348, 0.14).fillEllipse(enemy.target.x, enemy.target.y, size * 2, size);
     g.lineStyle(2, 0xffcd83, 0.9).strokeEllipse(enemy.target.x, enemy.target.y, size * 2, size);
-    const rise = Math.min(1, age / 0.6);
+    const rise = Math.min(1, (age * 1000) / ENEMY_DEFINITIONS[enemy.kind].windupMs);
     g.lineStyle(3, 0xffe3a4, 1).lineBetween(
       enemy.x,
       enemy.y - 55,

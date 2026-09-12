@@ -1,17 +1,34 @@
 import { containsPoint, resolveMovement } from '../../world/engine/collision';
 import type { Point, Rect } from '../../world/engine/types';
 import type { RpgDirection } from '../types';
+import { ENEMY_DEFINITIONS as STATS, spawnEnemyPower } from '../../../domain/adventure/enemies';
+import {
+  createPlayerProgression,
+  equipWeapon,
+  grantExperience,
+  NORMAL_EQUIPMENT_POLICY,
+  sanitizePlayerProgression,
+  type PlayerProgression,
+} from '../../../domain/adventure/equipment';
+import { getWeaponDefinition, type WeaponDefinition } from '../../../domain/adventure/weapons';
+import {
+  experienceForLevel,
+  levelForExperience,
+  MAX_CHARACTER_LEVEL,
+} from '../../../domain/adventure/progression';
 import type {
   AdventureStatus,
-  CreatureKind,
+  CombatMode,
   EncounterSpawn,
   FlowerSpawn,
-  JungleDefinition,
+  AdventureDefinition,
   SpellId,
 } from './types';
 
 export type EnemyPhase = 'idle' | 'walk' | 'windup' | 'attack' | 'hurt' | 'death';
 export interface Enemy extends EncounterSpawn {
+  level: number;
+  damage: number;
   home: Point;
   health: number;
   maxHealth: number;
@@ -26,6 +43,7 @@ export interface Enemy extends EncounterSpawn {
   burnTickAt: number;
 }
 export interface SpellCast {
+  damage: number;
   at: number;
   origin: Point;
   direction: RpgDirection;
@@ -34,11 +52,27 @@ export interface SpellCast {
   released: boolean;
 }
 export interface Projectile extends Point {
+  damage: number;
   id: number;
   spell: SpellId;
   velocity: Point;
   at: number;
   distance: number;
+}
+export interface MeleeAttack {
+  at: number;
+  origin: Point;
+  direction: RpgDirection;
+  weapon: WeaponDefinition;
+  hit: boolean;
+}
+export interface AdventureOptions {
+  progression?: PlayerProgression;
+  equipmentPolicy?: typeof NORMAL_EQUIPMENT_POLICY;
+  /** Explicit sandbox override; normal encounters derive their level from the profile. */
+  enemyLevelOverride?: number;
+  /** Authored safe areas are content, never inferred from the spawn's direction. */
+  safeAreas?: readonly Rect[];
 }
 export interface AdventureEffect extends Point {
   id: number;
@@ -74,15 +108,6 @@ export function trapState(time: number, offset: number) {
   };
 }
 
-const STATS: Record<
-  CreatureKind,
-  { health: number; speed: number; reach: number; damage: number; aggro: number }
-> = {
-  slime: { health: 50, speed: 48, reach: 95, damage: 16, aggro: 175 },
-  snake: { health: 65, speed: 65, reach: 66, damage: 20, aggro: 160 },
-  bear: { health: 130, speed: 57, reach: 78, damage: 28, aggro: 200 },
-  guardian: { health: 175, speed: 38, reach: 100, damage: 24, aggro: 230 },
-};
 const vectors: Record<RpgDirection, Point> = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
@@ -96,10 +121,10 @@ function facing(a: Point, b: Point): RpgDirection {
   return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
 }
 
-/** Renderer-free encounter rules. One session survives village/jungle transitions.
- * Five enemies, bounded effects, and static collision data; no timers or per-tick React state.
+/** Shared encounter simulation. One session survives area transitions.
+ * Bounded effects and static collision data; no timers or per-tick React state.
  */
-export class JungleAdventure {
+export class AdventureSession {
   readonly enemies: Enemy[];
   readonly gathered = new Set<string>();
   readonly effects: AdventureEffect[] = [];
@@ -107,28 +132,42 @@ export class JungleAdventure {
   herbs = 1;
   time = 0;
   cast: SpellCast | null = null;
+  melee: MeleeAttack | null = null;
   readonly projectiles: Projectile[] = [];
   spell: SpellId = 'fire';
-  experience = 0;
+  combatMode: CombatMode = 'fire';
+  private progression: PlayerProgression;
+  private readonly rewardedEnemies = new Set<string>();
   invincibleUntil = 0;
   private message =
-    'Ember learned. Space to cast; E to gather; H to heal. Water unlocks at level 2.';
+    'I opens equipment. 1 / 2 choose magic; 3 chooses your weapon. Space attacks; E gathers.';
   private messageUntil = 8;
   private attackReadyAt = 0;
   private sequence = 0;
 
   constructor(
-    readonly content: JungleDefinition,
+    readonly content: AdventureDefinition,
     private readonly colliders: Rect[],
     private readonly bounds: Rect,
     readonly spawn: Point,
     readonly casting = { durationMs: 700, releaseMs: 400 },
+    readonly options: AdventureOptions = {},
   ) {
+    this.progression = sanitizePlayerProgression(
+      options.progression ?? createPlayerProgression(),
+      options.equipmentPolicy ?? NORMAL_EQUIPMENT_POLICY,
+    );
     this.enemies = content.enemies.map((entry) => ({
       ...entry,
+      ...spawnEnemyPower(entry.kind, this.level, {
+        elite: entry.elite,
+        levelOverride: options.enemyLevelOverride,
+      }),
       home: { x: entry.x, y: entry.y },
-      health: STATS[entry.kind].health,
-      maxHealth: STATS[entry.kind].health,
+      maxHealth: spawnEnemyPower(entry.kind, this.level, {
+        elite: entry.elite,
+        levelOverride: options.enemyLevelOverride,
+      }).health,
       phase: 'idle',
       phaseAt: 0,
       readyAt: 0,
@@ -155,10 +194,15 @@ export class JungleAdventure {
       message: this.time < this.messageUntil ? this.message : '',
       level: this.level,
       experience: this.experience,
-      nextLevel: this.level === 1 ? 30 : this.level === 2 ? 100 : null,
+      nextLevel: this.level < MAX_CHARACTER_LEVEL ? experienceForLevel(this.level + 1) : null,
       spell: this.spell,
       waterUnlocked: this.level >= 2,
-      castReady: this.time >= this.attackReadyAt && !this.cast,
+      castReady: this.time >= this.attackReadyAt && !this.cast && !this.melee,
+      combatMode: this.combatMode,
+      weaponId: this.progression.equippedWeaponId,
+      enemyLevel: this.enemies[0]?.level ?? this.level,
+      encounterHealth: Math.max(0, ...this.enemies.map((e) => e.maxHealth)),
+      encounterDamage: Math.max(0, ...this.enemies.map((e) => e.damage)),
     };
   }
 
@@ -174,6 +218,7 @@ export class JungleAdventure {
       }
       if (age >= this.casting.durationMs) this.cast = null;
     }
+    this.tickMelee();
     this.tickProjectiles(dt);
     for (const trap of this.content.traps ?? []) {
       if (
@@ -202,7 +247,7 @@ export class JungleAdventure {
         continue;
       }
       if (enemy.phase === 'windup') {
-        if (age >= 0.6) {
+        if (age * 1000 >= stats.windupMs) {
           this.phase(enemy, 'attack');
           enemy.hit = false;
         }
@@ -210,40 +255,28 @@ export class JungleAdventure {
       }
       if (enemy.phase === 'attack') {
         // The target is locked when the warning begins: walking away really dodges it.
-        if (age < 0.33)
-          this.move(enemy, enemy.target, enemy.kind === 'slime' ? 250 : 125, dt, false);
-        if (
-          !enemy.hit &&
-          age >=
-            (enemy.kind === 'guardian'
-              ? 0.36
-              : enemy.kind === 'slime'
-                ? 0.33
-                : enemy.kind === 'bear'
-                  ? 0.26
-                  : 0.22)
-        ) {
+        if (age * 1000 < stats.lungeMs) this.move(enemy, enemy.target, stats.lungeSpeed, dt, false);
+        if (!enemy.hit && age * 1000 >= stats.impactMs) {
           enemy.hit = true;
           if (
-            distance(enemy, player) <
-              (enemy.kind === 'bear' || enemy.kind === 'guardian' ? 52 : 37) &&
+            distance(enemy, player) < stats.hitRadius &&
             this.clearLine(enemy, player) &&
             this.time >= this.invincibleUntil &&
-            player.y < this.spawn.y - 64
+            !this.isSafe(player)
           ) {
-            this.health = Math.max(0, this.health - stats.damage);
+            this.health = Math.max(0, this.health - enemy.damage);
             this.invincibleUntil = this.time + 1.15;
             this.effect(player, 'hit');
             this.say('Hit! Step out of the warning circle. H uses a healing herb.');
           }
         }
-        if (age >= (enemy.kind === 'guardian' ? 0.72 : 0.6)) {
-          enemy.readyAt = this.time + 0.85;
+        if (age * 1000 >= stats.durationMs) {
+          enemy.readyAt = this.time + stats.recoveryMs / 1000;
           this.phase(enemy, 'idle');
         }
         continue;
       }
-      const inTerritory = distance(player, enemy.home) < 235 && player.y < this.spawn.y - 64;
+      const inTerritory = distance(player, enemy.home) < 235 && !this.isSafe(player);
       const seesPlayer =
         inTerritory && distance(enemy, player) < stats.aggro && this.clearLine(enemy, player);
       if (seesPlayer) {
@@ -280,20 +313,74 @@ export class JungleAdventure {
   }
 
   get level(): number {
-    return this.experience >= 100 ? 3 : this.experience >= 30 ? 2 : 1;
+    return levelForExperience(this.experience);
+  }
+  get experience(): number {
+    return this.progression.experience;
+  }
+  /** Serializable snapshot for a storage adapter; mutation stays behind validated commands. */
+  getProgression(): PlayerProgression {
+    return { ...this.progression, ownedWeaponIds: [...this.progression.ownedWeaponIds] };
+  }
+
+  equip(id: string): boolean {
+    const result = equipWeapon(this.progression, id, this.options.equipmentPolicy);
+    if (!result.success) return false;
+    this.progression = result.profile;
+    this.cast = null;
+    this.melee = null;
+    this.combatMode = 'melee';
+    this.say(`${getWeaponDefinition(id)!.family} equipped. Space or J to attack.`);
+    return true;
+  }
+
+  selectMelee(): void {
+    if (!this.cast && !this.melee) this.combatMode = 'melee';
+  }
+
+  /** Only sessions constructed with a sandbox override expose difficulty resets. */
+  setEnemyLevel(level: number): boolean {
+    if (this.options.enemyLevelOverride === undefined || !Number.isFinite(level)) return false;
+    this.rest();
+    for (const enemy of this.enemies) {
+      const power = spawnEnemyPower(enemy.kind, this.level, {
+        elite: enemy.elite,
+        levelOverride: level,
+      });
+      Object.assign(enemy, power, {
+        ...enemy.home,
+        maxHealth: power.health,
+        target: { ...enemy.home },
+        phase: 'idle',
+        phaseAt: this.time,
+        readyAt: this.time + 1,
+        hit: false,
+        burnTickAt: 0,
+      });
+    }
+    this.say(`Level ${this.enemies[0]?.level ?? 1} encounters reset. Flowers and XP kept.`, 6);
+    return true;
   }
 
   selectSpell(spell: SpellId): void {
-    if (this.cast) return;
+    if (this.cast || this.melee) return;
     if (spell === 'water' && this.level < 2) {
       this.say('Tide unlocks at level 2. Gather flowers and clear the trail to learn it.');
       return;
     }
     this.spell = spell;
+    this.combatMode = spell;
   }
 
   attack(player: Point, direction: RpgDirection): RpgDirection | null {
-    if (this.time < this.attackReadyAt || this.cast || this.projectiles.length >= 8) return null;
+    if (this.time < this.attackReadyAt || this.cast || this.melee) return null;
+    if (this.combatMode === 'melee') {
+      const weapon = getWeaponDefinition(this.progression.equippedWeaponId)!;
+      this.melee = { at: this.time, origin: { ...player }, direction, weapon, hit: false };
+      this.attackReadyAt = this.time + weapon.cooldownMs / 1000;
+      return direction;
+    }
+    if (this.projectiles.length >= 8) return null;
     // Aim at the nearest visible creature in front. Aim is locked at cast start, never homing.
     const forward = vectors[direction];
     let target: Enemy | undefined;
@@ -311,6 +398,10 @@ export class JungleAdventure {
     const length = Math.max(1, Math.hypot(aim.x, aim.y));
     if (target) direction = facing(player, target);
     this.cast = {
+      damage:
+        (this.spell === 'fire' ? 30 : 24) +
+        getWeaponDefinition(this.progression.equippedWeaponId)!.spellBonus +
+        Math.max(0, this.level - 2) * 3,
       at: this.time,
       origin: { ...player },
       direction,
@@ -325,6 +416,7 @@ export class JungleAdventure {
   private release(cast: SpellCast): void {
     const speed = cast.spell === 'fire' ? 290 : 340;
     this.projectiles.push({
+      damage: cast.damage,
       id: ++this.sequence,
       spell: cast.spell,
       at: this.time,
@@ -362,7 +454,7 @@ export class JungleAdventure {
             this.clearLine(p, e),
         );
         if (hit) {
-          this.damage(hit, p.spell === 'fire' ? 30 : 24, p.spell);
+          this.damage(hit, p.damage, p.spell);
           if (hit.health > 0) {
             if (p.spell === 'fire') {
               hit.burningUntil = this.time + 2;
@@ -386,9 +478,45 @@ export class JungleAdventure {
     }
   }
 
-  private damage(enemy: Enemy, amount: number, spell: SpellId, stagger = true): void {
+  private tickMelee(): void {
+    const swing = this.melee;
+    if (!swing) return;
+    const age = (this.time - swing.at) * 1000;
+    if (!swing.hit && age >= swing.weapon.impactMs) {
+      swing.hit = true;
+      const forward = vectors[swing.direction];
+      const thrust = swing.weapon.family === 'spear' || swing.weapon.family === 'staff';
+      for (const enemy of this.enemies) {
+        const dx = enemy.x - swing.origin.x,
+          dy = enemy.y - swing.origin.y;
+        const ahead = dx * forward.x + dy * forward.y;
+        const side = Math.abs(dx * forward.y - dy * forward.x);
+        const d = Math.hypot(dx, dy);
+        if (
+          enemy.health > 0 &&
+          d <= swing.weapon.reach &&
+          ahead > 0 &&
+          (thrust ? side <= 22 : ahead / Math.max(1, d) > 0.2) &&
+          this.clearLine(swing.origin, enemy)
+        ) {
+          this.damage(enemy, swing.weapon.damage, 'melee');
+          if (enemy.health > 0)
+            this.move(
+              enemy,
+              { x: enemy.x + forward.x * 32, y: enemy.y + forward.y * 32 },
+              100,
+              0.12,
+              false,
+            );
+        }
+      }
+    }
+    if (age >= swing.weapon.animationMs) this.melee = null;
+  }
+
+  private damage(enemy: Enemy, amount: number, spell: CombatMode, stagger = true): void {
     if (enemy.health === 0) return;
-    enemy.health = Math.max(0, enemy.health - amount - (this.level === 3 ? 3 : 0));
+    enemy.health = Math.max(0, enemy.health - amount);
     if (enemy.health === 0) {
       this.phase(enemy, 'death');
       this.effect(
@@ -397,27 +525,32 @@ export class JungleAdventure {
           ? 'poison-death'
           : spell === 'fire'
             ? 'fire-death'
-            : 'water-death',
+            : spell === 'water'
+              ? 'water-death'
+              : 'hit',
       );
-      this.reward(enemy.kind === 'guardian' ? 50 : enemy.kind === 'bear' ? 35 : 20, enemy);
+      if (!this.rewardedEnemies.has(enemy.id)) {
+        this.rewardedEnemies.add(enemy.id);
+        this.reward(STATS[enemy.kind].xp, enemy);
+      }
     } else {
       if (stagger) {
         this.phase(enemy, 'hurt');
         enemy.readyAt = this.time + 0.5;
       }
-      this.effect(enemy, spell);
+      this.effect(enemy, spell === 'melee' ? 'hit' : spell);
     }
   }
 
   private reward(amount: number, point: Point): void {
     const before = this.level;
-    this.experience += amount;
+    this.progression = grantExperience(this.progression, amount);
     if (this.level > before) {
       this.effect(point, 'level');
       this.say(
         this.level === 2
           ? 'Level 2 · Tide learned! Press 2 to slow enemies with water.'
-          : 'Level 3 · Your spells are stronger. Explore the rest of the forest!',
+          : `Level ${this.level} · Your spells are stronger. New weapon tiers await!`,
         7,
       );
     }
@@ -466,6 +599,7 @@ export class JungleAdventure {
   rest(): void {
     this.health = 100;
     this.cast = null;
+    this.melee = null;
     this.projectiles.length = 0;
     this.effects.length = 0;
     for (const enemy of this.enemies) {
@@ -479,6 +613,9 @@ export class JungleAdventure {
     if (enemy.phase === phase) return;
     enemy.phase = phase;
     enemy.phaseAt = this.time;
+  }
+  private isSafe(point: Point): boolean {
+    return this.options.safeAreas?.some((rect) => containsPoint(rect, point.x, point.y)) ?? false;
   }
   private say(message: string, seconds = 4): void {
     this.message = message;

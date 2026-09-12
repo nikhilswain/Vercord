@@ -1,0 +1,414 @@
+{
+  "preparedAt": "2026-09-12",
+  "sourceArchives": {
+    "weapons": {
+      "filename": "Malicious_weaponset1.zip",
+      "sha256": "b2646c142162683409b26f2a6126ed45e39a124bf39537623302416c114103ab",
+      "sourceUrl": "https://trulymalicious.itch.io/weapon-set-1-free",
+      "downloadPage": "https://trulymalicious.itch.io/weapon-set-1-free",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "author": "Truly Malicious / TrulyMalicious"
+    },
+    "forestBosses": {
+      "filename": "Free-Forest-Bosses-Pixel-Art-Sprite-Sheet-Pack.zip",
+      "sha256": "f62de17653cffb76aa63a975de9450101c327e9a1ced54911960c84191894d8c",
+      "sourceUrl": "https://craftpix.net/freebies/free-forest-bosses-pixel-art-sprite-sheet-pack/",
+      "downloadPage": "https://free-game-assets.itch.io/free-forest-bosses-pixel-art-sprite-sheet-pack",
+      "licenseUrl": "https://craftpix.net/file-licenses/",
+      "author": "CraftPix / Free Game Assets (GUI, Sprite, Tilesets)"
+    }
+  },
+  "assets": {
+    "sword-0": {
+      "file": "sword-0.png",
+      "sha256": "fd2e9826b701d9fd891739dbdd6110899509616df3cd7c2588f2ac9f6ebe6845",
+      "pack": "weapons",
+      "sourceFiles": ["practice sword.png"],
+      "sourceAlphaBounds": [36, 41, 761, 798],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "sword-1": {
+      "file": "sword-1.png",
+      "sha256": "d38d1181a79a5e34a0766b3ccf82e5969af8b20e603e11499036361073efd9c0",
+      "pack": "weapons",
+      "sourceFiles": ["wooden sword.png"],
+      "sourceAlphaBounds": [47, 27, 746, 790],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "sword-2": {
+      "file": "sword-2.png",
+      "sha256": "00c7acf7bd35466b0f5654075afc6f7058640f0de229ff2c2b9e9509e3e0c9c2",
+      "pack": "weapons",
+      "sourceFiles": ["iron sword.png"],
+      "sourceAlphaBounds": [38, 10, 758, 784],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "sword-3": {
+      "file": "sword-3.png",
+      "sha256": "05db1a2908913d6c10fdb2fde827f7da1f8a4a40dbcb47aeee8fefcac407b851",
+      "pack": "weapons",
+      "sourceFiles": ["bronze sword.png"],
+      "sourceAlphaBounds": [70, 23, 734, 782],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "sword-4": {
+      "file": "sword-4.png",
+      "sha256": "1547aeb40bc830c9ac274680c867ca30c6f6b357945a9cd85094ab6851364183",
+      "pack": "weapons",
+      "sourceFiles": ["silver sword.png"],
+      "sourceAlphaBounds": [44, 1, 758, 800],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "sword-5": {
+      "file": "sword-5.png",
+      "sha256": "4c436b4d3a98f8f7f26870daa315c27bd9961d7a216a97def8a70f68cdfe1a60",
+      "pack": "weapons",
+      "sourceFiles": ["gold sword.png"],
+      "sourceAlphaBounds": [34, 3, 759, 799],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "axe-0": {
+      "file": "axe-0.png",
+      "sha256": "66717c038df1264cdae5f7aea5230a4678f9eb128a17201425be819a14546d9f",
+      "pack": "weapons",
+      "sourceFiles": ["practice axe.png"],
+      "sourceAlphaBounds": [215, 80, 579, 757],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "axe-1": {
+      "file": "axe-1.png",
+      "sha256": "029d0826f64938801eb2740b1095c5eb5107423b466db63991da2f275f1d7dc0",
+      "pack": "weapons",
+      "sourceFiles": ["woodcutter axe.png"],
+      "sourceAlphaBounds": [198, 77, 579, 769],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "axe-2": {
+      "file": "axe-2.png",
+      "sha256": "12286cebcf20dc33580be2c7739c267318dd233f76ade4f58bafca001e33ae87",
+      "pack": "weapons",
+      "sourceFiles": ["iron axe.png"],
+      "sourceAlphaBounds": [199, 50, 579, 771],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "axe-3": {
+      "file": "axe-3.png",
+      "sha256": "6d0d0e8cabfd73fce554fe020156ff87c6193955c5cd9f3d5bb66d651a6ccbf2",
+      "pack": "weapons",
+      "sourceFiles": ["bronze axe.png"],
+      "sourceAlphaBounds": [199, 69, 579, 776],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "axe-4": {
+      "file": "axe-4.png",
+      "sha256": "c4d6359261e3f64d74235dbe5ce57a66e56d7f97f64b13446b79911cff2f24b7",
+      "pack": "weapons",
+      "sourceFiles": ["silver axe.png"],
+      "sourceAlphaBounds": [189, 38, 597, 800],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "axe-5": {
+      "file": "axe-5.png",
+      "sha256": "f5d8bdf873248f559e28bc0e3fa46d17d93c6ddc1ae781d636add6e6a8dbd7ff",
+      "pack": "weapons",
+      "sourceFiles": ["gold axe.png"],
+      "sourceAlphaBounds": [200, 19, 580, 787],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "spear-0": {
+      "file": "spear-0.png",
+      "sha256": "e55cd0bf235ba3b7a5df775e6ffe6a6a641edc7afafcc3b87535b58d6e198051",
+      "pack": "weapons",
+      "sourceFiles": ["practice spear.png"],
+      "sourceAlphaBounds": [15, 29, 795, 759],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "spear-1": {
+      "file": "spear-1.png",
+      "sha256": "940789841b57f8ce04544b1668ef764630d0e65826b55e33c1a19f7f4db63dd8",
+      "pack": "weapons",
+      "sourceFiles": ["wooden spear.png"],
+      "sourceAlphaBounds": [33, 32, 766, 785],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "spear-2": {
+      "file": "spear-2.png",
+      "sha256": "3b14784e04de01c799de7c3a3eb5f91687eb8ace1a9ea18aabbefe8873b3a11a",
+      "pack": "weapons",
+      "sourceFiles": ["iron spear.png"],
+      "sourceAlphaBounds": [58, 12, 754, 796],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "spear-3": {
+      "file": "spear-3.png",
+      "sha256": "0e7c494406496300693bbc958bf4d4f3be94f7c9e1420786c16fb75de2e9d341",
+      "pack": "weapons",
+      "sourceFiles": ["bronze spear.png"],
+      "sourceAlphaBounds": [87, 25, 723, 791],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "spear-4": {
+      "file": "spear-4.png",
+      "sha256": "243c7759299096e1120e5c18ed6af71702505b3a599a8eebde03fc94044e74d9",
+      "pack": "weapons",
+      "sourceFiles": ["silver spear.png"],
+      "sourceAlphaBounds": [52, 27, 742, 774],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "spear-5": {
+      "file": "spear-5.png",
+      "sha256": "324bb774dfce826284c1a69f649884d21af6f1bb904ef664ceb07d6f82392618",
+      "pack": "weapons",
+      "sourceFiles": ["gold spear.png"],
+      "sourceAlphaBounds": [40, 24, 751, 788],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "staff-0": {
+      "file": "staff-0.png",
+      "sha256": "0712b61c1f87531689f73567c1673f94f3dc62286369e1278c3d874d9c5c6824",
+      "pack": "weapons",
+      "sourceFiles": ["practice staff.png"],
+      "sourceAlphaBounds": [290, 62, 529, 779],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "staff-1": {
+      "file": "staff-1.png",
+      "sha256": "f930bb90777ed6476fa32a011c74686deeb62aad81e989b4b0584532ee4a67aa",
+      "pack": "weapons",
+      "sourceFiles": ["wooden staff.png"],
+      "sourceAlphaBounds": [323, 77, 490, 770],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "staff-2": {
+      "file": "staff-2.png",
+      "sha256": "ca189535ca97403360cd4f8c2f76e73ee83f249d9caf7978deba018ac69b27da",
+      "pack": "weapons",
+      "sourceFiles": ["white staff.png"],
+      "sourceAlphaBounds": [318, 19, 518, 785],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "staff-3": {
+      "file": "staff-3.png",
+      "sha256": "ca7ce238da33179bedc772df68dd5f8d1648e761b4419dbcf7b868ce32e2e385",
+      "pack": "weapons",
+      "sourceFiles": ["bronze staff.png"],
+      "sourceAlphaBounds": [303, 52, 504, 785],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "staff-4": {
+      "file": "staff-4.png",
+      "sha256": "41de9e5d2505416c5c278dffa9ef1425eb26d3f80abcf5d3a8d5c088862bf265",
+      "pack": "weapons",
+      "sourceFiles": ["silver staff.png"],
+      "sourceAlphaBounds": [326, 62, 509, 784],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "staff-5": {
+      "file": "staff-5.png",
+      "sha256": "591fd5fcc86c289c342ec3f7a59f5d00b1437f032f52fea4aa733f458964c9ab",
+      "pack": "weapons",
+      "sourceFiles": ["gold staff.png"],
+      "sourceAlphaBounds": [336, 35, 491, 800],
+      "width": 128,
+      "height": 128,
+      "transform": "Crop transparent margin, contain in 112x112 using Lanczos, center on transparent 128x128 canvas; no recoloring"
+    },
+    "forest-brute": {
+      "file": "forest-brute.png",
+      "sha256": "3173a2f2bb97f4663af0870b3e079e40a74bacfbb46f11f6ef130dd362407f62",
+      "frameWidth": 80,
+      "frameHeight": 48,
+      "columns": 8,
+      "frameCount": 52,
+      "feet": {
+        "x": 40,
+        "y": 48
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "suggestedScale": 2,
+      "animations": {
+        "idle": {
+          "durationMs": 800,
+          "loop": true,
+          "frames": {
+            "left": [0, 1, 2, 3],
+            "right": [4, 5, 6, 7],
+            "up": [4, 5, 6, 7],
+            "down": [4, 5, 6, 7]
+          }
+        },
+        "walk": {
+          "durationMs": 600,
+          "loop": true,
+          "frames": {
+            "left": [8, 9, 10, 11, 12, 13],
+            "right": [14, 15, 16, 17, 18, 19],
+            "up": [14, 15, 16, 17, 18, 19],
+            "down": [14, 15, 16, 17, 18, 19]
+          }
+        },
+        "attack": {
+          "durationMs": 780,
+          "loop": false,
+          "frames": {
+            "left": [20, 21, 22, 23, 24, 25],
+            "right": [26, 27, 28, 29, 30, 31],
+            "up": [26, 27, 28, 29, 30, 31],
+            "down": [26, 27, 28, 29, 30, 31]
+          },
+          "impactAtMs": 520
+        },
+        "hurt": {
+          "durationMs": 240,
+          "loop": false,
+          "frames": {
+            "left": [32, 33, 34, 35],
+            "right": [36, 37, 38, 39],
+            "up": [36, 37, 38, 39],
+            "down": [36, 37, 38, 39]
+          }
+        },
+        "death": {
+          "durationMs": 780,
+          "loop": false,
+          "frames": {
+            "left": [40, 41, 42, 43, 44, 45],
+            "right": [46, 47, 48, 49, 50, 51],
+            "up": [46, 47, 48, 49, 50, 51],
+            "down": [46, 47, 48, 49, 50, 51]
+          }
+        }
+      },
+      "pack": "forestBosses",
+      "sourceFiles": ["2/Idle.png", "2/Walk.png", "2/Attack1.png", "2/Hurt.png", "2/Death.png"],
+      "atlasCellCount": 56,
+      "transform": "Crop constant empty margins from 96x96 native cells to 64x48, pad to 80x48 around source foot (72,96), mirror for right; no resampling or invented frames"
+    },
+    "forest-skirmisher": {
+      "file": "forest-skirmisher.png",
+      "sha256": "c6b0ed09f7233dec5a357357b75ab6a44326782efaa18f70c23665eb6a25bc3b",
+      "frameWidth": 80,
+      "frameHeight": 48,
+      "columns": 8,
+      "frameCount": 48,
+      "feet": {
+        "x": 40,
+        "y": 48
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 1
+      },
+      "suggestedScale": 2,
+      "animations": {
+        "idle": {
+          "durationMs": 800,
+          "loop": true,
+          "frames": {
+            "left": [0, 1, 2, 3],
+            "right": [4, 5, 6, 7],
+            "up": [4, 5, 6, 7],
+            "down": [4, 5, 6, 7]
+          }
+        },
+        "walk": {
+          "durationMs": 600,
+          "loop": true,
+          "frames": {
+            "left": [8, 9, 10, 11, 12, 13],
+            "right": [14, 15, 16, 17, 18, 19],
+            "up": [14, 15, 16, 17, 18, 19],
+            "down": [14, 15, 16, 17, 18, 19]
+          }
+        },
+        "attack": {
+          "durationMs": 660,
+          "loop": false,
+          "frames": {
+            "left": [20, 21, 22, 23, 24, 25],
+            "right": [26, 27, 28, 29, 30, 31],
+            "up": [26, 27, 28, 29, 30, 31],
+            "down": [26, 27, 28, 29, 30, 31]
+          },
+          "impactAtMs": 440
+        },
+        "hurt": {
+          "durationMs": 240,
+          "loop": false,
+          "frames": {
+            "left": [32, 33, 34, 35],
+            "right": [36, 37, 38, 39],
+            "up": [36, 37, 38, 39],
+            "down": [36, 37, 38, 39]
+          }
+        },
+        "death": {
+          "durationMs": 600,
+          "loop": false,
+          "frames": {
+            "left": [40, 41, 42, 43],
+            "right": [44, 45, 46, 47],
+            "up": [44, 45, 46, 47],
+            "down": [44, 45, 46, 47]
+          }
+        }
+      },
+      "pack": "forestBosses",
+      "sourceFiles": ["3/Idle.png", "3/Walk.png", "3/Attack4.png", "3/Hurt.png", "3/Death.png"],
+      "atlasCellCount": 48,
+      "transform": "Crop constant empty margins from 96x96 native cells to 64x48, pad to 80x48 around source foot (72,96), mirror for right; no resampling or invented frames"
+    }
+  },
+  "downloadMethod": "Normal public author itch.io free-download browser controls; no accounts or payments",
+  "weaponDisclosure": "Author discloses DALL-E 3 base imagery, manually refined and compiled. Free pack has 24 static inventory icons, no elemental weapons or attack animations.",
+  "tribalPackStatus": "Requested CraftPix tribal pack download requires sign-in; no archive acquired. Page describes 3 modular vector characters, AI/EPS/PNG, without promised animations. The two additional enemies come from the separate animated forest pack."
+}

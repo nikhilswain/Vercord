@@ -1,18 +1,26 @@
 import { RpgIcon } from '../RpgIcon';
+import { getDemoWeapon } from './equipment';
 import type { AdventureStatus, SpellId } from './types';
+import './equipment.css';
 
 export function AdventureHud({
   status,
   onAttack,
   onHeal,
   onSpell,
+  onMelee,
+  onEquipment,
 }: {
   status: AdventureStatus;
   onAttack(): void;
   onHeal(): void;
   onSpell(spell: SpellId): void;
+  onMelee(): void;
+  onEquipment(): void;
 }) {
   const complete = status.defeated === status.enemyGoal && status.blossoms === status.blossomGoal;
+  const weapon = getDemoWeapon(status.weaponId);
+  const melee = status.combatMode === 'melee';
   return (
     <>
       <aside className="rpg-adventure-status rpg-frame" aria-label="Jungle adventure">
@@ -55,10 +63,23 @@ export function AdventureHud({
         {complete && (
           <strong className="rpg-trail-complete">Trail explored. Return to Willowmere!</strong>
         )}
-      </aside>
-      <div className="rpg-spellbook rpg-frame" aria-label="Choose a spell">
         <button
-          aria-pressed={status.spell === 'fire'}
+          type="button"
+          className="rpg-equipment-toggle"
+          onClick={onEquipment}
+          aria-label={`Open equipment, ${weapon.name} equipped`}
+          aria-haspopup="dialog"
+          title={`Equipment · ${weapon.name} · I`}
+        >
+          <img className="rpg-weapon-icon" src={weapon.imageUrl} alt="" width="26" height="26" />
+          <span>Equipment</span>
+          <kbd>I</kbd>
+        </button>
+      </aside>
+      <div className="rpg-spellbook rpg-frame" role="group" aria-label="Choose an attack">
+        <button
+          className="rpg-spell-fire"
+          aria-pressed={status.combatMode === 'fire'}
           onClick={() => onSpell('fire')}
           title="Ember · fire burns enemies"
         >
@@ -67,7 +88,8 @@ export function AdventureHud({
           <kbd>1</kbd>
         </button>
         <button
-          aria-pressed={status.spell === 'water'}
+          className="rpg-spell-water"
+          aria-pressed={status.combatMode === 'water'}
           onClick={() => onSpell('water')}
           disabled={!status.waterUnlocked}
           title={
@@ -79,6 +101,16 @@ export function AdventureHud({
           <RpgIcon name="water" />
           <span>Tide{!status.waterUnlocked && <small>Level 2</small>}</span>
           <kbd>2</kbd>
+        </button>
+        <button
+          aria-pressed={melee}
+          onClick={onMelee}
+          aria-label={`Melee, ${weapon.name}`}
+          title={`Melee · ${weapon.name}`}
+        >
+          <img className="rpg-weapon-icon" src={weapon.imageUrl} alt="" width="26" height="26" />
+          <span>Melee</span>
+          <kbd>3</kbd>
         </button>
       </div>
       <div className="rpg-combat-actions" aria-label="Combat controls">
@@ -93,16 +125,22 @@ export function AdventureHud({
           <kbd>H</kbd>
         </button>
         <button className="rpg-button rpg-attack" onClick={onAttack} disabled={!status.castReady}>
-          <RpgIcon name={status.spell} />
-          <span>{status.castReady ? 'Cast' : 'Casting'}</span>
+          {melee ? (
+            <img className="rpg-weapon-icon" src={weapon.imageUrl} alt="" width="26" height="26" />
+          ) : (
+            <RpgIcon name={status.spell} />
+          )}
+          <span>
+            {status.castReady ? (melee ? 'Attack' : 'Cast') : melee ? 'Recovering' : 'Casting'}
+          </span>
           <kbd>Space</kbd>
         </button>
       </div>
-      <p className="rpg-adventure-message" role="status">
+      <p className="rpg-adventure-message rpg-adventure-message--equipment" role="status">
         {status.message ||
           (complete
             ? 'All flowers collected and creatures defeated. The path home is south.'
-            : 'WASD to move & aim · Space to cast · E to gather')}
+            : `WASD to move & aim · Space to ${melee ? 'attack' : 'cast'} · E to gather`)}
       </p>
     </>
   );

@@ -11,8 +11,10 @@ import {
   RPG_CAST_RELEASE_MS,
 } from './character';
 import type { SpellId } from './demo/types';
-import { JungleAdventure } from './demo/adventure';
-import { JungleAdventureRenderer, preloadJungleCreatures } from './demo/adventure-renderer';
+import { AdventureSession } from './adventure/session';
+import { DEMO_EQUIPMENT_POLICY } from '../../domain/adventure/equipment';
+import { RPG_MELEE_ANIMATION, RPG_MELEE_WEAPON_STYLE } from './melee-assets';
+import { AdventureSessionRenderer, preloadJungleCreatures } from './adventure/renderer';
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
 import { TownSignage } from './town-signage';
@@ -27,8 +29,8 @@ export class RpgScene extends Phaser.Scene {
   private movement: WorldInput | null = null;
   private scenery: RpgSampleRenderer | null = null;
   private avatar: RpgCharacter | null = null;
-  private adventureSession: JungleAdventure | null = null;
-  private adventureRenderer: JungleAdventureRenderer | null = null;
+  private adventureSession: AdventureSession | null = null;
+  private adventureRenderer: AdventureSessionRenderer | null = null;
   private remotes: RpgRemoteCharacters | null = null;
   private ambient: RpgAmbientEntities | null = null;
   private players: readonly RpgPresencePlayer[] = [];
@@ -122,7 +124,7 @@ export class RpgScene extends Phaser.Scene {
     const adventure = this.activeAdventure();
     const blocked =
       this.inputBlocked || worldInputBlocked() || Boolean(adventure && !this.demoFocused);
-    this.simulation.blocked = blocked || Boolean(adventure?.cast);
+    this.simulation.blocked = blocked || Boolean(adventure?.cast || adventure?.melee);
     const input = this.movement?.getMovement() ?? { x: 0, y: 0, moving: false, sprinting: false };
     // Only a new manual movement gesture resumes follow. An existing auto-run never does.
     if (
@@ -140,6 +142,8 @@ export class RpgScene extends Phaser.Scene {
       this.center();
     }
     const { player, direction, action } = this.simulation;
+    const melee = adventure?.melee;
+    const meleeStyle = melee ? RPG_MELEE_WEAPON_STYLE[melee.weapon.family] : 'slash';
     this.avatar.update(
       player.x,
       player.y,
@@ -148,6 +152,16 @@ export class RpgScene extends Phaser.Scene {
       this.elapsed,
       this.motion.matches,
       adventure?.cast ? (adventure.time - adventure.cast.at) * 1000 : null,
+      melee && adventure
+        ? {
+            elapsedMs:
+              ((adventure.time - melee.at) * 1000 * RPG_MELEE_ANIMATION[meleeStyle].durationMs) /
+              melee.weapon.animationMs,
+            style: meleeStyle,
+            weapon: melee.weapon.family,
+            tier: melee.weapon.tier,
+          }
+        : null,
     );
     this.playerMarker?.setPosition(player.x, player.y - 1).setDepth(player.y - 0.1);
     this.avatar.container.setAlpha(
@@ -394,8 +408,31 @@ export class RpgScene extends Phaser.Scene {
     this.publishUi();
   }
 
-  private activeAdventure(): JungleAdventure | null {
+  private activeAdventure(): AdventureSession | null {
     return this.simulation.sample.demo?.area === 'jungle' ? this.adventureSession : null;
+  }
+
+  public selectMelee(): void {
+    if (!this.created || this.disposed || this.inputBlocked || worldInputBlocked()) return;
+    this.activeAdventure()?.selectMelee();
+    this.publishUi();
+  }
+
+  // Equipment commands are intentionally available while its modal pauses simulation.
+  public equipWeapon(id: string): void {
+    if (!this.created || this.disposed) return;
+    if (this.activeAdventure()?.equip(id)) this.simulation.stop();
+    this.publishUi();
+  }
+
+  public setEnemyLevel(level: number): void {
+    if (!this.created || this.disposed) return;
+    if (this.activeAdventure()?.setEnemyLevel(level)) {
+      this.simulation.stop();
+      this.simulation.player = { ...this.simulation.sample.spawn };
+      this.center();
+    }
+    this.publishUi();
   }
 
   public center(): void {
@@ -509,14 +546,26 @@ export class RpgScene extends Phaser.Scene {
     this.remotes.setPlayers(this.players, this.elapsed);
     if (!sample.demo) this.ambient = new RpgAmbientEntities(this, sample, this.sceneKey);
     if (sample.demo?.jungle) {
-      this.adventureSession ??= new JungleAdventure(
+      this.adventureSession ??= new AdventureSession(
         sample.demo.jungle,
         sample.colliders,
         sample.bounds,
         sample.spawn,
         { durationMs: RPG_CAST_DURATION_MS, releaseMs: RPG_CAST_RELEASE_MS },
+        {
+          equipmentPolicy: DEMO_EQUIPMENT_POLICY,
+          enemyLevelOverride: 1,
+          safeAreas: [
+            {
+              x: sample.bounds.x,
+              y: sample.spawn.y - 64,
+              width: sample.bounds.width,
+              height: sample.bounds.y + sample.bounds.height - sample.spawn.y + 64,
+            },
+          ],
+        },
       );
-      this.adventureRenderer = new JungleAdventureRenderer(this, this.adventureSession);
+      this.adventureRenderer = new AdventureSessionRenderer(this, this.adventureSession);
     }
     this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
@@ -659,6 +708,10 @@ export class RpgScene extends Phaser.Scene {
     if (this.activeAdventure() && (event.code === 'Digit1' || event.code === 'Digit2')) {
       event.preventDefault();
       this.selectSpell(event.code === 'Digit1' ? 'fire' : 'water');
+    }
+    if (this.activeAdventure() && event.code === 'Digit3') {
+      event.preventDefault();
+      this.selectMelee();
     }
     if (event.code === 'Equal' || event.code === 'NumpadAdd') {
       event.preventDefault();

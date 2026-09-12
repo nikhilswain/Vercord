@@ -1,0 +1,16 @@
+Weapon Set #1 free version
+Creator: Truly Malicious / TrulyMalicious
+Source: https://trulymalicious.itch.io/weapon-set-1-free
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Authoritative terms: https://creativecommons.org/licenses/by/4.0/legalcode.en
+License summary: https://creativecommons.org/licenses/by/4.0/
+Reviewed: 2026-09-12
+
+The author permits copying, redistribution and modification, including commercial
+use, with credit to TrulyMalicious. This integration retains attribution and
+license links and identifies its modifications in CREDITS.txt and provenance.json.
+The original author README is retained as SOURCE-README-TrulyMalicious.txt.
+
+The author discloses DALL-E 3 base imagery, subsequently refined and compiled by
+the author, and claims partial rights in those transformations. These assets are
+not represented as solely hand-drawn artwork or as project-owned artwork.

@@ -1,0 +1,16 @@
+CraftPix free asset permission note
+
+Publisher: CraftPix / Free Game Assets (GUI, Sprite, Tilesets)
+Authoritative license: https://craftpix.net/file-licenses/
+Applicable section: 2. FREEBIE PRODUCTS
+Reviewed: 2026-09-12
+
+The author permits personal and commercial game use, modification, and game
+distribution. Attribution is optional. Standalone resale and redistribution as
+reusable artwork, including artwork-export applications, are prohibited.
+This note summarizes the author's terms rather than replacing them.
+
+forest-brute.png and forest-skirmisher.png support gameplay in this application.
+They are not offered as an asset library, download pack or artwork export.
+Original ZIPs and unused source contents remain outside the public game assets.
+See provenance.json for exact source pages, archive hashes and transformations.

@@ -1,0 +1,854 @@
+{
+  "title": "Native LPC held weapon attack layers",
+  "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+  "importedAt": "2026-09-12",
+  "notes": "These LPC animated in-world weapon equivalents are distinct from the TrulyMalicious inventory illustrations. Runtime tier tints preserve native silhouettes. Every composed weapon frame is checked for nonempty pixels; front/behind ordering follows the pinned sheet definitions.",
+  "assets": [
+    {
+      "file": "sword-behind.png",
+      "weapon": "sword",
+      "layer": "behind",
+      "style": "slash",
+      "width": 1152,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 6,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "2fa7875643344d0331e916683f135bdaff11bca9fd9c5a8090efef9d31e18495",
+      "bytes": 26386,
+      "source": {
+        "path": "spritesheets/weapon/sword/longsword/attack_slash/behind/longsword.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/sword/longsword/attack_slash/behind/longsword.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "a6a738ecf97a667feac2e5854a3b8030d22e0a9ff8e8034037d80aa8fd49ac47",
+        "bytes": 5980,
+        "width": 1152,
+        "height": 768,
+        "declaration": [
+          "weapon/sword/longsword",
+          "",
+          "Johannes Sjölund (wulax), bluecarrot16",
+          "OGA-BY 3.0, CC-BY-SA 3.0",
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-extended-weapon-animations",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": ["Johannes Sjölund (wulax)", "bluecarrot16"],
+        "license": "OGA-BY-3.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "OGA-BY-3.0",
+      "authors": ["Johannes Sjölund (wulax)", "bluecarrot16"],
+      "modifications": "Original authored 192px front/back slash frames, unchanged pixels.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_sword_longsword.json",
+      "layerDefinition": {
+        "name": "Longsword",
+        "type_name": "weapon",
+        "layer_1": {
+          "zPos": 140,
+          "male": "weapon/sword/longsword/",
+          "muscular": "weapon/sword/longsword/",
+          "female": "weapon/sword/longsword/",
+          "pregnant": "weapon/sword/longsword/"
+        },
+        "layer_2": {
+          "zPos": 9,
+          "male": "weapon/sword/longsword/universal_behind/",
+          "muscular": "weapon/sword/longsword/universal_behind/",
+          "female": "weapon/sword/longsword/universal_behind/",
+          "pregnant": "weapon/sword/longsword/universal_behind/"
+        },
+        "layer_3": {
+          "zPos": -1,
+          "custom_animation": "slash_oversize",
+          "male": "weapon/sword/longsword/attack_slash/behind/",
+          "muscular": "weapon/sword/longsword/attack_slash/behind/",
+          "female": "weapon/sword/longsword/attack_slash/behind/",
+          "pregnant": "weapon/sword/longsword/attack_slash/behind/"
+        },
+        "layer_4": {
+          "zPos": 150,
+          "custom_animation": "slash_oversize",
+          "male": "weapon/sword/longsword/attack_slash/",
+          "muscular": "weapon/sword/longsword/attack_slash/",
+          "female": "weapon/sword/longsword/attack_slash/",
+          "pregnant": "weapon/sword/longsword/attack_slash/"
+        },
+        "layer_5": {
+          "zPos": -1,
+          "custom_animation": "slash_reverse_oversize",
+          "male": "weapon/sword/longsword/attack_slash_reverse/behind/",
+          "muscular": "weapon/sword/longsword/attack_slash_reverse/behind/",
+          "female": "weapon/sword/longsword/attack_slash_reverse/behind/",
+          "pregnant": "weapon/sword/longsword/attack_slash_reverse/behind/"
+        },
+        "layer_6": {
+          "zPos": 150,
+          "custom_animation": "slash_reverse_oversize",
+          "male": "weapon/sword/longsword/attack_slash_reverse/",
+          "muscular": "weapon/sword/longsword/attack_slash_reverse/",
+          "female": "weapon/sword/longsword/attack_slash_reverse/",
+          "pregnant": "weapon/sword/longsword/attack_slash_reverse/"
+        },
+        "layer_7": {
+          "zPos": -1,
+          "custom_animation": "thrust_oversize",
+          "male": "weapon/sword/longsword/attack_thrust/behind/",
+          "muscular": "weapon/sword/longsword/attack_thrust/behind/",
+          "female": "weapon/sword/longsword/attack_thrust/behind/",
+          "pregnant": "weapon/sword/longsword/attack_thrust/behind/"
+        },
+        "layer_8": {
+          "zPos": 150,
+          "custom_animation": "thrust_oversize",
+          "male": "weapon/sword/longsword/attack_thrust/",
+          "muscular": "weapon/sword/longsword/attack_thrust/",
+          "female": "weapon/sword/longsword/attack_thrust/",
+          "pregnant": "weapon/sword/longsword/attack_thrust/"
+        },
+        "variants": ["longsword"],
+        "credits": [
+          {
+            "file": "weapon/sword/longsword",
+            "notes": "",
+            "authors": ["Johannes Sjölund (wulax)", "bluecarrot16"],
+            "licenses": ["OGA-BY 3.0", "CC-BY-SA 3.0"],
+            "urls": [
+              "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+              "https://opengameart.org/content/lpc-extended-weapon-animations"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "file": "sword-front.png",
+      "weapon": "sword",
+      "layer": "front",
+      "style": "slash",
+      "width": 1152,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 6,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "f32a8fe00ec8b0e37b56f054cd49b1161eaf238e45f6f16fdeb5cfc3895c8e6c",
+      "bytes": 28402,
+      "source": {
+        "path": "spritesheets/weapon/sword/longsword/attack_slash/longsword.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/sword/longsword/attack_slash/longsword.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "8029f684fa9275bd459cafe5427a6d06a63bed4aa43d643537d75ca56db88fcd",
+        "bytes": 7030,
+        "width": 1152,
+        "height": 768,
+        "declaration": [
+          "weapon/sword/longsword",
+          "",
+          "Johannes Sjölund (wulax), bluecarrot16",
+          "OGA-BY 3.0, CC-BY-SA 3.0",
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-extended-weapon-animations",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": ["Johannes Sjölund (wulax)", "bluecarrot16"],
+        "license": "OGA-BY-3.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "OGA-BY-3.0",
+      "authors": ["Johannes Sjölund (wulax)", "bluecarrot16"],
+      "modifications": "Original authored 192px front/back slash frames, unchanged pixels.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_sword_longsword.json",
+      "layerDefinition": {
+        "name": "Longsword",
+        "type_name": "weapon",
+        "layer_1": {
+          "zPos": 140,
+          "male": "weapon/sword/longsword/",
+          "muscular": "weapon/sword/longsword/",
+          "female": "weapon/sword/longsword/",
+          "pregnant": "weapon/sword/longsword/"
+        },
+        "layer_2": {
+          "zPos": 9,
+          "male": "weapon/sword/longsword/universal_behind/",
+          "muscular": "weapon/sword/longsword/universal_behind/",
+          "female": "weapon/sword/longsword/universal_behind/",
+          "pregnant": "weapon/sword/longsword/universal_behind/"
+        },
+        "layer_3": {
+          "zPos": -1,
+          "custom_animation": "slash_oversize",
+          "male": "weapon/sword/longsword/attack_slash/behind/",
+          "muscular": "weapon/sword/longsword/attack_slash/behind/",
+          "female": "weapon/sword/longsword/attack_slash/behind/",
+          "pregnant": "weapon/sword/longsword/attack_slash/behind/"
+        },
+        "layer_4": {
+          "zPos": 150,
+          "custom_animation": "slash_oversize",
+          "male": "weapon/sword/longsword/attack_slash/",
+          "muscular": "weapon/sword/longsword/attack_slash/",
+          "female": "weapon/sword/longsword/attack_slash/",
+          "pregnant": "weapon/sword/longsword/attack_slash/"
+        },
+        "layer_5": {
+          "zPos": -1,
+          "custom_animation": "slash_reverse_oversize",
+          "male": "weapon/sword/longsword/attack_slash_reverse/behind/",
+          "muscular": "weapon/sword/longsword/attack_slash_reverse/behind/",
+          "female": "weapon/sword/longsword/attack_slash_reverse/behind/",
+          "pregnant": "weapon/sword/longsword/attack_slash_reverse/behind/"
+        },
+        "layer_6": {
+          "zPos": 150,
+          "custom_animation": "slash_reverse_oversize",
+          "male": "weapon/sword/longsword/attack_slash_reverse/",
+          "muscular": "weapon/sword/longsword/attack_slash_reverse/",
+          "female": "weapon/sword/longsword/attack_slash_reverse/",
+          "pregnant": "weapon/sword/longsword/attack_slash_reverse/"
+        },
+        "layer_7": {
+          "zPos": -1,
+          "custom_animation": "thrust_oversize",
+          "male": "weapon/sword/longsword/attack_thrust/behind/",
+          "muscular": "weapon/sword/longsword/attack_thrust/behind/",
+          "female": "weapon/sword/longsword/attack_thrust/behind/",
+          "pregnant": "weapon/sword/longsword/attack_thrust/behind/"
+        },
+        "layer_8": {
+          "zPos": 150,
+          "custom_animation": "thrust_oversize",
+          "male": "weapon/sword/longsword/attack_thrust/",
+          "muscular": "weapon/sword/longsword/attack_thrust/",
+          "female": "weapon/sword/longsword/attack_thrust/",
+          "pregnant": "weapon/sword/longsword/attack_thrust/"
+        },
+        "variants": ["longsword"],
+        "credits": [
+          {
+            "file": "weapon/sword/longsword",
+            "notes": "",
+            "authors": ["Johannes Sjölund (wulax)", "bluecarrot16"],
+            "licenses": ["OGA-BY 3.0", "CC-BY-SA 3.0"],
+            "urls": [
+              "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+              "https://opengameart.org/content/lpc-extended-weapon-animations"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "file": "axe-behind.png",
+      "weapon": "axe",
+      "layer": "behind",
+      "style": "slash",
+      "width": 1152,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 6,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "39983430cccbdb612d8711c4aab9756f8c2837f027a7011e49884ee73818ed68",
+      "bytes": 26342,
+      "source": {
+        "path": "spritesheets/weapon/blunt/waraxe/attack_slash/behind/waraxe.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/blunt/waraxe/attack_slash/behind/waraxe.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "c96ef55d5bd7c6aa5361e6b0e74db2ad4507c94f5e68f5f87148342a81f5d71e",
+        "bytes": 5877,
+        "width": 1152,
+        "height": 768,
+        "declaration": [
+          "weapon/blunt/waraxe",
+          "",
+          "Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia)",
+          "CC-BY-SA 3.0, GPL 3.0",
+          "https://opengameart.org/content/lpc-medieval-weapons",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": [
+          "Benjamin K. Smith (BenCreating)",
+          "bluecarrot16",
+          "Sander Frenken (castelonia)"
+        ],
+        "license": "CC-BY-SA-3.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "CC-BY-SA-3.0",
+      "authors": ["Benjamin K. Smith (BenCreating)", "bluecarrot16", "Sander Frenken (castelonia)"],
+      "modifications": "Original authored 192px front/back slash frames, unchanged pixels.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_blunt_waraxe.json",
+      "layerDefinition": {
+        "name": "Waraxe",
+        "type_name": "weapon",
+        "layer_1": {
+          "zPos": 9,
+          "male": "weapon/blunt/waraxe/behind/",
+          "muscular": "weapon/blunt/waraxe/behind/",
+          "female": "weapon/blunt/waraxe/behind/",
+          "pregnant": "weapon/blunt/waraxe/behind/"
+        },
+        "layer_2": {
+          "zPos": 140,
+          "male": "weapon/blunt/waraxe/",
+          "muscular": "weapon/blunt/waraxe/",
+          "female": "weapon/blunt/waraxe/",
+          "pregnant": "weapon/blunt/waraxe/"
+        },
+        "layer_3": {
+          "custom_animation": "slash_oversize",
+          "zPos": 8,
+          "male": "weapon/blunt/waraxe/attack_slash/behind/",
+          "muscular": "weapon/blunt/waraxe/attack_slash/behind/",
+          "female": "weapon/blunt/waraxe/attack_slash/behind/",
+          "pregnant": "weapon/blunt/waraxe/attack_slash/behind/"
+        },
+        "layer_4": {
+          "custom_animation": "slash_oversize",
+          "zPos": 150,
+          "male": "weapon/blunt/waraxe/attack_slash/",
+          "muscular": "weapon/blunt/waraxe/attack_slash/",
+          "female": "weapon/blunt/waraxe/attack_slash/",
+          "pregnant": "weapon/blunt/waraxe/attack_slash/"
+        },
+        "variants": ["waraxe"],
+        "credits": [
+          {
+            "file": "weapon/blunt/waraxe",
+            "notes": "",
+            "authors": [
+              "Benjamin K. Smith (BenCreating)",
+              "bluecarrot16",
+              "Sander Frenken (castelonia)"
+            ],
+            "licenses": ["CC-BY-SA 3.0", "GPL 3.0"],
+            "urls": ["https://opengameart.org/content/lpc-medieval-weapons"]
+          }
+        ]
+      }
+    },
+    {
+      "file": "axe-front.png",
+      "weapon": "axe",
+      "layer": "front",
+      "style": "slash",
+      "width": 1152,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 6,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "75fd6444c584adb593096afe31d4f143b97877c220bd6583f40726b8d50c5e3f",
+      "bytes": 29390,
+      "source": {
+        "path": "spritesheets/weapon/blunt/waraxe/attack_slash/waraxe.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/blunt/waraxe/attack_slash/waraxe.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "de38d6ded81bb7336fc52ee324531632a719d801bbf0214a8497dd4c9d35cfc5",
+        "bytes": 7174,
+        "width": 1152,
+        "height": 768,
+        "declaration": [
+          "weapon/blunt/waraxe",
+          "",
+          "Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia)",
+          "CC-BY-SA 3.0, GPL 3.0",
+          "https://opengameart.org/content/lpc-medieval-weapons",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": [
+          "Benjamin K. Smith (BenCreating)",
+          "bluecarrot16",
+          "Sander Frenken (castelonia)"
+        ],
+        "license": "CC-BY-SA-3.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "CC-BY-SA-3.0",
+      "authors": ["Benjamin K. Smith (BenCreating)", "bluecarrot16", "Sander Frenken (castelonia)"],
+      "modifications": "Original authored 192px front/back slash frames, unchanged pixels.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_blunt_waraxe.json",
+      "layerDefinition": {
+        "name": "Waraxe",
+        "type_name": "weapon",
+        "layer_1": {
+          "zPos": 9,
+          "male": "weapon/blunt/waraxe/behind/",
+          "muscular": "weapon/blunt/waraxe/behind/",
+          "female": "weapon/blunt/waraxe/behind/",
+          "pregnant": "weapon/blunt/waraxe/behind/"
+        },
+        "layer_2": {
+          "zPos": 140,
+          "male": "weapon/blunt/waraxe/",
+          "muscular": "weapon/blunt/waraxe/",
+          "female": "weapon/blunt/waraxe/",
+          "pregnant": "weapon/blunt/waraxe/"
+        },
+        "layer_3": {
+          "custom_animation": "slash_oversize",
+          "zPos": 8,
+          "male": "weapon/blunt/waraxe/attack_slash/behind/",
+          "muscular": "weapon/blunt/waraxe/attack_slash/behind/",
+          "female": "weapon/blunt/waraxe/attack_slash/behind/",
+          "pregnant": "weapon/blunt/waraxe/attack_slash/behind/"
+        },
+        "layer_4": {
+          "custom_animation": "slash_oversize",
+          "zPos": 150,
+          "male": "weapon/blunt/waraxe/attack_slash/",
+          "muscular": "weapon/blunt/waraxe/attack_slash/",
+          "female": "weapon/blunt/waraxe/attack_slash/",
+          "pregnant": "weapon/blunt/waraxe/attack_slash/"
+        },
+        "variants": ["waraxe"],
+        "credits": [
+          {
+            "file": "weapon/blunt/waraxe",
+            "notes": "",
+            "authors": [
+              "Benjamin K. Smith (BenCreating)",
+              "bluecarrot16",
+              "Sander Frenken (castelonia)"
+            ],
+            "licenses": ["CC-BY-SA 3.0", "GPL 3.0"],
+            "urls": ["https://opengameart.org/content/lpc-medieval-weapons"]
+          }
+        ]
+      }
+    },
+    {
+      "file": "spear-behind.png",
+      "weapon": "spear",
+      "layer": "behind",
+      "style": "thrust",
+      "width": 1536,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "57fe1cecbcb48b610e897c615f28ea4e372909fdffeac9cc63905a48701fd98c",
+      "bytes": 27786,
+      "source": {
+        "path": "spritesheets/weapon/polearm/spear/background/steel.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/polearm/spear/background/steel.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "85f689fb28ac61d882fdfad8302395b6553557484c59e96828b9015b881af9c2",
+        "bytes": 8964,
+        "width": 832,
+        "height": 1344,
+        "declaration": [
+          "weapon/polearm/spear",
+          "original by wulax",
+          " walk animations redone by pvigier",
+          " split into layers and tweaked for v3 character bases by bluecarrot16",
+          "Pierre Vigier (pvigier), Johannes Sjölund (wulax), Inboxninja",
+          "CC-BY-SA 3.0",
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-spear-and-shovel-reworked",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": ["Pierre Vigier (pvigier)", "Johannes Sjölund (wulax)", "Inboxninja"],
+        "license": "CC-BY-SA-3.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "CC-BY-SA-3.0",
+      "authors": ["Pierre Vigier (pvigier)", "Johannes Sjölund (wulax)", "Inboxninja"],
+      "modifications": "Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_polearm_spear.json",
+      "layerDefinition": {
+        "name": "Spear",
+        "type_name": "weapon",
+        "preview_row": 11,
+        "preview_column": 0,
+        "layer_1": {
+          "zPos": 140,
+          "male": "weapon/polearm/spear/foreground/",
+          "muscular": "weapon/polearm/spear/foreground/",
+          "female": "weapon/polearm/spear/foreground/",
+          "teen": "weapon/polearm/spear/foreground/",
+          "pregnant": "weapon/polearm/spear/foreground/"
+        },
+        "layer_2": {
+          "zPos": 9,
+          "male": "weapon/polearm/spear/background/",
+          "muscular": "weapon/polearm/spear/background/",
+          "female": "weapon/polearm/spear/background/",
+          "teen": "weapon/polearm/spear/background/",
+          "pregnant": "weapon/polearm/spear/background/"
+        },
+        "variants": [
+          "medium",
+          "light",
+          "red",
+          "dark",
+          "brass",
+          "bronze",
+          "ceramic",
+          "copper",
+          "gold",
+          "iron",
+          "silver",
+          "steel"
+        ],
+        "credits": [
+          {
+            "file": "weapon/polearm/spear",
+            "notes": "original by wulax",
+            "authors": ["walk animations redone by pvigier"],
+            "licenses": ["split into layers and tweaked for v3 character bases by bluecarrot16"],
+            "urls": [
+              "Pierre Vigier (pvigier), Johannes Sjölund (wulax), Inboxninja",
+              "CC-BY-SA 3.0",
+              "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+              "https://opengameart.org/content/lpc-spear-and-shovel-reworked"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "file": "spear-front.png",
+      "weapon": "spear",
+      "layer": "front",
+      "style": "thrust",
+      "width": 1536,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "84a68879cefa0667849711d4dcce46176f1b716c624776f0192d201951832910",
+      "bytes": 30088,
+      "source": {
+        "path": "spritesheets/weapon/polearm/spear/foreground/steel.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/polearm/spear/foreground/steel.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "49909917d7f3ca1abbacdfb6349087231445e7aeaa079c1c1427ee42ba570a77",
+        "bytes": 7881,
+        "width": 832,
+        "height": 1344,
+        "declaration": [
+          "weapon/polearm/spear",
+          "original by wulax",
+          " walk animations redone by pvigier",
+          " split into layers and tweaked for v3 character bases by bluecarrot16",
+          "Pierre Vigier (pvigier), Johannes Sjölund (wulax), Inboxninja",
+          "CC-BY-SA 3.0",
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-spear-and-shovel-reworked",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": ["Pierre Vigier (pvigier)", "Johannes Sjölund (wulax)", "Inboxninja"],
+        "license": "CC-BY-SA-3.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "CC-BY-SA-3.0",
+      "authors": ["Pierre Vigier (pvigier)", "Johannes Sjölund (wulax)", "Inboxninja"],
+      "modifications": "Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_polearm_spear.json",
+      "layerDefinition": {
+        "name": "Spear",
+        "type_name": "weapon",
+        "preview_row": 11,
+        "preview_column": 0,
+        "layer_1": {
+          "zPos": 140,
+          "male": "weapon/polearm/spear/foreground/",
+          "muscular": "weapon/polearm/spear/foreground/",
+          "female": "weapon/polearm/spear/foreground/",
+          "teen": "weapon/polearm/spear/foreground/",
+          "pregnant": "weapon/polearm/spear/foreground/"
+        },
+        "layer_2": {
+          "zPos": 9,
+          "male": "weapon/polearm/spear/background/",
+          "muscular": "weapon/polearm/spear/background/",
+          "female": "weapon/polearm/spear/background/",
+          "teen": "weapon/polearm/spear/background/",
+          "pregnant": "weapon/polearm/spear/background/"
+        },
+        "variants": [
+          "medium",
+          "light",
+          "red",
+          "dark",
+          "brass",
+          "bronze",
+          "ceramic",
+          "copper",
+          "gold",
+          "iron",
+          "silver",
+          "steel"
+        ],
+        "credits": [
+          {
+            "file": "weapon/polearm/spear",
+            "notes": "original by wulax",
+            "authors": ["walk animations redone by pvigier"],
+            "licenses": ["split into layers and tweaked for v3 character bases by bluecarrot16"],
+            "urls": [
+              "Pierre Vigier (pvigier), Johannes Sjölund (wulax), Inboxninja",
+              "CC-BY-SA 3.0",
+              "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+              "https://opengameart.org/content/lpc-spear-and-shovel-reworked"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "file": "staff-behind.png",
+      "weapon": "staff",
+      "layer": "behind",
+      "style": "thrust",
+      "width": 1536,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "9a6593e420857fa09ecbf0e552d0fc0d35a2db35a4508c74839e555e836a29ff",
+      "bytes": 28565,
+      "source": {
+        "path": "spritesheets/weapon/magic/simple/background/simple.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/magic/simple/background/simple.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "0b615ef72ba566c201c077a208789bd99fbe0653225bf87642c4abf5de56422c",
+        "bytes": 8264,
+        "width": 832,
+        "height": 1344,
+        "declaration": [
+          "weapon/magic/simple",
+          "original by DrJamgo, hands switched and split into to layers by bluecarrot16",
+          "bluecarrot16, Dr. Jamgo",
+          "CC0",
+          "https://opengameart.org/content/lpc-simple-staff",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": ["bluecarrot16", "Dr. Jamgo"],
+        "license": "CC0-1.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "CC0-1.0",
+      "authors": ["bluecarrot16", "Dr. Jamgo"],
+      "modifications": "Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_magic_simple.json",
+      "layerDefinition": {
+        "name": "Simple staff",
+        "type_name": "weapon",
+        "layer_1": {
+          "zPos": 140,
+          "male": "weapon/magic/simple/foreground/",
+          "muscular": "weapon/magic/simple/foreground/",
+          "female": "weapon/magic/simple/foreground/",
+          "teen": "weapon/magic/simple/foreground/",
+          "pregnant": "weapon/magic/simple/foreground/"
+        },
+        "layer_2": {
+          "zPos": 9,
+          "male": "weapon/magic/simple/background/",
+          "muscular": "weapon/magic/simple/background/",
+          "female": "weapon/magic/simple/background/",
+          "teen": "weapon/magic/simple/background/",
+          "pregnant": "weapon/magic/simple/background/"
+        },
+        "variants": ["simple"],
+        "credits": [
+          {
+            "file": "weapon/magic/simple",
+            "notes": "original by DrJamgo, hands switched and split into to layers by bluecarrot16",
+            "authors": ["bluecarrot16", "Dr. Jamgo"],
+            "licenses": ["CC0"],
+            "urls": ["https://opengameart.org/content/lpc-simple-staff"]
+          }
+        ]
+      }
+    },
+    {
+      "file": "staff-front.png",
+      "weapon": "staff",
+      "layer": "front",
+      "style": "thrust",
+      "width": 1536,
+      "height": 768,
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "bodyOffset": [64, 64],
+      "framesPerDirection": 8,
+      "directions": ["up", "left", "down", "right"],
+      "sha256": "b1cc17a03513a768e30f90ad5d1cebe5af8ec8504d221498a56dce28335194a7",
+      "bytes": 31267,
+      "source": {
+        "path": "spritesheets/weapon/magic/simple/foreground/simple.png",
+        "source": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/magic/simple/foreground/simple.png",
+        "revision": "675e21e04aaff8486a3a24e09573b3d5af9d28b9",
+        "sha256": "b42a665804dc805601c41b5c913204370ebbb4332eecd6122b856694ee2f30c3",
+        "bytes": 9272,
+        "width": 832,
+        "height": 1344,
+        "declaration": [
+          "weapon/magic/simple",
+          "original by DrJamgo, hands switched and split into to layers by bluecarrot16",
+          "bluecarrot16, Dr. Jamgo",
+          "CC0",
+          "https://opengameart.org/content/lpc-simple-staff",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OK"
+        ],
+        "authors": ["bluecarrot16", "Dr. Jamgo"],
+        "license": "CC0-1.0",
+        "creditDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/CREDITS.csv"
+      },
+      "license": "CC0-1.0",
+      "authors": ["bluecarrot16", "Dr. Jamgo"],
+      "modifications": "Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.",
+      "layerDeclaration": "https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/sheet_definitions/weapon_magic_simple.json",
+      "layerDefinition": {
+        "name": "Simple staff",
+        "type_name": "weapon",
+        "layer_1": {
+          "zPos": 140,
+          "male": "weapon/magic/simple/foreground/",
+          "muscular": "weapon/magic/simple/foreground/",
+          "female": "weapon/magic/simple/foreground/",
+          "teen": "weapon/magic/simple/foreground/",
+          "pregnant": "weapon/magic/simple/foreground/"
+        },
+        "layer_2": {
+          "zPos": 9,
+          "male": "weapon/magic/simple/background/",
+          "muscular": "weapon/magic/simple/background/",
+          "female": "weapon/magic/simple/background/",
+          "teen": "weapon/magic/simple/background/",
+          "pregnant": "weapon/magic/simple/background/"
+        },
+        "variants": ["simple"],
+        "credits": [
+          {
+            "file": "weapon/magic/simple",
+            "notes": "original by DrJamgo, hands switched and split into to layers by bluecarrot16",
+            "authors": ["bluecarrot16", "Dr. Jamgo"],
+            "licenses": ["CC0"],
+            "urls": ["https://opengameart.org/content/lpc-simple-staff"]
+          }
+        ]
+      }
+    }
+  ]
+}

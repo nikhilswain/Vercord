@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { JungleAdventure } from '../src/features/rpg/demo/adventure';
+import { AdventureSession } from '../src/features/rpg/adventure/session';
 import { buildJungleDemo, buildComparisonVillage } from '../src/features/rpg/demo/scenes';
 import { RpgPathfinder } from '../src/features/rpg/pathfinding';
 import { WORLD_PLAYER_FEET, footprint, sceneIsReachable } from '../src/domain/world/geometry';
@@ -8,7 +8,7 @@ import { overlaps } from '../src/features/world/engine/collision';
 const bounds = { x: 0, y: 0, width: 1000, height: 1000 };
 const player = { x: 250, y: 250 };
 const make = (walls: (typeof bounds)[] = []) =>
-  new JungleAdventure(
+  new AdventureSession(
     {
       enemies: [{ id: 'target', kind: 'slime', x: 250, y: 370 }],
       flowers: [
@@ -22,7 +22,7 @@ const make = (walls: (typeof bounds)[] = []) =>
     bounds,
     { x: 250, y: 900 },
   );
-const advance = (m: JungleAdventure, seconds: number, p = player) => {
+const advance = (m: AdventureSession, seconds: number, p = player) => {
   for (let i = 0; i < seconds * 100; i++) m.tick(0.01, p);
 };
 const m = make();
@@ -42,7 +42,7 @@ blocked.attack(player, 'down');
 advance(blocked, 1.8);
 assert.equal(blocked.enemies[0]!.health, 50, 'wall stops projectile');
 assert.equal(blocked.projectiles.length, 0);
-const corner = new JungleAdventure(
+const corner = new AdventureSession(
   { enemies: [{ id: 'corner', kind: 'slime', x: 111, y: 96 }], flowers: [], water: [] },
   [{ x: 100, y: 100, width: 20.48, height: 14.4 }],
   bounds,
@@ -72,7 +72,7 @@ assert.equal(progress.projectiles.length, 0);
 assert.equal(progress.cast, null);
 assert.equal(progress.gathered.size, 3);
 
-const trap = new JungleAdventure(
+const trap = new AdventureSession(
   { enemies: [], flowers: [], water: [], traps: [{ id: 'spikes', x: 250, y: 250, offset: 0 }] },
   [],
   bounds,
@@ -89,7 +89,7 @@ assert.equal(
   village.npcs.some((npc) => npc.id.includes('tiago')),
   false,
 );
-assert.equal(jungle.demo!.jungle!.enemies.length, 6);
+assert.equal(jungle.demo!.jungle!.enemies.length, 8);
 assert(sceneIsReachable(village));
 const pf = new RpgPathfinder(jungle.bounds, jungle.colliders, WORLD_PLAYER_FEET);
 for (const point of [

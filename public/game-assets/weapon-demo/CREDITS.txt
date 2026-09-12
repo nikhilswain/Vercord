@@ -1,0 +1,24 @@
+Weapon Set #1 free version — Truly Malicious / TrulyMalicious
+Source: https://trulymalicious.itch.io/weapon-set-1-free
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+24 static inventory images were cropped to remove empty margins, resized with
+Lanczos sampling, and centered on transparent 128x128 canvases for this game.
+No elemental/premium weapon artwork is included. Source artwork was based on
+DALL-E 3 images and manually refined, optimized and compiled by TrulyMalicious,
+who claims partial rights in those transformations. See the retained source
+README for the author's license and disclaimer. No author endorsement is implied.
+
+Additional animated forest fighters — CraftPix / Free Game Assets
+Source: https://craftpix.net/freebies/free-forest-bosses-pixel-art-sprite-sheet-pack/
+Download: https://free-game-assets.itch.io/free-forest-bosses-pixel-art-sprite-sheet-pack
+License: https://craftpix.net/file-licenses/ (section 2, Freebie Products)
+
+Characters 2 and 3 use their native idle, walk, attack, hurt and death frames.
+Empty margins were cropped; opposite-facing frames were mirrored. No animation
+frames were invented. These are from the separate pixel forest pack, not the
+requested modular vector tribal warrior pack. Attribution to CraftPix is optional.
+
+Exact source filenames, archive SHA-256 pins, output hashes and preparation
+details are recorded in provenance.json. Original archives remain outside public/.

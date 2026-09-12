@@ -1,0 +1,51 @@
+Native LPC held weapon attacks
+
+These animated weapon layers are distinct from the TrulyMalicious inventory illustrations. Source revision 675e21e04aaff8486a3a24e09573b3d5af9d28b9. Each imported source, author, license, SHA-256 and modification is recorded in manifest.json.
+
+sword-behind.png
+Authors: Johannes Sjölund (wulax), bluecarrot16
+License: OGA-BY-3.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/sword/longsword/attack_slash/behind/longsword.png
+Modifications: Original authored 192px front/back slash frames, unchanged pixels.
+
+sword-front.png
+Authors: Johannes Sjölund (wulax), bluecarrot16
+License: OGA-BY-3.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/sword/longsword/attack_slash/longsword.png
+Modifications: Original authored 192px front/back slash frames, unchanged pixels.
+
+axe-behind.png
+Authors: Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia)
+License: CC-BY-SA-3.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/blunt/waraxe/attack_slash/behind/waraxe.png
+Modifications: Original authored 192px front/back slash frames, unchanged pixels.
+
+axe-front.png
+Authors: Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia)
+License: CC-BY-SA-3.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/blunt/waraxe/attack_slash/waraxe.png
+Modifications: Original authored 192px front/back slash frames, unchanged pixels.
+
+spear-behind.png
+Authors: Pierre Vigier (pvigier), Johannes Sjölund (wulax), Inboxninja
+License: CC-BY-SA-3.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/polearm/spear/background/steel.png
+Modifications: Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.
+
+spear-front.png
+Authors: Pierre Vigier (pvigier), Johannes Sjölund (wulax), Inboxninja
+License: CC-BY-SA-3.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/polearm/spear/foreground/steel.png
+Modifications: Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.
+
+staff-behind.png
+Authors: bluecarrot16, Dr. Jamgo
+License: CC0-1.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/magic/simple/background/simple.png
+Modifications: Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.
+
+staff-front.png
+Authors: bluecarrot16, Dr. Jamgo
+License: CC0-1.0
+Source: https://raw.githubusercontent.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/675e21e04aaff8486a3a24e09573b3d5af9d28b9/spritesheets/weapon/magic/simple/foreground/simple.png
+Modifications: Authored 64px thrust cells placed at (64,64) in 192px cells; transparent padding only. No scaling, rotation or weapon translation relative to the body.

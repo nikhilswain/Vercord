@@ -1,4 +1,5 @@
 import { Dialog } from '../../components/Dialog';
+import { EquipmentDialog } from './demo/EquipmentDialog';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
 import type { HouseSceneId } from '../../domain/world/catalog/scenes';
 import type { Point } from '../world/engine/types';
@@ -11,12 +12,13 @@ import RpgAtlasDialog from './atlas/RpgAtlasDialog';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgSample, RpgThemeId, RpgUiState } from './types';
 
-export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu';
+export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu' | 'equipment';
 const titles: Record<RpgPanel, string> = {
   map: 'A little sense of direction',
   guide: 'A traveler’s guide',
   appearance: 'Choose your traveler',
   menu: 'By the wayside',
+  equipment: 'Equipment',
 };
 
 interface Props {
@@ -37,6 +39,8 @@ interface Props {
     onStreet(street: string): void;
   };
   onClose(): void;
+  onEquip(id: string): void;
+  onApplyEnemyLevel(level: number): void;
   onTheme(destination: RpgDestination): void;
   onAppearance(id: string): void;
   onFocus?(point: Point): void;
@@ -52,11 +56,23 @@ export function RpgPanels({
   house,
   server,
   onClose,
+  onEquip,
+  onApplyEnemyLevel,
   onTheme,
   onAppearance,
   onFocus,
 }: Props) {
   const place = RPG_THEMES[theme];
+  if (panel === 'equipment' && ui.adventure)
+    return (
+      <EquipmentDialog
+        open
+        status={ui.adventure}
+        onClose={onClose}
+        onEquip={onEquip}
+        onApplyEnemyLevel={onApplyEnemyLevel}
+      />
+    );
   const home = RPG_THEMES[world];
   const appearances = RPG_APPEARANCES.filter((option) =>
     (home.appearances as readonly string[]).includes(option.id),
@@ -127,12 +143,12 @@ export function RpgPanels({
           {sample.demo && (
             <p>
               <strong>Mosswild Jungle:</strong> follow the northwest village path and press E at the
-              jungle sign. Space or J casts toward the nearest creature ahead; turn with WASD to
-              aim. Press 1 for Ember, or 2 for Tide after reaching level 2. Fire burns; water slows
-              and pushes enemies. Step away from warning circles to dodge. Gather flowers with E and
-              gain experience. H uses a healing herb. The southern trail returns to Willowmere. Your
-              progress stays between those two areas; reloading or changing world themes starts a
-              new adventure.
+              jungle sign. I opens equipment: all 24 weapons are available here. Press 3 to use your
+              weapon, then Space or J to attack; turn with WASD to aim. Press 1 for Ember, or 2 for
+              Tide after reaching level 2. Fire burns; water slows and pushes enemies. Step away
+              from warning circles to dodge. Gather flowers with E and gain experience. H uses a
+              healing herb. The southern trail returns to Willowmere. Your progress stays between
+              those two areas; reloading or changing world themes starts a new adventure.
             </p>
           )}
           <p>
@@ -298,6 +314,27 @@ export function RpgPanels({
               bluecarrot16, also under OGA-BY 3.0. Frosthavn buildings and ground artwork are
               original to Dmap. Pixelify Sans uses the SIL Open Font License.
             </p>
+            {sample.demo && (
+              <p>
+                Inventory weapon art by{' '}
+                <a
+                  href="https://trulymalicious.itch.io/weapon-set-1-free"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Truly Malicious
+                </a>{' '}
+                (CC BY 4.0). Held weapons and attack poses use credited LPC animation layers.
+                Additional animated forest enemies are by CraftPix.{' '}
+                <a href="/game-assets/weapon-demo/CREDITS.txt" target="_blank" rel="noreferrer">
+                  Weapon and enemy credits
+                </a>
+                {' · '}
+                <a href="/game-assets/lpc-weapons/CREDITS.txt" target="_blank" rel="noreferrer">
+                  Melee animation credits
+                </a>
+              </p>
+            )}
             <a href="/game-assets/lpc-characters/CREDITS.txt" target="_blank" rel="noreferrer">
               Character credits
             </a>

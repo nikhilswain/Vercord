@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { worldInputBlocked } from '../world/engine/input';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
 import { rpgAppearanceSchema, type RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { isHouseSceneId, type HouseSceneId } from '../../domain/world/catalog/scenes';
@@ -180,6 +181,27 @@ export function RpgPlayPage({
     playerPosition: server?.connection?.position,
   });
   const suspended = Boolean(pendingState) || networkPending || status !== 'ready' || demoTransition;
+  const hasAdventure = Boolean(ui.adventure);
+  useEffect(() => {
+    if (suspended || !hasAdventure || panel || speech || channelOpen || rosterOpen) return;
+    const openEquipment = (event: KeyboardEvent) => {
+      if (
+        event.code !== 'KeyI' ||
+        event.repeat ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        worldInputBlocked(event.target)
+      )
+        return;
+      event.preventDefault();
+      setPanel('equipment');
+    };
+    window.addEventListener('keydown', openEquipment);
+    return () => window.removeEventListener('keydown', openEquipment);
+  }, [suspended, hasAdventure, panel, speech, channelOpen, rosterOpen]);
   const [overlayOwner, setOverlayOwner] = useState({
     sample,
     navigationKey,
@@ -319,6 +341,8 @@ export function RpgPlayPage({
             onAttack={() => runtimeRef.current?.attack?.()}
             onHeal={() => runtimeRef.current?.heal?.()}
             onSpell={(spell) => runtimeRef.current?.selectSpell?.(spell)}
+            onMelee={() => runtimeRef.current?.selectMelee?.()}
+            onEquipment={() => setPanel('equipment')}
           />
         )}
         {!suspended && !panel && !speech && sample.demo?.area === 'village' && (
@@ -493,7 +517,12 @@ export function RpgPlayPage({
         sample={sample}
         house={route.house}
         server={server ? { ...server, onStreet: selectStreet } : undefined}
-        onClose={() => setPanel(null)}
+        onClose={() => {
+          setPanel(null);
+          if (panel === 'equipment') requestAnimationFrame(() => canvasRef.current?.focus());
+        }}
+        onEquip={(id) => runtimeRef.current?.equipWeapon?.(id)}
+        onApplyEnemyLevel={(level) => runtimeRef.current?.setEnemyLevel?.(level)}
         onTheme={travel}
         onAppearance={(id) => {
           const parsed = rpgAppearanceSchema.safeParse(id);

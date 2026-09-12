@@ -1,6 +1,15 @@
 import type Phaser from 'phaser';
 import type { RpgAction, RpgDirection } from './types';
 import {
+  preloadRpgMeleeWeapons,
+  RPG_MELEE_ANIMATION,
+  RPG_MELEE_WEAPON_ORIGIN_Y,
+  RPG_MELEE_WEAPON_STYLE,
+  rpgMeleeWeaponTexture,
+  rpgMeleeWeaponTint,
+  type RpgMeleePose,
+} from './melee-assets';
+import {
   getRpgCharacter,
   RPG_CHARACTER_ASSET_ROOT,
   RPG_CHARACTER_DEFINITIONS,
@@ -11,8 +20,8 @@ import {
 const FRAME_SIZE = 64;
 const FEET_Y = 62;
 const LAYERS = RPG_CHARACTER_LAYERS;
-type CharacterPose = RpgAction | 'cast';
-const ACTIONS: CharacterPose[] = ['idle', 'walk', 'run', 'cast'];
+type CharacterPose = RpgAction | 'cast' | 'slash' | 'thrust';
+const ACTIONS: CharacterPose[] = ['idle', 'walk', 'run', 'cast', 'slash', 'thrust'];
 /** Seven authored LPC spellcast poses; release begins at the extended-arm frame. */
 export const RPG_CAST_DURATION_MS = 700;
 export const RPG_CAST_RELEASE_MS = 400;
@@ -22,6 +31,8 @@ const ANIMATION: Record<CharacterPose, { frames: number; frameMs: number }> = {
   walk: { frames: 8, frameMs: 110 },
   run: { frames: 8, frameMs: 75 },
   cast: { frames: 7, frameMs: 100 },
+  slash: RPG_MELEE_ANIMATION.slash,
+  thrust: RPG_MELEE_ANIMATION.thrust,
 };
 
 export const RPG_APPEARANCES = RPG_CHARACTER_DEFINITIONS;
@@ -35,11 +46,13 @@ function textureKey(appearance: string, layer: RpgCharacterLayer, action: Charac
 }
 
 export function preloadRpgCharacters(scene: Phaser.Scene, includeCasting = false): void {
+  if (includeCasting) preloadRpgMeleeWeapons(scene);
   const queued = new Set<string>();
   for (const { id } of RPG_APPEARANCES) {
     for (const layer of LAYERS) {
       for (const action of ACTIONS) {
-        if (action === 'cast' && !includeCasting) continue;
+        if ((action === 'cast' || action === 'slash' || action === 'thrust') && !includeCasting)
+          continue;
         const key = textureKey(id, layer, action);
         if (scene.textures.exists(key) || queued.has(key)) continue;
         queued.add(key);
@@ -61,6 +74,8 @@ export function preloadRpgCharacters(scene: Phaser.Scene, includeCasting = false
 export class RpgCharacter {
   readonly container: Phaser.GameObjects.Container;
   private readonly layers: Phaser.GameObjects.Image[];
+  private readonly weaponBehind: Phaser.GameObjects.Image;
+  private readonly weaponFront: Phaser.GameObjects.Image;
   private appearance: string;
   private direction: RpgDirection = 'down';
   private action: CharacterPose = 'idle';
@@ -79,7 +94,16 @@ export class RpgCharacter {
       if (tint !== undefined) sprite.setTint(tint);
       return sprite;
     });
-    this.container.add([shadow, ...this.layers]);
+    // Oversized LPC weapon cells put the 64px body at (64,64), preserving authored grips.
+    this.weaponBehind = scene.add
+      .image(0, 0, textureKey(this.appearance, 'body', 'idle'), 0)
+      .setOrigin(0.5, RPG_MELEE_WEAPON_ORIGIN_Y)
+      .setVisible(false);
+    this.weaponFront = scene.add
+      .image(0, 0, textureKey(this.appearance, 'body', 'idle'), 0)
+      .setOrigin(0.5, RPG_MELEE_WEAPON_ORIGIN_Y)
+      .setVisible(false);
+    this.container.add([shadow, this.weaponBehind, ...this.layers, this.weaponFront]);
     this.update(x, y, 'down', 'idle', 0, false);
   }
 
@@ -90,7 +114,7 @@ export class RpgCharacter {
     this.applyTextures();
   }
 
-  /** castElapsedMs is local pose state; it never extends the live presence action contract. */
+  /** Cast/melee are local pose state and never extend the live presence action contract. */
   update(
     x: number,
     y: number,
@@ -99,6 +123,7 @@ export class RpgCharacter {
     time: number,
     reducedMotion: boolean,
     castElapsedMs?: number | null,
+    meleePose?: RpgMeleePose | null,
   ): void {
     this.container.setPosition(x, y).setDepth(y);
     const casting =
@@ -107,7 +132,15 @@ export class RpgCharacter {
       Number.isFinite(castElapsedMs) &&
       castElapsedMs >= 0 &&
       castElapsedMs < RPG_CAST_DURATION_MS;
-    const pose: CharacterPose = casting ? 'cast' : action;
+    const melee =
+      meleePose &&
+      meleePose.style === RPG_MELEE_WEAPON_STYLE[meleePose.weapon] &&
+      Number.isFinite(meleePose.elapsedMs) &&
+      meleePose.elapsedMs >= 0 &&
+      meleePose.elapsedMs < RPG_MELEE_ANIMATION[meleePose.style].durationMs
+        ? meleePose
+        : undefined;
+    const pose: CharacterPose = melee ? melee.style : casting ? 'cast' : action;
     if (pose !== this.action || direction !== this.direction) {
       const changedAction = pose !== this.action;
       this.direction = direction;
@@ -119,12 +152,25 @@ export class RpgCharacter {
 
     const animation = ANIMATION[pose];
     // Idle breathing is decorative; retain movement feedback with reduced motion.
-    const column = casting
-      ? Math.min(animation.frames - 1, Math.floor(castElapsedMs / animation.frameMs))
-      : reducedMotion && pose === 'idle'
-        ? 0
-        : Math.floor(Math.max(0, time - this.startedAt) / animation.frameMs) % animation.frames;
+    const column = melee
+      ? Math.min(animation.frames - 1, Math.floor(melee.elapsedMs / animation.frameMs))
+      : casting
+        ? Math.min(animation.frames - 1, Math.floor(castElapsedMs / animation.frameMs))
+        : reducedMotion && pose === 'idle'
+          ? 0
+          : Math.floor(Math.max(0, time - this.startedAt) / animation.frameMs) % animation.frames;
     const frame = DIRECTION_ROW[direction] * animation.frames + column;
+    this.weaponBehind.setVisible(Boolean(melee));
+    this.weaponFront.setVisible(Boolean(melee));
+    if (melee) {
+      const tint = rpgMeleeWeaponTint(melee.tier);
+      this.weaponBehind
+        .setTexture(rpgMeleeWeaponTexture(melee.weapon, 'behind'), frame)
+        .setTint(tint);
+      this.weaponFront
+        .setTexture(rpgMeleeWeaponTexture(melee.weapon, 'front'), frame)
+        .setTint(tint);
+    }
     if (frame === this.frame) return;
     this.frame = frame;
     for (const layer of this.layers) layer.setFrame(frame);
