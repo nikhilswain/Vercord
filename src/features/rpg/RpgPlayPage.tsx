@@ -19,6 +19,7 @@ import { RpgHouseRoster } from './RpgHouseRoster';
 import { RpgPortrait } from './RpgPortrait';
 import { AdventureHud } from './demo/AdventureHud';
 import type { DemoArea } from './demo/types';
+import { useGameMusic } from '../audio/use-game-music';
 import './rpg.css';
 import './rpg-house.css';
 import './demo/demo.css';
@@ -85,6 +86,7 @@ export function RpgPlayPage({
   pendingState,
 }: Props) {
   const { theme, world } = route;
+  const music = useGameMusic(!server);
   const [appearances, setAppearances] = useState<Record<RpgWorldId, string>>(
     () =>
       Object.fromEntries(
@@ -517,9 +519,12 @@ export function RpgPlayPage({
         sample={sample}
         house={route.house}
         server={server ? { ...server, onStreet: selectStreet } : undefined}
+        music={music}
+        onSettings={() => setPanel('settings')}
         onClose={() => {
           setPanel(null);
-          if (panel === 'equipment') requestAnimationFrame(() => canvasRef.current?.focus());
+          if (panel === 'equipment' || panel === 'settings')
+            requestAnimationFrame(() => canvasRef.current?.focus());
         }}
         onEquip={(id) => runtimeRef.current?.equipWeapon?.(id)}
         onApplyEnemyLevel={(level) => runtimeRef.current?.setEnemyLevel?.(level)}

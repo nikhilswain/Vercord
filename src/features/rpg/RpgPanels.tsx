@@ -1,5 +1,7 @@
 import { Dialog } from '../../components/Dialog';
 import { EquipmentDialog } from './demo/EquipmentDialog';
+import { GameSettingsDialog } from '../settings/GameSettingsDialog';
+import type { GameMusicControls } from '../audio/use-game-music';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
 import type { HouseSceneId } from '../../domain/world/catalog/scenes';
 import type { Point } from '../world/engine/types';
@@ -12,13 +14,14 @@ import RpgAtlasDialog from './atlas/RpgAtlasDialog';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgSample, RpgThemeId, RpgUiState } from './types';
 
-export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu' | 'equipment';
+export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu' | 'equipment' | 'settings';
 const titles: Record<RpgPanel, string> = {
   map: 'A little sense of direction',
   guide: 'A traveler’s guide',
   appearance: 'Choose your traveler',
   menu: 'By the wayside',
   equipment: 'Equipment',
+  settings: 'Settings',
 };
 
 interface Props {
@@ -39,6 +42,8 @@ interface Props {
     onStreet(street: string): void;
   };
   onClose(): void;
+  onSettings(): void;
+  music: GameMusicControls;
   onEquip(id: string): void;
   onApplyEnemyLevel(level: number): void;
   onTheme(destination: RpgDestination): void;
@@ -56,6 +61,8 @@ export function RpgPanels({
   house,
   server,
   onClose,
+  onSettings,
+  music,
   onEquip,
   onApplyEnemyLevel,
   onTheme,
@@ -63,6 +70,8 @@ export function RpgPanels({
   onFocus,
 }: Props) {
   const place = RPG_THEMES[theme];
+  if (panel === 'settings')
+    return <GameSettingsDialog music={music} demo={!server} onClose={onClose} />;
   if (panel === 'equipment' && ui.adventure)
     return (
       <EquipmentDialog
@@ -231,6 +240,15 @@ export function RpgPanels({
       )}
       {panel === 'menu' && (
         <>
+          <button className="rpg-destination rpg-menu-settings" onClick={onSettings}>
+            <span className="rpg-destination-mark" aria-hidden="true">
+              <RpgIcon name="settings" />
+            </span>
+            <span className="rpg-destination-copy">
+              <strong>Settings</strong>
+              <span>Background music &amp; volume</span>
+            </span>
+          </button>
           <p className="rpg-muted">
             {server
               ? 'Choose a setting for your server. Each town has a path into the Lantern Vault.'

@@ -1,0 +1,105 @@
+.game-settings-section {
+  margin-top: 24px;
+}
+.game-settings-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px;
+  font-size: 20px;
+}
+.game-settings-volume-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-weight: 600;
+}
+.game-settings-volume-label output {
+  font-variant-numeric: tabular-nums;
+}
+.game-settings-volume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 20px;
+}
+.game-settings-volume .rpg-icon-button {
+  flex: 0 0 44px;
+}
+.game-settings-volume input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  accent-color: var(--rpg-accent);
+  cursor: pointer;
+}
+.game-settings-volume input:focus-visible,
+.game-settings-track:has(input:focus-visible) {
+  outline: 2px solid var(--rpg-accent);
+  outline-offset: 4px;
+}
+.game-settings-playing {
+  display: grid;
+  gap: 6px;
+}
+.game-settings-playing > div {
+  display: grid;
+  gap: 2px;
+}
+.game-settings-playing strong {
+  font-size: 16px;
+}
+.game-settings-play-state {
+  min-height: 2.8em;
+  color: var(--rpg-muted);
+  font-size: 12px;
+}
+.game-settings-retry {
+  margin-top: 8px;
+}
+.game-settings-tracks {
+  margin: 22px 0 0;
+  padding: 0;
+  border: 0;
+}
+.game-settings-tracks legend {
+  width: 100%;
+  padding: 20px 0 12px;
+  border-top: 1px solid var(--rpg-edge);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+.game-settings-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 12px 14px;
+  margin-top: 8px;
+  border: 1px solid var(--rpg-edge);
+  cursor: pointer;
+}
+.game-settings-track[data-selected='true'] {
+  background: var(--rpg-panel-dark);
+  border-color: var(--rpg-accent);
+}
+.game-settings-track:hover {
+  background: var(--rpg-panel-dark);
+}
+.game-settings-track input {
+  accent-color: var(--rpg-accent);
+  margin: 0;
+}
+.game-settings-track > span {
+  flex: 1;
+}
+.game-settings-track svg {
+  color: var(--rpg-muted);
+}
+.rpg-menu-settings {
+  margin-bottom: 22px;
+}
