@@ -17,7 +17,7 @@ XP and gathered flowers survive this reset; the same enemy cannot award XP twice
 | `src/features/rpg/adventure/session.ts`            | Shared collision-aware simulation: attacks, projectiles, damage, rewards, gathering and rescue                   |
 | `src/features/rpg/adventure/renderer.ts`           | Cached creature views, fixed projectile/effect pools and animation playback                                      |
 | `src/features/rpg/adventure/animation-clock.ts`    | Maps each skin's native contact frame onto the gameplay attack clock                                             |
-| `src/features/rpg/character.ts`, `melee-assets.ts` | LPC body/clothing poses and authored front/behind weapon layers                                                  |
+| `src/features/rpg/character.ts`, `melee-assets.ts`, `weapon-visuals.ts` | LPC body/clothing poses with exact item images attached to per-frame hand anchors |
 | `src/features/rpg/demo/equipment.ts`               | Joins shared definitions to names and inventory illustrations; contains no balance rules                         |
 | `src/features/rpg/demo/scenes.ts`                  | Authored village/forest content and demo portal routing                                                          |
 
@@ -84,6 +84,26 @@ To add a family, also supply verified native body/held-weapon poses and its mele
 hit shape. To add an enemy, define its shared stats, verified animation metadata
 and authored spawn. Terrain and UI theme changes should not change combat rules.
 
+### Difficulty and hazards
+
+`enemyBehavior(kind, level)` is the shared behavior policy, cached per encounter
+when it spawns or resets. Levels 1–5 use slower single attacks. Above level 5,
+chase speed, reaction, animation and recovery become progressively faster. Different
+creatures unlock two-strike combinations; skirmishers reach three strikes at level 15. Higher levels briefly track and lead movement during preparation, then lock
+the attack target before lunging. Repeated hits still deal damage but cannot keep
+a veteran permanently staggered. Invulnerability ends before the next combo strike.
+
+Preparation uses a native body pose, slight anticipation and color change. There
+are no enemy ground warning circles. Contact reach includes only the travel the
+enemy can complete before its hit frame. Partial-frame lunge movement is integrated
+on both sides of contact, so low frame rates do not shorten attacks or give extra
+travel before damage. The animation adapter consumes the encounter's scaled clock.
+
+`src/domain/adventure/traps.ts` owns visible frames, warning and damage together.
+Spikes first become active at 930ms at levels 1–5 and 420ms at level 20; cycles
+shorten from 2 seconds to 1.3 seconds. A brief plate tint replaces the warning ring.
+The demo level reset starts a new hazard cycle and updates the shared behavior cache.
+
 ## Asset decisions and reproducibility
 
 - [Truly Malicious Weapon Set 1](https://trulymalicious.itch.io/weapon-set-1-free)
@@ -91,9 +111,13 @@ and authored spawn. Terrain and UI theme changes should not change combat rules.
   author discloses AI-assisted creation. The free archive includes four families;
   elemental weapons are premium-only and were not imported. Names preserve the
   author's variants, including Woodcutter axe and White staff.
-- Inventory illustrations are not animation sheets. Held weapons use compatible
-  native LPC longsword, waraxe, spear and staff layers, with material tints. These
-  are visual equivalents, not pixel-identical reproductions of the item icons.
+- Inventory illustrations are not animation sheets. Combat now renders those exact
+  same 24 images without tint. `weapon-visuals.ts` defines each item's grip, axis and
+  size and the hand positions for each native LPC body frame. The item follows the
+  hand through the attack; foreground fingers cover the handle where appropriate.
+  Contact frames point the blade/head along the attack direction. Generic LPC
+  weapon sheets are retained as reference assets but are no longer preloaded or
+  used as tinted substitutes. No per-frame raster generation is needed.
 - The requested [tribal warrior pack](https://craftpix.net/freebies/free-tribal-warrior-boss-characters-asset-pack/)
   advertises modular vector body parts (AI/EPS/PNG). Its download required sign-in;
   no archive was acquired and no ready-made action sequences were established.
@@ -124,13 +148,17 @@ Run `pnpm exec tsx scripts/verify-equipment-rules.ts`,
 save input validation, all 24 contact timings and damage values, reach, walls,
 cooldown, source animation contact, level scaling, safe areas and reset rewards.
 The magic check also verifies every authored encounter and collectible is reachable.
+`pnpm exec tsx scripts/verify-enemy-difficulty.ts` covers the level curve, contact
+reach at 5–50ms ticks, locked attack targets, walls, actual combo damage, stagger
+resistance, and the faster hazard clock. Renderer checks also compare native contact
+frames against each encounter's scaled timing.
 
 In Chrome, check desktop and 390×844 touch equipment selection, family navigation,
 enemy reset, modal pause, Escape, actual held-weapon poses, spell coexistence and
 portal travel. Keep object/texture counts stable while moving, zooming and fighting.
 Do not treat a local CPU timing sample as an all-device frame-rate guarantee.
 
-The September 12 equipment pass passed the three focused scripts, scoped ESLint,
+The initial September 12 equipment pass passed the three focused scripts, scoped ESLint,
 browser import boundary and `pnpm build` (frontend, worker, node and gateway type
 checks included). Chrome exercised all 24 equips, a level-7 reset, native slash
 contact and damage, desktop keyboard return focus, touch scrolling and equipment,
@@ -139,3 +167,18 @@ No console errors or warnings appeared. A 381-update movement/zoom/melee sample
 kept 240 scene objects and 330 textures, averaging 0.36ms with p95 0.7ms of scene
 JavaScript update time. This excludes GPU time. The existing production bundle-size
 warning remains.
+
+The subsequent equipped-art and difficulty fix passed the new enemy difficulty
+script, existing combat and magic checks, scoped ESLint/Prettier, browser import
+boundary and `pnpm build`. WebGL verification covered all 24 exact item textures,
+26 travelers and all four directions, checking opaque handle pivots, forward-facing
+contact frames and unchanged-pose caching (90,552 assertions). The live jungle
+also verified Gold axe and Gold staff selection against their rendered attacks.
+In a 2.6-second staged encounter, the skirmisher started one attack at level 1 and
+three at level 20; the latter used its shorter combo preparation. Ground attack
+circles are gone. At 390×844, equipment scrolls without horizontal overflow, equips
+items and applies level-20 resets; Escape closes it and restores canvas focus.
+No browser console warnings or errors appeared. A 548-update encounter/movement/
+zoom/melee sample kept 240 scene objects and 342 textures, with mean 0.25ms and
+p95 0.4ms scene JavaScript update time, excluding GPU time. The production bundle
+size warning remains unchanged. The demo was returned to camp at level 1 afterward.

@@ -122,12 +122,14 @@ export class AdventureSessionRenderer {
       view.label.setVisible(false);
       if (!shown) return;
       const asset = creatureAsset(enemy);
-      const animation = asset.animations[enemy.phase === 'windup' ? 'idle' : enemy.phase];
+      const animation = asset.animations[enemy.phase === 'windup' ? 'attack' : enemy.phase];
       const frames = animation.frames[enemy.direction];
       const elapsedMs =
         enemy.phase === 'attack'
-          ? attackAnimationTime(age * 1000, ENEMY_DEFINITIONS[enemy.kind], animation)
-          : age * 1000;
+          ? attackAnimationTime(age * 1000, enemy.behavior, animation)
+          : enemy.phase === 'windup'
+            ? 0
+            : age * 1000;
       const cycle = elapsedMs / animation.durationMs;
       const frame =
         reducedMotion && enemy.phase === 'idle'
@@ -139,18 +141,26 @@ export class AdventureSessionRenderer {
             ]!;
       const jump =
         !reducedMotion && enemy.kind === 'slime' && enemy.phase === 'attack'
-          ? Math.sin(Math.min(1, age / 0.38) * Math.PI) * 22
+          ? Math.sin(Math.min(1, (age * 1000) / (enemy.behavior.impactMs + 50)) * Math.PI) * 22
+          : 0;
+      const anticipation =
+        enemy.phase === 'windup' && !reducedMotion
+          ? Math.min(1, (age * 1000) / enemy.windupDurationMs)
           : 0;
       view.sprite
         .setPosition(enemy.x, enemy.y - jump)
+        .setScale(
+          asset.suggestedScale * (1 + anticipation * 0.035),
+          asset.suggestedScale * (1 - anticipation * 0.045),
+        )
         .setDepth(enemy.y)
         .setFrame(frame)
         .setAlpha(enemy.health === 0 ? Math.max(0, 1 - age) : 1);
       view.shadow.setPosition(enemy.x, enemy.y - 1).setDepth(enemy.y - 0.2);
       if (enemy.phase === 'hurt') view.sprite.setTint(0xffc7b2);
       else if (this.model.time < enemy.slowedUntil) view.sprite.setTint(0x91deff);
+      else if (enemy.phase === 'windup') view.sprite.setTint(0xffe6c3);
       else view.sprite.clearTint();
-      if (enemy.phase === 'windup') this.warning(g, enemy, age);
       if (
         enemy.health > 0 &&
         Math.hypot(enemy.x - player.x, enemy.y - player.y) < 190 &&
@@ -189,7 +199,7 @@ export class AdventureSessionRenderer {
         2,
       );
     });
-    this.drawMagic(g);
+    this.drawMagic();
     for (const effect of this.model.effects) {
       const age = this.model.time - effect.at;
       const progress = age / 0.85;
@@ -224,21 +234,7 @@ export class AdventureSessionRenderer {
     this.charge.destroy();
   }
 
-  private warning(g: Phaser.GameObjects.Graphics, enemy: Enemy, age: number): void {
-    const size = ENEMY_DEFINITIONS[enemy.kind].hitRadius;
-    g.fillStyle(0xd87348, 0.14).fillEllipse(enemy.target.x, enemy.target.y, size * 2, size);
-    g.lineStyle(2, 0xffcd83, 0.9).strokeEllipse(enemy.target.x, enemy.target.y, size * 2, size);
-    const rise = Math.min(1, (age * 1000) / ENEMY_DEFINITIONS[enemy.kind].windupMs);
-    g.lineStyle(3, 0xffe3a4, 1).lineBetween(
-      enemy.x,
-      enemy.y - 55,
-      enemy.x,
-      enemy.y - 62 - rise * 8,
-    );
-    g.fillStyle(0xffe3a4, 1).fillCircle(enemy.x, enemy.y - 49, 2);
-  }
-
-  private drawMagic(g: Phaser.GameObjects.Graphics): void {
+  private drawMagic(): void {
     const show = (
       sprite: Phaser.GameObjects.Image,
       id: keyof typeof MAGIC_EFFECT_ASSETS,
@@ -305,14 +301,13 @@ export class AdventureSessionRenderer {
       show(sprite, id, effect.x, effect.y - 20, this.model.time - effect.at);
     });
     (this.model.content.traps ?? []).forEach((trap, index) => {
-      const state = trapState(this.model.time, trap.offset);
+      const state = trapState(this.model.trapTime, trap.offset, this.model.encounterLevel);
       const asset = MAGIC_EFFECT_ASSETS['spike-trap'];
       this.traps[index]!.setFrame(asset.frames[state.frame]!)
         .setOrigin(asset.origin.x, asset.origin.y)
         .setScale(asset.suggestedScale);
-      if (state.warning) {
-        g.lineStyle(2, 0xffda7a, 0.8).strokeEllipse(trap.x, trap.y, 48, 25);
-      }
+      if (state.warning) this.traps[index]!.setTint(0xffd58a);
+      else this.traps[index]!.clearTint();
     });
     const cast = this.model.cast;
     this.charge.setVisible(Boolean(cast && !cast.released));

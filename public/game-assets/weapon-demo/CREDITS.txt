@@ -10,6 +10,10 @@ DALL-E 3 images and manually refined, optimized and compiled by TrulyMalicious,
 who claims partial rights in those transformations. See the retained source
 README for the author's license and disclaimer. No author endorsement is implied.
 
+The same 24 prepared images also render as held weapons in combat, with their
+original colors. Runtime transforms attach each measured handle to the LPC
+character's animated hand; no generic replacement artwork or material tint is used.
+
 Additional animated forest fighters — CraftPix / Free Game Assets
 Source: https://craftpix.net/freebies/free-forest-bosses-pixel-art-sprite-sheet-pack/
 Download: https://free-game-assets.itch.io/free-forest-bosses-pixel-art-sprite-sheet-pack

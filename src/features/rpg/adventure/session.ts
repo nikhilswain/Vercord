@@ -1,7 +1,14 @@
 import { containsPoint, resolveMovement } from '../../world/engine/collision';
 import type { Point, Rect } from '../../world/engine/types';
 import type { RpgDirection } from '../types';
-import { ENEMY_DEFINITIONS as STATS, spawnEnemyPower } from '../../../domain/adventure/enemies';
+import {
+  ENEMY_DEFINITIONS as STATS,
+  spawnEnemyPower,
+  enemyBehavior,
+  type EnemyBehavior,
+} from '../../../domain/adventure/enemies';
+import { trapState } from '../../../domain/adventure/traps';
+export { trapState } from '../../../domain/adventure/traps';
 import {
   createPlayerProgression,
   equipWeapon,
@@ -15,6 +22,7 @@ import {
   experienceForLevel,
   levelForExperience,
   MAX_CHARACTER_LEVEL,
+  normalizeEncounterLevel,
 } from '../../../domain/adventure/progression';
 import type {
   AdventureStatus,
@@ -27,6 +35,10 @@ import type {
 
 export type EnemyPhase = 'idle' | 'walk' | 'windup' | 'attack' | 'hurt' | 'death';
 export interface Enemy extends EncounterSpawn {
+  behavior: Readonly<EnemyBehavior>;
+  windupDurationMs: number;
+  comboRemaining: number;
+  staggerReadyAt: number;
   level: number;
   damage: number;
   home: Point;
@@ -89,25 +101,6 @@ export interface AdventureEffect extends Point {
     | 'level';
 }
 
-/** Source frames rise 0→1→2, hold at 2/3, retract 4→5. One clock drives art and damage. */
-export function trapState(time: number, offset: number) {
-  const phase = (time + offset) % 3.6;
-  return {
-    active: phase >= 2.12 && phase < 2.85,
-    warning: phase > 1.15 && phase < 2,
-    frame:
-      phase < 2
-        ? 0
-        : phase < 2.12
-          ? 1
-          : phase < 2.85
-            ? 2 + (Math.floor((phase - 2.12) / 0.2) % 2)
-            : phase < 3
-              ? 4
-              : 5,
-  };
-}
-
 const vectors: Record<RpgDirection, Point> = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
@@ -144,6 +137,15 @@ export class AdventureSession {
   private messageUntil = 8;
   private attackReadyAt = 0;
   private sequence = 0;
+  private encounterLevelValue: number;
+  private readonly previousPlayer: Point;
+  private trapEpoch = 0;
+  get encounterLevel(): number {
+    return this.encounterLevelValue;
+  }
+  get trapTime(): number {
+    return this.time - this.trapEpoch;
+  }
 
   constructor(
     readonly content: AdventureDefinition,
@@ -157,27 +159,34 @@ export class AdventureSession {
       options.progression ?? createPlayerProgression(),
       options.equipmentPolicy ?? NORMAL_EQUIPMENT_POLICY,
     );
-    this.enemies = content.enemies.map((entry) => ({
-      ...entry,
-      ...spawnEnemyPower(entry.kind, this.level, {
+    this.encounterLevelValue = normalizeEncounterLevel(options.enemyLevelOverride ?? this.level);
+    this.previousPlayer = { ...spawn };
+    this.enemies = content.enemies.map((entry) => {
+      const power = spawnEnemyPower(entry.kind, this.level, {
         elite: entry.elite,
         levelOverride: options.enemyLevelOverride,
-      }),
-      home: { x: entry.x, y: entry.y },
-      maxHealth: spawnEnemyPower(entry.kind, this.level, {
-        elite: entry.elite,
-        levelOverride: options.enemyLevelOverride,
-      }).health,
-      phase: 'idle',
-      phaseAt: 0,
-      readyAt: 0,
-      direction: 'down',
-      target: { x: entry.x, y: entry.y },
-      hit: false,
-      slowedUntil: 0,
-      burningUntil: 0,
-      burnTickAt: 0,
-    }));
+      });
+      const behavior = enemyBehavior(entry.kind, power.level);
+      return {
+        ...entry,
+        ...power,
+        behavior,
+        windupDurationMs: behavior.windupMs,
+        comboRemaining: 0,
+        staggerReadyAt: 0,
+        home: { x: entry.x, y: entry.y },
+        maxHealth: power.health,
+        phase: 'idle',
+        phaseAt: 0,
+        readyAt: 0,
+        direction: 'down',
+        target: { x: entry.x, y: entry.y },
+        hit: false,
+        slowedUntil: 0,
+        burningUntil: 0,
+        burnTickAt: 0,
+      };
+    });
   }
 
   status(): AdventureStatus {
@@ -200,7 +209,7 @@ export class AdventureSession {
       castReady: this.time >= this.attackReadyAt && !this.cast && !this.melee,
       combatMode: this.combatMode,
       weaponId: this.progression.equippedWeaponId,
-      enemyLevel: this.enemies[0]?.level ?? this.level,
+      enemyLevel: this.encounterLevel,
       encounterHealth: Math.max(0, ...this.enemies.map((e) => e.maxHealth)),
       encounterDamage: Math.max(0, ...this.enemies.map((e) => e.damage)),
     };
@@ -209,6 +218,12 @@ export class AdventureSession {
   /** Returns true when the player needs to be placed back at the safe camp. */
   tick(dt: number, player: Point): boolean {
     dt = Math.max(0, Math.min(dt, 0.05));
+    const velocityX =
+      dt > 0 ? Math.max(-240, Math.min(240, (player.x - this.previousPlayer.x) / dt)) : 0;
+    const velocityY =
+      dt > 0 ? Math.max(-240, Math.min(240, (player.y - this.previousPlayer.y) / dt)) : 0;
+    this.previousPlayer.x = player.x;
+    this.previousPlayer.y = player.y;
     this.time += dt;
     if (this.cast) {
       const age = (this.time - this.cast.at) * 1000;
@@ -221,15 +236,12 @@ export class AdventureSession {
     this.tickMelee();
     this.tickProjectiles(dt);
     for (const trap of this.content.traps ?? []) {
-      if (
-        trapState(this.time, trap.offset).active &&
-        distance(trap, player) < 21 &&
-        this.time >= this.invincibleUntil
-      ) {
-        this.health = Math.max(0, this.health - 14);
+      const state = trapState(this.trapTime, trap.offset, this.encounterLevel);
+      if (state.active && distance(trap, player) < 21 && this.time >= this.invincibleUntil) {
+        this.health = Math.max(0, this.health - state.damage);
         this.invincibleUntil = this.time + 1.15;
         this.effect(player, 'hit');
-        this.say('Watch the amber warning. Walk around the spikes or wait until they retract.');
+        this.say('Watch the spike plates. Cross after they retract, or go around.');
       }
     }
     while (this.effects[0] && this.time - this.effects[0].at > 0.85) this.effects.shift();
@@ -241,22 +253,31 @@ export class AdventureSession {
         if (enemy.health === 0) continue;
       }
       const age = this.time - enemy.phaseAt;
-      const stats = STATS[enemy.kind];
+      const stats = enemy.behavior;
       if (enemy.phase === 'hurt') {
-        if (age > 0.3) this.phase(enemy, 'idle');
+        if (age * 1000 >= stats.staggerMs) this.phase(enemy, 'idle');
         continue;
       }
       if (enemy.phase === 'windup') {
-        if (age * 1000 >= stats.windupMs) {
+        const trackUntil = Math.min(stats.trackUntilMs, enemy.windupDurationMs - 90);
+        if (age * 1000 < trackUntil && !this.isSafe(player) && this.clearLine(enemy, player)) {
+          enemy.target.x = player.x + (velocityX * stats.leadMs) / 1000;
+          enemy.target.y = player.y + (velocityY * stats.leadMs) / 1000;
+          enemy.direction = facing(enemy, enemy.target);
+        }
+        if (age * 1000 >= enemy.windupDurationMs) {
           this.phase(enemy, 'attack');
           enemy.hit = false;
         }
         continue;
       }
       if (enemy.phase === 'attack') {
-        // The target is locked when the warning begins: walking away really dodges it.
-        if (age * 1000 < stats.lungeMs) this.move(enemy, enemy.target, stats.lungeSpeed, dt, false);
-        if (!enemy.hit && age * 1000 >= stats.impactMs) {
+        // Even veteran attacks commit to a fixed target before their lunge begins.
+        const ageMs = age * 1000;
+        const previousMs = Math.max(0, (age - dt) * 1000);
+        const contact = !enemy.hit && ageMs >= stats.impactMs;
+        this.advanceLunge(enemy, previousMs, contact ? stats.impactMs : ageMs);
+        if (contact) {
           enemy.hit = true;
           if (
             distance(enemy, player) < stats.hitRadius &&
@@ -265,22 +286,34 @@ export class AdventureSession {
             !this.isSafe(player)
           ) {
             this.health = Math.max(0, this.health - enemy.damage);
-            this.invincibleUntil = this.time + 1.15;
+            this.invincibleUntil = this.time + stats.playerInvulnerabilityMs / 1000;
             this.effect(player, 'hit');
-            this.say('Hit! Step out of the warning circle. H uses a healing herb.');
+            this.say('Hit! Sidestep the attack; watch for a follow-up. H uses a healing herb.');
           }
+          this.advanceLunge(enemy, Math.max(previousMs, stats.impactMs), ageMs);
         }
         if (age * 1000 >= stats.durationMs) {
-          enemy.readyAt = this.time + stats.recoveryMs / 1000;
+          if (
+            distance(player, enemy.home) > stats.leash ||
+            this.isSafe(player) ||
+            !this.clearLine(enemy, player)
+          )
+            enemy.comboRemaining = 0;
+          enemy.readyAt =
+            this.time +
+            (enemy.comboRemaining > 0 ? stats.comboRecoveryMs : stats.recoveryMs) / 1000;
           this.phase(enemy, 'idle');
         }
         continue;
       }
-      const inTerritory = distance(player, enemy.home) < 235 && !this.isSafe(player);
+      const inTerritory = distance(player, enemy.home) < stats.leash && !this.isSafe(player);
       const seesPlayer =
         inTerritory && distance(enemy, player) < stats.aggro && this.clearLine(enemy, player);
       if (seesPlayer) {
         if (distance(enemy, player) <= stats.reach && this.time >= enemy.readyAt) {
+          const chained = enemy.comboRemaining > 0;
+          enemy.comboRemaining = chained ? enemy.comboRemaining - 1 : stats.comboSize - 1;
+          enemy.windupDurationMs = chained ? stats.comboWindupMs : stats.windupMs;
           enemy.direction = facing(enemy, player);
           enemy.target = { ...player };
           this.phase(enemy, 'windup');
@@ -295,9 +328,13 @@ export class AdventureSession {
           );
         } else this.phase(enemy, 'idle');
       } else if (distance(enemy, enemy.home) > 4) {
+        enemy.comboRemaining = 0;
         this.phase(enemy, 'walk');
         this.move(enemy, enemy.home, stats.speed, dt, true);
-      } else this.phase(enemy, 'idle');
+      } else {
+        enemy.comboRemaining = 0;
+        this.phase(enemy, 'idle');
+      }
     }
     if (this.health > 0) return false;
     this.rest();
@@ -342,12 +379,18 @@ export class AdventureSession {
   setEnemyLevel(level: number): boolean {
     if (this.options.enemyLevelOverride === undefined || !Number.isFinite(level)) return false;
     this.rest();
+    this.encounterLevelValue = normalizeEncounterLevel(level);
+    this.trapEpoch = this.time;
     for (const enemy of this.enemies) {
       const power = spawnEnemyPower(enemy.kind, this.level, {
         elite: enemy.elite,
         levelOverride: level,
       });
       Object.assign(enemy, power, {
+        behavior: enemyBehavior(enemy.kind, power.level),
+        windupDurationMs: enemyBehavior(enemy.kind, power.level).windupMs,
+        comboRemaining: 0,
+        staggerReadyAt: 0,
         ...enemy.home,
         maxHealth: power.health,
         target: { ...enemy.home },
@@ -500,7 +543,10 @@ export class AdventureSession {
           this.clearLine(swing.origin, enemy)
         ) {
           this.damage(enemy, swing.weapon.damage, 'melee');
-          if (enemy.health > 0)
+          if (
+            enemy.health > 0 &&
+            (enemy.behavior.staggerImmunityMs === 0 || enemy.phase === 'hurt')
+          )
             this.move(
               enemy,
               { x: enemy.x + forward.x * 32, y: enemy.y + forward.y * 32 },
@@ -534,9 +580,11 @@ export class AdventureSession {
         this.reward(STATS[enemy.kind].xp, enemy);
       }
     } else {
-      if (stagger) {
+      if (stagger && this.time >= enemy.staggerReadyAt) {
         this.phase(enemy, 'hurt');
-        enemy.readyAt = this.time + 0.5;
+        enemy.comboRemaining = 0;
+        enemy.staggerReadyAt = this.time + enemy.behavior.staggerImmunityMs / 1000;
+        enemy.readyAt = this.time + (enemy.behavior.staggerMs + 120) / 1000;
       }
       this.effect(enemy, spell === 'melee' ? 'hit' : spell);
     }
@@ -603,6 +651,8 @@ export class AdventureSession {
     this.projectiles.length = 0;
     this.effects.length = 0;
     for (const enemy of this.enemies) {
+      enemy.comboRemaining = 0;
+      enemy.staggerReadyAt = 0;
       enemy.burningUntil = 0;
       enemy.slowedUntil = 0;
     }
@@ -677,5 +727,10 @@ export class AdventureSession {
     );
     enemy.x = next.x + size;
     enemy.y = next.y + 8;
+  }
+  private advanceLunge(enemy: Enemy, fromMs: number, toMs: number): void {
+    const until = enemy.behavior.lungeMs;
+    const dt = Math.max(0, Math.min(until, toMs) - Math.min(until, fromMs)) / 1000;
+    if (dt > 0) this.move(enemy, enemy.target, enemy.behavior.lungeSpeed, dt, false);
   }
 }

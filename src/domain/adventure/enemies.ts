@@ -137,3 +137,73 @@ export function spawnEnemyPower(
       : normalizeEncounterLevel(options.levelOverride);
   return { level, ...encounterPower(ENEMY_DEFINITIONS[kind], level) };
 }
+
+export interface EnemyBehavior {
+  speed: number;
+  reach: number;
+  aggro: number;
+  leash: number;
+  windupMs: number;
+  impactMs: number;
+  durationMs: number;
+  recoveryMs: number;
+  lungeSpeed: number;
+  lungeMs: number;
+  hitRadius: number;
+  comboSize: number;
+  comboWindupMs: number;
+  comboRecoveryMs: number;
+  trackUntilMs: number;
+  leadMs: number;
+  staggerMs: number;
+  staggerImmunityMs: number;
+  playerInvulnerabilityMs: number;
+}
+
+/** Level changes behavior as well as power. Cache once when an encounter spawns/resets. */
+export function enemyBehavior(kind: CreatureKind, rawLevel: number): Readonly<EnemyBehavior> {
+  const base = ENEMY_DEFINITIONS[kind];
+  const level = normalizeEncounterLevel(rawLevel);
+  const beginner = (Math.min(5, level) - 1) / 4;
+  const pressure = Math.max(0, level - 5) / 15;
+  const pace = 1 + beginner * 0.1 + pressure * 0.65;
+  const windupMs = Math.round(base.windupMs * (1 - beginner * 0.12) * (1 - pressure * 0.65));
+  const impactMs = Math.round(base.impactMs / pace);
+  const durationMs = Math.round(base.durationMs / pace);
+  const lungeMs = Math.round(base.lungeMs / pace);
+  const lungeSpeed = base.lungeSpeed * (1 + beginner * 0.15 + pressure * 0.65);
+  const comboLevel =
+    kind === 'forest-skirmisher' ? 6 : kind === 'slime' || kind === 'guardian' ? 12 : 8;
+  const comboSize = level < comboLevel ? 1 : kind === 'forest-skirmisher' && level >= 15 ? 3 : 2;
+  const comboWindupMs = Math.max(110, Math.round(windupMs * 0.65));
+  const comboRecoveryMs = Math.round(230 - pressure * 90);
+  const nextComboHitMs = durationMs + comboRecoveryMs + comboWindupMs;
+  return {
+    speed: base.speed * (1 + beginner * 0.12 + pressure * 1.15),
+    // Attack only from a distance the contact frame can actually reach.
+    reach: Math.min(
+      base.reach,
+      base.hitRadius + ((lungeSpeed * Math.min(lungeMs, impactMs)) / 1000) * 0.85,
+    ),
+    aggro: base.aggro * (1 + beginner * 0.12 + pressure * 0.35),
+    leash: 235 + pressure * 100,
+    windupMs,
+    impactMs,
+    durationMs,
+    lungeMs,
+    lungeSpeed,
+    hitRadius: base.hitRadius,
+    recoveryMs: Math.round(base.recoveryMs * (1 - beginner * 0.12) * (1 - pressure * 0.68)),
+    comboSize,
+    comboWindupMs,
+    comboRecoveryMs,
+    trackUntilMs: pressure > 0 ? Math.max(0, windupMs - 90) : 0,
+    leadMs: pressure * 100,
+    staggerMs: Math.round(300 - pressure * 160),
+    staggerImmunityMs: pressure > 0 ? 1000 + pressure * 1400 : 0,
+    playerInvulnerabilityMs: Math.min(
+      Math.round(1150 - pressure * 650),
+      comboSize > 1 ? nextComboHitMs - 80 : 1150,
+    ),
+  };
+}

@@ -145,10 +145,11 @@ export function RpgPanels({
               <strong>Mosswild Jungle:</strong> follow the northwest village path and press E at the
               jungle sign. I opens equipment: all 24 weapons are available here. Press 3 to use your
               weapon, then Space or J to attack; turn with WASD to aim. Press 1 for Ember, or 2 for
-              Tide after reaching level 2. Fire burns; water slows and pushes enemies. Step away
-              from warning circles to dodge. Gather flowers with E and gain experience. H uses a
-              healing herb. The southern trail returns to Willowmere. Your progress stays between
-              those two areas; reloading or changing world themes starts a new adventure.
+              Tide after reaching level 2. Fire burns; water slows and pushes enemies. Watch their
+              preparation poses and sidestep attacks. Higher-level enemies react faster and chain
+              attacks. Gather flowers with E and gain experience. H uses a healing herb. The
+              southern trail returns to Willowmere. Your progress stays between those two areas;
+              reloading or changing world themes starts a new adventure.
             </p>
           )}
           <p>
@@ -316,7 +317,7 @@ export function RpgPanels({
             </p>
             {sample.demo && (
               <p>
-                Inventory weapon art by{' '}
+                Inventory and held weapon art by{' '}
                 <a
                   href="https://trulymalicious.itch.io/weapon-set-1-free"
                   target="_blank"
@@ -324,13 +325,17 @@ export function RpgPanels({
                 >
                   Truly Malicious
                 </a>{' '}
-                (CC BY 4.0). Held weapons and attack poses use credited LPC animation layers.
-                Additional animated forest enemies are by CraftPix.{' '}
+                (CC BY 4.0). Body and arm attack poses use credited LPC animation layers. Additional
+                animated forest enemies are by CraftPix.{' '}
                 <a href="/game-assets/weapon-demo/CREDITS.txt" target="_blank" rel="noreferrer">
                   Weapon and enemy credits
                 </a>
                 {' · '}
-                <a href="/game-assets/lpc-weapons/CREDITS.txt" target="_blank" rel="noreferrer">
+                <a
+                  href="/game-assets/lpc-characters/upstream-melee-credits.txt"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Melee animation credits
                 </a>
               </p>

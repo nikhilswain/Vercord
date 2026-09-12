@@ -35,8 +35,10 @@ Mira, Finn and Lumi in Willowmere; Elin, Astrid and Kaia in Frosthavn.
   3 each. Staff bonuses also apply to spell impacts. Burn ticks remain 4 damage.
 - Three slimes (blue and green), a snake, a bear, a Thornbloom guardian, a Forest
   brute and a Forest skirmisher occupy
-  separate clearings. Move out of enemy warning circles before their locked attack.
-  Two spike traps warn, rise, hold, and retract; damage follows the same state as the art.
+  separate clearings. Watch their preparation poses and sidestep their committed attack.
+  Levels above 5 add faster reactions, short combinations and resistance to repeated
+  staggers; the ground warning circles are removed. Two spike traps rise sooner
+  (930ms at low levels, 420ms at level 20); visible frames and damage share one clock.
 - Collect all three moonblossoms and clear the eight encounters. The south trail
   returns to Willowmere. A defeated traveler recovers at the safe arrival camp.
 

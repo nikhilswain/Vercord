@@ -3,12 +3,15 @@ import type { RpgAction, RpgDirection } from './types';
 import {
   preloadRpgMeleeWeapons,
   RPG_MELEE_ANIMATION,
-  RPG_MELEE_WEAPON_ORIGIN_Y,
   RPG_MELEE_WEAPON_STYLE,
-  rpgMeleeWeaponTexture,
-  rpgMeleeWeaponTint,
   type RpgMeleePose,
 } from './melee-assets';
+import {
+  getRpgWeaponVisual,
+  RPG_WEAPON_HAND_POSES,
+  type RpgWeaponVisual,
+  type RpgWeaponHandPose,
+} from './weapon-visuals';
 import {
   getRpgCharacter,
   RPG_CHARACTER_ASSET_ROOT,
@@ -76,6 +79,11 @@ export class RpgCharacter {
   private readonly layers: Phaser.GameObjects.Image[];
   private readonly weaponBehind: Phaser.GameObjects.Image;
   private readonly weaponFront: Phaser.GameObjects.Image;
+  private readonly handOverlays: Phaser.GameObjects.Image[];
+  private weaponVisual: RpgWeaponVisual | null = null;
+  private weaponPose: RpgWeaponHandPose | null = null;
+  private weaponAppearance: string | null = null;
+  private weaponBodyFrame = -1;
   private appearance: string;
   private direction: RpgDirection = 'down';
   private action: CharacterPose = 'idle';
@@ -94,16 +102,26 @@ export class RpgCharacter {
       if (tint !== undefined) sprite.setTint(tint);
       return sprite;
     });
-    // Oversized LPC weapon cells put the 64px body at (64,64), preserving authored grips.
+    // Exact equipped item images use their measured handle pivot, never the body center.
     this.weaponBehind = scene.add
       .image(0, 0, textureKey(this.appearance, 'body', 'idle'), 0)
-      .setOrigin(0.5, RPG_MELEE_WEAPON_ORIGIN_Y)
       .setVisible(false);
     this.weaponFront = scene.add
       .image(0, 0, textureKey(this.appearance, 'body', 'idle'), 0)
-      .setOrigin(0.5, RPG_MELEE_WEAPON_ORIGIN_Y)
       .setVisible(false);
-    this.container.add([shadow, this.weaponBehind, ...this.layers, this.weaponFront]);
+    this.handOverlays = Array.from({ length: 2 }, () =>
+      scene.add
+        .image(0, 0, textureKey(this.appearance, 'body', 'idle'), 0)
+        .setOrigin(0.5, FEET_Y / FRAME_SIZE)
+        .setVisible(false),
+    );
+    this.container.add([
+      shadow,
+      this.weaponBehind,
+      ...this.layers,
+      this.weaponFront,
+      ...this.handOverlays,
+    ]);
     this.update(x, y, 'down', 'idle', 0, false);
   }
 
@@ -160,20 +178,77 @@ export class RpgCharacter {
           ? 0
           : Math.floor(Math.max(0, time - this.startedAt) / animation.frameMs) % animation.frames;
     const frame = DIRECTION_ROW[direction] * animation.frames + column;
-    this.weaponBehind.setVisible(Boolean(melee));
-    this.weaponFront.setVisible(Boolean(melee));
-    if (melee) {
-      const tint = rpgMeleeWeaponTint(melee.tier);
-      this.weaponBehind
-        .setTexture(rpgMeleeWeaponTexture(melee.weapon, 'behind'), frame)
-        .setTint(tint);
-      this.weaponFront
-        .setTexture(rpgMeleeWeaponTexture(melee.weapon, 'front'), frame)
-        .setTint(tint);
-    }
+    this.updateWeapon(melee, direction, column, frame);
     if (frame === this.frame) return;
     this.frame = frame;
     for (const layer of this.layers) layer.setFrame(frame);
+  }
+
+  private updateWeapon(
+    melee: RpgMeleePose | undefined,
+    direction: RpgDirection,
+    column: number,
+    frame: number,
+  ): void {
+    if (melee) {
+      const visual = getRpgWeaponVisual(melee.weapon, melee.tier);
+      const grip = RPG_WEAPON_HAND_POSES[melee.style][direction][column]!;
+      if (
+        visual === this.weaponVisual &&
+        grip === this.weaponPose &&
+        frame === this.weaponBodyFrame &&
+        this.appearance === this.weaponAppearance
+      )
+        return;
+      this.weaponBehind.setVisible(grip.behind);
+      this.weaponFront.setVisible(!grip.behind);
+      const weapon = grip.behind ? this.weaponBehind : this.weaponFront;
+      const sourceAngle = Math.atan2(
+        visual.tip[1] - visual.grip[1],
+        visual.tip[0] - visual.grip[0],
+      );
+      if (weapon.texture.key !== visual.texture)
+        weapon
+          .setTexture(visual.texture)
+          .clearTint()
+          .setOrigin(visual.grip[0] / 128, visual.grip[1] / 128)
+          .setScale(visual.scale);
+      weapon
+        .setPosition(grip.x - FRAME_SIZE / 2, grip.y - FEET_Y)
+        .setRotation((grip.angle * Math.PI) / 180 - sourceAngle);
+      if (
+        grip !== this.weaponPose ||
+        frame !== this.weaponBodyFrame ||
+        this.appearance !== this.weaponAppearance
+      ) {
+        const skin = getRpgCharacter(this.appearance).layers.body.tint;
+        for (let index = 0; index < this.handOverlays.length; index++) {
+          const fingers = this.handOverlays[index]!;
+          const shown = !grip.behind && grip.fingers && (index === 0 || Boolean(grip.secondHand));
+          fingers.setVisible(shown);
+          if (!shown) continue;
+          const x = index === 0 ? grip.x : grip.secondHand![0];
+          const y = index === 0 ? grip.y : grip.secondHand![1];
+          fingers
+            .setTexture(textureKey(this.appearance, 'body', melee.style), frame)
+            .setCrop(Math.round(x - 2), Math.round(y - 2), 4, 4);
+          if (skin === undefined) fingers.clearTint();
+          else fingers.setTint(skin);
+        }
+      }
+      this.weaponVisual = visual;
+      this.weaponPose = grip;
+      this.weaponBodyFrame = frame;
+      this.weaponAppearance = this.appearance;
+    } else if (this.weaponVisual) {
+      this.weaponBehind.setVisible(false);
+      this.weaponFront.setVisible(false);
+      for (const hand of this.handOverlays) hand.setVisible(false);
+      this.weaponVisual = null;
+      this.weaponPose = null;
+      this.weaponBodyFrame = -1;
+      this.weaponAppearance = null;
+    }
   }
 
   destroy(): void {
