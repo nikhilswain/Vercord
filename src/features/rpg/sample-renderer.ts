@@ -36,6 +36,12 @@ export function registerRpgFrames(scene: Phaser.Scene, samples: readonly RpgSamp
 export class RpgSampleRenderer {
   private readonly owned: Phaser.GameObjects.GameObject[] = [];
   private readonly flameLights: Phaser.GameObjects.Image[] = [];
+  private readonly animated: Array<{
+    image: Phaser.GameObjects.Image;
+    frames: readonly number[];
+    durationMs: number;
+    phaseMs: number;
+  }> = [];
   private readonly terrain: TownTerrainRenderer | null;
   private readonly visibility = new SceneryVisibility();
   private readonly detail: SceneryDetail;
@@ -74,6 +80,17 @@ export class RpgSampleRenderer {
       this.detail.add(object);
       this.owned.push(object);
     }
+    for (const stamp of sample.animatedScenery ?? []) {
+      const image = this.makeStamp({ ...stamp, frame: stamp.frames[0] }, true);
+      this.visibility.add(image);
+      this.owned.push(image);
+      this.animated.push({
+        image,
+        frames: stamp.frames,
+        durationMs: stamp.durationMs,
+        phaseMs: stamp.phaseMs ?? 0,
+      });
+    }
     if (sample.id === 'dungeon') {
       const shade = scene.add
         .rectangle(bounds.x, bounds.y, bounds.width, bounds.height, 0x07111c, 0.2)
@@ -88,6 +105,16 @@ export class RpgSampleRenderer {
     this.terrain?.update();
     this.visibility.update(this.scene.cameras.main);
     this.detail.update(this.visibility.visibleImages, this.scene.cameras.main.zoom);
+    for (const { image, frames, durationMs, phaseMs } of this.animated) {
+      if (!image.visible) continue;
+      const frame =
+        frames[
+          reducedMotion
+            ? 0
+            : Math.floor((((time + phaseMs) % durationMs) / durationMs) * frames.length)
+        ]!;
+      if (String(image.frame.name) !== String(frame)) image.setFrame(frame);
+    }
     // Only a handful of torch lights animate; the environment never rebuilds during movement.
     this.flameLights.forEach((light, index) => {
       if (!light.visible) return;

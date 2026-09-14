@@ -61,7 +61,29 @@ export function AdventureHud({
           </span>
         </div>
         {complete && (
-          <strong className="rpg-trail-complete">Trail explored. Return to Willowmere!</strong>
+          <strong className="rpg-trail-complete">
+            Area explored. Follow the trail onward or return home.
+          </strong>
+        )}
+        {status.boss && (
+          <div className="rpg-boss-status" aria-label="Temple boss">
+            <strong>
+              {status.boss.name} · Lv {status.boss.level}
+            </strong>
+            <meter
+              min={0}
+              max={status.boss.maxHealth}
+              value={status.boss.health}
+              aria-label={`${status.boss.name} health`}
+            />
+            <span>
+              {status.boss.health === 0
+                ? 'Defeated'
+                : status.boss.enraged
+                  ? 'Enraged · wider spore volleys'
+                  : 'Watch its bite and spore volleys'}
+            </span>
+          </div>
         )}
         <button
           type="button"
@@ -139,7 +161,7 @@ export function AdventureHud({
       <p className="rpg-adventure-message rpg-adventure-message--equipment" role="status">
         {status.message ||
           (complete
-            ? 'All flowers collected and creatures defeated. The path home is south.'
+            ? 'Area cleared. Follow the signs to continue or return to the village.'
             : `WASD to move · Aim & left click / tap to ${melee ? 'attack' : 'cast'} · E to gather`)}
       </p>
     </>

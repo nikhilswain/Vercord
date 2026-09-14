@@ -16,12 +16,15 @@ export interface FlowerSpawn extends Point {
   kind: FlowerKind;
 }
 export interface AdventureDefinition {
+  /** Authored safe arrival clearings; never inferred from the map dimensions. */
+  safeAreas?: readonly Rect[];
   enemies: EncounterSpawn[];
   flowers: FlowerSpawn[];
   water: Rect[];
   traps?: Array<Point & { id: string; offset: number; activation?: 'pressure' | 'timed' }>;
 }
 export interface AdventureStatus {
+  boss?: { name: string; health: number; maxHealth: number; level: number; enraged: boolean };
   health: number;
   maxHealth: number;
   herbs: number;

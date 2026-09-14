@@ -4,15 +4,17 @@ import { getRpgSample, RPG_SAMPLES } from './sample-worlds';
 import { readRpgRoute, resolveRpgTravel, writeRpgRoute } from './themes';
 import type { RpgDestination } from './types';
 import { buildComparisonVillage, buildJungleDemo } from './demo/scenes';
-import type { DemoArea } from './demo/types';
+import { buildFernHollow, buildTempleDemo } from './demo/forest-expansion';
+import { DEMO_AREA_NAMES, readDemoArea, type DemoArea } from './demo/types';
 
 const village = buildComparisonVillage();
 const jungle = buildJungleDemo();
-const samples = [village, jungle, RPG_SAMPLES.norse, RPG_SAMPLES.dungeon];
+const areas = { village, jungle, 'fern-hollow': buildFernHollow(), temple: buildTempleDemo() };
+const samples = [...Object.values(areas), RPG_SAMPLES.norse, RPG_SAMPLES.dungeon];
 
 export function RpgDemoPage() {
   const [area, setArea] = useState<DemoArea>(() =>
-    new URLSearchParams(location.search).get('area') === 'jungle' ? 'jungle' : 'village',
+    readDemoArea(new URLSearchParams(location.search).get('area')),
   );
   const [crossing, setCrossing] = useState<DemoArea | null>(null);
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,7 +51,7 @@ export function RpgDemoPage() {
   }, []);
   useEffect(() => {
     const url = writeRpgRoute(new URL(location.href), route);
-    if (area === 'jungle' && route.theme === 'village') url.searchParams.set('area', 'jungle');
+    if (area !== 'village' && route.theme === 'village') url.searchParams.set('area', area);
     else url.searchParams.delete('area');
     history.replaceState(history.state, '', url);
   }, [route, area]);
@@ -57,13 +59,7 @@ export function RpgDemoPage() {
     <>
       <RpgPlayPage
         route={route}
-        sample={
-          route.theme === 'village'
-            ? area === 'jungle'
-              ? jungle
-              : village
-            : getRpgSample(route.theme)
-        }
+        sample={route.theme === 'village' ? areas[area] : getRpgSample(route.theme)}
         samples={samples}
         worldKey={`demo/${route.world}`}
         onTravel={travel}
@@ -73,7 +69,7 @@ export function RpgDemoPage() {
       {crossing && (
         <div className="rpg-demo-transition" role="status">
           <small>Following the trail</small>
-          <span>{crossing === 'jungle' ? 'Mosswild Jungle' : 'Willowmere'}</span>
+          <span>{DEMO_AREA_NAMES[crossing]}</span>
         </div>
       )}
     </>

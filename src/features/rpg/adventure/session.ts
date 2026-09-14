@@ -40,6 +40,7 @@ import type {
 
 export type EnemyPhase = 'idle' | 'walk' | 'windup' | 'attack' | 'hurt' | 'death';
 export interface Enemy extends EncounterSpawn {
+  attackCount: number;
   behavior: Readonly<EnemyBehavior>;
   windupDurationMs: number;
   comboRemaining: number;
@@ -75,6 +76,22 @@ export interface Projectile extends Point {
   velocity: Point;
   at: number;
   distance: number;
+}
+export interface EnemyProjectile extends Point {
+  id: number;
+  owner: string;
+  velocity: Point;
+  distance: number;
+  range: number;
+  damage: number;
+  invulnerabilityMs: number;
+}
+export interface AdventureTraveler {
+  progression: PlayerProgression;
+  health: number;
+  herbs: number;
+  spell: SpellId;
+  combatMode: CombatMode;
 }
 export interface MeleeAttack {
   at: number;
@@ -119,13 +136,14 @@ function facing(a: Point, b: Point): RpgDirection {
   return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
 }
 
-/** Shared encounter simulation. One session survives area transitions.
+/** Shared encounter simulation. The journey retains one session for each visited area.
  * Bounded effects and static collision data; no timers or per-tick React state.
  */
 export class AdventureSession {
   readonly enemies: Enemy[];
   readonly gathered = new Set<string>();
   readonly effects: AdventureEffect[] = [];
+  readonly enemyProjectiles: EnemyProjectile[] = [];
   health = 100;
   herbs = 1;
   time = 0;
@@ -175,6 +193,7 @@ export class AdventureSession {
       });
       const behavior = enemyBehavior(entry.kind, power.level);
       return {
+        attackCount: 0,
         ...entry,
         ...power,
         behavior,
@@ -197,7 +216,17 @@ export class AdventureSession {
   }
 
   status(): AdventureStatus {
+    const boss = this.enemies.find((enemy) => STATS[enemy.kind].boss);
     return {
+      boss: boss
+        ? {
+            name: STATS[boss.kind].name,
+            health: boss.health,
+            maxHealth: boss.maxHealth,
+            level: boss.level,
+            enraged: boss.health > 0 && boss.health <= boss.maxHealth / 2,
+          }
+        : undefined,
       health: this.health,
       maxHealth: 100,
       herbs: this.herbs,
@@ -240,6 +269,7 @@ export class AdventureSession {
     }
     this.tickMelee();
     this.tickProjectiles(dt);
+    this.tickEnemyProjectiles(dt, player);
     for (const [index, trap] of (this.content.traps ?? []).entries()) {
       const contact = crossesPressurePlate(this.previousPlayer, player, trap);
       if (trap.activation !== 'timed' && contact) this.trapContacts[index] = this.time;
@@ -288,7 +318,14 @@ export class AdventureSession {
         this.advanceLunge(enemy, previousMs, contact ? stats.impactMs : ageMs);
         if (contact) {
           enemy.hit = true;
+          const profile = STATS[enemy.kind];
           if (
+            profile.projectile &&
+            (!profile.boss || enemy.attackCount % 2 === 0 || enemy.health <= enemy.maxHealth / 2)
+          )
+            this.releaseEnemyProjectiles(enemy);
+          if (
+            (!profile.projectile || profile.boss) &&
             distance(enemy, player) < stats.hitRadius &&
             this.clearLine(enemy, player) &&
             this.time >= this.invincibleUntil &&
@@ -325,8 +362,12 @@ export class AdventureSession {
           enemy.windupDurationMs = chained ? stats.comboWindupMs : stats.windupMs;
           enemy.direction = facing(enemy, player);
           enemy.target = { ...player };
+          enemy.attackCount++;
           this.phase(enemy, 'windup');
-        } else if (distance(enemy, player) > 40) {
+        } else if (
+          distance(enemy, player) >
+          (STATS[enemy.kind].projectile && !STATS[enemy.kind].boss ? stats.reach * 0.8 : 40)
+        ) {
           this.phase(enemy, 'walk');
           this.move(
             enemy,
@@ -369,6 +410,51 @@ export class AdventureSession {
     return { ...this.progression, ownedWeaponIds: [...this.progression.ownedWeaponIds] };
   }
 
+  traveler(): AdventureTraveler {
+    return {
+      progression: this.getProgression(),
+      health: this.health,
+      herbs: this.herbs,
+      spell: this.spell,
+      combatMode: this.combatMode,
+    };
+  }
+
+  /** Arrival cannot sweep a trap from the previous map or carry a half-finished attack. */
+  arrive(traveler: AdventureTraveler | undefined, position: Point): void {
+    if (traveler) {
+      this.progression = sanitizePlayerProgression(
+        traveler.progression,
+        this.options.equipmentPolicy,
+      );
+      this.health = traveler.health;
+      this.herbs = traveler.herbs;
+      this.spell = traveler.spell;
+      this.combatMode = traveler.combatMode;
+    }
+    this.suspend();
+    Object.assign(this.previousPlayer, position);
+    this.invincibleUntil = this.time + 0.8;
+  }
+
+  suspend(): void {
+    this.cast = null;
+    this.melee = null;
+    this.projectiles.length = 0;
+    this.enemyProjectiles.length = 0;
+    this.effects.length = 0;
+    this.trapContacts.fill(-Infinity);
+    for (const enemy of this.enemies) {
+      enemy.comboRemaining = 0;
+      enemy.burningUntil = 0;
+      enemy.slowedUntil = 0;
+      if (enemy.health > 0) {
+        this.phase(enemy, 'idle');
+        enemy.readyAt = this.time + 0.8;
+      }
+    }
+  }
+
   equip(id: string): boolean {
     const result = equipWeapon(this.progression, id, this.options.equipmentPolicy);
     if (!result.success) return false;
@@ -399,6 +485,7 @@ export class AdventureSession {
         behavior: enemyBehavior(enemy.kind, power.level),
         windupDurationMs: enemyBehavior(enemy.kind, power.level).windupMs,
         comboRemaining: 0,
+        attackCount: 0,
         staggerReadyAt: 0,
         ...enemy.home,
         maxHealth: power.health,
@@ -476,6 +563,60 @@ export class AdventureSession {
     });
   }
 
+  private releaseEnemyProjectiles(enemy: Enemy): void {
+    const profile = STATS[enemy.kind];
+    const shot = profile.projectile!;
+    const enraged = profile.boss && enemy.health <= enemy.maxHealth / 2;
+    const count = shot.count + (enraged ? 2 : enemy.level >= 10 && !profile.boss ? 2 : 0);
+    const angle = Math.atan2(enemy.target.y - enemy.y, enemy.target.x - enemy.x);
+    const speed = shot.speed * (1 + Math.max(0, enemy.level - 5) * 0.035);
+    for (let i = 0; i < count && this.enemyProjectiles.length < 32; i++) {
+      const a = angle + (i - (count - 1) / 2) * shot.spread;
+      this.enemyProjectiles.push({
+        id: ++this.sequence,
+        owner: enemy.id,
+        x: enemy.x,
+        y: enemy.y,
+        velocity: { x: Math.cos(a) * speed, y: Math.sin(a) * speed },
+        distance: 0,
+        range: shot.range,
+        damage: enemy.damage,
+        invulnerabilityMs: enemy.behavior.playerInvulnerabilityMs,
+      });
+    }
+  }
+
+  private tickEnemyProjectiles(dt: number, player: Point): void {
+    for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
+      const p = this.enemyProjectiles[i]!;
+      const speed = Math.hypot(p.velocity.x, p.velocity.y);
+      const travel = Math.min(speed * dt, Math.max(0, p.range - p.distance));
+      const steps = Math.max(1, Math.ceil(travel / 5));
+      let expired = false;
+      for (let step = 0; step < steps && !expired; step++) {
+        const previous = { x: p.x, y: p.y };
+        p.x += ((p.velocity.x / speed) * travel) / steps;
+        p.y += ((p.velocity.y / speed) * travel) / steps;
+        p.distance += travel / steps;
+        expired =
+          p.distance >= p.range - 0.001 ||
+          !containsPoint(this.bounds, p.x, p.y) ||
+          !this.clearLine(previous, p) ||
+          this.isSafe(p);
+        if (!expired && distance(p, player) < 17 && this.clearLine(p, player)) {
+          if (this.time >= this.invincibleUntil && !this.isSafe(player)) {
+            this.health = Math.max(0, this.health - p.damage);
+            this.invincibleUntil = this.time + p.invulnerabilityMs / 1000;
+            this.effect(player, 'hit');
+            this.say('Spore hit! Move across the volley; H uses a healing herb.');
+          }
+          expired = true;
+        }
+      }
+      if (expired) this.enemyProjectiles.splice(i, 1);
+    }
+  }
+
   private tickProjectiles(dt: number): void {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i]!;
@@ -501,7 +642,8 @@ export class AdventureSession {
         const hit = this.enemies.find(
           (e) =>
             e.health > 0 &&
-            distance(e, p) < (e.kind === 'bear' || e.kind === 'guardian' ? 27 : 19) &&
+            distance(e, p) <
+              (STATS[e.kind].boss ? 36 : e.kind === 'bear' || e.kind === 'guardian' ? 27 : 19) &&
             this.clearLine(p, e),
         );
         if (hit) {
@@ -573,6 +715,8 @@ export class AdventureSession {
     enemy.health = Math.max(0, enemy.health - amount);
     if (enemy.health === 0) {
       this.phase(enemy, 'death');
+      for (let i = this.enemyProjectiles.length - 1; i >= 0; i--)
+        if (this.enemyProjectiles[i]!.owner === enemy.id) this.enemyProjectiles.splice(i, 1);
       this.effect(
         enemy,
         enemy.kind === 'guardian' || enemy.kind === 'snake'
@@ -587,6 +731,11 @@ export class AdventureSession {
         this.rewardedEnemies.add(enemy.id);
         this.reward(STATS[enemy.kind].xp, enemy);
       }
+      if (STATS[enemy.kind].boss)
+        this.say(
+          'Root Beast defeated! The temple is quiet. Your reward and discoveries are safe.',
+          9,
+        );
     } else {
       if (stagger && this.time >= enemy.staggerReadyAt) {
         this.phase(enemy, 'hurt');
@@ -653,6 +802,7 @@ export class AdventureSession {
   }
 
   rest(): void {
+    this.suspend();
     this.previousPlayer.x = this.spawn.x;
     this.previousPlayer.y = this.spawn.y;
     this.trapContacts.fill(-Infinity);
@@ -676,7 +826,11 @@ export class AdventureSession {
     enemy.phaseAt = this.time;
   }
   private isSafe(point: Point): boolean {
-    return this.options.safeAreas?.some((rect) => containsPoint(rect, point.x, point.y)) ?? false;
+    return (
+      (this.options.safeAreas ?? this.content.safeAreas)?.some((rect) =>
+        containsPoint(rect, point.x, point.y),
+      ) ?? false
+    );
   }
   private say(message: string, seconds = 4): void {
     this.message = message;

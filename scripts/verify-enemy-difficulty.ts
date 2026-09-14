@@ -35,12 +35,21 @@ for (const kind of Object.keys(ENEMY_DEFINITIONS) as CreatureKind[]) {
   assert(hard.comboSize >= 2);
   assert(hard.staggerImmunityMs > easy.staggerImmunityMs);
   assert(hard.impactMs < hard.durationMs);
-  // Starting a lunge at maximum reach must hit a stationary unobstructed player.
+  // Maximum reach must connect through contact or finite projectile travel.
   for (const level of [1, 5, 10, 20]) {
     for (const dtMs of [5, 16, 33, 50]) {
       const model = make(kind, level, enemyBehavior(kind, level).reach - 1);
       const behavior = enemyBehavior(kind, level);
-      for (let t = 0; t < behavior.windupMs + behavior.impactMs + 110; t += dtMs)
+      const projectile = ENEMY_DEFINITIONS[kind].projectile;
+      const travelMs =
+        projectile && !ENEMY_DEFINITIONS[kind].boss
+          ? (behavior.reach / (projectile.speed * (1 + Math.max(0, level - 5) * 0.035))) * 1000
+          : 0;
+      for (
+        let t = 0;
+        t < behavior.windupMs + behavior.impactMs + travelMs + 110 && model.health === 100;
+        t += dtMs
+      )
         model.tick(dtMs / 1000, player);
       assert(
         model.health < 100,

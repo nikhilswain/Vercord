@@ -9,17 +9,20 @@ import {
   GREEN_SLIME_ASSET,
 } from '../demo/magic-assets';
 import { FOREST_ENEMY_ASSETS } from '../demo/enemy-assets';
+import { PLANT_ASSETS } from './plant-assets';
 import { ENEMY_DEFINITIONS } from '../../../domain/adventure/enemies';
 import { attackAnimationTime } from './animation-clock';
 
 const creatureAsset = (enemy: Enemy) =>
-  enemy.kind === 'forest-brute' || enemy.kind === 'forest-skirmisher'
-    ? FOREST_ENEMY_ASSETS[enemy.kind]
-    : enemy.kind === 'guardian'
-      ? FOREST_GUARDIAN_ASSET
-      : enemy.kind === 'slime' && enemy.variant === 'green'
-        ? GREEN_SLIME_ASSET
-        : JUNGLE_WILDLIFE_ASSETS[enemy.kind];
+  enemy.kind === 'venus-trap' || enemy.kind === 'blue-death' || enemy.kind === 'root-beast'
+    ? PLANT_ASSETS[enemy.kind]
+    : enemy.kind === 'forest-brute' || enemy.kind === 'forest-skirmisher'
+      ? FOREST_ENEMY_ASSETS[enemy.kind]
+      : enemy.kind === 'guardian'
+        ? FOREST_GUARDIAN_ASSET
+        : enemy.kind === 'slime' && enemy.variant === 'green'
+          ? GREEN_SLIME_ASSET
+          : JUNGLE_WILDLIFE_ASSETS[enemy.kind];
 
 export function preloadJungleCreatures(scene: Phaser.Scene): void {
   for (const asset of [
@@ -27,6 +30,7 @@ export function preloadJungleCreatures(scene: Phaser.Scene): void {
     FOREST_GUARDIAN_ASSET,
     GREEN_SLIME_ASSET,
     ...Object.values(FOREST_ENEMY_ASSETS),
+    ...Object.values(PLANT_ASSETS),
     ...Object.values(MAGIC_EFFECT_ASSETS),
   ]) {
     if (!scene.textures.exists(asset.textureKey))
@@ -112,17 +116,23 @@ export class AdventureSessionRenderer {
     const g = this.effects.clear();
     const camera = this.scene.cameras.main;
     const visible = (point: Point) =>
-      camera.worldView.contains(point.x, point.y) ||
+      (point.x >= camera.worldView.x - 160 &&
+        point.x <= camera.worldView.right + 160 &&
+        point.y >= camera.worldView.y - 160 &&
+        point.y <= camera.worldView.bottom + 160) ||
       Math.hypot(player.x - point.x, player.y - point.y) < 100;
     this.model.enemies.forEach((enemy, index) => {
       const view = this.creatures[index]!;
       const age = this.model.time - enemy.phaseAt;
-      const shown = visible(enemy) && (enemy.health > 0 || age < 1);
+      const asset = creatureAsset(enemy);
+      const plant = enemy.kind in PLANT_ASSETS;
+      const scale = asset.suggestedScale * (ENEMY_DEFINITIONS[enemy.kind].boss ? 1.5 : 1);
+      const deathDuration = asset.animations.death.durationMs / 1000;
+      const shown = visible(enemy) && (enemy.health > 0 || age < deathDuration + 0.35);
       view.sprite.setVisible(shown);
-      view.shadow.setVisible(shown && enemy.health > 0);
+      view.shadow.setVisible(shown && enemy.health > 0 && !plant);
       view.label.setVisible(false);
       if (!shown) return;
-      const asset = creatureAsset(enemy);
       const animation = asset.animations[enemy.phase === 'windup' ? 'attack' : enemy.phase];
       const frames = animation.frames[enemy.direction];
       const elapsedMs =
@@ -150,13 +160,12 @@ export class AdventureSessionRenderer {
           : 0;
       view.sprite
         .setPosition(enemy.x, enemy.y - jump)
-        .setScale(
-          asset.suggestedScale * (1 + anticipation * 0.035),
-          asset.suggestedScale * (1 - anticipation * 0.045),
-        )
+        .setScale(scale * (1 + anticipation * 0.035), scale * (1 - anticipation * 0.045))
         .setDepth(enemy.y)
         .setFrame(frame)
-        .setAlpha(enemy.health === 0 ? Math.max(0, 1 - age) : 1);
+        .setAlpha(
+          enemy.health === 0 ? Math.max(0, 1 - Math.max(0, age - deathDuration) / 0.35) : 1,
+        );
       view.shadow.setPosition(enemy.x, enemy.y - 1).setDepth(enemy.y - 0.2);
       if (enemy.phase === 'hurt') view.sprite.setTint(0xffc7b2);
       else if (this.model.time < enemy.slowedUntil) view.sprite.setTint(0x91deff);
@@ -167,8 +176,7 @@ export class AdventureSessionRenderer {
         Math.hypot(enemy.x - player.x, enemy.y - player.y) < 190 &&
         camera.zoom >= 0.65
       ) {
-        const y =
-          enemy.y - (enemy.kind === 'guardian' ? 94 : asset.feet.y * asset.suggestedScale) - 9;
+        const y = enemy.y - (enemy.kind === 'guardian' ? 94 : asset.feet.y * scale) - 9;
         const label = `${ENEMY_DEFINITIONS[enemy.kind].name} · Lv ${enemy.level}`;
         if (view.label.text !== label) view.label.setText(label);
         view.label.setPosition(enemy.x, y - 4).setVisible(true);
@@ -182,6 +190,22 @@ export class AdventureSessionRenderer {
         );
       }
     });
+    // Bounded seed projectiles share the existing effects layer. No new objects per volley.
+    for (const seed of this.model.enemyProjectiles) {
+      if (!visible(seed)) continue;
+      const angle = Math.atan2(seed.velocity.y, seed.velocity.x);
+      const x = seed.x,
+        y = seed.y - SPELL_VISUAL_HEIGHT;
+      g.lineStyle(3, 0xb5db7e, 0.6).lineBetween(
+        x - Math.cos(angle) * 13,
+        y - Math.sin(angle) * 13,
+        x,
+        y,
+      );
+      g.fillStyle(0x34462a).fillCircle(x, y, 7);
+      g.fillStyle(0xcadf8a).fillCircle(x, y, 5);
+      g.fillStyle(0xf1ebbb).fillCircle(x - 1, y - 2, 2);
+    }
     this.model.content.flowers.forEach((flower, index) => {
       const shown = !this.model.gathered.has(flower.id);
       this.flowers[index]!.setVisible(shown);

@@ -1,0 +1,246 @@
+{
+  "archive": "free-predator-plant-mobs-pixel-art-pack.zip",
+  "sha256": "2a2bc7637d203a6e852a877c090ca8d2b618ce47d6f92786a60ba1ae1e8da41f",
+  "assets": {
+    "venus-trap": {
+      "id": "venus-trap",
+      "textureKey": "predator-venus-trap",
+      "imageUrl": "/game-assets/predator-plants/venus-trap.png",
+      "sourceUrl": "https://craftpix.net/freebies/free-predator-plant-mobs-pixel-art-pack/",
+      "author": "CraftPix / Free Game Assets (GUI, Sprite, Tilesets)",
+      "license": "CraftPix Freebie Products License (game use)",
+      "licenseUrl": "/game-assets/predator-plants/LICENSE-CraftPix.txt",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "columns": 8,
+      "frameCount": 128,
+      "feet": {
+        "x": 32,
+        "y": 48
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0.75
+      },
+      "suggestedScale": 2,
+      "animations": {
+        "idle": {
+          "durationMs": 800,
+          "loop": true,
+          "frames": {
+            "down": [0, 1, 2, 3],
+            "up": [4, 5, 6, 7],
+            "left": [8, 9, 10, 11],
+            "right": [12, 13, 14, 15]
+          }
+        },
+        "walk": {
+          "durationMs": 720,
+          "loop": true,
+          "frames": {
+            "down": [16, 17, 18, 19, 20, 21],
+            "up": [22, 23, 24, 25, 26, 27],
+            "left": [28, 29, 30, 31, 32, 33],
+            "right": [34, 35, 36, 37, 38, 39]
+          }
+        },
+        "attack": {
+          "durationMs": 840,
+          "loop": false,
+          "frames": {
+            "down": [40, 41, 42, 43, 44, 45, 46],
+            "up": [47, 48, 49, 50, 51, 52, 53],
+            "left": [54, 55, 56, 57, 58, 59, 60],
+            "right": [61, 62, 63, 64, 65, 66, 67]
+          },
+          "impactAtMs": 480
+        },
+        "hurt": {
+          "durationMs": 300,
+          "loop": false,
+          "frames": {
+            "down": [68, 69, 70, 71, 72],
+            "up": [73, 74, 75, 76, 77],
+            "left": [78, 79, 80, 81, 82],
+            "right": [83, 84, 85, 86, 87]
+          }
+        },
+        "death": {
+          "durationMs": 1100,
+          "loop": false,
+          "frames": {
+            "down": [88, 89, 90, 91, 92, 93, 94, 95, 96, 97],
+            "up": [98, 99, 100, 101, 102, 103, 104, 105, 106, 107],
+            "left": [108, 109, 110, 111, 112, 113, 114, 115, 116, 117],
+            "right": [118, 119, 120, 121, 122, 123, 124, 125, 126, 127]
+          }
+        }
+      },
+      "animationNotes": [
+        "Unmodified production pixels, including source shadows. Rows: front, back, left, right.",
+        "64px cells share a fixed (32,48) ground anchor; animation timing is game-authored. Native contact is column 4.",
+        "Run layers remain in the source archive; walk drives ordinary movement."
+      ]
+    },
+    "blue-death": {
+      "id": "blue-death",
+      "textureKey": "predator-blue-death",
+      "imageUrl": "/game-assets/predator-plants/blue-death.png",
+      "sourceUrl": "https://craftpix.net/freebies/free-predator-plant-mobs-pixel-art-pack/",
+      "author": "CraftPix / Free Game Assets (GUI, Sprite, Tilesets)",
+      "license": "CraftPix Freebie Products License (game use)",
+      "licenseUrl": "/game-assets/predator-plants/LICENSE-CraftPix.txt",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "columns": 8,
+      "frameCount": 128,
+      "feet": {
+        "x": 32,
+        "y": 48
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0.75
+      },
+      "suggestedScale": 2,
+      "animations": {
+        "idle": {
+          "durationMs": 800,
+          "loop": true,
+          "frames": {
+            "down": [0, 1, 2, 3],
+            "up": [4, 5, 6, 7],
+            "left": [8, 9, 10, 11],
+            "right": [12, 13, 14, 15]
+          }
+        },
+        "walk": {
+          "durationMs": 720,
+          "loop": true,
+          "frames": {
+            "down": [16, 17, 18, 19, 20, 21],
+            "up": [22, 23, 24, 25, 26, 27],
+            "left": [28, 29, 30, 31, 32, 33],
+            "right": [34, 35, 36, 37, 38, 39]
+          }
+        },
+        "attack": {
+          "durationMs": 840,
+          "loop": false,
+          "frames": {
+            "down": [40, 41, 42, 43, 44, 45, 46],
+            "up": [47, 48, 49, 50, 51, 52, 53],
+            "left": [54, 55, 56, 57, 58, 59, 60],
+            "right": [61, 62, 63, 64, 65, 66, 67]
+          },
+          "impactAtMs": 480
+        },
+        "hurt": {
+          "durationMs": 300,
+          "loop": false,
+          "frames": {
+            "down": [68, 69, 70, 71, 72],
+            "up": [73, 74, 75, 76, 77],
+            "left": [78, 79, 80, 81, 82],
+            "right": [83, 84, 85, 86, 87]
+          }
+        },
+        "death": {
+          "durationMs": 1100,
+          "loop": false,
+          "frames": {
+            "down": [88, 89, 90, 91, 92, 93, 94, 95, 96, 97],
+            "up": [98, 99, 100, 101, 102, 103, 104, 105, 106, 107],
+            "left": [108, 109, 110, 111, 112, 113, 114, 115, 116, 117],
+            "right": [118, 119, 120, 121, 122, 123, 124, 125, 126, 127]
+          }
+        }
+      },
+      "animationNotes": [
+        "Unmodified production pixels, including source shadows. Rows: front, back, left, right.",
+        "64px cells share a fixed (32,48) ground anchor; animation timing is game-authored. Native contact is column 4.",
+        "Run layers remain in the source archive; walk drives ordinary movement."
+      ]
+    },
+    "root-beast": {
+      "id": "root-beast",
+      "textureKey": "predator-root-beast",
+      "imageUrl": "/game-assets/predator-plants/root-beast.png",
+      "sourceUrl": "https://craftpix.net/freebies/free-predator-plant-mobs-pixel-art-pack/",
+      "author": "CraftPix / Free Game Assets (GUI, Sprite, Tilesets)",
+      "license": "CraftPix Freebie Products License (game use)",
+      "licenseUrl": "/game-assets/predator-plants/LICENSE-CraftPix.txt",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "columns": 8,
+      "frameCount": 128,
+      "feet": {
+        "x": 32,
+        "y": 48
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0.75
+      },
+      "suggestedScale": 2,
+      "animations": {
+        "idle": {
+          "durationMs": 800,
+          "loop": true,
+          "frames": {
+            "down": [0, 1, 2, 3],
+            "up": [4, 5, 6, 7],
+            "left": [8, 9, 10, 11],
+            "right": [12, 13, 14, 15]
+          }
+        },
+        "walk": {
+          "durationMs": 720,
+          "loop": true,
+          "frames": {
+            "down": [16, 17, 18, 19, 20, 21],
+            "up": [22, 23, 24, 25, 26, 27],
+            "left": [28, 29, 30, 31, 32, 33],
+            "right": [34, 35, 36, 37, 38, 39]
+          }
+        },
+        "attack": {
+          "durationMs": 840,
+          "loop": false,
+          "frames": {
+            "down": [40, 41, 42, 43, 44, 45, 46],
+            "up": [47, 48, 49, 50, 51, 52, 53],
+            "left": [54, 55, 56, 57, 58, 59, 60],
+            "right": [61, 62, 63, 64, 65, 66, 67]
+          },
+          "impactAtMs": 480
+        },
+        "hurt": {
+          "durationMs": 300,
+          "loop": false,
+          "frames": {
+            "down": [68, 69, 70, 71, 72],
+            "up": [73, 74, 75, 76, 77],
+            "left": [78, 79, 80, 81, 82],
+            "right": [83, 84, 85, 86, 87]
+          }
+        },
+        "death": {
+          "durationMs": 1100,
+          "loop": false,
+          "frames": {
+            "down": [88, 89, 90, 91, 92, 93, 94, 95, 96, 97],
+            "up": [98, 99, 100, 101, 102, 103, 104, 105, 106, 107],
+            "left": [108, 109, 110, 111, 112, 113, 114, 115, 116, 117],
+            "right": [118, 119, 120, 121, 122, 123, 124, 125, 126, 127]
+          }
+        }
+      },
+      "animationNotes": [
+        "Unmodified production pixels, including source shadows. Rows: front, back, left, right.",
+        "64px cells share a fixed (32,48) ground anchor; animation timing is game-authored. Native contact is column 4.",
+        "Run layers remain in the source archive; walk drives ordinary movement."
+      ]
+    }
+  }
+}

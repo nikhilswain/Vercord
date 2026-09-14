@@ -327,7 +327,14 @@ export function RpgPanels({
                 <a href="/game-assets/magic-demo/CREDITS.md" target="_blank" rel="noreferrer">
                   Magic sources &amp; licenses
                 </a>
-                .
+                . Predator plants and the ruined temple: CraftPix.{' '}
+                <a href="/game-assets/predator-plants/CREDITS.md" target="_blank" rel="noreferrer">
+                  Plant credits
+                </a>
+                {' · '}
+                <a href="/game-assets/ruined-temple/CREDITS.md" target="_blank" rel="noreferrer">
+                  Temple credits
+                </a>
               </p>
             )}
             <p>

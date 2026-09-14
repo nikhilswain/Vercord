@@ -2,6 +2,7 @@ import type {
   Point,
   RpgDestination,
   RpgSample as SavedRpgSample,
+  RpgStamp,
   RpgThemeId,
 } from '../../domain/world/content/v1/types';
 import type { MapRoomType } from '../../domain/map/snapshot';
@@ -45,6 +46,14 @@ export interface RpgSample extends SavedRpgSample {
   signage?: RpgSceneLabel[];
   townSquareNavigation?: boolean;
   demo?: DemoSceneContent;
+  /** Small animated scenery uses the shared scene clock; static ground stays cached. */
+  animatedScenery?: Array<
+    RpgStamp & {
+      frames: readonly number[];
+      durationMs: number;
+      phaseMs?: number;
+    }
+  >;
 }
 
 export interface RpgNearby {

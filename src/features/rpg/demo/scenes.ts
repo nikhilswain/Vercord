@@ -16,7 +16,7 @@ import type { JungleDefinition } from './types';
 
 export function buildComparisonVillage(): RpgSample {
   const sample: RpgSample = buildVillage();
-  sample.demo = { area: 'village', portal: { id: 'demo-jungle-entry', target: 'jungle' } };
+  sample.demo = { area: 'village', portals: [{ id: 'demo-jungle-entry', target: 'jungle' }] };
   sample.subtitle = 'Meet the travelers · Follow the northwest path to the jungle';
   sample.landmarks = sample.landmarks.filter((place) => place.id !== 'listening-grove');
   sample.landmarks.push({
@@ -67,6 +67,10 @@ export function buildJungleDemo(): RpgSample {
   sample.bounds = { x: 0, y: 0, width: 46 * 32, height: 38 * 32 };
   sample.background = '#4d8231';
   const jungle: JungleDefinition = {
+    safeAreas: [
+      { x: 0, y: 31 * 32, width: 46 * 32, height: 7 * 32 },
+      { x: 40 * 32, y: 20 * 32, width: 6 * 32, height: 7 * 32 },
+    ],
     enemies: [
       { id: 'slime-south', kind: 'slime', ...at(23, 28) },
       { id: 'slime-west', kind: 'slime', variant: 'green', ...at(18, 23) },
@@ -92,7 +96,14 @@ export function buildJungleDemo(): RpgSample {
       { id: 'pool-spikes', offset: 1.5, ...at(28.5, 18) },
     ],
   };
-  sample.demo = { area: 'jungle', portal: { id: 'demo-jungle-return', target: 'village' }, jungle };
+  sample.demo = {
+    area: 'jungle',
+    portals: [
+      { id: 'demo-jungle-return', target: 'village' },
+      { id: 'hollow-entry', target: 'fern-hollow' },
+    ],
+    jungle,
+  };
   const paths = new Set<string>();
   for (const [x, y, w, h] of [
     [20, 30, 7, 6],
@@ -103,6 +114,7 @@ export function buildJungleDemo(): RpgSample {
     [17, 14, 12, 3],
     [27, 11, 3, 13],
     [35, 20, 6, 7],
+    [38, 22, 7, 3],
     [9, 10, 6, 5],
   ] as const)
     paint(paths, x, y, w, h);
@@ -139,7 +151,7 @@ export function buildJungleDemo(): RpgSample {
   sample.colliders.push(...jungle.water);
   // Dense canopy outside generous trail clearings. Deterministic authored layout,
   // cached by the existing static renderer; no trees regenerate during camera movement.
-  const clear = [sample.spawn, at(23, 35), ...jungle.enemies, ...jungle.flowers];
+  const clear = [sample.spawn, at(23, 35), at(43, 23), ...jungle.enemies, ...jungle.flowers];
   for (let y = 4; y < 38; y += 2.3)
     for (let x = 1.5; x < 46; x += 2.4) {
       const tx = x + Math.sin(y * 9 + x) * 0.65;
@@ -179,6 +191,15 @@ export function buildJungleDemo(): RpgSample {
     ground(sample, 'lpc-flowers', 25, x + 1.8, y + 1, -25);
   }
   signpost(sample, 24.8, 34.8);
+  signpost(sample, 43, 21);
+  sample.landmarks.push({
+    id: 'hollow-entry',
+    name: 'Fern Hollow',
+    ...at(43, 23),
+    radius: 65,
+    kind: 'portal',
+    description: 'Follow the eastern trail deeper into the forest.',
+  });
   sample.landmarks.push({
     id: 'demo-jungle-return',
     name: 'Willowmere',
@@ -188,6 +209,13 @@ export function buildJungleDemo(): RpgSample {
     description: 'Return to the village with your gathered flowers.',
   });
   sample.signage = [
+    {
+      ...at(42, 20),
+      text: 'Fern Hollow →',
+      detail: 'E to follow the trail',
+      kind: 'place',
+      maxWidth: 190,
+    },
     { ...at(23, 36.5), text: 'Willowmere ↓', detail: 'E to return', kind: 'place', maxWidth: 170 },
     {
       ...at(23, 30),

@@ -6,6 +6,9 @@ Ember/Tide. All 24 free weapons can be equipped in the demo. Its encounter slide
 sets levels 1–20 and explicitly resets enemies and returns the player to camp.
 XP and gathered flowers survive this reset; the same enemy cannot award XP twice.
 
+For the connected forest and temple, native plants, hostile projectiles and area lifecycle,
+see [Connected adventure areas](ADDING-ADVENTURE-AREAS.md).
+
 ## Cursor combat and pressure plates
 
 WASD/arrows move, Shift runs, middle-button drag pans in combat, and touch drag
@@ -44,18 +47,18 @@ Asset research and proposed future encounters:
 
 ## Reusable modules
 
-| Module                                             | Responsibility                                                                                                   |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `src/domain/adventure/weapons.ts`                  | Stable weapon IDs, families, tiers, damage, reach, action/recovery timing, unlock levels and staff spell bonuses |
-| `src/domain/adventure/equipment.ts`                | Versioned serializable player progression, ownership, equipment validation, grants and saved-data sanitization   |
-| `src/domain/adventure/progression.ts`              | XP thresholds, level caps and enemy power scaling                                                                |
-| `src/domain/adventure/enemies.ts`                  | Creature balance, telegraph/contact/recovery clocks and level-based spawn policy                                 |
-| `src/features/rpg/adventure/session.ts`            | Shared collision-aware simulation: attacks, projectiles, damage, rewards, gathering and rescue                   |
-| `src/features/rpg/adventure/renderer.ts`           | Cached creature views, fixed projectile/effect pools and animation playback                                      |
-| `src/features/rpg/adventure/animation-clock.ts`    | Maps each skin's native contact frame onto the gameplay attack clock                                             |
-| `src/features/rpg/character.ts`, `melee-assets.ts`, `weapon-visuals.ts` | LPC body/clothing poses with exact item images attached to per-frame hand anchors |
-| `src/features/rpg/demo/equipment.ts`               | Joins shared definitions to names and inventory illustrations; contains no balance rules                         |
-| `src/features/rpg/demo/scenes.ts`                  | Authored village/forest content and demo portal routing                                                          |
+| Module                                                                  | Responsibility                                                                                                   |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `src/domain/adventure/weapons.ts`                                       | Stable weapon IDs, families, tiers, damage, reach, action/recovery timing, unlock levels and staff spell bonuses |
+| `src/domain/adventure/equipment.ts`                                     | Versioned serializable player progression, ownership, equipment validation, grants and saved-data sanitization   |
+| `src/domain/adventure/progression.ts`                                   | XP thresholds, level caps and enemy power scaling                                                                |
+| `src/domain/adventure/enemies.ts`                                       | Creature balance, telegraph/contact/recovery clocks and level-based spawn policy                                 |
+| `src/features/rpg/adventure/session.ts`                                 | Shared collision-aware simulation: attacks, projectiles, damage, rewards, gathering and rescue                   |
+| `src/features/rpg/adventure/renderer.ts`                                | Cached creature views, fixed projectile/effect pools and animation playback                                      |
+| `src/features/rpg/adventure/animation-clock.ts`                         | Maps each skin's native contact frame onto the gameplay attack clock                                             |
+| `src/features/rpg/character.ts`, `melee-assets.ts`, `weapon-visuals.ts` | LPC body/clothing poses with exact item images attached to per-frame hand anchors                                |
+| `src/features/rpg/demo/equipment.ts`                                    | Joins shared definitions to names and inventory illustrations; contains no balance rules                         |
+| `src/features/rpg/demo/scenes.ts`                                       | Authored village/forest content and demo portal routing                                                          |
 
 The pure domain modules import no React, Phaser, browser storage, assets or demo
 code. Normal equipment requires both ownership and the weapon's unlock level.

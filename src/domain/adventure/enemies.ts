@@ -1,7 +1,15 @@
 import { encounterLevelForPlayer, encounterPower, normalizeEncounterLevel } from './progression';
 
 export type CreatureKind =
-  'slime' | 'snake' | 'bear' | 'guardian' | 'forest-brute' | 'forest-skirmisher';
+  | 'slime'
+  | 'snake'
+  | 'bear'
+  | 'guardian'
+  | 'forest-brute'
+  | 'forest-skirmisher'
+  | 'venus-trap'
+  | 'blue-death'
+  | 'root-beast';
 
 export interface EnemyDefinition {
   name: string;
@@ -18,10 +26,64 @@ export interface EnemyDefinition {
   lungeMs: number;
   hitRadius: number;
   xp: number;
+  /** A native mouth-release attack, resolved at the same contact frame as melee. */
+  projectile?: { speed: number; range: number; count: number; spread: number };
+  boss?: boolean;
 }
 
 /** Shared encounter balance; art adapters consume these authored attack timings. */
 export const ENEMY_DEFINITIONS: Readonly<Record<CreatureKind, Readonly<EnemyDefinition>>> = {
+  'venus-trap': {
+    name: 'Venus Trap',
+    health: 85,
+    speed: 48,
+    reach: 76,
+    damage: 18,
+    aggro: 190,
+    windupMs: 430,
+    impactMs: 480,
+    durationMs: 840,
+    recoveryMs: 750,
+    lungeSpeed: 125,
+    lungeMs: 280,
+    hitRadius: 43,
+    xp: 25,
+  },
+  'blue-death': {
+    name: 'Blue Death',
+    health: 105,
+    speed: 34,
+    reach: 230,
+    damage: 17,
+    aggro: 290,
+    windupMs: 500,
+    impactMs: 480,
+    durationMs: 840,
+    recoveryMs: 1000,
+    lungeSpeed: 0,
+    lungeMs: 0,
+    hitRadius: 35,
+    xp: 35,
+    projectile: { speed: 155, range: 330, count: 1, spread: 0.24 },
+  },
+  'root-beast': {
+    name: 'Root Beast',
+    health: 540,
+    speed: 53,
+    reach: 110,
+    damage: 28,
+    aggro: 380,
+    windupMs: 630,
+    impactMs: 480,
+    durationMs: 840,
+    recoveryMs: 1100,
+    lungeSpeed: 175,
+    lungeMs: 350,
+    hitRadius: 62,
+    xp: 160,
+    boss: true,
+    projectile: { speed: 165, range: 360, count: 3, spread: 0.3 },
+  },
   slime: {
     name: 'Slime',
     health: 50,
@@ -181,12 +243,15 @@ export function enemyBehavior(kind: CreatureKind, rawLevel: number): Readonly<En
   return {
     speed: base.speed * (1 + beginner * 0.12 + pressure * 1.15),
     // Attack only from a distance the contact frame can actually reach.
-    reach: Math.min(
-      base.reach,
-      base.hitRadius + ((lungeSpeed * Math.min(lungeMs, impactMs)) / 1000) * 0.85,
-    ),
+    reach:
+      base.projectile && !base.boss
+        ? base.reach
+        : Math.min(
+            base.reach,
+            base.hitRadius + ((lungeSpeed * Math.min(lungeMs, impactMs)) / 1000) * 0.85,
+          ),
     aggro: base.aggro * (1 + beginner * 0.12 + pressure * 0.35),
-    leash: 235 + pressure * 100,
+    leash: (base.boss ? 490 : base.projectile ? 355 : 235) + pressure * 100,
     windupMs,
     impactMs,
     durationMs,
@@ -200,7 +265,11 @@ export function enemyBehavior(kind: CreatureKind, rawLevel: number): Readonly<En
     trackUntilMs: pressure > 0 ? Math.max(0, windupMs - 90) : 0,
     leadMs: pressure * 100,
     staggerMs: Math.round(300 - pressure * 160),
-    staggerImmunityMs: pressure > 0 ? 1000 + pressure * 1400 : 0,
+    staggerImmunityMs: base.boss
+      ? 2000 + pressure * 1400
+      : pressure > 0
+        ? 1000 + pressure * 1400
+        : 0,
     playerInvulnerabilityMs: Math.min(
       Math.round(1150 - pressure * 650),
       comboSize > 1 ? nextComboHitMs - 80 : 1150,

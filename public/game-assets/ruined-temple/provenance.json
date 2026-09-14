@@ -1,0 +1,107 @@
+{
+  "sourceUrl": "https://craftpix.net/freebies/free-ruined-temple-top-down-location-pixel-art/",
+  "assets": [
+    {
+      "name": "sanctuary",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [0, 0, 144, 144]
+    },
+    {
+      "name": "foundation",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [0, 144, 160, 80]
+    },
+    {
+      "name": "arch",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [112, 224, 112, 64]
+    },
+    {
+      "name": "statue",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [0, 464, 64, 104]
+    },
+    {
+      "name": "broken-statue",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [128, 464, 64, 104]
+    },
+    {
+      "name": "column",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [224, 336, 32, 32]
+    },
+    {
+      "name": "broken-column",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [288, 336, 32, 32]
+    },
+    {
+      "name": "tree-broad",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [192, 432, 64, 80]
+    },
+    {
+      "name": "tree-pine",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [256, 432, 64, 80]
+    },
+    {
+      "name": "tree-round",
+      "source": "PNG/Exterior_objects.png",
+      "sha256": "24d0fe5fdf93771061c3690ad2533331dd6517f3e1b37c0bdce9f8dda6b8ab6f",
+      "rect": [192, 512, 64, 80]
+    },
+    {
+      "name": "bush",
+      "source": "PNG/Trees_grass_alternative_fit.png",
+      "sha256": "95199d7b8c0fc6b6994ff2172fb5798a7100d50f0191b20f43133b399e8e8200",
+      "rect": [224, 224, 32, 32]
+    },
+    {
+      "name": "wall",
+      "source": "PNG/Tiles_exterior.png",
+      "sha256": "f846c5c001671605953717444091a365eb7a96da7893fb196d8b92700ee8f697",
+      "rect": [224, 16, 64, 32]
+    },
+    {
+      "name": "vines",
+      "source": "PNG/Tiles_exterior.png",
+      "sha256": "f846c5c001671605953717444091a365eb7a96da7893fb196d8b92700ee8f697",
+      "rect": [16, 144, 64, 96]
+    },
+    {
+      "name": "flagstone",
+      "source": "PNG/Walls_floor.png",
+      "sha256": "89ff419e2dc739823e0ed439cf1474828c9df3f7e17bfe705294654fbd057222",
+      "rect": [96, 208, 16, 16]
+    },
+    {
+      "name": "rubble",
+      "source": "PNG/Objects_interior.png",
+      "sha256": "3f90c7311a093448be165cecfad697dbf1cc10ede4a36b596b72dfdcccfcc3cc",
+      "rect": [0, 160, 48, 48]
+    },
+    {
+      "name": "urns",
+      "source": "PNG/Objects_interior.png",
+      "sha256": "3f90c7311a093448be165cecfad697dbf1cc10ede4a36b596b72dfdcccfcc3cc",
+      "rect": [256, 0, 32, 32]
+    },
+    {
+      "name": "flame",
+      "source": "PNG/Fire_animation.png",
+      "sha256": "29b5cdbd596d88bfe8411db733224190bf128c8ec236f5ac42e18548e484af07",
+      "rect": [0, 0, 32, 480]
+    }
+  ]
+}

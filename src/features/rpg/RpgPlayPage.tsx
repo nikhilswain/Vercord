@@ -283,6 +283,7 @@ export function RpgPlayPage({
       className={`rpg-page${route.house ? ' rpg-page--house' : ''}`}
       data-game-theme={theme}
       data-demo-area={sample.demo?.area}
+      data-adventure={Boolean(sample.demo?.jungle)}
     >
       <div
         ref={hostRef}
@@ -319,7 +320,7 @@ export function RpgPlayPage({
             className={server ? 'rpg-kicker rpg-kicker--server' : 'rpg-kicker'}
             title={server?.displayName}
           >
-            {sample.demo?.area === 'jungle'
+            {sample.demo?.jungle
               ? 'Forest adventure'
               : route.house
                 ? 'Inside a channel house'
@@ -330,14 +331,14 @@ export function RpgPlayPage({
             {sample.name}
           </h1>
           <p title={sample.subtitle}>
-            {sample.demo?.area === 'jungle' || route.house || (server?.town && theme !== 'dungeon')
+            {Boolean(sample.demo?.jungle) || route.house || (server?.town && theme !== 'dungeon')
               ? sample.subtitle
               : ui.theme === theme
                 ? ui.place
                 : sample.subtitle}
           </p>
         </header>
-        {!suspended && !panel && !speech && sample.demo?.area === 'jungle' && ui.adventure && (
+        {!suspended && !panel && !speech && Boolean(sample.demo?.jungle) && ui.adventure && (
           <AdventureHud
             status={ui.adventure}
             onAttack={() => runtimeRef.current?.attack?.()}
@@ -355,7 +356,7 @@ export function RpgPlayPage({
             </p>
             <button
               onClick={() => {
-                const entrance = sample.landmarks.find((p) => p.id === sample.demo?.portal.id);
+                const entrance = sample.landmarks.find((p) => p.id === sample.demo?.portals[0]?.id);
                 if (entrance) runtimeRef.current?.focus?.(entrance);
               }}
             >

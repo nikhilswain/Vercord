@@ -12,6 +12,7 @@ import {
 } from './character';
 import type { SpellId } from './demo/types';
 import { AdventureSession } from './adventure/session';
+import { AdventureJourney } from './adventure/journey';
 import { combatTargetAtPointer } from './adventure/aim';
 import { DEMO_EQUIPMENT_POLICY } from '../../domain/adventure/equipment';
 import { RPG_MELEE_ANIMATION, RPG_MELEE_WEAPON_STYLE } from './melee-assets';
@@ -31,6 +32,10 @@ export class RpgScene extends Phaser.Scene {
   private scenery: RpgSampleRenderer | null = null;
   private avatar: RpgCharacter | null = null;
   private adventureSession: AdventureSession | null = null;
+  private readonly adventureJourney = new AdventureJourney({
+    equipmentPolicy: DEMO_EQUIPMENT_POLICY,
+    enemyLevelOverride: 1,
+  });
   private adventureRenderer: AdventureSessionRenderer | null = null;
   private remotes: RpgRemoteCharacters | null = null;
   private ambient: RpgAmbientEntities | null = null;
@@ -304,9 +309,8 @@ export class RpgScene extends Phaser.Scene {
     if (!nearby) return;
     this.simulation.stop();
     const target = nearby.target;
-    const portal = this.simulation.sample.demo?.portal;
-    if (portal?.id === target.id) {
-      this.adventureSession?.rest();
+    const portal = this.simulation.sample.demo?.portals.find((entry) => entry.id === target.id);
+    if (portal) {
       this.callbacks.onDemoTravel?.(portal.target);
       return;
     }
@@ -412,7 +416,7 @@ export class RpgScene extends Phaser.Scene {
   }
 
   private activeAdventure(): AdventureSession | null {
-    return this.simulation.sample.demo?.area === 'jungle' ? this.adventureSession : null;
+    return this.simulation.sample.demo?.jungle ? this.adventureSession : null;
   }
 
   public selectMelee(): void {
@@ -430,7 +434,7 @@ export class RpgScene extends Phaser.Scene {
 
   public setEnemyLevel(level: number): void {
     if (!this.created || this.disposed) return;
-    if (this.activeAdventure()?.setEnemyLevel(level)) {
+    if (this.activeAdventure() && this.adventureJourney.setEnemyLevel(level)) {
       this.simulation.stop();
       this.simulation.player = { ...this.simulation.sample.spawn };
       this.center();
@@ -551,26 +555,19 @@ export class RpgScene extends Phaser.Scene {
     this.remotes.setPlayers(this.players, this.elapsed);
     if (!sample.demo) this.ambient = new RpgAmbientEntities(this, sample, this.sceneKey);
     if (sample.demo?.jungle) {
-      this.adventureSession ??= new AdventureSession(
+      this.adventureSession = this.adventureJourney.enter(
+        sample.demo.area,
         sample.demo.jungle,
         sample.colliders,
         sample.bounds,
         sample.spawn,
+        player,
         { durationMs: RPG_CAST_DURATION_MS, releaseMs: RPG_CAST_RELEASE_MS },
-        {
-          equipmentPolicy: DEMO_EQUIPMENT_POLICY,
-          enemyLevelOverride: 1,
-          safeAreas: [
-            {
-              x: sample.bounds.x,
-              y: sample.spawn.y - 64,
-              width: sample.bounds.width,
-              height: sample.bounds.y + sample.bounds.height - sample.spawn.y + 64,
-            },
-          ],
-        },
       );
       this.adventureRenderer = new AdventureSessionRenderer(this, this.adventureSession);
+    } else {
+      this.adventureJourney.leave(true);
+      this.adventureSession = null;
     }
     this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
@@ -648,7 +645,10 @@ export class RpgScene extends Phaser.Scene {
           action: 'Gather',
         };
     }
-    if (state.nearby && state.nearby.id === this.simulation.sample.demo?.portal.id)
+    if (
+      state.nearby &&
+      this.simulation.sample.demo?.portals.some((portal) => portal.id === state.nearby?.id)
+    )
       state.nearby.action = 'Enter';
     const key = JSON.stringify(state);
     if (key !== this.lastUi) {

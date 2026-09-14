@@ -12,6 +12,11 @@ rotating sword have been removed following visual review. Six additional ivory
 variants add blonde, white, red, pink and blue hairstyles and different full shirts:
 Mira, Finn and Lumi in Willowmere; Elin, Astrid and Kaia in Frosthavn.
 
+The expedition also continues east into **Fern Hollow**, then northeast to
+**Rootbound Temple**. Three native predator plants occupy the new areas, with a
+Root Beast boss guarding the sanctuary. See [Connected adventure areas](ADDING-ADVENTURE-AREAS.md)
+for the route, reusable journey lifecycle, source imports and verification.
+
 ## Playing
 
 - Choose a traveler with **Look**. Follow the northwest village path, meet the
@@ -44,8 +49,8 @@ Mira, Finn and Lumi in Willowmere; Elin, Astrid and Kaia in Frosthavn.
 - Collect all three moonblossoms and clear the eight encounters. The south trail
   returns to Willowmere. A defeated traveler recovers at the safe arrival camp.
 
-Progress, appearance and positions survive village/jungle crossings in one runtime
-session. Reloading or changing world themes resets the adventure. This is local
+Progress, appearance and positions survive crossings between all four areas in one runtime
+session. Reloading resets the adventure. This is local
 prototype progression, not persistent inventory, multiplayer combat or saved quests.
 Dialogs, panels, inactive windows and hidden tabs pause combat. Touch buttons cover
 casting, spell selection, gathering and healing. Reduced motion keeps meaningful
@@ -55,8 +60,9 @@ action poses while suppressing decorative motion and the travel fade.
 
 **The exact selected ELV forest is not installed.** The Art directions page displays
 public previews. The owner confirmed they do not own Fantasy Dreamland World yet.
-The current forest uses the credited LPC world assets with brighter colors and
-authored clearings; it is provisional scenery, not ELV artwork. Once an owned pack
+Mosswild uses the credited LPC world assets. Fern Hollow and Rootbound Temple mix
+that terrain with the installed free CraftPix Ruined Temple vegetation and architecture.
+None of these areas uses ELV artwork. Once an owned pack
 is available, verify its packaged license and use 16px terrain at 2× alongside the
 unchanged approximately 47px visible LPC characters. Check doorways, trunks, canopy
 occlusion and water collision in a small comparison before replacing the whole forest.
@@ -79,7 +85,8 @@ an original Dmap experiment, not a reproduction of vanilla Stardew combat.
 | `demo/AdventureHud.tsx`, `demo/demo.css`          | Health, level, objectives, spell choice and touch controls                           |
 | `character.ts`                                    | Shared LPC rig; optional local `castElapsedMs` synchronizes six authored layers      |
 
-`RpgDemoPage` owns `?area=jungle` and the entry/return transition. `RpgSample.demo`
+`RpgDemoPage` owns the area query and entry/return transitions. `AdventureJourney`
+retains each area session and transfers the traveler between them. `RpgSample.demo`
 is runtime-only metadata. Village and jungle have distinct local position and atlas
 pin keys. The optional runtime `selectSpell` command stays in the demo; server
 movement messages still carry only their existing locomotion actions. New wardrobe
@@ -92,7 +99,7 @@ encounter spawn. Keep the model's impact timing aligned with the chosen sprite p
 Do not derive collision dimensions from transparent sheet padding. For a persistent
 theme, use [Adding themes](ADDING-THEMES.md).
 
-The renderer allocates eight creature views, two traps, eight projectile sprites,
+The renderer allocates one view per authored creature/trap, eight player projectile sprites,
 sixteen effect sprites and one casting orb. Static scenery uses the existing baked
 ground and cached textures. Zoom does not rebuild the world. Source textures remain
 cached across scene crossings; casts load only in demo runtimes. UI publication uses
