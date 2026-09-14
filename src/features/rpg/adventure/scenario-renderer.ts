@@ -5,6 +5,7 @@ import type { ScenarioSession, StoryCondition } from '../../../domain/adventure/
 export interface ScenarioSprite extends Point {
   id: string;
   label?: string;
+  labelOffsetY?: number;
   width: number;
   height: number;
   originY?: number;
@@ -15,6 +16,8 @@ export interface ScenarioSprite extends Point {
       frames?: readonly number[];
       duration?: number;
       loop?: boolean;
+      /** Motion that communicates active gameplay danger, rather than ambient decoration. */
+      essentialMotion?: boolean;
       since?: string;
       beforeAge?: number;
       hideAfter?: number;
@@ -77,7 +80,7 @@ export class ScenarioRenderer {
       const frames = state.frames ?? [0];
       const frame =
         frames[
-          reducedMotion && state.loop !== false
+          reducedMotion && state.loop !== false && !state.essentialMotion
             ? 0
             : Math.min(frames.length - 1, Math.floor(progress * frames.length))
         ]!;
@@ -98,7 +101,7 @@ export class ScenarioRenderer {
       view.image.setPosition(x, y).setDepth(definition.depth ?? y);
       if (view.label && Math.hypot(x - player.x, y - player.y) < 100 && camera.zoom >= 0.7)
         view.label
-          .setPosition(x, y - definition.height + 4)
+          .setPosition(x, y - (definition.labelOffsetY ?? definition.height - 4))
           .setScale(1 / camera.zoom)
           .setVisible(true);
     });

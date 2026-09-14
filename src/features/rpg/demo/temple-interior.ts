@@ -1,5 +1,6 @@
 import { at, block, makeSample } from '../../../domain/world/content/v1/builder';
 import type { RpgSample } from '../types';
+import type { Rect } from '../../../domain/world/content/v1/types';
 import type { ScenarioSprite } from '../adventure/scenario-renderer';
 import { TEMPLE_STORY_TEXTURES } from '../adventure/temple-story-assets';
 import { TEMPLE_TEXTURES } from '../adventure/temple-assets';
@@ -26,9 +27,31 @@ function actor(
   height: number,
   states: ScenarioSprite['states'],
   label?: string,
-  placement: Pick<ScenarioSprite, 'originY' | 'depth'> = {},
+  placement: Pick<ScenarioSprite, 'originY' | 'depth' | 'labelOffsetY'> & {
+    body?: Rect;
+    conversations?: readonly string[];
+  } = {},
 ) {
-  sample.storySprites!.push({ id, ...at(x, y), width, height, states, label, ...placement });
+  const { body, conversations = [], ...visual } = placement;
+  const point = at(x, y);
+  sample.storySprites!.push({ id, ...point, width, height, states, label, ...visual });
+  if (body) {
+    const bounds = { ...body, x: point.x + body.x, y: point.y + body.y };
+    sample.colliders.push(bounds);
+    for (const interaction of sample.demo!.jungle!.scenario!.interactions)
+      if (conversations.includes(interaction.id)) interaction.body = bounds;
+  }
+}
+
+const standingBody = { x: -12, y: -12, width: 24, height: 12 };
+const spinningBladeFrames = [6, 7, 8, 9, 10, 11];
+
+function doorway(sample: RpgSample, x: number, y: number, variant: number) {
+  prop(sample, `story-gate-shadow-${variant}`, x, y, 96, 96, -10);
+  prop(sample, `story-gate-frame-${variant}`, x, y, 96, 96);
+  // Only the stone jambs stay solid once the bars rise; the center is a real passage.
+  for (const edge of [-48, 30])
+    sample.colliders.push({ x: x * 32 + edge, y: y * 32 - 16, width: 18, height: 16 });
 }
 
 /** Authored rooms retain native 16px art at 2x, with space for LPC movement and combat. */
@@ -109,16 +132,7 @@ export function buildTempleInterior(): RpgSample {
   block(sample, 0, 0, 3, 35);
   block(sample, 35, 0, 3, 35);
   block(sample, 0, 33, 38, 2);
-  sample.stamps.push({
-    texture: 'story-gate-0',
-    frame: 0,
-    ...at(19.5, 33.5),
-    width: 96,
-    height: 96,
-    originX: 0.5,
-    originY: 1,
-    depth: 33 * 32,
-  });
+  doorway(sample, 19.5, 33.5, 0);
   for (const x of [12, 25]) {
     for (let y = 5; y <= 23; y++) wall(x, y);
     block(sample, x, 4, 1, 20);
@@ -176,6 +190,7 @@ export function buildTempleInterior(): RpgSample {
       },
       { texture: `story-lever-${variant}`, frames: [0] },
     ]);
+    doorway(sample, x + 0.5, 23.5, variant);
     actor(sample, `${side}-gate`, x + 0.5, 23.5, 96, 96, [
       {
         requires: [opening],
@@ -210,8 +225,8 @@ export function buildTempleInterior(): RpgSample {
     96,
     96,
     [
-      { requires: [CHOIR.eastGate], texture: 'story-blade', frames: [0] },
-      { texture: 'story-blade', frames: frames(12), duration: 0.7 },
+      { requires: [CHOIR.eastSeal], texture: 'story-blade', frames: [0] },
+      { texture: 'story-blade', frames: spinningBladeFrames, duration: 0.4, essentialMotion: true },
     ],
     undefined,
     { originY: 0.5 },
@@ -225,7 +240,7 @@ export function buildTempleInterior(): RpgSample {
     96,
     [
       { requires: [CHOIR.freed], texture: 'story-blade', frames: [0] },
-      { texture: 'story-blade', frames: frames(12), duration: 0.7 },
+      { texture: 'story-blade', frames: spinningBladeFrames, duration: 0.4, essentialMotion: true },
     ],
     undefined,
     { originY: 0.5 },
@@ -259,24 +274,14 @@ export function buildTempleInterior(): RpgSample {
       [
         {
           requires: [CHOIR.freed],
-          texture: `story-cultist-${n}-walk`,
-          frames: frames(6),
-          duration: 1.2,
-          since: CHOIR.freed,
-          beforeAge: 1.2,
-          destination: at(x, y + 1),
-        },
-        {
-          requires: [CHOIR.freed],
           texture: `story-cultist-${n}-idle`,
           frames: frames(12),
           duration: 1.2,
-          since: CHOIR.freed,
-          destination: at(x, y + 1),
         },
         { texture: `story-cultist-${n}-pray`, frames: frames(12), duration: 1.2 },
       ],
-      `Choir member · NPC`,
+      undefined,
+      { originY: 29 / 32, body: standingBody },
     );
   }
   actor(
@@ -290,7 +295,13 @@ export function buildTempleInterior(): RpgSample {
       { requires: [CHOIR.freed], texture: 'story-leader-idle', frames: frames(12), duration: 1.2 },
       { texture: 'story-leader-summon', frames: frames(14), duration: 1.4 },
     ],
-    'Cantor Vey · NPC',
+    'Cantor Vey',
+    {
+      originY: 31 / 32,
+      labelOffsetY: 64,
+      body: standingBody,
+      conversations: ['cantor', 'cantor-restored'],
+    },
   );
   actor(sample, 'keeper', 19, 7.5, 192, 256, [
     {
@@ -349,7 +360,13 @@ export function addChoirCourtyard(sample: RpgSample): void {
       },
       { texture: 'story-explorer-writing', frames: frames(4), duration: 0.8 },
     ],
-    'Mira · NPC',
+    'Mira',
+    {
+      originY: 42 / 48,
+      labelOffsetY: 64,
+      body: { x: -28, y: -24, width: 66, height: 24 },
+      conversations: ['mira', 'mira-return'],
+    },
   );
   actor(
     sample,
@@ -359,7 +376,8 @@ export function addChoirCourtyard(sample: RpgSample): void {
     64,
     64,
     [{ texture: 'story-explorer-search', frames: frames(10), duration: 1 }],
-    'Oren · NPC',
+    'Oren',
+    { originY: 31 / 32, labelOffsetY: 54, body: standingBody, conversations: ['oren'] },
   );
   sample.demo!.portals.push({ id: 'sanctuary-entry', target: 'temple-interior' });
   sample.landmarks.push({

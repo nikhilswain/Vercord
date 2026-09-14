@@ -11,6 +11,8 @@ export interface StoryDialogue {
   lines: string[];
 }
 export interface StoryInteraction extends Point, StoryCondition {
+  /** A solid actor's world footprint. Sight lines end just outside its near edge. */
+  body?: Rect;
   id: string;
   label: string;
   action: 'Talk' | 'Read' | 'Open' | 'Use';
@@ -106,8 +108,14 @@ export class ScenarioSession {
       // Locked mechanisms remain inspectable and explain the missing requirement.
       if (!this.matches(interaction) && !interaction.locked) continue;
       const next = Math.hypot(player.x - interaction.x, player.y - interaction.y);
-      if (next > (interaction.radius ?? 58) || next >= distance || !clearLine(interaction))
-        continue;
+      const body = interaction.body;
+      const approach = body
+        ? {
+            x: Math.max(body.x - 1, Math.min(body.x + body.width + 1, player.x)),
+            y: Math.max(body.y - 1, Math.min(body.y + body.height + 1, player.y)),
+          }
+        : interaction;
+      if (next > (interaction.radius ?? 58) || next >= distance || !clearLine(approach)) continue;
       nearest = interaction;
       distance = next;
     }

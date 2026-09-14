@@ -68,12 +68,6 @@ export const TEMPLE_STORY_TEXTURES: RpgTexture[] = [
     frameHeight: 32,
   },
   {
-    key: 'story-gate-0',
-    url: '/game-assets/temple-story/gate-0.png',
-    frameWidth: 32,
-    frameHeight: 32,
-  },
-  {
     key: 'story-lever-1',
     url: '/game-assets/temple-story/lever-1.png',
     frameWidth: 40,
@@ -86,8 +80,38 @@ export const TEMPLE_STORY_TEXTURES: RpgTexture[] = [
     frameHeight: 32,
   },
   {
+    key: 'story-gate-0',
+    url: '/game-assets/temple-story/gate-0.png',
+    frameWidth: 32,
+    frameHeight: 32,
+  },
+  {
+    key: 'story-gate-frame-0',
+    url: '/game-assets/temple-story/gate-frame-0.png',
+    frameWidth: 32,
+    frameHeight: 32,
+  },
+  {
+    key: 'story-gate-shadow-0',
+    url: '/game-assets/temple-story/gate-shadow-0.png',
+    frameWidth: 32,
+    frameHeight: 32,
+  },
+  {
     key: 'story-gate-1',
     url: '/game-assets/temple-story/gate-1.png',
+    frameWidth: 32,
+    frameHeight: 32,
+  },
+  {
+    key: 'story-gate-frame-1',
+    url: '/game-assets/temple-story/gate-frame-1.png',
+    frameWidth: 32,
+    frameHeight: 32,
+  },
+  {
+    key: 'story-gate-shadow-1',
+    url: '/game-assets/temple-story/gate-shadow-1.png',
     frameWidth: 32,
     frameHeight: 32,
   },

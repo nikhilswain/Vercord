@@ -40,7 +40,7 @@ export function hollowChoirInterior(): ScenarioDefinition {
         dialogue: speech(
           `${label} mechanism`,
           'An old counterweight',
-          `The lever gives with a heavy click. The ${side} gate rises.${side === 'east' ? ' The blade in the sun chamber falls still.' : ''}`,
+          `The lever gives with a heavy click. The ${side} gate rises.`,
           `The ${label.toLowerCase()} seal is in the chamber beyond. Its flame is feeding the ritual. Use it to break the binding.`,
         ),
         repeat: speech(
@@ -59,7 +59,7 @@ export function hollowChoirInterior(): ScenarioDefinition {
         dialogue: speech(
           `The ${label.toLowerCase()} seal`,
           'A binding unmade',
-          'You turn the engraved stone. The flame gutters; one voice leaves the chorus.',
+          `You turn the engraved stone. The flame gutters; one voice leaves the chorus.${side === 'east' ? ' The blades in the sun chamber stop.' : ''}`,
           'When both seals are quiet, the creature feeding on them will have nowhere left to hide. Be ready in the central hall.',
         ),
         repeat: speech(
@@ -114,7 +114,7 @@ export function hollowChoirInterior(): ScenarioDefinition {
         unless: [CHOIR.freed],
         dialogue: speech(
           'Cantor Vey',
-          'Keeper of the choir · NPC',
+          'Keeper of the choir',
           'The roots are closing over our home. We called the keeper to protect us. Why does the forest answer with teeth?',
           'Those flames are ancient. If you know how to quiet them, do it. I cannot stop the chorus alone.',
         ),
@@ -196,7 +196,7 @@ export function hollowChoirInterior(): ScenarioDefinition {
         requires: [CHOIR.freed],
         dialogue: speech(
           'Cantor Vey',
-          'A humbled keeper · NPC',
+          'A humbled keeper',
           'We will mend the paths and leave the forest its own voice. No more bindings. You have my word.',
         ),
       },
@@ -216,7 +216,7 @@ export function hollowChoirInterior(): ScenarioDefinition {
       },
     ],
     hazards: [
-      { id: 'east-blade', ...at(30, 17), radius: 43, damage: 20, unless: [CHOIR.eastGate] },
+      { id: 'east-blade', ...at(30, 17), radius: 43, damage: 20, unless: [CHOIR.eastSeal] },
       { id: 'hall-blade', ...at(19, 24), radius: 43, damage: 20, unless: [CHOIR.freed] },
     ],
     defeats: [{ enemyId: 'choir-bound-warden', flag: CHOIR.warden }],
@@ -244,7 +244,7 @@ export function hollowChoirCourtyard(): ScenarioDefinition {
         unless: [CHOIR.notes],
         dialogue: speech(
           'Mira',
-          'Field scholar · NPC',
+          'Field scholar',
           'Hear that? Six voices, one note. They have been singing since the roots swallowed the old path.',
           'I went inside with the choir. Their leader meant to save the forest, but the rite bound its keeper. Now something else is feeding on it.',
           'My notes are in the west reliquary. Follow the northern path into the sanctuary. The two side-room levers open the way to the seals. Quiet both flames, face what emerges, then release the keeper at the altar.',
@@ -276,8 +276,8 @@ export function hollowChoirCourtyard(): ScenarioDefinition {
         action: 'Talk',
         dialogue: speech(
           'Oren',
-          'Expedition scout · NPC',
-          'I found the mechanisms. The east lever also brakes the blade in the sun chamber. The west wing has pressure spikes: keep to the clear stones.',
+          'Expedition scout',
+          'The levers raise the gates. The sun chamber blade keeps turning until its seal is released; go around its reach. The west wing has pressure spikes: keep to the clear stones.',
           'There are healing supplies inside. Your way back is always the south doorway. If you fall, you will catch your breath at the entrance; the seals you broke stay broken.',
         ),
       },

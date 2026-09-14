@@ -5,11 +5,72 @@ import { AdventureJourney } from '../src/features/rpg/adventure/journey';
 import { CHOIR } from '../src/features/rpg/adventure/hollow-choir';
 import { ScenarioProgress } from '../src/domain/adventure/scenario';
 import { RpgPathfinder } from '../src/features/rpg/pathfinding';
-import { WORLD_PLAYER_FEET } from '../src/domain/world/geometry';
+import { RpgSimulation } from '../src/features/rpg/simulation';
+import { footprint, overlaps, WORLD_PLAYER_FEET } from '../src/domain/world/geometry';
+import { AdventureSession } from '../src/features/rpg/adventure/session';
 import { DEMO_EQUIPMENT_POLICY } from '../src/domain/adventure/equipment';
 
 const interior = buildTempleInterior(),
   courtyard = buildTempleDemo();
+// Actual walking and routing must respect the body without losing Talk on its other sides.
+for (const sample of [courtyard, interior]) {
+  const model = new AdventureSession(
+    sample.demo!.jungle!,
+    sample.colliders,
+    sample.bounds,
+    sample.spawn,
+  );
+  for (const id of sample === courtyard ? ['mira', 'oren'] : ['cantor']) {
+    const npc = model.scenario!.definition.interactions.find((entry) => entry.id === id)!;
+    const body = npc.body!;
+    assert(body, `${id} has a solid footprint`);
+    const center = { x: body.x + body.width / 2, y: body.y + body.height / 2 };
+    const approaches = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ];
+    for (const [x, y] of approaches) {
+      const simulation = new RpgSimulation(sample);
+      simulation.player = {
+        x: x === 1 ? body.x - 15 : x === -1 ? body.x + body.width + 15 : center.x,
+        y: y === 1 ? body.y - 6 : y === -1 ? body.y + body.height + 18 : center.y,
+      };
+      for (let frame = 0; frame < 60; frame++)
+        simulation.tick(0.025, { x: x!, y: y!, moving: true, sprinting: true });
+      assert(
+        !overlaps(footprint(simulation.player), body),
+        `${id} blocks walking through its body`,
+      );
+      assert.equal(
+        model.nearbyStory(simulation.player)?.id,
+        id,
+        `${id} can be spoken to from (${x}, ${y}) at ${JSON.stringify(simulation.player)}`,
+      );
+    }
+    const simulation = new RpgSimulation(sample);
+    simulation.player = { x: center.x - 70, y: center.y };
+    const target = { x: center.x + 70, y: center.y };
+    simulation.navigate(target);
+    for (let frame = 0; frame < 100; frame++) {
+      simulation.tick(0.025, { x: 0, y: 0, moving: false, sprinting: false });
+      assert(!overlaps(footprint(simulation.player), body), `${id} is avoided by pathfinding`);
+    }
+    assert(
+      Math.hypot(simulation.player.x - target.x, simulation.player.y - target.y) < 1,
+      `${id} can be walked around`,
+    );
+  }
+  assert(sample.storySprites!.every((sprite) => !sprite.label?.includes('NPC')));
+}
+for (const cultist of interior.storySprites!.filter((sprite) => sprite.id.startsWith('cultist-'))) {
+  const simulation = new RpgSimulation(interior);
+  simulation.player = { x: cultist.x - 40, y: cultist.y - 6 };
+  for (let frame = 0; frame < 60; frame++)
+    simulation.tick(0.025, { x: 1, y: 0, moving: true, sprinting: true });
+  assert(simulation.player.x <= cultist.x - 20, `${cultist.id} cannot be walked through`);
+}
 for (const hazard of interior.demo!.jungle!.scenario!.hazards ?? []) {
   const sprite = interior.storySprites!.find((entry) => entry.id === hazard.id)!;
   assert(sprite, `${hazard.id} has visible art`);
@@ -80,11 +141,21 @@ assert(!session.isEnemyActive(session.enemies[0]!), 'one seal does not wake the 
 assert.match(use('reliquary').lines.join(' '), /Free the keeper/, 'treasure stays locked');
 use('east-lever');
 tick(1.2);
+const eastBlade = session.scenario!.definition.hazards!.find(
+  (hazard) => hazard.id === 'east-blade',
+)!;
+session.health = 100;
+session.invincibleUntil = 0;
+session.tick(0.05, eastBlade);
+assert.equal(session.health, 80, 'the sun blade is still dangerous after opening its gate');
 const herbs = session.herbs;
 use('supplies');
 use('supplies');
 assert.equal(session.herbs, herbs + 2, 'supply reward is granted once');
 use('east-seal');
+session.invincibleUntil = 0;
+session.tick(0.05, eastBlade);
+assert.equal(session.health, 80, 'releasing the sun seal stops its blade damage');
 assert(session.isEnemyActive(session.enemies[0]!), 'both seals wake the boss');
 assert.match(session.status().story!.text, /Defeat the Bound Warden/);
 

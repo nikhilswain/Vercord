@@ -1022,65 +1022,6 @@
       ]
     },
     {
-      "name": "gate-0",
-      "source": "PNG\\lattice.png",
-      "sha256": "513e58dfd282f45138b10fe42b687e12f5da80c9161411ab9ba3f37ff4ac8e0a",
-      "frameSize": [
-        32,
-        32
-      ],
-      "frameOrigins": [
-        [
-          0,
-          0
-        ],
-        [
-          0,
-          32
-        ],
-        [
-          0,
-          64
-        ],
-        [
-          0,
-          96
-        ],
-        [
-          0,
-          128
-        ],
-        [
-          0,
-          160
-        ],
-        [
-          0,
-          192
-        ],
-        [
-          0,
-          224
-        ],
-        [
-          0,
-          256
-        ],
-        [
-          0,
-          288
-        ],
-        [
-          0,
-          320
-        ],
-        [
-          0,
-          352
-        ]
-      ]
-    },
-    {
       "name": "lever-1",
       "source": "PNG\\Lever.png",
       "sha256": "8be93270ff482d016e01d202eb57e9ffea603679663dd97448b5809b52e77f99",
@@ -1159,62 +1100,127 @@
       ]
     },
     {
-      "name": "gate-1",
-      "source": "PNG\\lattice.png",
-      "sha256": "513e58dfd282f45138b10fe42b687e12f5da80c9161411ab9ba3f37ff4ac8e0a",
-      "frameSize": [
+      "name": "gate-0",
+      "source": "ASEPRITE\\lattice.aseprite",
+      "sha256": "e2051c3603bbb9f30af82033cec003a218c35ab4cf950fe16f18cb23358e66a1",
+      "layers": [
+        2
+      ],
+      "sourceFrames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "crop": [
+        0,
+        0,
         32,
         32
+      ]
+    },
+    {
+      "name": "gate-frame-0",
+      "source": "ASEPRITE\\lattice.aseprite",
+      "sha256": "e2051c3603bbb9f30af82033cec003a218c35ab4cf950fe16f18cb23358e66a1",
+      "layers": [
+        3
       ],
-      "frameOrigins": [
-        [
-          32,
-          0
-        ],
-        [
-          32,
-          32
-        ],
-        [
-          32,
-          64
-        ],
-        [
-          32,
-          96
-        ],
-        [
-          32,
-          128
-        ],
-        [
-          32,
-          160
-        ],
-        [
-          32,
-          192
-        ],
-        [
-          32,
-          224
-        ],
-        [
-          32,
-          256
-        ],
-        [
-          32,
-          288
-        ],
-        [
-          32,
-          320
-        ],
-        [
-          32,
-          352
-        ]
+      "sourceFrames": [
+        0
+      ],
+      "crop": [
+        0,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "name": "gate-shadow-0",
+      "source": "ASEPRITE\\lattice.aseprite",
+      "sha256": "e2051c3603bbb9f30af82033cec003a218c35ab4cf950fe16f18cb23358e66a1",
+      "layers": [
+        0
+      ],
+      "sourceFrames": [
+        0
+      ],
+      "crop": [
+        0,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "name": "gate-1",
+      "source": "ASEPRITE\\lattice.aseprite",
+      "sha256": "e2051c3603bbb9f30af82033cec003a218c35ab4cf950fe16f18cb23358e66a1",
+      "layers": [
+        2
+      ],
+      "sourceFrames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "crop": [
+        32,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "name": "gate-frame-1",
+      "source": "ASEPRITE\\lattice.aseprite",
+      "sha256": "e2051c3603bbb9f30af82033cec003a218c35ab4cf950fe16f18cb23358e66a1",
+      "layers": [
+        3
+      ],
+      "sourceFrames": [
+        0
+      ],
+      "crop": [
+        32,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "name": "gate-shadow-1",
+      "source": "ASEPRITE\\lattice.aseprite",
+      "sha256": "e2051c3603bbb9f30af82033cec003a218c35ab4cf950fe16f18cb23358e66a1",
+      "layers": [
+        0
+      ],
+      "sourceFrames": [
+        0
+      ],
+      "crop": [
+        32,
+        0,
+        32,
+        32
       ]
     },
     {

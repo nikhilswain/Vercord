@@ -10,14 +10,14 @@ The choir called the forest keeper to protect their home, but performed a bindin
 rite instead. A root creature is feeding on the captive keeper.
 
 1. Speak to the explorers outside, or read the threshold inscription inside.
-2. Use the west and east levers to raise their gates. The east lever also stops
-   the blade in its chamber; the central hall blade remains active. Pressure
+2. Use the west and east levers to raise their gates. The sun chamber blade keeps
+   turning until its seal is released; the central hall blade remains active. Pressure
    spikes in the west wing react on contact. Safe routes pass around the hazards.
 3. Release the moon and sun seals in either order. The Bound Warden becomes
    visible and vulnerable only after both seals are broken.
 4. Defeat the Warden with the existing combat system, then use the altar to free
    the keeper. Its native dispersal animation plays, the choir stops praying and
-   steps away, and the remaining blade stops.
+   idles at its fixed positions, and the remaining blade stops.
 5. Open the west reliquary and return the recovered field notes to Mira outside.
    The supply chest and reliquary each give two healing herbs once.
 
@@ -48,6 +48,14 @@ story actions or revive a freed ritual.
 - `demo/temple-interior.ts` authors a larger three-room arrangement using the
   Ruined Temple art, preserving its native 16px assets at 2x. It does not stretch
   the original compact TMX layout to fit the LPC player.
+- Fixed story characters have authored ground footprints shared by player
+  movement, pathfinding, enemies and projectiles. Dialogue checks the near edge
+  of the speaker's footprint, so the actor does not block its own conversation.
+  Sprite feet and depth use the same ground anchor. Distinct story cast use names
+  without an NPC suffix; the unnamed choir has no floating labels.
+- Gate art comes from separate native Aseprite bars, stonework and shadow layers.
+  The open center is transparent; shadows render with the floor. Stone jambs stay
+  solid after the animated bars rise. Active blade loops exclude startup holds.
 - The existing accessible speech dialog and interaction button handle story
   actions. An objective replaces generic collection counts in the adventure HUD.
   Dialogs pause combat, traps, gate transitions and story character animation.
@@ -64,7 +72,7 @@ Generated files live in `public/game-assets/temple-story/` and
 `adventure/temple-story-assets.ts`; source hashes and crop coordinates are recorded.
 Format the generated TypeScript with the repository formatter after regeneration.
 
-The scene uses all six cultist appearances, their pray/idle/walk clips, the leader's
+The scene uses all six cultist appearances, their pray/idle clips, the leader's
 summon/idle, both explorers, the ghost, two gate/lever/chest variants, native spikes
 and blades, all five lamp styles plus the torch, and interior stonework/props.
 The Bound Warden uses the separately imported Root Beast art. Cultists are story
@@ -75,7 +83,9 @@ the supplied TMX maps remain available for later environmental work.
 
 - `pnpm exec tsx scripts/verify-temple-story.ts`: gated reachability, objective
   order, locked feedback, one-time rewards, return dialogue, serializable facts,
-  travel/rescue retention, blade alignment and difficulty reset behavior.
+  travel/rescue retention, blade alignment and difficulty reset behavior. Follow-up
+  regressions cover walking/routing around speakers, talking from all sides,
+  solid choir members and the sun blade's gate/seal dependency.
 - `pnpm exec tsx scripts/verify-forest-expansion.ts`: connected route graph,
   clear arrival points and reachable content, including the new interior.
 - Chrome checks cover E/dialog/Escape, opening a gate versus walking into a closed
