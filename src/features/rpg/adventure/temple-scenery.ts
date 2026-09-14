@@ -1,4 +1,5 @@
 import type { RpgSample } from '../types';
+import type { Rect } from '../../world/engine/types';
 import { TEMPLE_FLAME_ANIMATION, TEMPLE_TEXTURES } from './temple-assets';
 import { at, block } from '../../../domain/world/content/v1/builder';
 
@@ -10,16 +11,28 @@ export function templeObject(
   y: number,
   w: number,
   h: number,
+  /** Solid ground footprint measured in pixels of the cropped source image. */
+  sourceFootprint?: Rect,
 ): void {
+  const position = at(x, y);
+  const solid = sourceFootprint && {
+    x: position.x - w + sourceFootprint.x * 2,
+    y: position.y - h * 2 + sourceFootprint.y * 2,
+    width: sourceFootprint.width * 2,
+    height: sourceFootprint.height * 2,
+  };
   sample.stamps.push({
     texture: `temple-${name}`,
-    ...at(x, y),
+    ...position,
     width: w * 2,
     height: h * 2,
     originX: 0.5,
     originY: 1,
-    depth: y * 32,
+    // Sort against the same front edge that stops feet, not transparent image padding.
+    // A traveler in front must render above the stonework; behind it stays occluded.
+    depth: solid ? solid.y + solid.height : position.y,
   });
+  if (solid) sample.colliders.push(solid);
 }
 
 export function addTempleScenery(sample: RpgSample, sanctuary: boolean): void {
@@ -41,8 +54,12 @@ export function addTempleScenery(sample: RpgSample, sanctuary: boolean): void {
     });
   }
   if (!sanctuary) {
-    templeObject(sample, 'foundation', 41, 7, 160, 80);
-    block(sample, 37.4, 5.6, 7.8, 1);
+    templeObject(sample, 'foundation', 41, 7, 160, 80, {
+      x: 24,
+      y: 32,
+      width: 124,
+      height: 40,
+    });
     for (const [x, y] of [
       [34, 13],
       [44, 16],
@@ -76,8 +93,12 @@ export function addTempleScenery(sample: RpgSample, sanctuary: boolean): void {
           tint: (x * 3 + y * 7) % 11 === 0 ? 0xc5ceac : 0xffffff,
         });
       }
-  templeObject(sample, 'sanctuary', 22, 10, 144, 144);
-  block(sample, 17.5, 6.5, 9, 3);
+  templeObject(sample, 'sanctuary', 22, 10, 144, 144, {
+    x: 16,
+    y: 76,
+    width: 128,
+    height: 54,
+  });
   for (const [x, y, broken] of [
     [11, 13, false],
     [34, 13, true],
