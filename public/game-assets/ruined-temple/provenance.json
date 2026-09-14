@@ -101,7 +101,19 @@
       "name": "flame",
       "source": "PNG/Fire_animation.png",
       "sha256": "29b5cdbd596d88bfe8411db733224190bf128c8ec236f5ac42e18548e484af07",
-      "rect": [0, 0, 32, 480]
+      "sourceFrameSize": [128, 80],
+      "frameRects": [
+        [0, 0, 32, 40],
+        [0, 80, 32, 40],
+        [0, 160, 32, 40],
+        [0, 240, 32, 40],
+        [0, 320, 32, 40],
+        [0, 400, 32, 40]
+      ],
+      "frameDurationsMs": [100, 100, 100, 100, 100, 100],
+      "timingSource": "ASEPRITE/Fire_animation.aseprite",
+      "timingSha256": "e22865396edbc578f8d098de8e33a4a5d4137a1c2b628b46dc9fd1abeffb98ed",
+      "notes": "Top-left lamp in each authored frame. The pan and shadow keep their original fixed anchor; only flame/glow pixels animate."
     }
   ]
 }

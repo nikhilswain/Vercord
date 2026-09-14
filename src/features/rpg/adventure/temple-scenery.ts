@@ -1,5 +1,5 @@
 import type { RpgSample } from '../types';
-import { TEMPLE_TEXTURES } from './temple-assets';
+import { TEMPLE_FLAME_ANIMATION, TEMPLE_TEXTURES } from './temple-assets';
 import { at, block } from '../../../domain/world/content/v1/builder';
 
 /** The asset adapter owns visual placement. Encounters and navigation remain ordinary content. */
@@ -131,8 +131,7 @@ export function addTempleScenery(sample: RpgSample, sanctuary: boolean): void {
     originX: 0.5,
     originY: 0.8,
     depth: y! * 32 + 1,
-    frames: Array.from({ length: 12 }, (_, frame) => frame),
-    durationMs: 1200,
+    ...TEMPLE_FLAME_ANIMATION,
     phaseMs: i * 190,
   }));
   sample.signage!.push({
