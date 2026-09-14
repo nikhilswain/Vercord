@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import type { Point } from '../../world/engine/types';
-import { AdventureSession, trapState, type Enemy } from './session';
+import { AdventureSession, type Enemy } from './session';
+import { SPELL_VISUAL_HEIGHT } from './aim';
 import { JUNGLE_WILDLIFE_ASSETS } from '../demo/wildlife-assets';
 import {
   MAGIC_EFFECT_ASSETS,
@@ -271,7 +272,7 @@ export class AdventureSessionRenderer {
         sprite,
         p.spell === 'fire' ? 'fire-bolt' : 'water-bolt',
         p.x,
-        p.y - 22,
+        p.y - SPELL_VISUAL_HEIGHT,
         this.model.time - p.at,
         Math.atan2(p.velocity.y, p.velocity.x),
       );
@@ -300,8 +301,8 @@ export class AdventureSessionRenderer {
       }
       show(sprite, id, effect.x, effect.y - 20, this.model.time - effect.at);
     });
-    (this.model.content.traps ?? []).forEach((trap, index) => {
-      const state = trapState(this.model.trapTime, trap.offset, this.model.encounterLevel);
+    (this.model.content.traps ?? []).forEach((_, index) => {
+      const state = this.model.getTrapState(index);
       const asset = MAGIC_EFFECT_ASSETS['spike-trap'];
       this.traps[index]!.setFrame(asset.frames[state.frame]!)
         .setOrigin(asset.origin.x, asset.origin.y)

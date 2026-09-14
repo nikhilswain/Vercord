@@ -133,14 +133,14 @@ export function AdventureHud({
           <span>
             {status.castReady ? (melee ? 'Attack' : 'Cast') : melee ? 'Recovering' : 'Casting'}
           </span>
-          <kbd>Space</kbd>
+          <kbd>J</kbd>
         </button>
       </div>
       <p className="rpg-adventure-message rpg-adventure-message--equipment" role="status">
         {status.message ||
           (complete
             ? 'All flowers collected and creatures defeated. The path home is south.'
-            : `WASD to move & aim · Space to ${melee ? 'attack' : 'cast'} · E to gather`)}
+            : `WASD to move · Aim & left click / tap to ${melee ? 'attack' : 'cast'} · E to gather`)}
       </p>
     </>
   );

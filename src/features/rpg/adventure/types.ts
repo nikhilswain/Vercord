@@ -19,7 +19,7 @@ export interface AdventureDefinition {
   enemies: EncounterSpawn[];
   flowers: FlowerSpawn[];
   water: Rect[];
-  traps?: Array<Point & { id: string; offset: number }>;
+  traps?: Array<Point & { id: string; offset: number; activation?: 'pressure' | 'timed' }>;
 }
 export interface AdventureStatus {
   health: number;

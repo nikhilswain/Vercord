@@ -1,10 +1,46 @@
 # Shared equipment and adventure combat
 
-Updated September 12, 2026. The playable example is `/play/demo?area=jungle`.
-Press **I** for equipment, **3** for melee, **Space/J** to attack, and **1/2** for
+Updated September 14, 2026. The playable example is `/play/demo?area=jungle`.
+Aim and **left click** (or tap a spot) to attack. Press **I** for equipment, **3** for melee, and **1/2** for
 Ember/Tide. All 24 free weapons can be equipped in the demo. Its encounter slider
 sets levels 1–20 and explicitly resets enemies and returns the player to camp.
 XP and gathered flowers survive this reset; the same enemy cannot award XP twice.
+
+## Cursor combat and pressure plates
+
+WASD/arrows move, Shift runs, middle-button drag pans in combat, and touch drag
+pans without attacking. Village double-click navigation and left drag are unchanged.
+Space is unbound for combat; the atlas retains its separate Space actions. J and
+the HUD attack button provide a facing-direction fallback. Canvas right-click and
+middle-click browser actions are suppressed; DOM controls keep their normal behavior.
+
+`AdventureSession.attack(player, facing, target?)` accepts a world-space input
+target and never selects a creature. Spells lock that direction at cast start,
+travel straight, collide with scenery and the first enemy, and expire at finite
+range. `src/domain/adventure/spells.ts` owns initial ranges/speeds: Ember 320 world
+units at 290 units/s; Tide 360 at 340 units/s. Range includes the launch offset.
+Changing camera zoom or clicking farther away cannot extend it. A wall inside
+the launch offset also blocks the spell. `adventure/aim.ts` shares the projectile's
+22-unit display elevation with the renderer so the visible ray passes through
+the cursor at any zoom. The simulation remains on the ground plane.
+
+Melee turns to the closest native LPC cardinal facing and keeps that family's
+existing visible strike arc, reach, contact frame and recovery. This is a four-
+direction melee rig; it does not promise a continuously rotated 360-degree sword.
+Clicks during cooldown, camera drags, modal controls and a held Space do not
+queue delayed attacks or navigation. Menus still pause the encounter.
+
+Traps now default to `activation: 'pressure'`. Contact raises the active sprite
+and applies damage in the same simulation tick (at most one rendered frame).
+A swept foot segment catches steps across a plate. Standing on it keeps it raised
+and dangerous after the existing damage-invulnerability interval; leaving it
+allows a 350ms hold then a 120ms retraction. Spawn/rest/reset clears contact history.
+`activation: 'timed'` explicitly opts into the older offset-driven cycle for future
+authored timing puzzles. `getTrapState(index)` supplies both simulation and renderer;
+never introduce a separate visual timer. See `src/domain/adventure/traps.ts`.
+
+Asset research and proposed future encounters:
+[Jungle enemies, arenas and hazards](../requirements/research/JUNGLE-ENEMIES-AND-ARENAS-2026-09-14.md).
 
 ## Reusable modules
 
@@ -99,10 +135,10 @@ enemy can complete before its hit frame. Partial-frame lunge movement is integra
 on both sides of contact, so low frame rates do not shorten attacks or give extra
 travel before damage. The animation adapter consumes the encounter's scaled clock.
 
-`src/domain/adventure/traps.ts` owns visible frames, warning and damage together.
-Spikes first become active at 930ms at levels 1–5 and 420ms at level 20; cycles
-shorten from 2 seconds to 1.3 seconds. A brief plate tint replaces the warning ring.
-The demo level reset starts a new hazard cycle and updates the shared behavior cache.
+`src/domain/adventure/traps.ts` owns visible frames and damage together. The demo
+uses immediate pressure plates as described above. Explicit timed traps retain
+the older 930ms/420ms activation and 2s/1.3s cycles at levels 1/20 respectively.
+The demo level reset clears pressure plates and updates the shared behavior cache.
 
 ## Asset decisions and reproducibility
 

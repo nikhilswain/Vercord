@@ -295,7 +295,7 @@ export function RpgPlayPage({
           ref={canvasRef}
           className="rpg-canvas"
           tabIndex={0}
-          aria-label={`${sample.name}. Move with WASD or arrow keys; drag to look around; double-click to walk to a place. Press E near a character or landmark.`}
+          aria-label={`${sample.name}. Move with WASD or arrow keys; ${hasAdventure ? 'aim and left click or tap to attack; middle-button drag or touch drag to look around; J attacks in your facing direction' : 'drag to look around; double-click to walk to a place'}. Press E near a character or landmark.`}
         />
       </div>
       <div
@@ -440,8 +440,8 @@ export function RpgPlayPage({
           </button>
         </div>
         <p className="rpg-movement-hint">
-          <kbd>W A S D</kbd> to walk <span>·</span> <kbd>Shift</kbd> to run <span>·</span> Drag to
-          look around
+          <kbd>W A S D</kbd> to walk <span>·</span> <kbd>Shift</kbd> to run <span>·</span>{' '}
+          {hasAdventure ? 'Middle / touch drag to look around' : 'Drag to look around'}
         </p>
         {status === 'ready' && !suspended && !panel && !speech && !channelOpen && !rosterOpen && (
           <VirtualJoystick

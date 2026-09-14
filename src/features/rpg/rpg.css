@@ -154,7 +154,10 @@
   touch-action: none;
   cursor: grab;
 }
-.rpg-canvas[data-rpg-panning='true'] {
+.rpg-page[data-demo-area='jungle'] .rpg-canvas {
+  cursor: crosshair;
+}
+.rpg-page .rpg-canvas[data-rpg-panning='true'] {
   cursor: grabbing;
 }
 .rpg-hud {

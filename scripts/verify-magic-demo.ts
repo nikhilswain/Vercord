@@ -78,9 +78,10 @@ const trap = new AdventureSession(
   bounds,
   { x: 250, y: 900 },
 );
-advance(trap, 0.9);
-assert.equal(trap.health, 100, 'warning phase does not hurt');
-advance(trap, 0.1);
+advance(trap, 0.01);
+assert.equal(trap.health, 86, 'pressure plates hurt on the first contact tick');
+assert.equal(trap.getTrapState(0).active, true, 'visible spikes match immediate damage');
+advance(trap, 0.99);
 assert.equal(trap.health, 86, 'active spikes hurt once per iframe');
 
 const jungle = buildJungleDemo();
@@ -108,5 +109,5 @@ for (const point of [
   );
 }
 console.log(
-  'Magic rules: cast timing, cooldown, impact, walls, progression, water, transition cleanup, trap warning all passed.',
+  'Magic rules: cast timing, cooldown, impact, walls, progression, water, transition cleanup, pressure traps all passed.',
 );

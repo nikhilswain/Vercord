@@ -1,6 +1,6 @@
 # Village, jungle and magic playground
 
-Updated September 12, 2026. Open `http://localhost:3000/play/demo` with the local
+Updated September 14, 2026. Open `http://localhost:3000/play/demo` with the local
 frontend running. No gateway is needed for this standalone demo.
 
 The equipment pass adds native LPC melee, 24 equipable weapon illustrations and
@@ -16,11 +16,13 @@ Mira, Finn and Lumi in Willowmere; Elin, Astrid and Kaia in Frosthavn.
 
 - Choose a traveler with **Look**. Follow the northwest village path, meet the
   naturalist, and press **E** at the Mosswild Jungle entrance.
-- Move and face with **WASD** or the touch stick. **Space/J** casts toward the
-  nearest visible creature ahead, otherwise along your facing direction. The
-  target is locked when casting starts; projectiles do not home or pass through trees.
+- Move with **WASD** or the touch stick. Aim and **left click**, or tap a spot,
+  to attack. Spells lock to your chosen direction, with no enemy auto-selection.
+  They fly straight, stop at trees, and expire at their range limit. **J** and the
+  attack button use your facing direction. Space is no longer a combat shortcut.
+  Middle-button drag or touch drag pans without attacking.
 - **I / Equipment:** equip swords, axes, spears or staves at any tier in the demo.
-  **3** selects melee; **Space/J** plays native slash/thrust frames and deals damage
+  **3** selects melee; **left click** plays native slash/thrust frames and deals damage
   at contact. The enemy level slider resets encounters at levels 1–20 and returns
   you to camp without clearing XP or flowers. Repeated defeats do not award extra XP.
 - **1 / Ember:** a fire bolt deals 30 impact damage and burns for up to 2 seconds.
@@ -37,8 +39,8 @@ Mira, Finn and Lumi in Willowmere; Elin, Astrid and Kaia in Frosthavn.
   brute and a Forest skirmisher occupy
   separate clearings. Watch their preparation poses and sidestep their committed attack.
   Levels above 5 add faster reactions, short combinations and resistance to repeated
-  staggers; the ground warning circles are removed. Two spike traps rise sooner
-  (930ms at low levels, 420ms at level 20); visible frames and damage share one clock.
+  staggers; the ground warning circles are removed. Two spike plates activate on
+  contact; their visible active frames and damage start in the same simulation tick.
 - Collect all three moonblossoms and clear the eight encounters. The south trail
   returns to Willowmere. A defeated traveler recovers at the safe arrival camp.
 

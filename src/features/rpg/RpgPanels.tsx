@@ -153,12 +153,15 @@ export function RpgPanels({
             <p>
               <strong>Mosswild Jungle:</strong> follow the northwest village path and press E at the
               jungle sign. I opens equipment: all 24 weapons are available here. Press 3 to use your
-              weapon, then Space or J to attack; turn with WASD to aim. Press 1 for Ember, or 2 for
-              Tide after reaching level 2. Fire burns; water slows and pushes enemies. Watch their
-              preparation poses and sidestep attacks. Higher-level enemies react faster and chain
-              attacks. Gather flowers with E and gain experience. H uses a healing herb. The
-              southern trail returns to Willowmere. Your progress stays between those two areas;
-              reloading or changing world themes starts a new adventure.
+              weapon. Aim with the cursor and left click, or tap a spot, to attack. WASD moves; J
+              and the attack button use your facing direction. Press 1 for Ember, or 2 for Tide
+              after reaching level 2. Spells fly straight with limited range; aim ahead of moving
+              enemies. Middle-button drag or touch drag pans the view. Spike plates trigger on
+              contact. Fire burns; water slows and pushes enemies. Watch their preparation poses and
+              sidestep attacks. Higher-level enemies react faster and chain attacks. Gather flowers
+              with E and gain experience. H uses a healing herb. The southern trail returns to
+              Willowmere. Your progress stays between those two areas; reloading or changing world
+              themes starts a new adventure.
             </p>
           )}
           <p>

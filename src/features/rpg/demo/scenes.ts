@@ -46,8 +46,8 @@ export function buildComparisonVillage(): RpgSample {
     ...at(11.5, 14),
     lines: [
       'Moonblossoms grow in the forest clearings. Golden herbs can heal you. Gather either with E.',
-      'Your first spell is Ember. Press Space to cast toward a nearby creature, or in the direction you face. Gathering and combat teach you Tide at level 2.',
-      'Watch the ground before a creature lunges. Return to this village to rest; your discoveries will stay with you during this visit.',
+      'Your first spell is Ember. Aim with the cursor and left click, or tap a spot, to cast. Spells fly straight and fade at their range limit. Gathering and combat teach you Tide at level 2.',
+      'Watch creatures prepare to lunge and avoid spike plates: they trigger underfoot. Return to this village to rest; your discoveries will stay with you during this visit.',
     ],
   });
   sample.npcs[0]!.lines = [

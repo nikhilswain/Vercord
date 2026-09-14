@@ -12,6 +12,7 @@ import {
 } from './character';
 import type { SpellId } from './demo/types';
 import { AdventureSession } from './adventure/session';
+import { combatTargetAtPointer } from './adventure/aim';
 import { DEMO_EQUIPMENT_POLICY } from '../../domain/adventure/equipment';
 import { RPG_MELEE_ANIMATION, RPG_MELEE_WEAPON_STYLE } from './melee-assets';
 import { AdventureSessionRenderer, preloadJungleCreatures } from './adventure/renderer';
@@ -93,6 +94,8 @@ export class RpgScene extends Phaser.Scene {
     this.created = true;
     this.renderSample();
     this.game.canvas.addEventListener('pointerdown', this.onPointerDown);
+    this.game.canvas.addEventListener('contextmenu', this.onContextMenu);
+    this.game.canvas.addEventListener('auxclick', this.onContextMenu);
     this.game.canvas.addEventListener('pointermove', this.onPointerMove);
     this.game.canvas.addEventListener('pointerup', this.onPointerUp);
     this.game.canvas.addEventListener('pointercancel', this.onPointerCancel);
@@ -362,7 +365,7 @@ export class RpgScene extends Phaser.Scene {
     this.publishUi();
   }
 
-  public attack(): void {
+  public attack(target?: Point): void {
     const adventure = this.activeAdventure();
     if (
       !this.created ||
@@ -373,7 +376,7 @@ export class RpgScene extends Phaser.Scene {
       !adventure
     )
       return;
-    const direction = adventure.attack(this.simulation.player, this.simulation.direction);
+    const direction = adventure.attack(this.simulation.player, this.simulation.direction, target);
     if (direction) {
       this.simulation.stop();
       this.simulation.direction = direction;
@@ -515,6 +518,8 @@ export class RpgScene extends Phaser.Scene {
     const canvas = this.game?.canvas;
     this.cancelPointer();
     canvas?.removeEventListener('pointerdown', this.onPointerDown);
+    canvas?.removeEventListener('contextmenu', this.onContextMenu);
+    canvas?.removeEventListener('auxclick', this.onContextMenu);
     canvas?.removeEventListener('pointermove', this.onPointerMove);
     canvas?.removeEventListener('pointerup', this.onPointerUp);
     canvas?.removeEventListener('pointercancel', this.onPointerCancel);
@@ -697,7 +702,7 @@ export class RpgScene extends Phaser.Scene {
       event.preventDefault();
       this.interact();
     }
-    if (this.activeAdventure() && (event.code === 'Space' || event.code === 'KeyJ')) {
+    if (this.activeAdventure() && event.code === 'KeyJ') {
       event.preventDefault();
       this.attack();
     }
@@ -724,12 +729,26 @@ export class RpgScene extends Phaser.Scene {
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0 || !event.isPrimary || this.inputBlocked || worldInputBlocked()) return;
+    if (
+      (!event.isPrimary && event.pointerType !== 'touch') ||
+      this.inputBlocked ||
+      worldInputBlocked()
+    )
+      return;
+    if (this.pointerDrag) return;
+    if (event.button !== 0 && event.button !== 1) return;
     const canvas = this.game.canvas;
+    canvas.focus({ preventScroll: true });
+    if (this.activeAdventure() && event.button === 0 && event.pointerType !== 'touch') {
+      event.preventDefault();
+      this.previousTap = null;
+      this.attack(this.pointerWorldPoint(event));
+      return;
+    }
+    if (event.button === 1) event.preventDefault();
     const point = { x: event.clientX, y: event.clientY };
     this.pointerDrag = { id: event.pointerId, start: point, last: point, dragging: false };
     canvas.setPointerCapture(event.pointerId);
-    canvas.focus({ preventScroll: true });
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {
@@ -772,6 +791,12 @@ export class RpgScene extends Phaser.Scene {
       this.previousTap = null;
       return;
     }
+    if (this.activeAdventure()) {
+      this.previousTap = null;
+      if (event.pointerType === 'touch') this.attack(this.pointerWorldPoint(event));
+      return;
+    }
+    if (event.button !== 0) return;
     const now = performance.now();
     const point = { x: event.clientX, y: event.clientY };
     if (
@@ -793,6 +818,19 @@ export class RpgScene extends Phaser.Scene {
         .setVisible(true);
       this.previousTap = null;
     } else this.previousTap = { point, time: now };
+  };
+
+  private pointerWorldPoint(event: PointerEvent): Point {
+    const rect = this.game.canvas.getBoundingClientRect();
+    const point = this.cameras.main.getWorldPoint(
+      ((event.clientX - rect.left) * this.width) / rect.width,
+      ((event.clientY - rect.top) * this.height) / rect.height,
+    );
+    return combatTargetAtPointer(point, this.activeAdventure()?.combatMode ?? 'melee');
+  }
+
+  private readonly onContextMenu = (event: Event): void => {
+    event.preventDefault();
   };
 
   private readonly onPointerCancel = (event: PointerEvent): void => {

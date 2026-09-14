@@ -7,7 +7,12 @@ import {
   enemyBehavior,
   type EnemyBehavior,
 } from '../../../domain/adventure/enemies';
-import { trapState } from '../../../domain/adventure/traps';
+import {
+  crossesPressurePlate,
+  pressureTrapState,
+  trapState,
+} from '../../../domain/adventure/traps';
+import { attackAim, SPELL_DEFINITIONS } from '../../../domain/adventure/spells';
 export { trapState } from '../../../domain/adventure/traps';
 import {
   createPlayerProgression,
@@ -133,13 +138,14 @@ export class AdventureSession {
   private readonly rewardedEnemies = new Set<string>();
   invincibleUntil = 0;
   private message =
-    'I opens equipment. 1 / 2 choose magic; 3 chooses your weapon. Space attacks; E gathers.';
+    'Aim with the cursor, then left click. 1 / 2 choose magic; 3 chooses your weapon. I opens equipment.';
   private messageUntil = 8;
   private attackReadyAt = 0;
   private sequence = 0;
   private encounterLevelValue: number;
   private readonly previousPlayer: Point;
   private trapEpoch = 0;
+  private readonly trapContacts: number[];
   get encounterLevel(): number {
     return this.encounterLevelValue;
   }
@@ -161,6 +167,7 @@ export class AdventureSession {
     );
     this.encounterLevelValue = normalizeEncounterLevel(options.enemyLevelOverride ?? this.level);
     this.previousPlayer = { ...spawn };
+    this.trapContacts = (content.traps ?? []).map(() => -Infinity);
     this.enemies = content.enemies.map((entry) => {
       const power = spawnEnemyPower(entry.kind, this.level, {
         elite: entry.elite,
@@ -222,8 +229,6 @@ export class AdventureSession {
       dt > 0 ? Math.max(-240, Math.min(240, (player.x - this.previousPlayer.x) / dt)) : 0;
     const velocityY =
       dt > 0 ? Math.max(-240, Math.min(240, (player.y - this.previousPlayer.y) / dt)) : 0;
-    this.previousPlayer.x = player.x;
-    this.previousPlayer.y = player.y;
     this.time += dt;
     if (this.cast) {
       const age = (this.time - this.cast.at) * 1000;
@@ -235,15 +240,19 @@ export class AdventureSession {
     }
     this.tickMelee();
     this.tickProjectiles(dt);
-    for (const trap of this.content.traps ?? []) {
-      const state = trapState(this.trapTime, trap.offset, this.encounterLevel);
-      if (state.active && distance(trap, player) < 21 && this.time >= this.invincibleUntil) {
+    for (const [index, trap] of (this.content.traps ?? []).entries()) {
+      const contact = crossesPressurePlate(this.previousPlayer, player, trap);
+      if (trap.activation !== 'timed' && contact) this.trapContacts[index] = this.time;
+      const state = this.getTrapState(index);
+      if (state.active && contact && this.time >= this.invincibleUntil) {
         this.health = Math.max(0, this.health - state.damage);
         this.invincibleUntil = this.time + 1.15;
         this.effect(player, 'hit');
-        this.say('Watch the spike plates. Cross after they retract, or go around.');
+        this.say('Spike plate! Stay off the plates; they trigger when you step on them.');
       }
     }
+    this.previousPlayer.x = player.x;
+    this.previousPlayer.y = player.y;
     while (this.effects[0] && this.time - this.effects[0].at > 0.85) this.effects.shift();
     for (const enemy of this.enemies) {
       if (enemy.health === 0) continue;
@@ -367,7 +376,7 @@ export class AdventureSession {
     this.cast = null;
     this.melee = null;
     this.combatMode = 'melee';
-    this.say(`${getWeaponDefinition(id)!.family} equipped. Space or J to attack.`);
+    this.say(`${getWeaponDefinition(id)!.family} equipped. Aim and left click to attack.`);
     return true;
   }
 
@@ -415,8 +424,17 @@ export class AdventureSession {
     this.combatMode = spell;
   }
 
-  attack(player: Point, direction: RpgDirection): RpgDirection | null {
+  getTrapState(index: number): ReturnType<typeof trapState> {
+    const trap = this.content.traps?.[index];
+    return trap?.activation === 'timed'
+      ? trapState(this.trapTime, trap.offset, this.encounterLevel)
+      : pressureTrapState(this.time, this.trapContacts[index] ?? -Infinity, this.encounterLevel);
+  }
+
+  attack(player: Point, direction: RpgDirection, target?: Point): RpgDirection | null {
     if (this.time < this.attackReadyAt || this.cast || this.melee) return null;
+    const aim = attackAim(player, vectors[direction], target);
+    direction = facing({ x: 0, y: 0 }, aim);
     if (this.combatMode === 'melee') {
       const weapon = getWeaponDefinition(this.progression.equippedWeaponId)!;
       this.melee = { at: this.time, origin: { ...player }, direction, weapon, hit: false };
@@ -424,22 +442,6 @@ export class AdventureSession {
       return direction;
     }
     if (this.projectiles.length >= 8) return null;
-    // Aim at the nearest visible creature in front. Aim is locked at cast start, never homing.
-    const forward = vectors[direction];
-    let target: Enemy | undefined;
-    let closest = 340;
-    for (const enemy of this.enemies) {
-      const d = distance(enemy, player);
-      const dot =
-        ((enemy.x - player.x) * forward.x + (enemy.y - player.y) * forward.y) / Math.max(1, d);
-      if (enemy.health > 0 && d < closest && dot > 0.2 && this.clearLine(player, enemy)) {
-        target = enemy;
-        closest = d;
-      }
-    }
-    const aim = target ? { x: target.x - player.x, y: target.y - player.y } : { ...forward };
-    const length = Math.max(1, Math.hypot(aim.x, aim.y));
-    if (target) direction = facing(player, target);
     this.cast = {
       damage:
         (this.spell === 'fire' ? 30 : 24) +
@@ -448,7 +450,7 @@ export class AdventureSession {
       at: this.time,
       origin: { ...player },
       direction,
-      aim: { x: aim.x / length, y: aim.y / length },
+      aim,
       spell: this.spell,
       released: false,
     };
@@ -457,32 +459,38 @@ export class AdventureSession {
   }
 
   private release(cast: SpellCast): void {
-    const speed = cast.spell === 'fire' ? 290 : 340;
+    const { speed } = SPELL_DEFINITIONS[cast.spell];
+    const launch = { x: cast.origin.x + cast.aim.x * 12, y: cast.origin.y + cast.aim.y * 12 };
+    if (!this.clearLine(cast.origin, launch)) {
+      this.effect(cast.origin, cast.spell);
+      return;
+    }
     this.projectiles.push({
       damage: cast.damage,
       id: ++this.sequence,
       spell: cast.spell,
       at: this.time,
-      x: cast.origin.x + cast.aim.x * 12,
-      y: cast.origin.y + cast.aim.y * 12,
+      ...launch,
       velocity: { x: cast.aim.x * speed, y: cast.aim.y * speed },
-      distance: 0,
+      distance: 12,
     });
   }
 
   private tickProjectiles(dt: number): void {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i]!;
-      const travel = Math.hypot(p.velocity.x, p.velocity.y) * dt;
+      const speed = Math.hypot(p.velocity.x, p.velocity.y);
+      const range = SPELL_DEFINITIONS[p.spell].range;
+      const travel = Math.min(speed * dt, Math.max(0, range - p.distance));
       const steps = Math.max(1, Math.ceil(travel / 6));
       let expired = false;
       for (let step = 0; step < steps && !expired; step++) {
         const previous = { x: p.x, y: p.y };
-        p.x += (p.velocity.x * dt) / steps;
-        p.y += (p.velocity.y * dt) / steps;
+        p.x += ((p.velocity.x / speed) * travel) / steps;
+        p.y += ((p.velocity.y / speed) * travel) / steps;
         p.distance += travel / steps;
         if (
-          p.distance > 400 ||
+          p.distance >= range - 0.0001 ||
           !containsPoint(this.bounds, p.x, p.y) ||
           !this.clearLine(previous, p)
         ) {
@@ -645,6 +653,9 @@ export class AdventureSession {
   }
 
   rest(): void {
+    this.previousPlayer.x = this.spawn.x;
+    this.previousPlayer.y = this.spawn.y;
+    this.trapContacts.fill(-Infinity);
     this.health = 100;
     this.cast = null;
     this.melee = null;
