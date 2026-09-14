@@ -49,6 +49,10 @@ No ground warning circles are introduced.
 
 ## Scenery and imports
 
+See the [complete Ruined Temple asset audit](RUINED-TEMPLE-ASSET-AUDIT.md) for the
+supplied interior/exterior maps, unused cast and mechanisms, animation layouts,
+and the distinction between available art and implemented gameplay.
+
 `adventure/temple-scenery.ts` places the actual CraftPix Ruined Temple production art:
 sanctuary, statues, columns, wall fragments, paving, vegetation and animated fire.
 It owns explicit collision footprints. `animatedScenery` annotations share the scene

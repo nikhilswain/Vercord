@@ -4,6 +4,12 @@ Research checked September 14, 2026. This pass implements mouse combat, free-aim
 spells and pressure plates. The assets and encounters below are a shortlist for
 the next content pass; no new pack has been purchased or imported.
 
+Status update, September 15: Predator Plant Mobs and selected Ruined Temple
+scenery have since been imported. The temple interior, NPCs and mechanisms remain
+unused. See the [local pack audit](../../development/RUINED-TEMPLE-ASSET-AUDIT.md)
+and [connected-area implementation](../../development/ADDING-ADVENTURE-AREAS.md).
+The research and proposals below describe the original shortlist.
+
 ## Recommendation
 
 Keep the tall LPC traveler and build one coherent jungle encounter around
