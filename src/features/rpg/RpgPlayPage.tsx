@@ -591,7 +591,9 @@ export function RpgPlayPage({
               Leave
             </button>
             <button ref={advanceRef} className="rpg-button" onClick={advance}>
-              {speech && line < speech.lines.length - 1 ? 'Continue' : 'Until next time'}{' '}
+              {speech && line < speech.lines.length - 1
+                ? 'Continue'
+                : (speech?.closeLabel ?? 'Until next time')}{' '}
               <kbd>↵</kbd>
             </button>
           </>

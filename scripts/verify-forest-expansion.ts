@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { buildComparisonVillage, buildJungleDemo } from '../src/features/rpg/demo/scenes';
 import { buildFernHollow, buildTempleDemo } from '../src/features/rpg/demo/forest-expansion';
+import { buildTempleInterior } from '../src/features/rpg/demo/temple-interior';
 import { AdventureSession } from '../src/features/rpg/adventure/session';
 import { AdventureJourney } from '../src/features/rpg/adventure/journey';
 import { DEMO_EQUIPMENT_POLICY, createPlayerProgression } from '../src/domain/adventure/equipment';
@@ -10,7 +11,13 @@ import { RpgPathfinder } from '../src/features/rpg/pathfinding';
 import { PLANT_ASSETS } from '../src/features/rpg/adventure/plant-assets';
 import { ENEMY_DEFINITIONS, enemyBehavior } from '../src/domain/adventure/enemies';
 
-const samples = [buildComparisonVillage(), buildJungleDemo(), buildFernHollow(), buildTempleDemo()];
+const samples = [
+  buildComparisonVillage(),
+  buildJungleDemo(),
+  buildFernHollow(),
+  buildTempleDemo(),
+  buildTempleInterior(),
+];
 for (const sample of samples) {
   const content = sample.demo!.jungle;
   const pathfinder = new RpgPathfinder(sample.bounds, sample.colliders, WORLD_PLAYER_FEET);

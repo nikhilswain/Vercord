@@ -35,6 +35,19 @@
   gap: 12px;
   font-variant-numeric: tabular-nums;
 }
+.rpg-story-objective {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rpg-edge);
+}
+.rpg-story-objective strong {
+  color: var(--rpg-accent);
+}
+.rpg-story-objective p {
+  margin: 4px 0 0;
+  line-height: 1.45;
+  color: var(--rpg-ink);
+}
 .rpg-adventure-status meter {
   display: block;
   width: 100%;

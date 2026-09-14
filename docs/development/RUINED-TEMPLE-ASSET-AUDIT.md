@@ -7,7 +7,12 @@ The first integration selected scenery for Fern Hollow and the outdoor Rootbound
 Temple courtyard. It did **not** integrate the supplied interior, characters or
 mechanisms. This audit covers the remaining local content and corrects that gap.
 
-## Already used versus available
+Same-day follow-up: [The Hollow Choir](TEMPLE-STORY.md) now uses the interior art,
+cast, ghost, lamps, traps and mechanisms in an authored playable story. The table
+below records the inventory **before** that integration. The original TMX maps and
+native water remain unused; the interior layout is adapted for LPC and combat.
+
+## Initial integration versus available assets
 
 | Content | Local source | Current integration |
 | --- | --- | --- |

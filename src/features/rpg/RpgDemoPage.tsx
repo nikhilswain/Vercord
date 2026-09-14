@@ -5,11 +5,18 @@ import { readRpgRoute, resolveRpgTravel, writeRpgRoute } from './themes';
 import type { RpgDestination } from './types';
 import { buildComparisonVillage, buildJungleDemo } from './demo/scenes';
 import { buildFernHollow, buildTempleDemo } from './demo/forest-expansion';
+import { buildTempleInterior } from './demo/temple-interior';
 import { DEMO_AREA_NAMES, readDemoArea, type DemoArea } from './demo/types';
 
 const village = buildComparisonVillage();
 const jungle = buildJungleDemo();
-const areas = { village, jungle, 'fern-hollow': buildFernHollow(), temple: buildTempleDemo() };
+const areas = {
+  village,
+  jungle,
+  'fern-hollow': buildFernHollow(),
+  temple: buildTempleDemo(),
+  'temple-interior': buildTempleInterior(),
+};
 const samples = [...Object.values(areas), RPG_SAMPLES.norse, RPG_SAMPLES.dungeon];
 
 export function RpgDemoPage() {

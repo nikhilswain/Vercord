@@ -15,6 +15,7 @@ import type { RpgSample } from '../types';
 import type { AdventureDefinition } from '../adventure/types';
 import type { DemoArea } from './types';
 import { addTempleScenery } from '../adventure/temple-scenery';
+import { addChoirCourtyard } from './temple-interior';
 
 type Patch = readonly [number, number, number, number];
 
@@ -229,7 +230,7 @@ export function buildTempleDemo(): RpgSample {
     flowers: [
       { id: 'temple-herb-camp', kind: 'healing', ...at(25, 36) },
       { id: 'temple-herb-west', kind: 'healing', ...at(12, 24) },
-      { id: 'temple-bloom-altar', kind: 'collection', ...at(22, 10.5) },
+      { id: 'temple-bloom-altar', kind: 'collection', ...at(25, 12.8) },
       { id: 'temple-bloom-east', kind: 'collection', ...at(35.5, 18) },
     ],
     water: [],
@@ -262,5 +263,6 @@ export function buildTempleDemo(): RpgSample {
     ...content.flowers,
   ]);
   addTempleScenery(sample, true);
+  addChoirCourtyard(sample);
   return sample;
 }

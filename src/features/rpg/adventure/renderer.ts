@@ -107,7 +107,11 @@ export class AdventureSessionRenderer {
     this.charge = pool(1)[0]!;
     this.traps = (model.content.traps ?? []).map((trap) =>
       scene.add
-        .image(trap.x, trap.y, MAGIC_EFFECT_ASSETS['spike-trap'].textureKey)
+        .image(
+          trap.x,
+          trap.y,
+          model.content.trapVisual?.texture ?? MAGIC_EFFECT_ASSETS['spike-trap'].textureKey,
+        )
         .setDepth(trap.y),
     );
   }
@@ -128,7 +132,10 @@ export class AdventureSessionRenderer {
       const plant = enemy.kind in PLANT_ASSETS;
       const scale = asset.suggestedScale * (ENEMY_DEFINITIONS[enemy.kind].boss ? 1.5 : 1);
       const deathDuration = asset.animations.death.durationMs / 1000;
-      const shown = visible(enemy) && (enemy.health > 0 || age < deathDuration + 0.35);
+      const shown =
+        (this.model.isEnemyActive(enemy) || (enemy.health === 0 && enemy.phase === 'death')) &&
+        visible(enemy) &&
+        (enemy.health > 0 || age < deathDuration + 0.35);
       view.sprite.setVisible(shown);
       view.shadow.setVisible(shown && enemy.health > 0 && !plant);
       view.label.setVisible(false);
@@ -177,7 +184,7 @@ export class AdventureSessionRenderer {
         camera.zoom >= 0.65
       ) {
         const y = enemy.y - (enemy.kind === 'guardian' ? 94 : asset.feet.y * scale) - 9;
-        const label = `${ENEMY_DEFINITIONS[enemy.kind].name} · Lv ${enemy.level}`;
+        const label = `${enemy.name ?? ENEMY_DEFINITIONS[enemy.kind].name} · Lv ${enemy.level}`;
         if (view.label.text !== label) view.label.setText(label);
         view.label.setPosition(enemy.x, y - 4).setVisible(true);
         g.fillStyle(0x18251d, 0.9).fillRoundedRect(enemy.x - 20, y, 40, 5, 2);
@@ -328,9 +335,10 @@ export class AdventureSessionRenderer {
     (this.model.content.traps ?? []).forEach((_, index) => {
       const state = this.model.getTrapState(index);
       const asset = MAGIC_EFFECT_ASSETS['spike-trap'];
-      this.traps[index]!.setFrame(asset.frames[state.frame]!)
-        .setOrigin(asset.origin.x, asset.origin.y)
-        .setScale(asset.suggestedScale);
+      const visual = this.model.content.trapVisual;
+      this.traps[index]!.setFrame((visual?.frames ?? asset.frames)[state.frame]!)
+        .setOrigin(asset.origin.x, visual?.originY ?? asset.origin.y)
+        .setScale(visual?.scale ?? asset.suggestedScale);
       if (state.warning) this.traps[index]!.setTint(0xffd58a);
       else this.traps[index]!.clearTint();
     });

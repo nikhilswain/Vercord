@@ -1,0 +1,16 @@
+CraftPix free asset permission note
+
+Publisher: CraftPix / Free Game Assets (GUI, Sprite, Tilesets)
+Authoritative license: https://craftpix.net/file-licenses/
+Applicable section: 2. FREEBIE PRODUCTS
+Reviewed: 2026-09-12
+
+The author permits personal and commercial game use, modification, and game
+distribution. Attribution is optional. Standalone resale and redistribution as
+reusable artwork, including artwork-export applications, are prohibited.
+This note is a summary, not a replacement for the author's terms.
+
+These prepared PNGs support gameplay in this application. They are not offered
+as an asset library, download pack, editor export, or a sublicensed art product.
+Original ZIPs, AI/EPS/PSD source documents and unused pack contents are excluded.
+See provenance.json for source files, SHA-256 hashes and frame crops.

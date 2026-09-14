@@ -18,12 +18,14 @@ export function AdventureHud({
   onMelee(): void;
   onEquipment(): void;
 }) {
-  const complete = status.defeated === status.enemyGoal && status.blossoms === status.blossomGoal;
+  const complete = status.story
+    ? status.story.complete
+    : status.defeated === status.enemyGoal && status.blossoms === status.blossomGoal;
   const weapon = getDemoWeapon(status.weaponId);
   const melee = status.combatMode === 'melee';
   return (
     <>
-      <aside className="rpg-adventure-status rpg-frame" aria-label="Jungle adventure">
+      <aside className="rpg-adventure-status rpg-frame" aria-label="Adventure status">
         <div className="rpg-health-label">
           <strong>Health</strong>
           <span>
@@ -47,20 +49,33 @@ export function AdventureHud({
               {status.nextLevel ? ` / ${status.nextLevel}` : ''} XP
             </span>
           </span>
-          <span>
-            Trail creatures{' '}
-            <b>
-              {status.defeated} / {status.enemyGoal}
-            </b>
-          </span>
-          <span>
-            Moonblossoms{' '}
-            <b>
-              {status.blossoms} / {status.blossomGoal}
-            </b>
-          </span>
+          {!status.story && (
+            <>
+              <span>
+                Trail creatures{' '}
+                <b>
+                  {status.defeated} / {status.enemyGoal}
+                </b>
+              </span>
+              <span>
+                Moonblossoms{' '}
+                <b>
+                  {status.blossoms} / {status.blossomGoal}
+                </b>
+              </span>
+            </>
+          )}
         </div>
-        {complete && (
+        {status.story && (
+          <div className="rpg-story-objective" role="status">
+            <strong>{status.story.title}</strong>
+            <p>
+              {status.story.complete ? '✓ ' : ''}
+              {status.story.text}
+            </p>
+          </div>
+        )}
+        {complete && !status.story && (
           <strong className="rpg-trail-complete">
             Area explored. Follow the trail onward or return home.
           </strong>
@@ -161,8 +176,10 @@ export function AdventureHud({
       <p className="rpg-adventure-message rpg-adventure-message--equipment" role="status">
         {status.message ||
           (complete
-            ? 'Area cleared. Follow the signs to continue or return to the village.'
-            : `WASD to move · Aim & left click / tap to ${melee ? 'attack' : 'cast'} · E to gather`)}
+            ? status.story
+              ? 'Story complete. Keep exploring, or return to the village.'
+              : 'Area cleared. Follow the signs to continue or return to the village.'
+            : `WASD to move · Aim & left click / tap to ${melee ? 'attack' : 'cast'} · E to ${status.story ? 'interact' : 'gather'}`)}
       </p>
     </>
   );

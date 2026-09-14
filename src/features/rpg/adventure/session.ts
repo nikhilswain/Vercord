@@ -24,6 +24,12 @@ import {
 } from '../../../domain/adventure/equipment';
 import { getWeaponDefinition, type WeaponDefinition } from '../../../domain/adventure/weapons';
 import {
+  ScenarioProgress,
+  ScenarioSession,
+  type StoryInteraction,
+  type StoryDialogue,
+} from '../../../domain/adventure/scenario';
+import {
   experienceForLevel,
   levelForExperience,
   MAX_CHARACTER_LEVEL,
@@ -101,6 +107,7 @@ export interface MeleeAttack {
   hit: boolean;
 }
 export interface AdventureOptions {
+  scenarioProgress?: ScenarioProgress;
   progression?: PlayerProgression;
   equipmentPolicy?: typeof NORMAL_EQUIPMENT_POLICY;
   /** Explicit sandbox override; normal encounters derive their level from the profile. */
@@ -140,6 +147,9 @@ function facing(a: Point, b: Point): RpgDirection {
  * Bounded effects and static collision data; no timers or per-tick React state.
  */
 export class AdventureSession {
+  readonly scenario: ScenarioSession | null;
+  readonly collision: Rect[];
+  private scenarioCollisionRevision = -1;
   readonly enemies: Enemy[];
   readonly gathered = new Set<string>();
   readonly effects: AdventureEffect[] = [];
@@ -179,6 +189,11 @@ export class AdventureSession {
     readonly casting = { durationMs: 700, releaseMs: 400 },
     readonly options: AdventureOptions = {},
   ) {
+    this.scenario = content.scenario
+      ? new ScenarioSession(content.scenario, options.scenarioProgress ?? new ScenarioProgress())
+      : null;
+    this.collision = [...colliders];
+    this.syncScenarioCollision();
     this.progression = sanitizePlayerProgression(
       options.progression ?? createPlayerProgression(),
       options.equipmentPolicy ?? NORMAL_EQUIPMENT_POLICY,
@@ -216,11 +231,12 @@ export class AdventureSession {
   }
 
   status(): AdventureStatus {
-    const boss = this.enemies.find((enemy) => STATS[enemy.kind].boss);
+    const boss = this.enemies.find((enemy) => STATS[enemy.kind].boss && this.isEnemyActive(enemy));
     return {
+      story: this.scenario?.objective(),
       boss: boss
         ? {
-            name: STATS[boss.kind].name,
+            name: boss.name ?? STATS[boss.kind].name,
             health: boss.health,
             maxHealth: boss.maxHealth,
             level: boss.level,
@@ -259,6 +275,8 @@ export class AdventureSession {
     const velocityY =
       dt > 0 ? Math.max(-240, Math.min(240, (player.y - this.previousPlayer.y) / dt)) : 0;
     this.time += dt;
+    this.scenario?.tick(dt, this.enemies);
+    this.syncScenarioCollision();
     if (this.cast) {
       const age = (this.time - this.cast.at) * 1000;
       if (!this.cast.released && age >= this.casting.releaseMs) {
@@ -270,6 +288,21 @@ export class AdventureSession {
     this.tickMelee();
     this.tickProjectiles(dt);
     this.tickEnemyProjectiles(dt, player);
+    for (const hazard of this.scenario?.definition.hazards ?? []) {
+      if (
+        this.scenario!.matches(hazard) &&
+        distance(hazard, player) < hazard.radius &&
+        this.time >= this.invincibleUntil
+      ) {
+        this.health = Math.max(
+          0,
+          this.health - Math.round(hazard.damage * (1 + (this.encounterLevel - 1) * 0.05)),
+        );
+        this.invincibleUntil = this.time + 1;
+        this.effect(player, 'hit');
+        this.say('Spinning blades! Stay outside their reach; a clear path runs around them.');
+      }
+    }
     for (const [index, trap] of (this.content.traps ?? []).entries()) {
       const contact = crossesPressurePlate(this.previousPlayer, player, trap);
       if (trap.activation !== 'timed' && contact) this.trapContacts[index] = this.time;
@@ -285,7 +318,7 @@ export class AdventureSession {
     this.previousPlayer.y = player.y;
     while (this.effects[0] && this.time - this.effects[0].at > 0.85) this.effects.shift();
     for (const enemy of this.enemies) {
-      if (enemy.health === 0) continue;
+      if (enemy.health === 0 || !this.isEnemyActive(enemy)) continue;
       if (this.time < enemy.burningUntil && this.time >= enemy.burnTickAt) {
         enemy.burnTickAt = this.time + 0.5;
         this.damage(enemy, 4, 'fire', false);
@@ -401,6 +434,27 @@ export class AdventureSession {
 
   get level(): number {
     return levelForExperience(this.experience);
+  }
+
+  isEnemyActive(enemy: EncounterSpawn): boolean {
+    return this.scenario ? this.scenario.matches(enemy) : !enemy.requires?.length;
+  }
+  nearbyStory(player: Point): StoryInteraction | null {
+    return this.scenario?.nearby(player, (target) => this.clearLine(player, target)) ?? null;
+  }
+  interactStory(player: Point): StoryDialogue | null {
+    const interaction = this.nearbyStory(player);
+    if (!interaction || !this.scenario || this.cast || this.melee) return null;
+    const result = this.scenario.interact(interaction);
+    this.herbs += result.herbs;
+    this.syncScenarioCollision();
+    return result.dialogue;
+  }
+  private syncScenarioCollision(): void {
+    if (!this.scenario || this.scenarioCollisionRevision === this.scenario.collisionRevision)
+      return;
+    this.scenarioCollisionRevision = this.scenario.collisionRevision;
+    this.collision.splice(0, this.collision.length, ...this.colliders, ...this.scenario.colliders);
   }
   get experience(): number {
     return this.progression.experience;
@@ -642,6 +696,7 @@ export class AdventureSession {
         const hit = this.enemies.find(
           (e) =>
             e.health > 0 &&
+            this.isEnemyActive(e) &&
             distance(e, p) <
               (STATS[e.kind].boss ? 36 : e.kind === 'bear' || e.kind === 'guardian' ? 27 : 19) &&
             this.clearLine(p, e),
@@ -687,6 +742,7 @@ export class AdventureSession {
         const d = Math.hypot(dx, dy);
         if (
           enemy.health > 0 &&
+          this.isEnemyActive(enemy) &&
           d <= swing.weapon.reach &&
           ahead > 0 &&
           (thrust ? side <= 22 : ahead / Math.max(1, d) > 0.2) &&
@@ -695,6 +751,7 @@ export class AdventureSession {
           this.damage(enemy, swing.weapon.damage, 'melee');
           if (
             enemy.health > 0 &&
+            this.isEnemyActive(enemy) &&
             (enemy.behavior.staggerImmunityMs === 0 || enemy.phase === 'hurt')
           )
             this.move(
@@ -711,7 +768,7 @@ export class AdventureSession {
   }
 
   private damage(enemy: Enemy, amount: number, spell: CombatMode, stagger = true): void {
-    if (enemy.health === 0) return;
+    if (enemy.health === 0 || !this.isEnemyActive(enemy)) return;
     enemy.health = Math.max(0, enemy.health - amount);
     if (enemy.health === 0) {
       this.phase(enemy, 'death');
@@ -844,7 +901,7 @@ export class AdventureSession {
     // Exact segment/rectangle slabs: sampled points can miss a thin trunk corner.
     const dx = to.x - from.x,
       dy = to.y - from.y;
-    for (const rect of this.colliders) {
+    for (const rect of this.collision) {
       let enter = 0,
         exit = 1;
       if (dx === 0) {
@@ -887,7 +944,7 @@ export class AdventureSession {
       { x: enemy.x - size, y: enemy.y - 8, width: size * 2, height: 12 },
       (dx / length) * step,
       (dy / length) * step,
-      this.colliders,
+      this.collision,
       this.bounds,
     );
     enemy.x = next.x + size;

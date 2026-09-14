@@ -4,6 +4,9 @@ The local expedition is **Willowmere → Mosswild Jungle → Fern Hollow → Roo
 Travel at the signed trail ends with **E**; each connection has a return trail.
 Direct previews: `/play/demo?area=jungle`, `?area=fern-hollow`, `?area=temple`.
 
+Rootbound Temple now also connects to an interior at `?area=temple-interior`.
+See [The Hollow Choir](TEMPLE-STORY.md) for the story, mechanisms and shared state.
+
 ## Content and session ownership
 
 - `demo/scenes.ts` builds the existing village and jungle. `demo/forest-expansion.ts`

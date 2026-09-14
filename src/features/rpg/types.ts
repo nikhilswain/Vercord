@@ -13,6 +13,7 @@ import type {
 } from '../../domain/presence/rpg-protocol';
 import type { RpgSceneId } from '../../domain/world/catalog/scenes';
 import type { AdventureStatus, DemoArea, DemoSceneContent, SpellId } from './demo/types';
+import type { ScenarioSprite } from './adventure/scenario-renderer';
 
 /** Local reconciliation intent; never sent as a movement packet. */
 export interface RpgPositionUpdate extends RpgLocation {
@@ -42,6 +43,7 @@ export interface RpgSceneLabel extends Point {
 }
 
 export interface RpgSample extends SavedRpgSample {
+  storySprites?: ScenarioSprite[];
   sceneId?: RpgSceneId;
   signage?: RpgSceneLabel[];
   townSquareNavigation?: boolean;
@@ -59,7 +61,7 @@ export interface RpgSample extends SavedRpgSample {
 export interface RpgNearby {
   id: string;
   label: string;
-  action: 'Talk' | 'Read' | 'Explore' | 'Open' | 'Pet' | 'Gather' | 'Enter';
+  action: 'Talk' | 'Read' | 'Explore' | 'Open' | 'Pet' | 'Gather' | 'Enter' | 'Use';
 }
 
 export interface RpgUiState {
@@ -75,6 +77,7 @@ export interface RpgUiState {
 }
 
 export interface RpgDialogue {
+  closeLabel?: string;
   name: string;
   role: string;
   lines: string[];

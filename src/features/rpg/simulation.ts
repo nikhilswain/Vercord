@@ -29,6 +29,7 @@ export class RpgSimulation {
   private route: Point[] = [];
   private destination: Point | null = null;
   private pathfinder!: RpgPathfinder;
+  private dynamicColliders: readonly Rect[] = [];
 
   public constructor(
     public sample: RpgSample,
@@ -50,6 +51,7 @@ export class RpgSimulation {
       this.movementRevision = 0;
     }
     this.sample = sample;
+    this.dynamicColliders = [];
     this.sceneKey = sceneKey;
     this.player = this.restoredPosition();
     this.direction = 'down';
@@ -115,9 +117,11 @@ export class RpgSimulation {
       feet.y >= bounds.y &&
       feet.x + feet.width <= bounds.x + bounds.width &&
       feet.y + feet.height <= bounds.y + bounds.height &&
-      ![...this.sample.colliders, ...this.sample.npcs.map(footprint)].some((box) =>
-        overlaps(feet, box),
-      )
+      ![
+        ...this.sample.colliders,
+        ...this.dynamicColliders,
+        ...this.sample.npcs.map(footprint),
+      ].some((box) => overlaps(feet, box))
     );
   }
 
@@ -125,6 +129,15 @@ export class RpgSimulation {
     this.route = [];
     this.destination = null;
     this.action = 'idle';
+  }
+
+  public setDynamicColliders(colliders: readonly Rect[]): void {
+    if (this.dynamicColliders === colliders) return;
+    const destination = this.destination;
+    this.dynamicColliders = colliders;
+    this.stop();
+    this.indexColliders();
+    if (destination && !this.blocked) this.navigate(destination);
   }
 
   public navigate(point: Point): void {
@@ -256,11 +269,12 @@ export class RpgSimulation {
   }
 
   private lineIsClear(target: Point): boolean {
+    const obstacles = [...this.sample.colliders, ...this.dynamicColliders];
     const steps = Math.ceil(Math.hypot(target.x - this.player.x, target.y - this.player.y) / 8);
     for (let step = 1; step < steps; step += 1) {
       const x = this.player.x + ((target.x - this.player.x) * step) / steps;
       const y = this.player.y - 4 + ((target.y - this.player.y) * step) / steps;
-      if (this.sample.colliders.some((box) => containsPoint(box, x, y))) return false;
+      if (obstacles.some((box) => containsPoint(box, x, y))) return false;
     }
     return true;
   }
@@ -268,7 +282,7 @@ export class RpgSimulation {
   private indexColliders(): void {
     this.pathfinder = new RpgPathfinder(
       this.sample.bounds,
-      [...this.sample.colliders, ...this.sample.npcs.map(footprint)],
+      [...this.sample.colliders, ...this.dynamicColliders, ...this.sample.npcs.map(footprint)],
       RPG_FEET,
       this.sample.terrain?.roads,
     );

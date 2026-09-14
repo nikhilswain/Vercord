@@ -1,6 +1,7 @@
 import type { Point, Rect } from '../../world/engine/types';
 import type { AdventureDefinition } from './types';
 import { AdventureSession, type AdventureOptions, type AdventureTraveler } from './session';
+import { ScenarioProgress } from '../../../domain/adventure/scenario';
 
 /** Owns an expedition: one traveler, persistent encounters per area, no renderer state.
  * A future server/storage adapter can own this same lifecycle outside the demo.
@@ -10,8 +11,10 @@ export class AdventureJourney {
   private current: AdventureSession | null = null;
   private traveler: AdventureTraveler | undefined;
   private encounterLevel: number | undefined;
+  private readonly story: ScenarioProgress;
 
   constructor(private readonly options: AdventureOptions = {}) {
+    this.story = options.scenarioProgress ?? new ScenarioProgress();
     this.encounterLevel = options.enemyLevelOverride;
   }
 
@@ -32,6 +35,7 @@ export class AdventureJourney {
         progression: this.traveler?.progression ?? this.options.progression,
         enemyLevelOverride: this.encounterLevel,
         safeAreas: content.safeAreas ?? [],
+        scenarioProgress: this.story,
       });
       this.areas.set(id, area);
     }

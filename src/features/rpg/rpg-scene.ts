@@ -13,6 +13,7 @@ import {
 import type { SpellId } from './demo/types';
 import { AdventureSession } from './adventure/session';
 import { AdventureJourney } from './adventure/journey';
+import { ScenarioRenderer } from './adventure/scenario-renderer';
 import { combatTargetAtPointer } from './adventure/aim';
 import { DEMO_EQUIPMENT_POLICY } from '../../domain/adventure/equipment';
 import { RPG_MELEE_ANIMATION, RPG_MELEE_WEAPON_STYLE } from './melee-assets';
@@ -37,6 +38,7 @@ export class RpgScene extends Phaser.Scene {
     enemyLevelOverride: 1,
   });
   private adventureRenderer: AdventureSessionRenderer | null = null;
+  private scenarioRenderer: ScenarioRenderer | null = null;
   private remotes: RpgRemoteCharacters | null = null;
   private ambient: RpgAmbientEntities | null = null;
   private players: readonly RpgPresencePlayer[] = [];
@@ -130,6 +132,7 @@ export class RpgScene extends Phaser.Scene {
     this.previousFrameTime = time;
     this.elapsed += dt;
     const adventure = this.activeAdventure();
+    if (adventure?.scenario) this.simulation.setDynamicColliders(adventure.scenario.colliders);
     const blocked =
       this.inputBlocked || worldInputBlocked() || Boolean(adventure && !this.demoFocused);
     this.simulation.blocked = blocked || Boolean(adventure?.cast || adventure?.melee);
@@ -180,6 +183,7 @@ export class RpgScene extends Phaser.Scene {
         : 1,
     );
     this.adventureRenderer?.update(player, this.motion.matches);
+    this.scenarioRenderer?.update(player, this.motion.matches);
     const nearby = this.simulation.nearby();
     this.simulation.sample.npcs.forEach((npc, index) => {
       this.npcs[index]?.update(
@@ -300,6 +304,13 @@ export class RpgScene extends Phaser.Scene {
   public interact(): void {
     if (!this.created || this.failed || this.disposed || this.inputBlocked || worldInputBlocked())
       return;
+    const story = this.activeAdventure()?.interactStory(this.simulation.player);
+    if (story) {
+      this.simulation.stop();
+      this.callbacks.onDialogue(story);
+      this.publishUi();
+      return;
+    }
     if (this.activeAdventure()?.gather(this.simulation.player)) {
       this.simulation.stop();
       this.publishUi();
@@ -565,6 +576,14 @@ export class RpgScene extends Phaser.Scene {
         { durationMs: RPG_CAST_DURATION_MS, releaseMs: RPG_CAST_RELEASE_MS },
       );
       this.adventureRenderer = new AdventureSessionRenderer(this, this.adventureSession);
+      if (this.adventureSession.scenario) {
+        this.simulation.setDynamicColliders(this.adventureSession.scenario.colliders);
+        this.scenarioRenderer = new ScenarioRenderer(
+          this,
+          this.adventureSession.scenario,
+          sample.storySprites ?? [],
+        );
+      }
     } else {
       this.adventureJourney.leave(true);
       this.adventureSession = null;
@@ -590,6 +609,8 @@ export class RpgScene extends Phaser.Scene {
   }
 
   private clearVisuals(): void {
+    this.scenarioRenderer?.destroy();
+    this.scenarioRenderer = null;
     this.adventureRenderer?.destroy();
     this.adventureRenderer = null;
     this.talkingTo = null;
@@ -644,6 +665,8 @@ export class RpgScene extends Phaser.Scene {
           label: flower.kind === 'healing' ? 'healing herb' : 'moonblossom',
           action: 'Gather',
         };
+      const story = adventure.nearbyStory(this.simulation.player);
+      if (story) state.nearby = { id: story.id, label: story.label, action: story.action };
     }
     if (
       state.nearby &&
