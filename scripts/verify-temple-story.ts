@@ -125,7 +125,36 @@ const enter = (sample: typeof interior) =>
     sample.spawn,
     { durationMs: 700, releaseMs: 400 },
   );
-let session = enter(interior);
+let session = enter(courtyard);
+const entrance = courtyard.landmarks.find((entry) => entry.id === 'sanctuary-entry')!;
+const rootBeast = session.enemies.find((enemy) => enemy.id === 'temple-root-beast')!;
+assert(journey.blockedEntry(interior.demo!.jungle));
+assert.equal(session.nearbyStory(entrance)?.id, 'sanctuary-entry');
+assert.match(session.interactStory(entrance)!.lines.join(' '), /Defeat the Root Beast/);
+assert.match(session.status().story!.text, /Defeat the courtyard Root Beast/);
+session.health = 61;
+const beforeRejectedEntry = session.traveler();
+assert.throws(() => enter(interior), /Adventure entry blocked/);
+assert.equal(enter(courtyard), session, 'denied admission retains the current area');
+assert.deepEqual(session.traveler(), beforeRejectedEntry, 'denied admission keeps the traveler');
+session.enemies.find((enemy) => enemy.id === 'temple-venus-west')!.health = 0;
+rootBeast.health = 1;
+session.tick(0.05, courtyard.spawn);
+assert(journey.blockedEntry(interior.demo!.jungle), 'other kills and low boss HP do not unlock');
+rootBeast.health = 0;
+session.tick(0.05, courtyard.spawn);
+assert(progress.has(CHOIR.rootBeast), 'the specific courtyard boss defeat unlocks the entrance');
+assert.equal(journey.blockedEntry(interior.demo!.jungle), null);
+assert.equal(session.nearbyStory(entrance), null, 'the locked doorway stops intercepting travel');
+assert.match(session.status().story!.text, /entrance seal is broken/);
+assert.equal(
+  new AdventureJourney({
+    scenarioProgress: new ScenarioProgress(progress.snapshot()),
+  }).blockedEntry(interior.demo!.jungle),
+  null,
+  'restoring a saved expedition retains admission',
+);
+session = enter(interior);
 const tick = (seconds: number) => {
   for (let i = 0; i < seconds * 20; i++) session.tick(0.05, interior.spawn);
 };
@@ -192,6 +221,7 @@ session.enemies[0]!.health = 0;
 tick(0.05);
 assert(progress.has(CHOIR.warden));
 assert(journey.setEnemyLevel(7));
+assert.equal(journey.blockedEntry(interior.demo!.jungle), null, 'difficulty resets keep admission');
 assert(
   !session.isEnemyActive(session.enemies[0]!),
   'difficulty reset cannot revive the defeated story guardian',
@@ -203,6 +233,10 @@ assert(
 );
 // Returning early acknowledges the rescue without handing in notes or granting rewards.
 session = enter(courtyard);
+assert(
+  !session.isEnemyActive(rootBeast),
+  'difficulty reset does not revive the courtyard guardian',
+);
 const mira = session.scenario!.definition.interactions.find((i) => i.id === 'mira-return')!;
 const miraApproach = { x: mira.x, y: mira.y + 20 };
 assert.equal(session.nearbyStory(miraApproach)?.id, 'mira-freed');

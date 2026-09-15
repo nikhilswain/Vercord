@@ -16,6 +16,7 @@ import type { AdventureDefinition } from '../adventure/types';
 import type { DemoArea } from './types';
 import { addTempleScenery } from '../adventure/temple-scenery';
 import { addChoirCourtyard } from './temple-interior';
+import { CHOIR } from '../adventure/hollow-choir';
 
 type Patch = readonly [number, number, number, number];
 
@@ -225,7 +226,13 @@ export function buildTempleDemo(): RpgSample {
     enemies: [
       { id: 'temple-venus-west', kind: 'venus-trap', ...at(15, 29) },
       { id: 'temple-blue-east', kind: 'blue-death', ...at(30, 28) },
-      { id: 'temple-root-beast', kind: 'root-beast', elite: true, ...at(22, 15) },
+      {
+        id: 'temple-root-beast',
+        kind: 'root-beast',
+        elite: true,
+        ...at(22, 15),
+        unless: [CHOIR.rootBeast],
+      },
     ],
     flowers: [
       { id: 'temple-herb-camp', kind: 'healing', ...at(25, 36) },

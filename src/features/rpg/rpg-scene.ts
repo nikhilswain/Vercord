@@ -237,6 +237,12 @@ export class RpgScene extends Phaser.Scene {
 
   public setScene(sample: RpgSample, sceneKey: string): void {
     if (this.simulation.sample === sample && this.sceneKey === sceneKey) return;
+    const blocked = this.adventureJourney.blockedEntry(sample.demo?.jungle);
+    if (blocked) {
+      this.simulation.stop();
+      this.callbacks.onDialogue(blocked);
+      return;
+    }
     if (this.sceneKey !== sceneKey) {
       this.players = [];
       this.positionReady = false;
@@ -322,6 +328,13 @@ export class RpgScene extends Phaser.Scene {
     const target = nearby.target;
     const portal = this.simulation.sample.demo?.portals.find((entry) => entry.id === target.id);
     if (portal) {
+      const destination = this.samples.find((sample) => sample.demo?.area === portal.target);
+      if (!destination) return;
+      const blocked = this.adventureJourney.blockedEntry(destination.demo?.jungle);
+      if (blocked) {
+        this.callbacks.onDialogue(blocked);
+        return;
+      }
       this.callbacks.onDemoTravel?.(portal.target);
       return;
     }
@@ -668,11 +681,15 @@ export class RpgScene extends Phaser.Scene {
       const story = adventure.nearbyStory(this.simulation.player);
       if (story) state.nearby = { id: story.id, label: story.label, action: story.action };
     }
-    if (
-      state.nearby &&
-      this.simulation.sample.demo?.portals.some((portal) => portal.id === state.nearby?.id)
-    )
-      state.nearby.action = 'Enter';
+    const portal = this.simulation.sample.demo?.portals.find(
+      (portal) => portal.id === state.nearby?.id,
+    );
+    if (state.nearby && portal) {
+      const destination = this.samples.find((sample) => sample.demo?.area === portal.target);
+      state.nearby.action = this.adventureJourney.blockedEntry(destination?.demo?.jungle)
+        ? 'Read'
+        : 'Enter';
+    }
     const key = JSON.stringify(state);
     if (key !== this.lastUi) {
       this.lastUi = key;

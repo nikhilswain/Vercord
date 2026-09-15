@@ -25,6 +25,8 @@ export interface StoryInteraction extends Point, StoryCondition {
 }
 export interface ScenarioDefinition {
   title: string;
+  /** Area admission is checked by the shared journey before replacing the current session. */
+  entry?: StoryCondition & { blocked: StoryDialogue };
   objectives: Array<StoryCondition & { text: string; complete?: boolean }>;
   interactions: StoryInteraction[];
   gates?: Array<

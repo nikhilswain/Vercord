@@ -5,6 +5,7 @@ import content from '../../../content/stories/hollow-choir.json';
 export const hollowChoirStory = createStoryBook(content);
 
 export const CHOIR = {
+  rootBeast: 'choir.root-beast-defeated',
   westGate: 'choir.west-gate',
   eastGate: 'choir.east-gate',
   westSeal: 'choir.west-seal',
@@ -45,6 +46,10 @@ export function hollowChoirInterior(): ScenarioDefinition {
   const text = hollowChoirStory.objective;
   return {
     title: content.title,
+    entry: {
+      requires: [CHOIR.rootBeast],
+      blocked: hollowChoirStory.interaction('sanctuary-entry').dialogue,
+    },
     objectives: [
       { requires: [CHOIR.returned], text: text('interior-complete'), complete: true },
       { requires: [CHOIR.notes], text: text('return-notes') },
@@ -134,9 +139,18 @@ export function hollowChoirCourtyard(): ScenarioDefinition {
       { requires: [CHOIR.returned], text: text('courtyard-complete'), complete: true },
       { requires: [CHOIR.notes], text: text('give-notes') },
       { requires: [CHOIR.freed], text: text('collect-notes') },
-      { text: text('enter-sanctuary') },
+      { requires: [CHOIR.rootBeast], text: text('enter-sanctuary') },
+      { text: text('defeat-root-beast') },
     ],
+    defeats: [{ enemyId: 'temple-root-beast', flag: CHOIR.rootBeast }],
     interactions: [
+      {
+        ...hollowChoirStory.interaction('sanctuary-entry'),
+        id: 'sanctuary-entry',
+        ...at(22, 10.3),
+        action: 'Read',
+        unless: [CHOIR.rootBeast],
+      },
       {
         ...hollowChoirStory.interaction('mira'),
         id: 'mira',

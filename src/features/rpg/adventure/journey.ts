@@ -1,7 +1,7 @@
 import type { Point, Rect } from '../../world/engine/types';
 import type { AdventureDefinition } from './types';
 import { AdventureSession, type AdventureOptions, type AdventureTraveler } from './session';
-import { ScenarioProgress } from '../../../domain/adventure/scenario';
+import { ScenarioProgress, type StoryDialogue } from '../../../domain/adventure/scenario';
 
 /** Owns an expedition: one traveler, persistent encounters per area, no renderer state.
  * A future server/storage adapter can own this same lifecycle outside the demo.
@@ -18,6 +18,11 @@ export class AdventureJourney {
     this.encounterLevel = options.enemyLevelOverride;
   }
 
+  blockedEntry(content?: AdventureDefinition): StoryDialogue | null {
+    const entry = content?.scenario?.entry;
+    return entry && !this.story.matches(entry) ? entry.blocked : null;
+  }
+
   enter(
     id: string,
     content: AdventureDefinition,
@@ -27,6 +32,8 @@ export class AdventureJourney {
     arrival: Point,
     casting: { durationMs: number; releaseMs: number },
   ): AdventureSession {
+    const blocked = this.blockedEntry(content);
+    if (blocked) throw new Error(`Adventure entry blocked: ${blocked.lines.join(' ')}`);
     this.leave();
     let area = this.areas.get(id);
     if (!area) {

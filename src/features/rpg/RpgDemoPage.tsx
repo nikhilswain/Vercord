@@ -7,6 +7,7 @@ import { buildComparisonVillage, buildJungleDemo } from './demo/scenes';
 import { buildFernHollow, buildTempleDemo } from './demo/forest-expansion';
 import { buildTempleInterior } from './demo/temple-interior';
 import { DEMO_AREA_NAMES, readDemoArea, type DemoArea } from './demo/types';
+import { AdventureJourney } from './adventure/journey';
 
 const village = buildComparisonVillage();
 const jungle = buildJungleDemo();
@@ -20,9 +21,13 @@ const areas = {
 const samples = [...Object.values(areas), RPG_SAMPLES.norse, RPG_SAMPLES.dungeon];
 
 export function RpgDemoPage() {
-  const [area, setArea] = useState<DemoArea>(() =>
-    readDemoArea(new URLSearchParams(location.search).get('area')),
-  );
+  const [area, setArea] = useState<DemoArea>(() => {
+    const requested = readDemoArea(new URLSearchParams(location.search).get('area'));
+    const content = areas[requested].demo!;
+    return new AdventureJourney().blockedEntry(content.jungle)
+      ? (content.entryFallback ?? 'village')
+      : requested;
+  });
   const [crossing, setCrossing] = useState<DemoArea | null>(null);
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(

@@ -73,6 +73,7 @@ export function buildTempleInterior(): RpgSample {
   sample.storySprites = [];
   sample.demo = {
     area: 'temple-interior',
+    entryFallback: 'temple',
     portals: [{ id: 'sanctuary-return', target: 'temple' }],
     jungle: {
       scenario: hollowChoirInterior(),
@@ -392,7 +393,7 @@ export function addChoirCourtyard(sample: RpgSample): void {
   sample.demo!.portals.push({ id: 'sanctuary-entry', target: 'temple-interior' });
   sample.landmarks.push({
     id: 'sanctuary-entry',
-    name: 'Enter the sanctuary',
+    name: 'sanctuary',
     ...at(22, 10.3),
     radius: 48,
     kind: 'portal',

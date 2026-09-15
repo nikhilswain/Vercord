@@ -1,8 +1,9 @@
 # The Hollow Choir
 
 The local demo now has an enterable Rootbound sanctuary. Start at
-`/play/demo?area=temple`, meet Mira and Oren at the southern camp, and use **E** at
-the northern temple door. Direct interior preview: `/play/demo?area=temple-interior`.
+`/play/demo?area=temple`, meet Mira and Oren at the southern camp, defeat the courtyard
+Root Beast, and use **E** at the northern temple door. A fresh direct link to
+`/play/demo?area=temple-interior` starts in the courtyard; it cannot bypass the boss.
 
 Read the full lore, cast, chapter order and every dialogue branch in
 [the generated storybook](../../stories/hollow-choir.md).
@@ -30,7 +31,8 @@ rite instead. The sleeping figure on the red-draped altar is its borrowed form;
 a root creature is feeding on it. Releasing the keeper replaces the figure with
 the empty draped altar and plays the native ghost emergence/dispersal clip.
 
-1. Speak to the explorers outside, or read the threshold inscription inside.
+1. Speak to the explorers outside. Defeat the courtyard Root Beast to break the
+   sanctuary's entrance seal, then enter and read the threshold inscription.
 2. Use the west and east levers to raise their gates. The sun chamber blade keeps
    turning until its seal is released; the central hall blade remains active. Pressure
    spikes in the west wing react on contact. Safe routes pass around the hazards.
@@ -53,7 +55,7 @@ The south doorway always permits retreat. Falling returns the traveler to the
 area's safe entrance; broken seals and collected rewards remain intact. Travel
 keeps story progress, health, gear and supplies. Reloading starts a fresh local
 story. The difficulty slider resets combat encounters but does not undo completed
-story actions or revive a freed ritual.
+story actions, revive the defeated courtyard guardian or relock the entrance.
 
 ## Shared systems and content ownership
 
@@ -61,6 +63,10 @@ story actions or revive a freed ritual.
   prerequisite checks, interactions, objectives, defeat triggers and timed gates.
   `ScenarioProgress.snapshot()` can be supplied to a future storage adapter.
 - `AdventureJourney` shares one story progress object across its area sessions.
+  Area admission is declared in `ScenarioDefinition.entry` and enforced before
+  the journey changes sessions. Portals and scene changes use the same check.
+  Demo route fallback only chooses where to start when admission is denied;
+  it does not grant a bypass or own the boss requirement.
   `AdventureSession` owns hazard damage, conditional encounter activation and
   the collision list used by enemies and projectiles. `RpgSimulation` receives
   only the changing gate blockers and rebuilds its path index when those change.

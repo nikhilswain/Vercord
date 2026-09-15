@@ -14,6 +14,8 @@ Rootbound Temple once sheltered the forest keeper. Its moon and sun seals were s
 
 As the roots swallowed the paths to their home, Cantor Vey and six choir members tried to renew that promise. They read an old binding rite as a blessing. Their unbroken chant now holds the keeper in a borrowed, sleeping form on the red-draped altar.
 
+A Root Beast has taken hold of the courtyard and sealed the sanctuary entrance with its roots. Defeating it breaks the entrance seal. It is separate from the Bound Warden within.
+
 The Bound Warden is a root creature feeding on the trapped keeper. The seals conceal and sustain it. Releasing both seals exposes the creature; defeating it makes the altar safe to unbind.
 
 Mira entered the ruins with the choir and left her field notes in the west reliquary. She and the scout Oren now wait at the southern camp. Mira asks the traveler to end the binding and bring back the notes.
@@ -34,11 +36,13 @@ The traveler frees the keeper rather than claiming its power. The sleeping form 
 
 **The forest keeper** — The sleeping figure on the red-draped altar is its bound, borrowed form. The ghost is its released spirit. These are two states of one character.
 
+**The courtyard Root Beast** — The guardian outside the sanctuary. Its defeat breaks the entrance seal and is required before the traveler can enter. It is distinct from the Bound Warden inside.
+
 **The Bound Warden** — A predatory root creature drawn to the ritual. It is distinct from the keeper and appears only after both seals are broken.
 
 ## Playable story
 
-1. **Voices in the ruins.** Meet Mira and Oren at the southern camp, then follow the path to the northern sanctuary entrance.
+1. **Voices in the ruins.** Meet Mira and Oren at the southern camp. Defeat the courtyard Root Beast to break the entrance seal, then enter the northern sanctuary. Approaching the sealed doorway explains the requirement.
 
 2. **The binding.** Read the inscription, see the sleeping keeper and speak to Vey. The altar explains why it cannot yet be released.
 
@@ -66,7 +70,9 @@ _Field scholar_
 
 2. I went inside with the choir. Their leader meant to save the forest, but the rite bound its keeper. That sleeping figure on the red-draped altar is the keeper’s borrowed form. Now something else is feeding on it.
 
-3. My notes are in the west reliquary. Follow the northern path into the sanctuary. The two side-room levers open the way to the seals. Quiet both flames, face what emerges, then release the keeper at the altar.
+3. The Root Beast’s roots seal the sanctuary entrance while it lives. Defeat it before following the northern path inside.
+
+4. My notes are in the west reliquary. Inside the sanctuary, the two side-room levers open the way to the seals. Quiet both flames, face what emerges, then release the keeper at the altar.
 
 #### Oren — `oren`
 
@@ -74,9 +80,23 @@ _Field scholar_
 
 _Expedition scout_
 
-1. The levers raise the gates. The sun chamber blade keeps turning until its seal is released; go around its reach. The west wing has pressure spikes: keep to the clear stones.
+1. The courtyard Root Beast must fall before you can enter the sanctuary. The path south stays open if you need to retreat.
 
-2. There are healing supplies inside. Your way back is always the south doorway. If you fall, you will catch your breath at the entrance; the seals you broke stay broken.
+2. The levers raise the gates. The sun chamber blade keeps turning until its seal is released; go around its reach. The west wing has pressure spikes: keep to the clear stones.
+
+3. There are healing supplies inside. Your way back is always the south doorway. If you fall, you will catch your breath at the entrance; the seals you broke stay broken.
+
+#### sanctuary seal — `sanctuary-entry`
+
+**Main dialogue: The sealed sanctuary**
+
+_Defeat the courtyard guardian_
+
+1. Living roots hold the entrance shut. Their pulse matches the Root Beast in the courtyard.
+
+2. Defeat the Root Beast to break the seal. Then return to this doorway to enter the sanctuary.
+
+Closing button: **Back to the courtyard**.
 
 ### The binding
 
@@ -279,19 +299,22 @@ _A story completed_
 - `courtyard-complete`: The keeper is free. The forest can heal.
 - `give-notes`: Give Mira her field notes at the southern camp.
 - `collect-notes`: Return inside and open the west chamber’s chest for Mira’s notes.
-- `enter-sanctuary`: Meet the explorers, then enter the sanctuary to the north.
+- `enter-sanctuary`: The entrance seal is broken. Enter the sanctuary to the north.
+- `defeat-root-beast`: Defeat the courtyard Root Beast to open the sanctuary.
 
 ## Location text
 
 **The Hollow Choir** — Rootbound sanctuary · Two lights to bind. Two hands to release.
 
-**Rootbound Temple** — The Hollow Choir · Meet the explorers and enter the northern sanctuary
+**Rootbound Temple** — The Hollow Choir · Defeat the guardian and free the keeper
 
 ## Current scope and future decisions
 
 - Current demo reward: the supply chest and reliquary each grant two healing herbs once. The field notes are a recorded story fact, not an equipment item.
 
 - A permanent rare item, loot table and equipment effects are reserved for a later design discussion.
+
+- The courtyard Root Beast is a required encounter. Its defeat unlocks the sanctuary for the expedition, including after travel, rescue and demo difficulty resets. A fresh direct link to the interior starts in the courtyard until that requirement is met.
 
 - Travel and defeat preserve story progress during the expedition. Reloading starts a fresh local story; production persistence and multiplayer authority are future work.
 

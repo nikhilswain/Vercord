@@ -30,6 +30,8 @@ export function readDemoArea(value: string | null): DemoArea {
 /** Local scene routing only. Combat rules are shared by all adventure worlds. */
 export interface DemoSceneContent {
   area: DemoArea;
+  /** Where a fresh demo link starts when the requested area's shared admission rule is unmet. */
+  entryFallback?: DemoArea;
   portals: Array<{ id: string; target: DemoArea }>;
   jungle?: AdventureDefinition;
 }
