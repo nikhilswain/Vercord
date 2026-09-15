@@ -4,6 +4,7 @@ import type { Rect } from '../../../domain/world/content/v1/types';
 import type { ScenarioSprite } from '../adventure/scenario-renderer';
 import { TEMPLE_STORY_TEXTURES } from '../adventure/temple-story-assets';
 import { TEMPLE_TEXTURES } from '../adventure/temple-assets';
+import { RITUAL_TEXTURES } from '../adventure/ritual-seal-assets';
 import {
   CHOIR,
   hollowChoirInterior,
@@ -69,7 +70,13 @@ export function buildTempleInterior(): RpgSample {
   );
   sample.bounds = { x: 0, y: 0, width: 38 * 32, height: 35 * 32 };
   sample.background = '#292623';
-  sample.textures = [...sample.textures, ...TEMPLE_TEXTURES, ...TEMPLE_STORY_TEXTURES];
+  sample.textures = [
+    ...sample.textures,
+    ...TEMPLE_TEXTURES,
+    ...TEMPLE_STORY_TEXTURES,
+    ...RITUAL_TEXTURES,
+  ];
+  sample.ritualSeals = [];
   sample.storySprites = [];
   sample.demo = {
     area: 'temple-interior',
@@ -173,7 +180,7 @@ export function buildTempleInterior(): RpgSample {
     prop(sample, 'story-banners', x, 25, 64, 96);
     block(sample, x - 0.3125, 24.8, 0.625, 0.2);
   }
-  prop(sample, 'story-treasure', 8, 11, 192, 64, -20);
+  prop(sample, 'story-treasure', 8, 6.5, 192, 64, -20);
   for (const [x, y] of [
     [5, 20],
     [32, 20],
@@ -188,7 +195,6 @@ export function buildTempleInterior(): RpgSample {
     ['east', 30, 1],
   ] as const) {
     block(sample, x - 0.65, 11.35, 1.3, 0.45);
-    block(sample, x - 0.2, 8.65, 0.4, 0.2);
     const opening = side === 'west' ? CHOIR.westGate : CHOIR.eastGate;
     const seal = side === 'west' ? CHOIR.westSeal : CHOIR.eastSeal;
     actor(sample, `${side}-lever`, x, 27, 80, 64, [
@@ -214,19 +220,12 @@ export function buildTempleInterior(): RpgSample {
       },
       { texture: `story-gate-${variant}`, frames: [5] },
     ]);
-    actor(
-      sample,
-      `${side}-seal`,
-      x,
-      9,
-      80,
-      80,
-      [
-        { requires: [seal], texture: 'story-lamp-cold' },
-        { texture: 'story-lamp-0', frames: frames(6), duration: 0.6 },
-      ],
-      `${side === 'west' ? 'Moon' : 'Sun'} seal · E`,
-    );
+    sample.ritualSeals.push({
+      id: `${side}-seal`,
+      flag: seal,
+      kind: side === 'west' ? 'moon' : 'sun',
+      ...at(x, 9),
+    });
   }
   // Floor hazards rotate around their damage center, unlike feet-anchored NPCs and props.
   actor(

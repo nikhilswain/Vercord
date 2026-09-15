@@ -159,6 +159,7 @@ export class AdventureSession {
   time = 0;
   cast: SpellCast | null = null;
   melee: MeleeAttack | null = null;
+  storyPresentation: { at: number; durationMs: number; dialogue: StoryDialogue } | null = null;
   readonly projectiles: Projectile[] = [];
   spell: SpellId = 'fire';
   combatMode: CombatMode = 'fire';
@@ -258,7 +259,8 @@ export class AdventureSession {
       nextLevel: this.level < MAX_CHARACTER_LEVEL ? experienceForLevel(this.level + 1) : null,
       spell: this.spell,
       waterUnlocked: this.level >= 2,
-      castReady: this.time >= this.attackReadyAt && !this.cast && !this.melee,
+      castReady:
+        this.time >= this.attackReadyAt && !this.cast && !this.melee && !this.storyPresentation,
       combatMode: this.combatMode,
       weaponId: this.progression.equippedWeaponId,
       enemyLevel: this.encounterLevel,
@@ -444,11 +446,31 @@ export class AdventureSession {
   }
   interactStory(player: Point): StoryDialogue | null {
     const interaction = this.nearbyStory(player);
-    if (!interaction || !this.scenario || this.cast || this.melee) return null;
+    if (!interaction || !this.scenario || this.cast || this.melee || this.storyPresentation)
+      return null;
+    const present =
+      interaction.presentation &&
+      this.scenario.matches(interaction) &&
+      interaction.grant?.some((flag) => !this.scenario!.progress.has(flag));
     const result = this.scenario.interact(interaction);
     this.herbs += result.herbs;
     this.syncScenarioCollision();
+    if (present) {
+      this.storyPresentation = {
+        at: this.time,
+        durationMs: interaction.presentation!.durationMs,
+        dialogue: result.dialogue,
+      };
+      return null;
+    }
     return result.dialogue;
+  }
+  takeStoryDialogue(): StoryDialogue | null {
+    const presentation = this.storyPresentation;
+    if (!presentation || (this.time - presentation.at) * 1000 < presentation.durationMs)
+      return null;
+    this.storyPresentation = null;
+    return presentation.dialogue;
   }
   private syncScenarioCollision(): void {
     if (!this.scenario || this.scenarioCollisionRevision === this.scenario.collisionRevision)
@@ -492,6 +514,7 @@ export class AdventureSession {
   }
 
   suspend(): void {
+    this.storyPresentation = null;
     this.cast = null;
     this.melee = null;
     this.projectiles.length = 0;
@@ -510,6 +533,7 @@ export class AdventureSession {
   }
 
   equip(id: string): boolean {
+    if (this.storyPresentation) return false;
     const result = equipWeapon(this.progression, id, this.options.equipmentPolicy);
     if (!result.success) return false;
     this.progression = result.profile;
@@ -521,7 +545,7 @@ export class AdventureSession {
   }
 
   selectMelee(): void {
-    if (!this.cast && !this.melee) this.combatMode = 'melee';
+    if (!this.cast && !this.melee && !this.storyPresentation) this.combatMode = 'melee';
   }
 
   /** Only sessions constructed with a sandbox override expose difficulty resets. */
@@ -556,7 +580,7 @@ export class AdventureSession {
   }
 
   selectSpell(spell: SpellId): void {
-    if (this.cast || this.melee) return;
+    if (this.cast || this.melee || this.storyPresentation) return;
     if (spell === 'water' && this.level < 2) {
       this.say('Tide unlocks at level 2. Gather flowers and clear the trail to learn it.');
       return;
@@ -573,7 +597,8 @@ export class AdventureSession {
   }
 
   attack(player: Point, direction: RpgDirection, target?: Point): RpgDirection | null {
-    if (this.time < this.attackReadyAt || this.cast || this.melee) return null;
+    if (this.time < this.attackReadyAt || this.cast || this.melee || this.storyPresentation)
+      return null;
     const aim = attackAim(player, vectors[direction], target);
     direction = facing({ x: 0, y: 0 }, aim);
     if (this.combatMode === 'melee') {

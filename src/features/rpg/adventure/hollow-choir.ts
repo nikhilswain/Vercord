@@ -1,6 +1,7 @@
 import type { ScenarioDefinition, StoryInteraction } from '../../../domain/adventure/scenario';
 import { createStoryBook } from '../../../domain/adventure/storybook';
 import content from '../../../content/stories/hollow-choir.json';
+import { RITUAL_RELEASE_MS } from './ritual-seal-assets';
 
 export const hollowChoirStory = createStoryBook(content);
 
@@ -40,6 +41,7 @@ export function hollowChoirInterior(): ScenarioDefinition {
         action: 'Use',
         requires: [gate],
         grant: [seal],
+        presentation: { durationMs: RITUAL_RELEASE_MS, pose: 'cast' },
       },
     ];
   });

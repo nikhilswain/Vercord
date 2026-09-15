@@ -19,6 +19,8 @@ export interface StoryInteraction extends Point, StoryCondition {
   radius?: number;
   grant?: readonly string[];
   herbs?: number;
+  /** Let an in-world casting effect finish before its explanatory dialogue pauses the game. */
+  presentation?: { durationMs: number; pose: 'cast' };
   dialogue: StoryDialogue;
   locked?: StoryDialogue;
   repeat?: StoryDialogue;

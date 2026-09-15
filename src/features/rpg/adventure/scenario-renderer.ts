@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
 import type { Point } from '../../world/engine/types';
 import type { ScenarioSession, StoryCondition } from '../../../domain/adventure/scenario';
+import { RitualSealRenderer } from './ritual-seals';
+import type { RitualSeal } from './ritual-seal-assets';
 
 export interface ScenarioSprite extends Point {
   id: string;
@@ -28,6 +30,7 @@ export interface ScenarioSprite extends Point {
 
 /** One fixed set of sprites. Only native frames/visibility change as story facts change. */
 export class ScenarioRenderer {
+  private readonly seals: RitualSealRenderer;
   private readonly views: Array<{
     image: Phaser.GameObjects.Image;
     label?: Phaser.GameObjects.Text;
@@ -36,7 +39,9 @@ export class ScenarioRenderer {
     private readonly scene: Phaser.Scene,
     private readonly model: ScenarioSession,
     private readonly sprites: readonly ScenarioSprite[],
+    seals: readonly RitualSeal[] = [],
   ) {
+    this.seals = new RitualSealRenderer(scene, model, seals);
     this.views = sprites.map((sprite) => ({
       image: scene.add
         .image(sprite.x, sprite.y, sprite.states[0]!.texture)
@@ -58,6 +63,7 @@ export class ScenarioRenderer {
     }));
   }
   update(player: Point, reducedMotion: boolean): void {
+    this.seals.update(reducedMotion);
     const camera = this.scene.cameras.main;
     this.sprites.forEach((definition, index) => {
       const view = this.views[index]!;
@@ -107,6 +113,7 @@ export class ScenarioRenderer {
     });
   }
   destroy(): void {
+    this.seals.destroy();
     this.views.forEach(({ image, label }) => {
       image.destroy();
       label?.destroy();

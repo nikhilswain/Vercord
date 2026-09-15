@@ -72,7 +72,7 @@ _Field scholar_
 
 3. The Root Beast’s roots seal the sanctuary entrance while it lives. Defeat it before following the northern path inside.
 
-4. My notes are in the west reliquary. Inside the sanctuary, the two side-room levers open the way to the seals. Quiet both flames, face what emerges, then release the keeper at the altar.
+4. My notes are in the west reliquary. Inside the sanctuary, the two side-room levers open the way to the seals. Unbind both circles, face what emerges, then release the keeper at the altar.
 
 #### Oren — `oren`
 
@@ -118,7 +118,7 @@ _Keeper of the choir_
 
 1. The roots are closing over our home. We called the keeper to protect us. Why does the forest answer with teeth?
 
-2. Those flames are ancient. If you know how to quiet them, do it. I cannot stop the chorus alone.
+2. Those circles are ancient. If you know how to unbind them, do it. I cannot stop the chorus alone.
 
 ### Two lights to silence
 
@@ -130,7 +130,7 @@ _An old counterweight_
 
 1. The lever gives with a heavy click. The west gate rises.
 
-2. The moon seal is in the chamber beyond. Its flame is feeding the ritual. Use it to break the binding.
+2. The moon seal is the blue circle in the chamber beyond. Its turning rings feed the ritual. Stand beside it and cast to unravel the binding.
 
 **Repeat: Moon mechanism**
 
@@ -144,7 +144,7 @@ _The way is open_
 
 _A binding unmade_
 
-1. You turn the engraved stone. The flame gutters; one voice leaves the chorus.
+1. Your spell loosens the blue rings. Their light scatters across the stone, and one voice leaves the chorus.
 
 2. When both seals are quiet, the creature feeding on them will have nowhere left to hide. Be ready in the central hall.
 
@@ -162,7 +162,7 @@ _An old counterweight_
 
 1. The lever gives with a heavy click. The east gate rises.
 
-2. The sun seal is in the chamber beyond. Its flame is feeding the ritual. Use it to break the binding.
+2. The sun seal is the golden circle in the chamber beyond. Its turning star feeds the ritual. Stand beside it and cast to unravel the binding.
 
 **Repeat: Sun mechanism**
 
@@ -176,7 +176,7 @@ _The way is open_
 
 _A binding unmade_
 
-1. You turn the engraved stone. The flame gutters; one voice leaves the chorus. The blades in the sun chamber stop.
+1. Your spell breaks the golden pattern. Its light scatters across the stone, and one voice leaves the chorus. The blades in the sun chamber stop.
 
 2. When both seals are quiet, the creature feeding on them will have nowhere left to hide. Be ready in the central hall.
 

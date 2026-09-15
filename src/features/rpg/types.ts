@@ -14,6 +14,7 @@ import type {
 import type { RpgSceneId } from '../../domain/world/catalog/scenes';
 import type { AdventureStatus, DemoArea, DemoSceneContent, SpellId } from './demo/types';
 import type { ScenarioSprite } from './adventure/scenario-renderer';
+import type { RitualSeal } from './adventure/ritual-seal-assets';
 
 /** Local reconciliation intent; never sent as a movement packet. */
 export interface RpgPositionUpdate extends RpgLocation {
@@ -43,6 +44,7 @@ export interface RpgSceneLabel extends Point {
 }
 
 export interface RpgSample extends SavedRpgSample {
+  ritualSeals?: RitualSeal[];
   storySprites?: ScenarioSprite[];
   sceneId?: RpgSceneId;
   signage?: RpgSceneLabel[];

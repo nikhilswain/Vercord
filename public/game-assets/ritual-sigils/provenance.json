@@ -1,0 +1,20 @@
+{
+  "author": "Luke.RUSTLTD",
+  "source": "https://opengameart.org/content/4-summoning-circles",
+  "download": "https://opengameart.org/sites/default/files/summoning_circles.zip",
+  "license": "CC0-1.0",
+  "assets": [
+    {
+      "name": "sun",
+      "source": "circle7.svg",
+      "sha256": "11c694646e8779427c93a6e8e2b72892bb7cbe9c91a54728dc76eea56e654729",
+      "changes": "White mask, 96px raster canvas, padded viewBox, slightly reinforced strokes. Animation and floor projection are authored in game code."
+    },
+    {
+      "name": "moon",
+      "source": "circle4.svg",
+      "sha256": "6d3481c2188e8e2ca17b47aab21faa8c5a7c32f9a60ccf2fbdb80e11b75d520a",
+      "changes": "White mask, 96px raster canvas, padded viewBox, slightly reinforced strokes. Animation and floor projection are authored in game code."
+    }
+  ]
+}

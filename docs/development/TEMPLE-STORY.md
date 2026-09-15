@@ -38,6 +38,9 @@ the empty draped altar and plays the native ghost emergence/dispersal clip.
    spikes in the west wing react on contact. Safe routes pass around the hazards.
 3. Release the moon and sun seals in either order. The Bound Warden becomes
    visible and vulnerable only after both seals are broken.
+   These are blue/gold animated floor sigils. A short LPC casting pose and circle
+   release play before the explanatory dialogue opens. Used circles leave faint
+   floor markings; repeating the interaction does not replay the effect.
 4. Defeat the Warden with the existing combat system, then use the altar to free
    the keeper. Its native dispersal animation plays, the choir stops praying and
    idles at its fixed positions, and the remaining blade stops.
@@ -101,7 +104,14 @@ permission checks and server-owned reward transactions remain future adapters.
 
 Run `python scripts/import-temple-story.py` after placing the owner's pack in
 `assets/free-ruined-temple-top-down-location-pixel-art`. It imports selected native
-PNG cells plus the first lamp's static Aseprite pan/shadow for extinguished seals.
+PNG cells plus the first lamp's static Aseprite pan/shadow. Ritual seals use the
+separate CC0 circles credited in `public/game-assets/ritual-sigils/CREDITS.md`.
+The source circles are static SVG art; `RitualSealRenderer` supplies the floor
+projection, tint, motion and release effects using fixed sprite pools and the
+paused scenario clock. Reduced motion removes the rotation, pulse and motes.
+`StoryInteraction.presentation` delays its dialogue for the effect without
+changing the idempotent story transaction. Travel/reset cancels pending dialogue
+while preserving completed facts and rewards.
 Generated files live in `public/game-assets/temple-story/` and
 `adventure/temple-story-assets.ts`; source hashes and crop coordinates are recorded.
 Format the generated TypeScript with the repository formatter after regeneration.
@@ -123,11 +133,17 @@ are cropped at their ground baseline; the old banner crop omitted the stand.
   order, locked feedback, one-time rewards, return dialogue, serializable facts,
   travel/rescue retention, blade alignment and difficulty reset behavior. Follow-up
   regressions cover walking/routing around speakers, talking from all sides,
-  solid choir members and the sun blade's gate/seal dependency.
+  solid choir members and the sun blade's gate/seal dependency. Seal regressions
+  cover delayed dialogue, blocked attacks during casting, single delivery,
+  repeat interactions and clearing queued dialogue on suspension.
 - `pnpm exec tsx scripts/verify-forest-expansion.ts`: connected route graph,
   clear arrival points and reachable content, including the new interior.
 - Chrome checks cover E/dialog/Escape, opening a gate versus walking into a closed
-  one, seal extinguishing, native chest animation and supplies, mouse-aimed spell
+  one, seal unbinding, native chest animation and supplies, mouse-aimed spell
   damage to the activated Warden, release animation, return dialogue and narrow HUD.
   Boss death was also supplied as a fixture to inspect the ending independently
   of combat difficulty; this is not a claim of a full manual no-assistance playthrough.
+- Sigil follow-up in Chrome: both designs load, LPC casting and the release effect
+  play before dialogue, spent marks remain and repeat E opens the quiet-stone
+  dialogue immediately. Reduced-motion rendering keeps rings still and disables
+  glow/motes. No browser console warnings or errors were recorded.

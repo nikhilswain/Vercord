@@ -110,6 +110,26 @@ for (const hazard of interior.demo!.jungle!.scenario!.hazards ?? []) {
   );
 }
 const progress = new ScenarioProgress();
+// Travel and rescue call suspend: dismiss pending presentation without undoing the ritual.
+const interruptedRitual = new AdventureSession(
+  interior.demo!.jungle!,
+  interior.colliders,
+  interior.bounds,
+  interior.spawn,
+);
+interruptedRitual.scenario!.grant(CHOIR.westGate);
+interruptedRitual.tick(1.2, interior.spawn);
+const moon = interior.ritualSeals!.find((seal) => seal.kind === 'moon')!;
+const moonApproach = { x: moon.x, y: moon.y + 24 };
+assert.equal(interruptedRitual.interactStory(moonApproach), null);
+assert(interruptedRitual.storyPresentation);
+assert.equal(interruptedRitual.status().castReady, false);
+interruptedRitual.suspend();
+interruptedRitual.tick(2, interior.spawn);
+assert.equal(interruptedRitual.takeStoryDialogue(), null, 'travel cannot leak a queued popup');
+assert(interruptedRitual.scenario!.progress.has(CHOIR.westSeal));
+assert(interruptedRitual.interactStory(moonApproach), 'spent seals still offer repeat dialogue');
+assert.equal(interruptedRitual.storyPresentation, null);
 const journey = new AdventureJourney({
   scenarioProgress: progress,
   equipmentPolicy: DEMO_EQUIPMENT_POLICY,
@@ -174,7 +194,17 @@ const use = (id: string) => {
   assert(reachable(id), `${id} is reachable at this story stage`);
   const p = point(id);
   assert.equal(session.nearbyStory(p)?.id, id, `${id} is the closest visible interaction`);
-  const result = session.interactStory(p);
+  let result = session.interactStory(p);
+  if (session.storyPresentation) {
+    assert.equal(result, null, 'the in-world ritual is visible before the dialog opens');
+    assert.equal(session.interactStory(p), null, 'repeated input cannot restart a ritual');
+    assert.equal(session.attack(p, 'up'), null, 'ritual casting cannot overlap combat casting');
+    assert.equal(session.takeStoryDialogue(), null, 'dialogue waits for the release effect');
+    tick(session.storyPresentation.durationMs / 1000 + 0.1);
+    result = session.takeStoryDialogue();
+    assert.equal(session.storyPresentation, null);
+    assert.equal(session.takeStoryDialogue(), null, 'completion dialogue is delivered only once');
+  }
   assert(result, `${id} responds`);
   return result;
 };
@@ -190,6 +220,8 @@ use('west-lever');
 assert(!reachable('west-seal'), 'the gate remains solid while opening');
 tick(1.2);
 use('west-seal');
+assert.match(use('west-seal').lines.join(' '), /already broken/);
+assert.equal(session.storyPresentation, null, 'an unbound seal never replays its release');
 session.health = 1;
 session.invincibleUntil = 0;
 assert(session.tick(0.05, { x: 608, y: 768 }), 'blade contact rescues a defeated traveler');

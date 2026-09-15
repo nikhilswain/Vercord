@@ -135,7 +135,8 @@ export class RpgScene extends Phaser.Scene {
     if (adventure?.scenario) this.simulation.setDynamicColliders(adventure.scenario.colliders);
     const blocked =
       this.inputBlocked || worldInputBlocked() || Boolean(adventure && !this.demoFocused);
-    this.simulation.blocked = blocked || Boolean(adventure?.cast || adventure?.melee);
+    this.simulation.blocked =
+      blocked || Boolean(adventure?.cast || adventure?.melee || adventure?.storyPresentation);
     const input = this.movement?.getMovement() ?? { x: 0, y: 0, moving: false, sprinting: false };
     // Only a new manual movement gesture resumes follow. An existing auto-run never does.
     if (
@@ -162,7 +163,11 @@ export class RpgScene extends Phaser.Scene {
       action,
       this.elapsed,
       this.motion.matches,
-      adventure?.cast ? (adventure.time - adventure.cast.at) * 1000 : null,
+      adventure?.cast
+        ? (adventure.time - adventure.cast.at) * 1000
+        : adventure?.storyPresentation
+          ? (adventure.time - adventure.storyPresentation.at) * 1000
+          : null,
       melee && adventure
         ? {
             elapsedMs:
@@ -175,6 +180,8 @@ export class RpgScene extends Phaser.Scene {
         : null,
     );
     this.playerMarker?.setPosition(player.x, player.y - 1).setDepth(player.y - 0.1);
+    const completedStory = !blocked ? adventure?.takeStoryDialogue() : null;
+    if (completedStory) this.callbacks.onDialogue(completedStory);
     this.avatar.container.setAlpha(
       adventure && adventure.time < adventure.invincibleUntil
         ? this.motion.matches
@@ -310,7 +317,17 @@ export class RpgScene extends Phaser.Scene {
   public interact(): void {
     if (!this.created || this.failed || this.disposed || this.inputBlocked || worldInputBlocked())
       return;
-    const story = this.activeAdventure()?.interactStory(this.simulation.player);
+    const adventure = this.activeAdventure();
+    if (adventure?.storyPresentation) return;
+    const targetStory = adventure?.nearbyStory(this.simulation.player);
+    const story = adventure?.interactStory(this.simulation.player);
+    if (adventure?.storyPresentation) {
+      this.simulation.stop();
+      if (targetStory)
+        this.simulation.direction = directionToward(this.simulation.player, targetStory);
+      this.publishUi();
+      return;
+    }
     if (story) {
       this.simulation.stop();
       this.callbacks.onDialogue(story);
@@ -595,6 +612,7 @@ export class RpgScene extends Phaser.Scene {
           this,
           this.adventureSession.scenario,
           sample.storySprites ?? [],
+          sample.ritualSeals ?? [],
         );
       }
     } else {
