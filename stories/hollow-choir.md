@@ -1,6 +1,6 @@
 # The Hollow Choir
 
-Generated from [the game’s story source](../../src/content/stories/hollow-choir.json).
+Generated from [the game’s story source](../src/content/stories/hollow-choir.json).
 Edit that JSON file, then run `pnpm story:docs`; normal builds also regenerate this document.
 The game reads the JSON directly. Do not hand-edit this generated script.
 

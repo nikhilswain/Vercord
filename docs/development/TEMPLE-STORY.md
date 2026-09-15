@@ -5,7 +5,7 @@ The local demo now has an enterable Rootbound sanctuary. Start at
 the northern temple door. Direct interior preview: `/play/demo?area=temple-interior`.
 
 Read the full lore, cast, chapter order and every dialogue branch in
-[the generated storybook](../stories/hollow-choir.md).
+[the generated storybook](../../stories/hollow-choir.md).
 
 ## Editing the story
 
@@ -20,7 +20,8 @@ Run `pnpm story:docs` to regenerate the readable Markdown. `pnpm build` also doe
 this automatically. `pnpm story:check` checks for stale or missing documents;
 `pnpm check` includes that check. Do not hand-edit the generated Markdown.
 The exporter discovers story JSON files in `src/content/stories`, validates their
-chapter references and dialogue pages, and writes one document per story.
+chapter references and dialogue pages, and writes one document per story in the
+top-level `stories` folder. These readable scripts are committed with the game.
 
 ## Story and route
 

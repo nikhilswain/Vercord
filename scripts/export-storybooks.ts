@@ -6,7 +6,7 @@ import { validateStoryBook, type StoryBook } from '../src/domain/adventure/story
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDir = resolve(root, 'src/content/stories');
-const outputDir = resolve(root, 'docs/stories');
+const outputDir = resolve(root, 'stories');
 const check = process.argv.includes('--check');
 let stale = false;
 
@@ -18,7 +18,7 @@ for (const file of readdirSync(sourceDir)
   const lines = [
     `# ${book.title}`,
     '',
-    `Generated from [the game’s story source](../../src/content/stories/${file}).`,
+    `Generated from [the game’s story source](../src/content/stories/${file}).`,
     'Edit that JSON file, then run `pnpm story:docs`; normal builds also regenerate this document.',
     'The game reads the JSON directly. Do not hand-edit this generated script.',
     '',
@@ -79,7 +79,7 @@ for (const file of readdirSync(sourceDir)
   if (previous !== output) {
     if (check) {
       console.error(
-        `Story document is missing or stale: docs/stories/${book.id}.md. Run pnpm story:docs.`,
+        `Story document is missing or stale: stories/${book.id}.md. Run pnpm story:docs.`,
       );
       stale = true;
     } else {
