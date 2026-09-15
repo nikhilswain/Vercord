@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "id": "hollow-choir",
+  "title": "The Hollow Choir",
+  "defaultCloseLabel": "Back to exploring",
+  "synopsis": "A choir seeking protection has trapped the forest keeper in a sleeping, humanlike form. Break its seals, defeat the creature feeding on the ritual, and let the keeper return to the forest.",
+  "lore": [
+    "Rootbound Temple once sheltered the forest keeper. Its moon and sun seals were safeguards that could be opened by human hands, never a claim of ownership over the forest.",
+    "As the roots swallowed the paths to their home, Cantor Vey and six choir members tried to renew that promise. They read an old binding rite as a blessing. Their unbroken chant now holds the keeper in a borrowed, sleeping form on the red-draped altar.",
+    "The Bound Warden is a root creature feeding on the trapped keeper. The seals conceal and sustain it. Releasing both seals exposes the creature; defeating it makes the altar safe to unbind.",
+    "Mira entered the ruins with the choir and left her field notes in the west reliquary. She and the scout Oren now wait at the southern camp. Mira asks the traveler to end the binding and bring back the notes.",
+    "The traveler frees the keeper rather than claiming its power. The sleeping form dissolves into the spirit seen in the release animation. The red cloth is left empty, the choir falls silent, and Vey promises to repair the paths without binding the forest again."
+  ],
+  "cast": [
+    {
+      "id": "traveler",
+      "name": "The traveler",
+      "description": "The player’s chosen LPC character. An outsider who can operate the old mechanisms and interrupt the binding."
+    },
+    {
+      "id": "mira",
+      "name": "Mira",
+      "description": "A field scholar at the southern camp. Her missing notes reveal that the rite was intended as a promise of shelter."
+    },
+    {
+      "id": "oren",
+      "name": "Oren",
+      "description": "An expedition scout who explains the gates, dangerous blades, pressure plates and safe retreat."
+    },
+    {
+      "id": "vey",
+      "name": "Cantor Vey",
+      "description": "Leader of the choir. He meant to protect his home and now needs help undoing the ritual."
+    },
+    {
+      "id": "choir",
+      "name": "The six choir members",
+      "description": "Fixed ritual participants. They pray while the keeper is bound and lower their hands when it is released. They are not combat targets."
+    },
+    {
+      "id": "keeper",
+      "name": "The forest keeper",
+      "description": "The sleeping figure on the red-draped altar is its bound, borrowed form. The ghost is its released spirit. These are two states of one character."
+    },
+    {
+      "id": "warden",
+      "name": "The Bound Warden",
+      "description": "A predatory root creature drawn to the ritual. It is distinct from the keeper and appears only after both seals are broken."
+    }
+  ],
+  "chapters": [
+    {
+      "id": "camp",
+      "title": "Voices in the ruins",
+      "summary": "Meet Mira and Oren at the southern camp, then follow the path to the northern sanctuary entrance.",
+      "interactions": ["mira", "oren"]
+    },
+    {
+      "id": "threshold",
+      "title": "The binding",
+      "summary": "Read the inscription, see the sleeping keeper and speak to Vey. The altar explains why it cannot yet be released.",
+      "interactions": ["entry-inscription", "cantor"]
+    },
+    {
+      "id": "seals",
+      "title": "Two lights to silence",
+      "summary": "Raise the gates using the two levers. Avoid the sun chamber blade and moon chamber pressure plates. Release both seals in either order; the sun seal also stops its blade. The east chest offers supplies.",
+      "interactions": ["west-lever", "west-seal", "east-lever", "east-seal", "supplies"]
+    },
+    {
+      "id": "release",
+      "title": "The last note",
+      "summary": "Defeat the exposed Bound Warden, then use the altar. The keeper leaves its sleeping form, the choir stops praying, and the hall blade stops.",
+      "interactions": ["keeper-release", "cantor-restored"]
+    },
+    {
+      "id": "return",
+      "title": "A promise restored",
+      "summary": "Open the west reliquary, recover the field notes and return them to Mira outside.",
+      "interactions": ["reliquary", "mira-return"]
+    }
+  ],
+  "notes": [
+    "Current demo reward: the supply chest and reliquary each grant two healing herbs once. The field notes are a recorded story fact, not an equipment item.",
+    "A permanent rare item, loot table and equipment effects are reserved for a later design discussion.",
+    "Travel and defeat preserve story progress during the expedition. Reloading starts a fresh local story; production persistence and multiplayer authority are future work.",
+    "The altar sleeper and draped stone are native Objects_interior.png artwork. The pack provides a static altar figure, not an independent sleeping/waking character rig; the released spirit uses the separate Ghost.png animation.",
+    "This is Dmap’s original demo story using licensed art. The asset publisher’s showcase layout does not establish these names or this lore."
+  ],
+  "locations": {
+    "sanctuary": {
+      "name": "The Hollow Choir",
+      "subtitle": "Rootbound sanctuary · Two lights to bind. Two hands to release."
+    },
+    "courtyard": {
+      "name": "Rootbound Temple",
+      "subtitle": "The Hollow Choir · Meet the explorers and enter the northern sanctuary"
+    }
+  },
+  "objectives": {
+    "interior-complete": "The keeper is free. Mira has her notes.",
+    "return-notes": "Return the recovered field notes to Mira outside.",
+    "open-reliquary": "Open the reliquary in the west chamber.",
+    "free-keeper": "Use the altar to release the forest keeper.",
+    "defeat-warden": "Defeat the Bound Warden in the central hall.",
+    "release-sun": "Release the sun seal in the east chamber. 1 / 2 seals.",
+    "release-moon": "Release the moon seal in the west chamber. 1 / 2 seals.",
+    "release-both": "Use the side-room levers, then release both seals. 0 / 2.",
+    "courtyard-complete": "The keeper is free. The forest can heal.",
+    "give-notes": "Give Mira her field notes at the southern camp.",
+    "enter-sanctuary": "Meet the explorers, then enter the sanctuary to the north."
+  },
+  "interactions": {
+    "mira": {
+      "label": "Mira",
+      "dialogue": {
+        "name": "Mira",
+        "role": "Field scholar",
+        "lines": [
+          "Hear that? Six voices, one note. They have been singing since the roots swallowed the old path.",
+          "I went inside with the choir. Their leader meant to save the forest, but the rite bound its keeper. That sleeping figure on the red-draped altar is the keeper’s borrowed form. Now something else is feeding on it.",
+          "My notes are in the west reliquary. Follow the northern path into the sanctuary. The two side-room levers open the way to the seals. Quiet both flames, face what emerges, then release the keeper at the altar."
+        ]
+      }
+    },
+    "mira-return": {
+      "label": "Mira",
+      "dialogue": {
+        "name": "Mira",
+        "role": "The forest can breathe again",
+        "lines": [
+          "You brought the pages back—and listen. No chorus. Just the wind.",
+          "These words were a promise to shelter the keeper, not bind it. I will help Vey remember that. Thank you for seeing this through."
+        ]
+      },
+      "repeat": {
+        "name": "Mira",
+        "role": "A story completed",
+        "lines": [
+          "The notes are safe. Next time we enter those ruins, it will be to learn, not to take."
+        ]
+      }
+    },
+    "oren": {
+      "label": "Oren",
+      "dialogue": {
+        "name": "Oren",
+        "role": "Expedition scout",
+        "lines": [
+          "The levers raise the gates. The sun chamber blade keeps turning until its seal is released; go around its reach. The west wing has pressure spikes: keep to the clear stones.",
+          "There are healing supplies inside. Your way back is always the south doorway. If you fall, you will catch your breath at the entrance; the seals you broke stay broken."
+        ]
+      }
+    },
+    "west-lever": {
+      "label": "west lever",
+      "dialogue": {
+        "name": "Moon mechanism",
+        "role": "An old counterweight",
+        "lines": [
+          "The lever gives with a heavy click. The west gate rises.",
+          "The moon seal is in the chamber beyond. Its flame is feeding the ritual. Use it to break the binding."
+        ]
+      },
+      "repeat": {
+        "name": "Moon mechanism",
+        "role": "The way is open",
+        "lines": ["The west gate is already raised."]
+      }
+    },
+    "west-seal": {
+      "label": "moon seal",
+      "dialogue": {
+        "name": "The moon seal",
+        "role": "A binding unmade",
+        "lines": [
+          "You turn the engraved stone. The flame gutters; one voice leaves the chorus.",
+          "When both seals are quiet, the creature feeding on them will have nowhere left to hide. Be ready in the central hall."
+        ]
+      },
+      "repeat": {
+        "name": "The moon seal",
+        "role": "Quiet stone",
+        "lines": ["This binding is already broken."]
+      }
+    },
+    "east-lever": {
+      "label": "east lever",
+      "dialogue": {
+        "name": "Sun mechanism",
+        "role": "An old counterweight",
+        "lines": [
+          "The lever gives with a heavy click. The east gate rises.",
+          "The sun seal is in the chamber beyond. Its flame is feeding the ritual. Use it to break the binding."
+        ]
+      },
+      "repeat": {
+        "name": "Sun mechanism",
+        "role": "The way is open",
+        "lines": ["The east gate is already raised."]
+      }
+    },
+    "east-seal": {
+      "label": "sun seal",
+      "dialogue": {
+        "name": "The sun seal",
+        "role": "A binding unmade",
+        "lines": [
+          "You turn the engraved stone. The flame gutters; one voice leaves the chorus. The blades in the sun chamber stop.",
+          "When both seals are quiet, the creature feeding on them will have nowhere left to hide. Be ready in the central hall."
+        ]
+      },
+      "repeat": {
+        "name": "The sun seal",
+        "role": "Quiet stone",
+        "lines": ["This binding is already broken."]
+      }
+    },
+    "entry-inscription": {
+      "label": "threshold inscription",
+      "dialogue": {
+        "name": "The Hollow Choir",
+        "role": "An inscription beneath the dust",
+        "lines": [
+          "“Two lights to bind. Two hands to release. No keeper shall be made a prisoner.”",
+          "The choir has mistaken a binding rite for a blessing. Use the levers beside the west and east gates, then silence the seals beyond them. You can return through the south doorway at any time."
+        ]
+      }
+    },
+    "cantor": {
+      "label": "Cantor Vey",
+      "dialogue": {
+        "name": "Cantor Vey",
+        "role": "Keeper of the choir",
+        "lines": [
+          "The roots are closing over our home. We called the keeper to protect us. Why does the forest answer with teeth?",
+          "Those flames are ancient. If you know how to quiet them, do it. I cannot stop the chorus alone."
+        ]
+      }
+    },
+    "keeper-release": {
+      "label": "keeper’s altar",
+      "dialogue": {
+        "name": "The forest keeper",
+        "role": "The last note",
+        "lines": [
+          "“You did not call me here. You listened.”",
+          "The binding loosens beneath your hand. The sleeping shape dissolves into pale light. The keeper rises from the red cloth and returns to the forest, and the chorus finally falls silent.",
+          "Cantor Vey lowers his hands. “The west reliquary is open to you. Mira’s notes are there. Tell her we mistook possession for protection.”"
+        ]
+      },
+      "locked": {
+        "name": "The bound keeper",
+        "role": "A voice under the chorus",
+        "lines": [
+          "A small figure lies still on the red cloth. Its eyes stay closed, but a voice reaches you through the chant.",
+          "“The two lights hold me. The thing below drinks what remains. Break the seals, then defeat it. Only then can you open my binding.”"
+        ]
+      },
+      "repeat": {
+        "name": "The quiet altar",
+        "role": "The binding is gone",
+        "lines": [
+          "The red cloth lies empty. A little warmth remains in the stone. The keeper has returned to the forest."
+        ]
+      }
+    },
+    "supplies": {
+      "label": "explorer’s supply chest",
+      "dialogue": {
+        "name": "An explorer’s supplies",
+        "role": "Two healing herbs recovered",
+        "lines": [
+          "Two sealed bundles are still dry. You take the healing herbs. Press H when you need them."
+        ]
+      },
+      "repeat": {
+        "name": "The supply chest",
+        "role": "Already searched",
+        "lines": ["You have already taken its two healing herbs."]
+      }
+    },
+    "reliquary": {
+      "label": "west reliquary",
+      "dialogue": {
+        "name": "The recovered field notes",
+        "role": "Field notes and two healing herbs",
+        "lines": [
+          "Mira’s missing pages describe the rite as a promise of shelter, never a summons. You tuck them safely away.",
+          "You also find two healing herbs. Return through the south doorway and give Mira her notes."
+        ]
+      },
+      "locked": {
+        "name": "The west reliquary",
+        "role": "Held by the binding",
+        "lines": ["Its clasp hums with the same note as the altar. Free the keeper to open it."]
+      },
+      "repeat": {
+        "name": "The west reliquary",
+        "role": "Already searched",
+        "lines": ["The field notes are safe with you. Mira is waiting outside."]
+      }
+    },
+    "cantor-restored": {
+      "label": "Cantor Vey",
+      "dialogue": {
+        "name": "Cantor Vey",
+        "role": "A humbled keeper",
+        "lines": [
+          "We will mend the paths and leave the forest its own voice. No more bindings. You have my word."
+        ]
+      }
+    }
+  }
+}

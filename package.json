@@ -15,7 +15,9 @@
     "gateway:start": "pnpm --filter @dmap/gateway start",
     "db:migrate:local": "wrangler d1 migrations apply AUTH_DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply AUTH_DB --remote",
-    "build": "tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && pnpm --filter @dmap/gateway typecheck && vite build",
+    "story:docs": "tsx scripts/export-storybooks.ts",
+    "story:check": "tsx scripts/export-storybooks.ts --check",
+    "build": "tsx scripts/export-storybooks.ts && tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && pnpm --filter @dmap/gateway typecheck && vite build",
     "preview": "vite preview",
     "deploy": "pnpm build && wrangler deploy",
     "cf-typegen": "wrangler types",
@@ -27,7 +29,7 @@
     "test:client": "vitest run --config vitest.client.config.ts",
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "test:e2e": "playwright test",
-    "check": "prettier --check . && eslint . && tsx scripts/verify-browser-import-boundary.ts && tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && pnpm --filter @dmap/gateway typecheck && vitest run --config vitest.client.config.ts && vitest run --config vitest.worker.config.ts && pnpm --filter @dmap/gateway test && vite build"
+    "check": "tsx scripts/export-storybooks.ts --check && prettier --check . && eslint . && tsx scripts/verify-browser-import-boundary.ts && tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && pnpm --filter @dmap/gateway typecheck && vitest run --config vitest.client.config.ts && vitest run --config vitest.worker.config.ts && pnpm --filter @dmap/gateway test && vite build"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",

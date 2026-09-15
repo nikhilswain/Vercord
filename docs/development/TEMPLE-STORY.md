@@ -4,10 +4,30 @@ The local demo now has an enterable Rootbound sanctuary. Start at
 `/play/demo?area=temple`, meet Mira and Oren at the southern camp, and use **E** at
 the northern temple door. Direct interior preview: `/play/demo?area=temple-interior`.
 
+Read the full lore, cast, chapter order and every dialogue branch in
+[the generated storybook](../stories/hollow-choir.md).
+
+## Editing the story
+
+The canonical text lives in
+[`src/content/stories/hollow-choir.json`](../../src/content/stories/hollow-choir.json).
+Edit this JSON to change lore, dialogue pages, speaker names, objectives and location
+text. The game imports it through the shared `createStoryBook` adapter. Each
+interaction has a main dialogue and optional `locked` and `repeat` variants; the
+scenario still controls when they are available.
+
+Run `pnpm story:docs` to regenerate the readable Markdown. `pnpm build` also does
+this automatically. `pnpm story:check` checks for stale or missing documents;
+`pnpm check` includes that check. Do not hand-edit the generated Markdown.
+The exporter discovers story JSON files in `src/content/stories`, validates their
+chapter references and dialogue pages, and writes one document per story.
+
 ## Story and route
 
 The choir called the forest keeper to protect their home, but performed a binding
-rite instead. A root creature is feeding on the captive keeper.
+rite instead. The sleeping figure on the red-draped altar is its borrowed form;
+a root creature is feeding on it. Releasing the keeper replaces the figure with
+the empty draped altar and plays the native ghost emergence/dispersal clip.
 
 1. Speak to the explorers outside, or read the threshold inscription inside.
 2. Use the west and east levers to raise their gates. The sun chamber blade keeps
@@ -40,8 +60,12 @@ story actions or revive a freed ritual.
   `AdventureSession` owns hazard damage, conditional encounter activation and
   the collision list used by enemies and projectiles. `RpgSimulation` receives
   only the changing gate blockers and rebuilds its path index when those change.
-- `adventure/hollow-choir.ts` supplies the story text, coordinates, prerequisite
-  flags and rewards. It does not implement bespoke combat or renderer rules.
+- `src/content/stories/hollow-choir.json` supplies the prose and full dialogue.
+  `domain/adventure/storybook.ts` validates and adapts that content for the game;
+  `scripts/export-storybooks.ts` exports the same content as readable Markdown.
+- `adventure/hollow-choir.ts` supplies coordinates, prerequisite flags and rewards,
+  referring to story text by ID. It does not duplicate dialogue or implement
+  bespoke combat or renderer rules.
 - `ScenarioRenderer` selects native sprite clips from story conditions. It owns
   a fixed collection of sprites, uses the paused adventure clock, and respects
   reduced motion. Static stonework remains in the existing cached scenery path.
@@ -78,6 +102,10 @@ and blades, all five lamp styles plus the torch, and interior stonework/props.
 The Bound Warden uses the separately imported Root Beast art. Cultists are story
 NPCs; the pack has no dedicated attack/hurt/death set for them. Native water and
 the supplied TMX maps remain available for later environmental work.
+
+The keeper's altar figure is part of `Objects_interior.png`, not a separate
+animated character rig. Its occupied/empty states and the complete standing banners
+are cropped at their ground baseline; the old banner crop omitted the stand.
 
 ## Verification
 

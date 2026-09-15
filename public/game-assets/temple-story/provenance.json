@@ -735,13 +735,17 @@
       "source": "PNG\\Objects_interior.png",
       "sha256": "3f90c7311a093448be165cecfad697dbf1cc10ede4a36b596b72dfdcccfcc3cc",
       "frameSize": [
-        32,
+        48,
         48
       ],
       "frameOrigins": [
         [
-          144,
-          96
+          184,
+          107
+        ],
+        [
+          248,
+          107
         ]
       ]
     },
@@ -750,13 +754,13 @@
       "source": "PNG\\Objects_interior.png",
       "sha256": "3f90c7311a093448be165cecfad697dbf1cc10ede4a36b596b72dfdcccfcc3cc",
       "frameSize": [
-        16,
+        32,
         48
       ],
       "frameOrigins": [
         [
           0,
-          96
+          103
         ]
       ]
     },

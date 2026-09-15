@@ -80,8 +80,10 @@ def gate_layers():
 
 grid('stone','Walls_floor.png',16,16,176,11)
 atlas('winged-statue','Objects_interior.png',128,96,[(0,0)])
-atlas('altar','Objects_interior.png',32,48,[(144,96)])
-atlas('banners','Objects_interior.png',16,48,[(0,96)])
+# Whole draped altar: empty, then occupied by the sleeping keeper. Keep the stone's feet.
+atlas('altar','Objects_interior.png',48,48,[(184,107),(248,107)])
+# The old 16x48 crop cut off half the banner and the pole's ground stand.
+atlas('banners','Objects_interior.png',32,48,[(0,103)])
 atlas('treasure','Objects_interior.png',96,32,[(96,144)])
 atlas('bones','Objects_interior.png',32,32,[(0,224),(32,224),(64,224)])
 atlas('floor','Decorative_cracks_interior.png',32,32,[(0,272),(32,272),(32,304),(64,304)])

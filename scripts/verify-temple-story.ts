@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { buildTempleInterior } from '../src/features/rpg/demo/temple-interior';
 import { buildTempleDemo } from '../src/features/rpg/demo/forest-expansion';
 import { AdventureJourney } from '../src/features/rpg/adventure/journey';
-import { CHOIR } from '../src/features/rpg/adventure/hollow-choir';
+import { CHOIR, hollowChoirStory } from '../src/features/rpg/adventure/hollow-choir';
+import { createStoryBook } from '../src/domain/adventure/storybook';
 import { ScenarioProgress } from '../src/domain/adventure/scenario';
 import { RpgPathfinder } from '../src/features/rpg/pathfinding';
 import { RpgSimulation } from '../src/features/rpg/simulation';
@@ -12,6 +13,33 @@ import { DEMO_EQUIPMENT_POLICY } from '../src/domain/adventure/equipment';
 
 const interior = buildTempleInterior(),
   courtyard = buildTempleDemo();
+assert.deepEqual(
+  [
+    ...interior.demo!.jungle!.scenario!.interactions,
+    ...courtyard.demo!.jungle!.scenario!.interactions,
+  ]
+    .map((entry) => entry.id)
+    .sort(),
+  Object.keys(hollowChoirStory.content.interactions).sort(),
+  'the readable script covers exactly the interactions used by the game',
+);
+const invalidReference = structuredClone(hollowChoirStory.content);
+invalidReference.chapters[0]!.interactions.push('missing-dialogue');
+assert.throws(() => createStoryBook(invalidReference), /unknown interaction/);
+const emptyPage = structuredClone(hollowChoirStory.content);
+emptyPage.interactions.mira.dialogue.lines = [];
+assert.throws(() => createStoryBook(emptyPage), /mira.dialogue.lines/);
+const editable = structuredClone(hollowChoirStory.content);
+editable.interactions.mira.dialogue.lines[0] = 'A new line from the story file.';
+const editedBook = createStoryBook(editable);
+const speech = editedBook.interaction('mira').dialogue;
+assert.equal(speech.lines[0], 'A new line from the story file.');
+speech.lines[0] = 'Changed by a dialogue session';
+assert.equal(
+  editedBook.interaction('mira').dialogue.lines[0],
+  'A new line from the story file.',
+  'sessions cannot mutate shared dialogue pages',
+);
 // Actual walking and routing must respect the body without losing Talk on its other sides.
 for (const sample of [courtyard, interior]) {
   const model = new AdventureSession(

@@ -4,7 +4,12 @@ import type { Rect } from '../../../domain/world/content/v1/types';
 import type { ScenarioSprite } from '../adventure/scenario-renderer';
 import { TEMPLE_STORY_TEXTURES } from '../adventure/temple-story-assets';
 import { TEMPLE_TEXTURES } from '../adventure/temple-assets';
-import { CHOIR, hollowChoirInterior, hollowChoirCourtyard } from '../adventure/hollow-choir';
+import {
+  CHOIR,
+  hollowChoirInterior,
+  hollowChoirCourtyard,
+  hollowChoirStory,
+} from '../adventure/hollow-choir';
 
 const frames = (n: number) => Array.from({ length: n }, (_, i) => i);
 function prop(
@@ -58,8 +63,8 @@ function doorway(sample: RpgSample, x: number, y: number, variant: number) {
 export function buildTempleInterior(): RpgSample {
   const sample: RpgSample = makeSample(
     'village',
-    'The Hollow Choir',
-    'Rootbound sanctuary · Two lights to bind. Two hands to release.',
+    hollowChoirStory.content.locations.sanctuary.name,
+    hollowChoirStory.content.locations.sanctuary.subtitle,
     at(19, 31),
   );
   sample.bounds = { x: 0, y: 0, width: 38 * 32, height: 35 * 32 };
@@ -158,9 +163,15 @@ export function buildTempleInterior(): RpgSample {
     block(sample, x! - 0.5, y! - 0.5, 1, 0.5);
   }
   prop(sample, 'story-winged-statue', 19, 5.5, 256, 192);
-  prop(sample, 'story-altar', 19, 9, 64, 96);
-  block(sample, 18.4, 8.4, 1.2, 0.5);
-  for (const x of [14, 24]) prop(sample, 'story-banners', x, 25, 32, 96);
+  actor(sample, 'keeper-vessel', 19, 9, 96, 96, [
+    { requires: [CHOIR.freed], texture: 'story-altar', frames: [0] },
+    { texture: 'story-altar', frames: [1] },
+  ]);
+  block(sample, 18.125, 8.5, 1.8125, 0.4);
+  for (const x of [14, 24]) {
+    prop(sample, 'story-banners', x, 25, 64, 96);
+    block(sample, x - 0.3125, 24.8, 0.625, 0.2);
+  }
   prop(sample, 'story-treasure', 8, 11, 192, 64, -20);
   for (const [x, y] of [
     [5, 20],
@@ -295,7 +306,7 @@ export function buildTempleInterior(): RpgSample {
       { requires: [CHOIR.freed], texture: 'story-leader-idle', frames: frames(12), duration: 1.2 },
       { texture: 'story-leader-summon', frames: frames(14), duration: 1.4 },
     ],
-    'Cantor Vey',
+    hollowChoirStory.content.interactions.cantor.label,
     {
       originY: 31 / 32,
       labelOffsetY: 64,
@@ -303,17 +314,16 @@ export function buildTempleInterior(): RpgSample {
       conversations: ['cantor', 'cantor-restored'],
     },
   );
-  actor(sample, 'keeper', 19, 7.5, 192, 256, [
+  actor(sample, 'keeper', 19, 9, 192, 256, [
     {
       requires: [CHOIR.freed],
       texture: 'story-ghost',
-      frames: [14, 15, 16, 17, 18],
-      duration: 1,
+      frames: frames(19),
+      duration: 1.8,
       loop: false,
       since: CHOIR.freed,
-      hideAfter: 1.05,
+      hideAfter: 1.85,
     },
-    { texture: 'story-ghost', frames: [7, 8, 9, 10, 11, 12, 13], duration: 1.4 },
   ]);
   for (const [i, x, y] of [
     [1, 14, 7],
@@ -360,7 +370,7 @@ export function addChoirCourtyard(sample: RpgSample): void {
       },
       { texture: 'story-explorer-writing', frames: frames(4), duration: 0.8 },
     ],
-    'Mira',
+    hollowChoirStory.content.interactions.mira.label,
     {
       originY: 42 / 48,
       labelOffsetY: 64,
@@ -376,7 +386,7 @@ export function addChoirCourtyard(sample: RpgSample): void {
     64,
     64,
     [{ texture: 'story-explorer-search', frames: frames(10), duration: 1 }],
-    'Oren',
+    hollowChoirStory.content.interactions.oren.label,
     { originY: 31 / 32, labelOffsetY: 54, body: standingBody, conversations: ['oren'] },
   );
   sample.demo!.portals.push({ id: 'sanctuary-entry', target: 'temple-interior' });
@@ -388,5 +398,6 @@ export function addChoirCourtyard(sample: RpgSample): void {
     kind: 'portal',
     description: 'Follow the sound of the choir.',
   });
-  sample.subtitle = 'The Hollow Choir · Meet the explorers and enter the northern sanctuary';
+  sample.name = hollowChoirStory.content.locations.courtyard.name;
+  sample.subtitle = hollowChoirStory.content.locations.courtyard.subtitle;
 }

@@ -16,13 +16,13 @@ export const TEMPLE_STORY_TEXTURES: RpgTexture[] = [
   {
     key: 'story-altar',
     url: '/game-assets/temple-story/altar.png',
-    frameWidth: 32,
+    frameWidth: 48,
     frameHeight: 48,
   },
   {
     key: 'story-banners',
     url: '/game-assets/temple-story/banners.png',
-    frameWidth: 16,
+    frameWidth: 32,
     frameHeight: 48,
   },
   {
