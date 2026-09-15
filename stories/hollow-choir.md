@@ -46,7 +46,7 @@ The traveler frees the keeper rather than claiming its power. The sleeping form 
 
 4. **The last note.** Defeat the exposed Bound Warden, then use the altar. The keeper leaves its sleeping form, the choir stops praying, and the hall blade stops.
 
-5. **A promise restored.** Open the west reliquary, recover the field notes and return them to Mira outside.
+5. **A promise restored.** Open the west reliquary, recover the field notes and return them to Mira outside. If you visit her before collecting the notes, she acknowledges the rescue and points you back to the chest.
 
 ## Complete dialogue script
 
@@ -218,6 +218,16 @@ _A humbled keeper_
 
 ### A promise restored
 
+#### Mira — `mira-freed`
+
+**Main dialogue: Mira**
+
+_The last pages_
+
+1. The chanting has stopped. You freed the keeper. Thank you—there is room to breathe out here again.
+
+2. My field notes are still inside. The west reliquary is the chest in the left-hand chamber of the sanctuary. Now that the binding is broken, you can open it. Bring the pages back and we can finish this.
+
 #### west reliquary — `reliquary`
 
 **Locked: The west reliquary**
@@ -268,6 +278,7 @@ _A story completed_
 - `release-both`: Use the side-room levers, then release both seals. 0 / 2.
 - `courtyard-complete`: The keeper is free. The forest can heal.
 - `give-notes`: Give Mira her field notes at the southern camp.
+- `collect-notes`: Return inside and open the west chamber’s chest for Mira’s notes.
 - `enter-sanctuary`: Meet the explorers, then enter the sanctuary to the north.
 
 ## Location text

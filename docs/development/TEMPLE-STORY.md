@@ -40,7 +40,10 @@ the empty draped altar and plays the native ghost emergence/dispersal clip.
    the keeper. Its native dispersal animation plays, the choir stops praying and
    idles at its fixed positions, and the remaining blade stops.
 5. Open the west reliquary and return the recovered field notes to Mira outside.
-   The supply chest and reliquary each give two healing herbs once.
+   If you return before collecting the notes, Mira acknowledges the rescue and
+   directs you to the west chamber's chest. The supply chest and reliquary each
+   give two healing herbs once; Mira's hand-in completes the story without an
+   additional item reward.
 
 The permanent rare item, loot tables and equipment effects are deliberately
 undecided. Field notes and herbs are this demo's story reward. Notes are recorded

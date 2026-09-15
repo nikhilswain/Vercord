@@ -76,8 +76,8 @@
     {
       "id": "return",
       "title": "A promise restored",
-      "summary": "Open the west reliquary, recover the field notes and return them to Mira outside.",
-      "interactions": ["reliquary", "mira-return"]
+      "summary": "Open the west reliquary, recover the field notes and return them to Mira outside. If you visit her before collecting the notes, she acknowledges the rescue and points you back to the chest.",
+      "interactions": ["mira-freed", "reliquary", "mira-return"]
     }
   ],
   "notes": [
@@ -108,6 +108,7 @@
     "release-both": "Use the side-room levers, then release both seals. 0 / 2.",
     "courtyard-complete": "The keeper is free. The forest can heal.",
     "give-notes": "Give Mira her field notes at the southern camp.",
+    "collect-notes": "Return inside and open the west chamber’s chest for Mira’s notes.",
     "enter-sanctuary": "Meet the explorers, then enter the sanctuary to the north."
   },
   "interactions": {
@@ -120,6 +121,17 @@
           "Hear that? Six voices, one note. They have been singing since the roots swallowed the old path.",
           "I went inside with the choir. Their leader meant to save the forest, but the rite bound its keeper. That sleeping figure on the red-draped altar is the keeper’s borrowed form. Now something else is feeding on it.",
           "My notes are in the west reliquary. Follow the northern path into the sanctuary. The two side-room levers open the way to the seals. Quiet both flames, face what emerges, then release the keeper at the altar."
+        ]
+      }
+    },
+    "mira-freed": {
+      "label": "Mira",
+      "dialogue": {
+        "name": "Mira",
+        "role": "The last pages",
+        "lines": [
+          "The chanting has stopped. You freed the keeper. Thank you—there is room to breathe out here again.",
+          "My field notes are still inside. The west reliquary is the chest in the left-hand chamber of the sanctuary. Now that the binding is broken, you can open it. Bring the pages back and we can finish this."
         ]
       }
     },

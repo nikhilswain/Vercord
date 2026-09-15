@@ -201,6 +201,19 @@ assert(
   !session.isEnemyActive(session.enemies[0]!),
   'released ritual no longer has a combat target',
 );
+// Returning early acknowledges the rescue without handing in notes or granting rewards.
+session = enter(courtyard);
+const mira = session.scenario!.definition.interactions.find((i) => i.id === 'mira-return')!;
+const miraApproach = { x: mira.x, y: mira.y + 20 };
+assert.equal(session.nearbyStory(miraApproach)?.id, 'mira-freed');
+assert.deepEqual(session.nearbyStory(miraApproach)?.body, mira.body);
+assert.match(session.interactStory(miraApproach)!.lines.join(' '), /west reliquary/);
+assert.equal(session.nearbyStory(miraApproach)?.id, 'mira-freed');
+assert.match(session.status().story!.text, /west chamber/);
+assert(!progress.has(CHOIR.notes) && !progress.has(CHOIR.returned));
+assert(!session.status().story!.complete);
+assert.equal(session.herbs, herbs + 2, 'Mira does not grant the unopened chest reward');
+session = enter(interior);
 use('reliquary');
 use('reliquary');
 assert.equal(session.herbs, herbs + 4, 'reliquary reward is also granted once');
@@ -209,10 +222,11 @@ const saved = progress.snapshot();
 assert(new ScenarioProgress(saved).has(CHOIR.notes), 'story facts have a storage-ready snapshot');
 
 session = enter(courtyard);
-const mira = session.scenario!.definition.interactions.find((i) => i.id === 'mira-return')!;
-assert.equal(session.nearbyStory({ x: mira.x, y: mira.y + 20 })?.id, 'mira-return');
-session.interactStory({ x: mira.x, y: mira.y + 20 });
+assert.equal(session.nearbyStory(miraApproach)?.id, 'mira-return');
+assert.match(session.interactStory(miraApproach)!.lines.join(' '), /brought the pages back/);
 assert(session.status().story!.complete, 'returning the notes finishes the story');
+assert.equal(session.interactStory(miraApproach)!.role, 'A story completed');
+assert.equal(session.herbs, herbs + 4, 'return and repeat dialogue do not duplicate rewards');
 session = enter(interior);
 assert.equal(session.scenario!.colliders.length, 0, 'open gates stay open across travel');
 assert(session.status().story!.complete);

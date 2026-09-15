@@ -133,6 +133,7 @@ export function hollowChoirCourtyard(): ScenarioDefinition {
     objectives: [
       { requires: [CHOIR.returned], text: text('courtyard-complete'), complete: true },
       { requires: [CHOIR.notes], text: text('give-notes') },
+      { requires: [CHOIR.freed], text: text('collect-notes') },
       { text: text('enter-sanctuary') },
     ],
     interactions: [
@@ -141,6 +142,14 @@ export function hollowChoirCourtyard(): ScenarioDefinition {
         id: 'mira',
         ...at(20, 35),
         action: 'Talk',
+        unless: [CHOIR.freed, CHOIR.notes],
+      },
+      {
+        ...hollowChoirStory.interaction('mira-freed'),
+        id: 'mira-freed',
+        ...at(20, 35),
+        action: 'Talk',
+        requires: [CHOIR.freed],
         unless: [CHOIR.notes],
       },
       {

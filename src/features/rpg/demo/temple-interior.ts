@@ -375,7 +375,7 @@ export function addChoirCourtyard(sample: RpgSample): void {
       originY: 42 / 48,
       labelOffsetY: 64,
       body: { x: -28, y: -24, width: 66, height: 24 },
-      conversations: ['mira', 'mira-return'],
+      conversations: ['mira', 'mira-freed', 'mira-return'],
     },
   );
   actor(
