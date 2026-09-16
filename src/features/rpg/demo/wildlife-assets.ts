@@ -11,6 +11,8 @@ export interface JungleWildlifeAnimation {
   frames: Readonly<Record<RpgDirection, readonly number[]>>;
   /** Suggested damage timing, measured from the start of the attack. */
   impactAtMs?: number;
+  /** Native attack time reached during windup; the attack continues from this pose. */
+  windupEndAtMs?: number;
 }
 
 export interface JungleWildlifeAsset {
@@ -30,6 +32,8 @@ export interface JungleWildlifeAsset {
   origin: Readonly<{ x: number; y: number }>;
   /** Integer scale recommended beside the roughly 50 px LPC player. */
   suggestedScale: number;
+  /** Directions rendered by mirroring their native frame sequence. */
+  flipXDirections?: readonly RpgDirection[];
   animations: Readonly<Record<JungleWildlifeAction, JungleWildlifeAnimation>>;
   animationNotes: readonly string[];
 }

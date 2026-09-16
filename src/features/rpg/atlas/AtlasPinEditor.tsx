@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Dialog } from '../../../components/Dialog';
+import { useId, useState } from 'react';
+import { RpgDialog } from '../ui/RpgDialog';
 import { AtlasIcon } from './AtlasIcon';
 import { PIN_LIMIT, pinCount } from './pins';
 import type { AtlasPin, PinDraft, PinKind } from './types';
@@ -13,6 +13,7 @@ interface Props {
   onRemove(): void;
 }
 export function AtlasPinEditor({ draft, region, pins, onClose, onSave, onRemove }: Props) {
+  const formId = useId();
   const [kind, setKind] = useState<PinKind>(
     draft.existing?.kind ?? (pinCount(pins, 'location') < PIN_LIMIT ? 'location' : 'flower'),
   );
@@ -23,17 +24,38 @@ export function AtlasPinEditor({ draft, region, pins, onClose, onSave, onRemove 
       value,
     );
   return (
-    <Dialog
+    <RpgDialog
       open
       title={draft.existing ? 'Edit pin' : 'Leave a pin'}
       onClose={onClose}
       className="atlas-pin-dialog"
+      closeLabel="Close pin editor"
+      footer={
+        <div className="atlas-pin-actions">
+          {draft.existing ? (
+            <button type="button" className="rpg-button atlas-remove" onClick={onRemove}>
+              Remove pin
+            </button>
+          ) : (
+            <button type="button" className="rpg-button rpg-button--quiet" onClick={onClose}>
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            form={formId}
+            className="rpg-button"
+            disabled={count(kind) >= PIN_LIMIT}
+          >
+            {draft.existing ? 'Update pin' : 'Place pin'}
+          </button>
+        </div>
+      }
     >
-      <button className="atlas-close" aria-label="Close pin editor" onClick={onClose}>
-        <AtlasIcon name="close" />
-      </button>
       <p className="atlas-pin-region">{region}</p>
       <form
+        id={formId}
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           if (count(kind) < PIN_LIMIT) onSave(kind, name);
@@ -80,21 +102,7 @@ export function AtlasPinEditor({ draft, region, pins, onClose, onSave, onRemove 
               ? 'Change the name or pin type, then update. Close or press Escape to discard changes.'
               : 'Pins are personal and saved in this browser. Close or press Escape to cancel.'}
         </p>
-        <div className="atlas-pin-actions">
-          {draft.existing ? (
-            <button type="button" className="atlas-remove" onClick={onRemove}>
-              Remove pin
-            </button>
-          ) : (
-            <button type="button" onClick={onClose}>
-              Cancel
-            </button>
-          )}
-          <button type="submit" className="atlas-primary" disabled={count(kind) >= PIN_LIMIT}>
-            {draft.existing ? 'Update pin' : 'Place pin'}
-          </button>
-        </div>
       </form>
-    </Dialog>
+    </RpgDialog>
   );
 }

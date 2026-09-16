@@ -1,4 +1,5 @@
 import type { Point, Rect } from '../world/content/v1/types';
+import type { ItemStack } from './inventory';
 
 export interface StoryCondition {
   requires?: readonly string[];
@@ -19,6 +20,8 @@ export interface StoryInteraction extends Point, StoryCondition {
   radius?: number;
   grant?: readonly string[];
   herbs?: number;
+  items?: readonly ItemStack[];
+  removeItems?: readonly ItemStack[];
   /** Let an in-world casting effect finish before its explanatory dialogue pauses the game. */
   presentation?: { durationMs: number; pose: 'cast' };
   dialogue: StoryDialogue;
@@ -125,7 +128,12 @@ export class ScenarioSession {
     }
     return nearest;
   }
-  interact(interaction: StoryInteraction): { dialogue: StoryDialogue; herbs: number } {
+  interact(interaction: StoryInteraction): {
+    dialogue: StoryDialogue;
+    herbs: number;
+    items?: readonly ItemStack[];
+    removeItems?: readonly ItemStack[];
+  } {
     if (!this.definition.interactions.includes(interaction))
       throw new Error('Unknown story interaction');
     if (!this.matches(interaction))
@@ -139,6 +147,10 @@ export class ScenarioSession {
     return {
       dialogue: interaction.dialogue,
       herbs: interaction.grant?.length ? (interaction.herbs ?? 0) : 0,
+      ...(interaction.grant?.length && interaction.items ? { items: interaction.items } : {}),
+      ...(interaction.grant?.length && interaction.removeItems
+        ? { removeItems: interaction.removeItems }
+        : {}),
     };
   }
   private updateGates(): void {

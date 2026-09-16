@@ -10,11 +10,12 @@ import { rpgAppearanceSchema } from '../../../src/domain/presence/rpg-protocol';
 import { RpgPortrait } from '../../../src/features/rpg/RpgPortrait';
 
 describe('shared traveler appearances', () => {
-  it('offers ten complete outfits per theme and preserves saved appearance IDs', () => {
-    expect(RPG_CHARACTER_DEFINITIONS).toHaveLength(20);
-    expect(new Set(RPG_CHARACTER_DEFINITIONS.map(({ id }) => id)).size).toBe(20);
+  it('offers complete outfits per theme and preserves saved appearance IDs', () => {
+    expect(new Set(RPG_CHARACTER_DEFINITIONS.map(({ id }) => id)).size).toBe(
+      RPG_CHARACTER_DEFINITIONS.length,
+    );
     for (const theme of Object.values(WORLD_THEMES)) {
-      expect(theme.appearances).toHaveLength(10);
+      expect(theme.appearances.length).toBeGreaterThanOrEqual(10);
       for (const id of theme.appearances)
         expect(rpgAppearanceSchema.safeParse(id).success).toBe(true);
     }

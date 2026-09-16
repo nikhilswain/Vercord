@@ -1,15 +1,18 @@
 import type { Point, Rect } from '../../world/engine/types';
 import type { ScenarioDefinition, StoryCondition } from '../../../domain/adventure/scenario';
+import type { InventorySnapshot } from '../../../domain/adventure/inventory';
+import type { PlayerProgression, EquipmentPolicy } from '../../../domain/adventure/equipment';
 
 export type SpellId = 'fire' | 'water';
 export type CombatMode = SpellId | 'melee';
 import type { CreatureKind } from '../../../domain/adventure/enemies';
 export type { CreatureKind } from '../../../domain/adventure/enemies';
 export type FlowerKind = 'healing' | 'collection';
+export type SlimeVariant = 'pink' | 'green' | 'blue';
 export interface EncounterSpawn extends Point, StoryCondition {
   id: string;
   kind: CreatureKind;
-  variant?: 'green' | 'blue';
+  variant?: SlimeVariant;
   elite?: boolean;
   name?: string;
 }
@@ -28,6 +31,10 @@ export interface AdventureDefinition {
   traps?: Array<Point & { id: string; offset: number; activation?: 'pressure' | 'timed' }>;
 }
 export interface AdventureStatus {
+  inventory: InventorySnapshot;
+  equipment: PlayerProgression;
+  equipmentPolicy: EquipmentPolicy;
+  canAdjustEncounters: boolean;
   story?: { title: string; text: string; complete: boolean };
   boss?: { name: string; health: number; maxHealth: number; level: number; enraged: boolean };
   health: number;

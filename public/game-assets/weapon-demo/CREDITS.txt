@@ -20,6 +20,9 @@ Download: https://free-game-assets.itch.io/free-forest-bosses-pixel-art-sprite-s
 License: https://craftpix.net/file-licenses/ (section 2, Freebie Products)
 
 Characters 2 and 3 use their native idle, walk, attack, hurt and death frames.
+Character 3 uses Attack1 (standing cast), with its original 3/Projectile.png
+rendered as the yellow shot. Dmap adds a growing hand charge and a short trail;
+the projectile releases on the bright-hand frame and deals damage on contact.
 Empty margins were cropped; opposite-facing frames were mirrored. No animation
 frames were invented. These are from the separate pixel forest pack, not the
 requested modular vector tribal warrior pack. Attribution to CraftPix is optional.

@@ -8,14 +8,29 @@ import { ScenarioProgress, type StoryDialogue } from '../../../domain/adventure/
  */
 export class AdventureJourney {
   private readonly areas = new Map<string, AdventureSession>();
-  private current: AdventureSession | null = null;
+  private current: AdventureSession;
   private traveler: AdventureTraveler | undefined;
   private encounterLevel: number | undefined;
   private readonly story: ScenarioProgress;
+  private readonly camp: AdventureSession;
+
+  /** Inventory/equipment remain available while the traveler is resting in town. */
+  get supplies(): AdventureSession {
+    return this.current;
+  }
 
   constructor(private readonly options: AdventureOptions = {}) {
     this.story = options.scenarioProgress ?? new ScenarioProgress();
     this.encounterLevel = options.enemyLevelOverride;
+    this.camp = new AdventureSession(
+      { enemies: [], flowers: [], water: [] },
+      [],
+      { x: 0, y: 0, width: 1, height: 1 },
+      { x: 0, y: 0 },
+      undefined,
+      { ...options, scenarioProgress: this.story },
+    );
+    this.current = this.camp;
   }
 
   blockedEntry(content?: AdventureDefinition): StoryDialogue | null {
@@ -52,17 +67,16 @@ export class AdventureJourney {
   }
 
   leave(rest = false): void {
-    if (this.current) {
-      if (rest) this.current.rest();
-      this.traveler = this.current.traveler();
-      this.current.suspend();
-      this.current = null;
-    } else if (rest && this.traveler) this.traveler.health = 100;
+    if (rest) this.current.rest();
+    this.traveler = this.current.traveler();
+    this.current.suspend();
+    this.camp.arrive(this.traveler, { x: 0, y: 0 });
+    this.current = this.camp;
   }
 
   /** Demo reset applies consistently to visited areas and future spawns. XP stays unique. */
   setEnemyLevel(level: number): boolean {
-    if (this.options.enemyLevelOverride === undefined || !this.current?.setEnemyLevel(level))
+    if (this.options.enemyLevelOverride === undefined || !this.current.setEnemyLevel(level))
       return false;
     this.encounterLevel = this.current.encounterLevel;
     for (const area of this.areas.values())

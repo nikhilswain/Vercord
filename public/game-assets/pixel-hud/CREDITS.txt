@@ -1,0 +1,16 @@
+Health hearts — ArtBIT, CC0 1.0
+https://opengameart.org/content/healthbar-sprite
+Original file: https://opengameart.org/sites/default/files/heart_27.png
+Unmodified 51 x 15 PNG; three native 17 x 15 frames displayed through SVG viewports.
+
+Inventory chest — Henrique Lazarini (7Soul1), CC0 1.0
+https://opengameart.org/node/39455
+Original archive: https://opengameart.org/sites/default/files/496_RPG_icons.zip
+Original file: I_Chest01.png, unmodified.
+
+Both sources are public-domain/CC0 assets. Free commercial use and modification are allowed.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Players icon — Gerrit Halfmann (Pixelarticons), MIT
+https://github.com/halfmage/pixelarticons/blob/master/svg/users.svg
+Unmodified path rendered in RpgIcon.tsx. License: PIXELARTICONS-LICENSE.txt

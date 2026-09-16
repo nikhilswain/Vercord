@@ -60,56 +60,97 @@ interface LabelView {
   container: Phaser.GameObjects.Container;
   width: number;
   height: number;
+  refresh(): void;
 }
 
 /** Screen-readable roof annotations; full names remain available in the semantic Map directory. */
 export class TownSignage {
   private readonly views: LabelView[];
   private lastCamera = '';
+  private destroyed = false;
 
   public constructor(scene: Phaser.Scene, labels: readonly RpgSceneLabel[]) {
     const style = getComputedStyle(scene.game.canvas.closest('.rpg-page') ?? scene.game.canvas);
-    const ink = style.getPropertyValue('--rpg-label-ink').trim() || '#fff4dc';
-    const panel = style.getPropertyValue('--rpg-label-panel').trim() || '#19251e';
+    const ink = style.getPropertyValue('--rpg-ink').trim() || '#f0e3bf';
+    const panel = style.getPropertyValue('--rpg-panel').trim() || '#14291f';
+    const edge = style.getPropertyValue('--rpg-edge').trim() || '#887c50';
+    const accent = style.getPropertyValue('--rpg-accent').trim() || '#d6c28a';
     this.views = [...labels]
       .sort((a, b) => Number(b.kind === 'district') - Number(a.kind === 'district'))
       .map((label) => {
         const district = label.kind === 'district';
         const markSpace = label.roomType ? 21 : 0;
         const text = scene.add.text(markSpace, 0, '', {
-          fontFamily: district ? 'Pixelify Sans, sans-serif' : 'Inter Variable, sans-serif',
-          fontSize: district ? '17px' : '12px',
+          fontFamily: district ? 'Alagard, Pixelify Sans, sans-serif' : 'Pixelify Sans, sans-serif',
+          fontSize: district ? '18px' : label.kind === 'room' ? '14px' : '16px',
           color: ink,
-          fontStyle: district ? 'bold' : 'normal',
+          fontStyle: 'normal',
           resolution: 2,
-          shadow: { offsetX: 0, offsetY: 1, color: '#101711', blur: 2, fill: true },
         });
-        fitLabel(text, label.text, label.maxWidth - markSpace - 16);
         const parts: Phaser.GameObjects.GameObject[] = [text];
-        const width = text.width + markSpace + 16;
-        const height = Math.max(text.height, label.roomType ? 18 : 0) + 8;
-        text.setPosition(-width / 2 + 8 + markSpace, -height + 4);
-        const frame = scene.add
-          .graphics()
-          .fillStyle(Number.parseInt(panel.slice(1), 16), district ? 0.85 : 0.76)
-          .fillRoundedRect(-width / 2, -height, width, height, 5);
-        if (label.roomType) {
-          const symbol = scene.add
-            .graphics()
-            .lineStyle(1.25, Number.parseInt(ink.slice(1), 16))
-            .setPosition(-width / 2 + 7, -height + 4);
+        const frame = scene.add.graphics();
+        const symbol = label.roomType
+          ? scene.add.graphics().lineStyle(1, Number.parseInt(ink.slice(1), 16))
+          : null;
+        if (symbol && label.roomType) {
           drawRoomSymbol(symbol, label.roomType);
           parts.push(symbol);
         }
-        return {
+        const view: LabelView = {
           label,
-          width,
-          height,
+          width: 0,
+          height: 0,
           container: scene.add
             .container(label.x, label.y, [frame, ...parts])
             .setDepth(district ? 95001 : 95000),
+          refresh: () => {
+            // Font loading can change glyph widths; refresh both the plate and collision bounds.
+            text.updateText();
+            fitLabel(text, label.text, label.maxWidth - markSpace - 24);
+            const width = Math.ceil((text.width + markSpace + 24) / 2) * 2;
+            const height = Math.ceil(Math.max(text.height, symbol ? 18 : 0)) + 12;
+            view.width = width;
+            view.height = height;
+            const x = -width / 2,
+              y = -height;
+            text.setPosition(x + 12 + markSpace, y + 5);
+            symbol?.setPosition(x + 10, y + 6);
+            frame
+              .clear()
+              .fillStyle(Number.parseInt(panel.slice(1), 16), 0.94)
+              .fillRect(x + 3, y, width - 6, height)
+              .fillRect(x, y + 3, width, height - 6)
+              .fillStyle(Number.parseInt(edge.slice(1), 16), 0.9)
+              .fillRect(x + 4, y, width - 8, 1)
+              .fillRect(x + 4, y + height - 1, width - 8, 1)
+              .fillRect(x, y + 4, 1, height - 8)
+              .fillRect(x + width - 1, y + 4, 1, height - 8)
+              .fillStyle(Number.parseInt(accent.slice(1), 16), 0.9);
+            for (const [cx, cy] of [
+              [x + 2, y + 2],
+              [x + width - 4, y + 2],
+              [x + 2, y + height - 4],
+              [x + width - 4, y + height - 4],
+            ]) {
+              frame.fillRect(cx!, cy!, 2, 2);
+            }
+          },
         };
+        view.refresh();
+        return view;
       });
+    if (document.fonts) {
+      void Promise.all([
+        document.fonts.load('16px "Pixelify Sans"'),
+        document.fonts.load('18px Alagard'),
+      ])
+        .then(() => {
+          if (this.destroyed) return;
+          this.views.forEach((view) => view.refresh());
+          this.lastCamera = '';
+        })
+        .catch(() => {});
+    }
   }
 
   public update(camera: Phaser.Cameras.Scene2D.Camera): void {
@@ -149,6 +190,7 @@ export class TownSignage {
   }
 
   public destroy(): void {
+    this.destroyed = true;
     this.views.forEach(({ container }) => container.destroy());
   }
 }

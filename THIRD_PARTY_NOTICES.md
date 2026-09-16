@@ -2,6 +2,26 @@
 
 ## Game art
 
+### MiniFolks — Forest animals
+
+- Artist: LYASeeK; source: <https://lyaseek.itch.io/miniffanimals>.
+- Free/name-your-own-price pack, downloaded September 16, 2026. Game use, including
+  commercial projects, is permitted; standalone asset resale is prohibited.
+- Eight unmodified outlined PNG sheets ship in `public/game-assets/minifolks-animals/`.
+  Native side-view animation is mirrored for left-facing movement. Roaming,
+  fleeing and hunting behavior are implemented by Dmap.
+- [Usage terms and source archive hash](public/game-assets/minifolks-animals/CREDITS.txt).
+
+### Momo Mama Slime — free demo
+
+- Artist: chiecola; source: <https://chiecola.itch.io/momo-mama-slime>.
+- Included: the unmodified free `mm-demo.png` under `public/game-assets/momo-slime/`.
+- Commercial/noncommercial game use and modification are permitted under the creator's
+  license; standalone resale/redistribution and crypto/blockchain/NFT use are prohibited.
+- [Provenance, license summary and animation notes](public/game-assets/momo-slime/CREDITS.md).
+- Crawl/idle frames are native; combat motion is implemented in Dmap. No paid files are included.
+- Green and blue are Dmap render palettes applied to the free pink sheet.
+
 ### Kenney Tiny Town 1.1
 
 - License: Creative Commons CC0 1.0 Universal
@@ -77,7 +97,41 @@ repository. No scenery from the linked Poly Pizza bundle is included.
   code-authored Dmap SVG artwork. See [Frosthavn artwork notes](public/game-assets/norse/README.md).
   Its surrounding LPC pine trees and rocks retain their existing scenery attribution.
 
+## Ornate Retro Pixel UI — free sample
+
+- Author: zLizard (z-spider).
+- Source: [Ornate Retro UI free sample](https://z-spider.itch.io/ornate-retro-ui-free-sample).
+- Free for personal and commercial projects; modifications are permitted within projects.
+  Redistribution or resale of the original assets as-is or in asset bundles is prohibited.
+- Dmap uses selected panel, button, arrow and divider slices as palette-adapted SVGs.
+  Native pixel geometry and the supplied Unity slicing coordinates are preserved.
+- [Credits](public/game-assets/ornate-retro/CREDITS.txt),
+  [source and transformation manifest](public/game-assets/ornate-retro/provenance.json).
+- The source archive is kept outside the runtime; `scripts/import-ornate-ui.py` reproduces
+  the selected UI assets from a locally downloaded copy.
+
+## HUD hearts and inventory icon
+
+- Health hearts: [ArtBIT — Healthbar sprite](https://opengameart.org/content/healthbar-sprite), CC0 1.0.
+  Unmodified `heart_27.png`; native full, half and empty frames displayed through SVG viewports.
+- Inventory chest: [Henrique Lazarini (7Soul1) — 496 RPG icons](https://opengameart.org/node/39455), CC0 1.0.
+  Unmodified `I_Chest01.png` from the public-domain collection.
+- Runtime files and [credits](public/game-assets/pixel-hud/CREDITS.txt) under `public/game-assets/pixel-hud/`.
+
+### Pixelarticons players icon
+
+- Author: Gerrit Halfmann; MIT license.
+- Source: [Pixelarticons users](https://github.com/halfmage/pixelarticons/blob/master/svg/users.svg).
+- Unmodified SVG path used in `RpgIcon.tsx`; [license](public/game-assets/pixel-hud/PIXELARTICONS-LICENSE.txt).
+
 ## Fonts
+
+### Alagard
+
+- Author: Hewett Tsoi.
+- Source: [Alagard](https://www.dafont.com/alagard.font), included with the Ornate Retro UI sample.
+- Listed as 100% free, with author credit required; used for in-game headings and controls.
+- Font and credit: `public/game-assets/ornate-retro/`.
 
 ### Pixelify Sans
 

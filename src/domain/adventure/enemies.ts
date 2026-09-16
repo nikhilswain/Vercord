@@ -1,6 +1,8 @@
 import { encounterLevelForPlayer, encounterPower, normalizeEncounterLevel } from './progression';
+import { WILDLIFE, type WildlifeKind } from './wildlife';
 
 export type CreatureKind =
+  | WildlifeKind
   | 'slime'
   | 'snake'
   | 'bear'
@@ -26,13 +28,29 @@ export interface EnemyDefinition {
   lungeMs: number;
   hitRadius: number;
   xp: number;
-  /** A native mouth-release attack, resolved at the same contact frame as melee. */
-  projectile?: { speed: number; range: number; count: number; spread: number };
+  /** Released at the authored attack frame; damage occurs when the shot reaches the player. */
+  projectile?: {
+    speed: number;
+    range: number;
+    count: number;
+    spread: number;
+    visual?: 'spark';
+    /** Ground-plane launch offset. X mirrors toward the target; Y accounts for the raised hand. */
+    origin?: { x: number; y: number };
+  };
   boss?: boolean;
 }
 
 /** Shared encounter balance; art adapters consume these authored attack timings. */
 export const ENEMY_DEFINITIONS: Readonly<Record<CreatureKind, Readonly<EnemyDefinition>>> = {
+  'wild-bird': WILDLIFE['wild-bird'].combat,
+  'wild-rabbit': WILDLIFE['wild-rabbit'].combat,
+  'wild-deer': WILDLIFE['wild-deer'].combat,
+  'wild-stag': WILDLIFE['wild-stag'].combat,
+  'wild-fox': WILDLIFE['wild-fox'].combat,
+  'wild-boar': WILDLIFE['wild-boar'].combat,
+  'wild-wolf': WILDLIFE['wild-wolf'].combat,
+  'wild-bear': WILDLIFE['wild-bear'].combat,
   'venus-trap': {
     name: 'Venus Trap',
     health: 85,
@@ -168,19 +186,39 @@ export const ENEMY_DEFINITIONS: Readonly<Record<CreatureKind, Readonly<EnemyDefi
     name: 'Forest skirmisher',
     health: 150,
     speed: 80,
-    reach: 100,
+    reach: 180,
     damage: 18,
-    aggro: 200,
+    aggro: 240,
     windupMs: 450,
     impactMs: 440,
     durationMs: 660,
     recoveryMs: 850,
-    lungeSpeed: 160,
-    lungeMs: 330,
+    lungeSpeed: 0,
+    lungeMs: 0,
     hitRadius: 42,
     xp: 40,
+    projectile: {
+      speed: 200,
+      range: 320,
+      count: 1,
+      spread: 0.2,
+      visual: 'spark',
+      origin: { x: 18, y: -28 },
+    },
   },
 };
+
+/** Shared launch point for the simulation and the visible casting hand. */
+export function enemyProjectileOrigin(
+  kind: CreatureKind,
+  position: { x: number; y: number },
+  target: { x: number; y: number },
+): { x: number; y: number } {
+  const offset = ENEMY_DEFINITIONS[kind].projectile?.origin;
+  return offset
+    ? { x: position.x + offset.x * (target.x < position.x ? -1 : 1), y: position.y + offset.y }
+    : { x: position.x, y: position.y };
+}
 
 export interface EnemySpawnOptions {
   elite?: boolean;

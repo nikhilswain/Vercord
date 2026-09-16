@@ -5,6 +5,7 @@ import type { ChannelMutationResult } from '../../src/domain/channels/protocol';
 import { z } from 'zod';
 import { parseAuthConfig, type AuthConfig } from '../auth/config';
 import { clearCookie, readCookie, setCookie } from '../auth/cookies';
+import { dashboardCache } from '../auth/dashboard-cache';
 import {
   createOpaqueToken,
   decryptSessionValue,
@@ -473,6 +474,17 @@ async function handleSession(request: Request, env: Env): Promise<Response> {
     if (authenticated === null) return unauthenticatedResponse(request);
 
     const { accessToken, config, idHash, now, repository, session } = authenticated;
+    const url = new URL(request.url);
+    const cacheKey = `${idHash}:${url.origin}`;
+    if (url.searchParams.get('refresh') === '1') dashboardCache.invalidateSession(idHash);
+    const cached = dashboardCache.read(cacheKey);
+    if (cached !== null) {
+      await repository.touchSession(idHash, now);
+      const response = noStoreJson(cached);
+      response.headers.set('vary', 'cookie');
+      return response;
+    }
+    const cacheGeneration = dashboardCache.generation;
     const sourceConfig = parseDiscordSourceConfig(env);
     const [guilds, botGuildIds] = await Promise.all([
       createDiscordOAuthClient(config).fetchGuilds(accessToken),
@@ -539,7 +551,7 @@ async function handleSession(request: Request, env: Env): Promise<Response> {
         return left.name.localeCompare(right.name);
       });
 
-    const response = noStoreJson({
+    const payload = {
       user: {
         id: session.userId,
         username: session.username,
@@ -547,7 +559,9 @@ async function handleSession(request: Request, env: Env): Promise<Response> {
         avatarUrl: avatarUrl(session.userId, session.avatarHash),
       },
       guilds: projectedGuilds,
-    });
+    };
+    dashboardCache.write(cacheKey, payload, cacheGeneration);
+    const response = noStoreJson(payload);
     response.headers.set('vary', 'cookie');
     return response;
   } catch (error) {
@@ -593,6 +607,7 @@ async function handleGuildSync(request: Request, env: Env, guildId: string): Pro
       const summary = await synchronizePrivateGuild(env, guildId);
       const syncedAt = Math.floor(Date.parse(summary.generatedAt) / 1_000);
       await createD1WorldRepository(config.database).recordSync(guildId, guildId, syncedAt);
+      dashboardCache.invalidateGuild(guildId);
       return noStoreJson({
         status: 'synced',
         guildId,
@@ -1034,7 +1049,9 @@ async function handleLogout(request: Request, env: Env): Promise<Response> {
   if (sessionId !== null) {
     try {
       const config = parseAuthConfig(env);
-      await createD1AuthRepository(config.database).deleteSession(await hashOpaqueToken(sessionId));
+      const idHash = await hashOpaqueToken(sessionId);
+      dashboardCache.invalidateSession(idHash);
+      await createD1AuthRepository(config.database).deleteSession(idHash);
     } catch {
       // Clearing the browser session still completes logout if storage is unavailable.
     }

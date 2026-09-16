@@ -1,5 +1,7 @@
 export type RpgIconName =
   | 'map'
+  | 'chat'
+  | 'players'
   | 'guide'
   | 'person'
   | 'menu'
@@ -16,6 +18,10 @@ export type RpgIconName =
   | 'muted';
 
 const paths: Record<RpgIconName, string> = {
+  chat: 'M4 3h16v2h2v12h-9v2h-2v2H7v-4H2V5h2ZM6 8h12M6 12h8',
+  // Pixelarticons users, MIT © Gerrit Halfmann. License in game-assets/pixel-hud/.
+  players:
+    'M5 2h6v2H5zm10 0h4v2h-4zM5 10h6v2H5zm10 0h4v2h-4zm4-6h2v6h-2zm-8 0h2v6h-2zM3 4h2v6H3zM0 18h2v4H0zm14 0h2v4h-2zm8 0h2v4h-2zM4 14h8v2H4zm12 0h4v2h-4zM2 16h2v2H2zm10 0h2v2h-2zm8 0h2v2h-2z',
   map: 'm3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16',
   guide: 'M4 3h6l2 2 2-2h6v16h-6l-2 2-2-2H4Zm8 2v16M7 7h2m-2 4h2m6-4h2m-2 4h2',
   person: 'M8 5h8v7H8Zm-3 16v-4l4-3h6l4 3v4M9 3v2m6-2v2',
@@ -39,8 +45,9 @@ export function RpgIcon({ name }: { name: RpgIconName }) {
       viewBox="0 0 24 24"
       width="22"
       height="22"
-      fill="none"
-      stroke="currentColor"
+      fill={name === 'players' ? 'currentColor' : 'none'}
+      stroke={name === 'players' ? 'none' : 'currentColor'}
+      shapeRendering={name === 'players' ? 'crispEdges' : undefined}
       strokeWidth="1.8"
       aria-hidden="true"
     >

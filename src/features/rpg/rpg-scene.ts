@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { WorldInput, worldInputBlocked } from '../world/engine/input';
+import { steppedZoom, wheelZoom } from './camera-zoom';
 import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { sampleSceneId, sceneDefinition, isHouseSceneId } from '../../domain/world/catalog/scenes';
@@ -65,7 +66,6 @@ export class RpgScene extends Phaser.Scene {
   private previousTap: { point: Point; time: number } | null = null;
   private following = true;
   private manualMovement = false;
-  private lastWheelTime = -Infinity;
   private talkingTo: string | null = null;
   private feedback: { message: string; until: number } | null = null;
   private pointerDrag: { id: number; start: Point; last: Point; dragging: boolean } | null = null;
@@ -366,6 +366,7 @@ export class RpgScene extends Phaser.Scene {
     if (interaction === 'talk') this.talkingTo = target.id;
     if ('lines' in target) {
       this.callbacks.onDialogue({
+        npcId: target.id,
         name: target.name,
         role: `${target.role} · NPC`,
         lines: target.lines,
@@ -386,26 +387,21 @@ export class RpgScene extends Phaser.Scene {
 
   public zoomBy(factor: number): void {
     if (!this.created) return;
+    this.applyZoom(
+      steppedZoom(this.cameras.main.zoom, factor, this.minimumZoom(), this.width < 700 ? 3 : 4),
+    );
+  }
+
+  private applyZoom(zoom: number): void {
     const camera = this.cameras.main;
-    const steps = [
-      this.minimumZoom(),
-      0.25,
-      0.5,
-      0.75,
-      1,
-      1.5,
-      2,
-      3,
-      ...(this.width < 700 ? [] : [4]),
-    ];
-    const current = camera.zoom;
-    const next =
-      factor > 1
-        ? steps.find((step) => step > current + 0.001)
-        : [...steps].reverse().find((step) => step < current - 0.001);
-    const center = { x: camera.scrollX + camera.width / 2, y: camera.scrollY + camera.height / 2 };
+    if (zoom === camera.zoom) return;
+    // At overview scale the bounds center the map. Re-anchor to the traveler
+    // immediately when zooming back in, before the follow loop can interpolate.
+    const center = this.following
+      ? { x: this.simulation.player.x, y: this.simulation.player.y - 18 }
+      : { x: camera.scrollX + camera.width / 2, y: camera.scrollY + camera.height / 2 };
     this.cancelPointer();
-    this.setCameraZoom(next ?? current);
+    this.setCameraZoom(zoom);
     camera.centerOn(center.x, center.y);
     this.publishUi();
   }
@@ -467,10 +463,21 @@ export class RpgScene extends Phaser.Scene {
   }
 
   // Equipment commands are intentionally available while its modal pauses simulation.
-  public equipWeapon(id: string): void {
-    if (!this.created || this.disposed) return;
-    if (this.activeAdventure()?.equip(id)) this.simulation.stop();
+  public equipWeapon(id: string): boolean {
+    if (!this.created || this.disposed) return false;
+    const equipped = this.simulation.sample.demo ? this.adventureJourney.supplies.equip(id) : false;
+    if (equipped) this.simulation.stop();
     this.publishUi();
+    return equipped;
+  }
+
+  public useInventoryItem(id: string) {
+    if (!this.created || this.disposed) return;
+    const result = this.simulation.sample.demo
+      ? this.adventureJourney.supplies.useInventoryItem(id, this.simulation.player)
+      : undefined;
+    this.publishUi();
+    return result;
   }
 
   public setEnemyLevel(level: number): void {
@@ -698,6 +705,8 @@ export class RpgScene extends Phaser.Scene {
         };
       const story = adventure.nearbyStory(this.simulation.player);
       if (story) state.nearby = { id: story.id, label: story.label, action: story.action };
+    } else if (this.simulation.sample.demo) {
+      state.adventure = { ...this.adventureJourney.supplies.status(), canAdjustEncounters: false };
     }
     const portal = this.simulation.sample.demo?.portals.find(
       (portal) => portal.id === state.nearby?.id,
@@ -910,11 +919,15 @@ export class RpgScene extends Phaser.Scene {
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
     if (this.inputBlocked || worldInputBlocked() || event.deltaY === 0) return;
-    // Trackpads emit many events per gesture; let each zoom level render before advancing.
-    const now = performance.now();
-    if (now - this.lastWheelTime < 120) return;
-    this.lastWheelTime = now;
-    this.zoomBy(event.deltaY < 0 ? 2 : 0.5);
+    this.applyZoom(
+      wheelZoom(
+        this.cameras.main.zoom,
+        event,
+        this.height,
+        this.minimumZoom(),
+        this.width < 700 ? 3 : 4,
+      ),
+    );
   };
   private readonly onBlur = (): void => {
     this.demoFocused = false;

@@ -50,6 +50,10 @@
         "name": "DISCORD_GATEWAY_BRIDGE",
         "class_name": "DiscordGatewayBridge",
       },
+      {
+        "name": "GAME_CHAT",
+        "class_name": "GameChat",
+      },
     ],
   },
   "migrations": [
@@ -60,6 +64,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["DiscordGatewayBridge"],
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["GameChat"],
     },
   ],
 }

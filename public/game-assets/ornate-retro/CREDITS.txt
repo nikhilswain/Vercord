@@ -1,0 +1,10 @@
+Ornate Retro Pixel UI — free sample, by zLizard (z-spider)
+https://z-spider.itch.io/ornate-retro-ui-free-sample
+Free for personal and commercial use; modifications permitted for your own projects.
+Do not redistribute/resell the original assets as-is or in asset bundles.
+Used within Dmap as palette-adapted SVG panel, button, arrow and ornament slices.
+Original geometry and Unity slice definitions are preserved; see provenance.json.
+
+Alagard by Hewett Tsoi
+https://www.dafont.com/alagard.font
+Listed as 100% free; the author's condition is credit. Included here with credit.

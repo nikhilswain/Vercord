@@ -1,0 +1,98 @@
+{
+  "source": "https://z-spider.itch.io/ornate-retro-ui-free-sample",
+  "creator": "zLizard",
+  "sourceArchiveSha256": "ff39174874b32742864fda07907f05eecdb9d15c01772457eb07891daaa5ff58",
+  "derivation": "Original sprite coordinates from the Unity metadata; exact pixel silhouettes exported as SVG paths with a forest/gold palette. No raster resampling.",
+  "slices": [
+    {
+      "file": "panel.svg",
+      "sourceSprite": "mainPanel9-Slice",
+      "sourceRect": [4, 6, 96, 96],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#887c50",
+        "86c06c": "#d6c28a"
+      }
+    },
+    {
+      "file": "panel-frame.svg",
+      "sourceSprite": "panelFrame9-Slice",
+      "sourceRect": [4, 118, 96, 96],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#887c50",
+        "86c06c": "#d6c28a"
+      }
+    },
+    {
+      "file": "button.svg",
+      "sourceSprite": "buttonNormal9-Slice",
+      "sourceRect": [116, 6, 48, 48],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#314434",
+        "86c06c": "#d6c28a"
+      }
+    },
+    {
+      "file": "button-hover.svg",
+      "sourceSprite": "buttonHovered9-Slice",
+      "sourceRect": [180, 6, 48, 48],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#887c50",
+        "86c06c": "#40523b"
+      }
+    },
+    {
+      "file": "button-pressed.svg",
+      "sourceSprite": "buttonPressed9-Slice",
+      "sourceRect": [244, 6, 48, 48],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#514a32",
+        "86c06c": "#d6c28a"
+      }
+    },
+    {
+      "file": "divider.svg",
+      "sourceSprite": "dividerMiddle",
+      "sourceRect": [132, 199, 48, 14],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#887c50",
+        "86c06c": "#d6c28a"
+      }
+    },
+    {
+      "file": "arrow-down.svg",
+      "sourceSprite": "downArrowLight",
+      "sourceRect": [332, 76, 16, 20],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#887c50",
+        "86c06c": "#d6c28a"
+      }
+    },
+    {
+      "file": "arrow-right.svg",
+      "sourceSprite": "rightArrowLight",
+      "sourceRect": [298, 46, 20, 16],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#887c50",
+        "86c06c": "#d6c28a"
+      }
+    },
+    {
+      "file": "settings.svg",
+      "sourceSprite": "settingsIcon",
+      "sourceRect": [361, 10, 22, 24],
+      "palette": {
+        "071821": "#14291f",
+        "306850": "#887c50",
+        "86c06c": "#d6c28a"
+      }
+    }
+  ]
+}

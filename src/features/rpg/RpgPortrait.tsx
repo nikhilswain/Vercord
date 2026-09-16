@@ -12,18 +12,20 @@ export function RpgPortrait({
   width = 64,
   height = 64,
   className = '',
+  crop = 'full',
 }: {
   appearance: string;
   width?: number;
   height?: number;
   className?: string;
+  crop?: 'full' | 'bust';
 }) {
   const id = useId();
   const character = getRpgCharacter(appearance);
   return (
     <svg
       className={`rpg-portrait ${className}`}
-      viewBox="12 4 40 60"
+      viewBox={crop === 'bust' ? '18 12 28 32' : '12 4 40 60'}
       width={width}
       height={height}
       aria-hidden="true"

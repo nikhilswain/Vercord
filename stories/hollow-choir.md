@@ -310,7 +310,7 @@ _A story completed_
 
 ## Current scope and future decisions
 
-- Current demo reward: the supply chest and reliquary each grant two healing herbs once. The field notes are a recorded story fact, not an equipment item.
+- Current demo reward: the supply chest and reliquary each grant two healing herbs once. The field notes appear in Quest items until handed back to Mira; story facts preserve their recovery and return.
 
 - A permanent rare item, loot table and equipment effects are reserved for a later design discussion.
 

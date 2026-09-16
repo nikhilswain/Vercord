@@ -2,9 +2,22 @@ import { containsPoint, resolveMovement } from '../../world/engine/collision';
 import type { Point, Rect } from '../../world/engine/types';
 import type { RpgDirection } from '../types';
 import {
+  createInventory,
+  sanitizeInventory,
+  grantItem,
+  takeItem,
+  itemCount,
+  getItem,
+  consumeItem,
+  type InventorySnapshot,
+  type UseItemResult,
+} from '../../../domain/adventure/inventory';
+import { wildlifeDefinition } from '../../../domain/adventure/wildlife';
+import {
   ENEMY_DEFINITIONS as STATS,
   spawnEnemyPower,
   enemyBehavior,
+  enemyProjectileOrigin,
   type EnemyBehavior,
 } from '../../../domain/adventure/enemies';
 import {
@@ -46,6 +59,10 @@ import type {
 
 export type EnemyPhase = 'idle' | 'walk' | 'windup' | 'attack' | 'hurt' | 'death';
 export interface Enemy extends EncounterSpawn {
+  sideFacing: 'left' | 'right';
+  roamAt: number;
+  roamTarget: Point;
+  provokedUntil: number;
   attackCount: number;
   behavior: Readonly<EnemyBehavior>;
   windupDurationMs: number;
@@ -86,13 +103,16 @@ export interface Projectile extends Point {
 export interface EnemyProjectile extends Point {
   id: number;
   owner: string;
+  visual: 'seed' | 'spark';
   velocity: Point;
   distance: number;
   range: number;
   damage: number;
   invulnerabilityMs: number;
 }
+export const MAX_ENEMY_PROJECTILES = 32;
 export interface AdventureTraveler {
+  inventory?: InventorySnapshot;
   progression: PlayerProgression;
   health: number;
   herbs: number;
@@ -107,6 +127,7 @@ export interface MeleeAttack {
   hit: boolean;
 }
 export interface AdventureOptions {
+  inventory?: InventorySnapshot;
   scenarioProgress?: ScenarioProgress;
   progression?: PlayerProgression;
   equipmentPolicy?: typeof NORMAL_EQUIPMENT_POLICY;
@@ -155,7 +176,17 @@ export class AdventureSession {
   readonly effects: AdventureEffect[] = [];
   readonly enemyProjectiles: EnemyProjectile[] = [];
   health = 100;
-  herbs = 1;
+  private inventory: InventorySnapshot;
+  get herbs(): number {
+    return itemCount(this.inventory, 'healing-herb');
+  }
+  set herbs(value: number) {
+    const current = this.herbs;
+    if (value > current)
+      this.inventory = grantItem(this.inventory, 'healing-herb', value - current);
+    else if (value < current)
+      this.inventory = takeItem(this.inventory, 'healing-herb', current - value) ?? this.inventory;
+  }
   time = 0;
   cast: SpellCast | null = null;
   melee: MeleeAttack | null = null;
@@ -167,7 +198,7 @@ export class AdventureSession {
   private readonly rewardedEnemies = new Set<string>();
   invincibleUntil = 0;
   private message =
-    'Aim with the cursor, then left click. 1 / 2 choose magic; 3 chooses your weapon. I opens equipment.';
+    'Aim with the cursor, then left click. 1 / 2 choose magic; 3 chooses your weapon. I opens inventory.';
   private messageUntil = 8;
   private attackReadyAt = 0;
   private sequence = 0;
@@ -190,6 +221,7 @@ export class AdventureSession {
     readonly casting = { durationMs: 700, releaseMs: 400 },
     readonly options: AdventureOptions = {},
   ) {
+    this.inventory = sanitizeInventory(options.inventory ?? createInventory());
     this.scenario = content.scenario
       ? new ScenarioSession(content.scenario, options.scenarioProgress ?? new ScenarioProgress())
       : null;
@@ -202,13 +234,17 @@ export class AdventureSession {
     this.encounterLevelValue = normalizeEncounterLevel(options.enemyLevelOverride ?? this.level);
     this.previousPlayer = { ...spawn };
     this.trapContacts = (content.traps ?? []).map(() => -Infinity);
-    this.enemies = content.enemies.map((entry) => {
+    this.enemies = content.enemies.map((entry, index) => {
       const power = spawnEnemyPower(entry.kind, this.level, {
         elite: entry.elite,
         levelOverride: options.enemyLevelOverride,
       });
       const behavior = enemyBehavior(entry.kind, power.level);
       return {
+        sideFacing: 'right',
+        roamAt: index * 0.37,
+        roamTarget: { x: entry.x, y: entry.y },
+        provokedUntil: 0,
         attackCount: 0,
         ...entry,
         ...power,
@@ -234,6 +270,10 @@ export class AdventureSession {
   status(): AdventureStatus {
     const boss = this.enemies.find((enemy) => STATS[enemy.kind].boss && this.isEnemyActive(enemy));
     return {
+      inventory: this.getInventory(),
+      equipment: this.getProgression(),
+      equipmentPolicy: this.options.equipmentPolicy ?? NORMAL_EQUIPMENT_POLICY,
+      canAdjustEncounters: this.options.enemyLevelOverride !== undefined,
       story: this.scenario?.objective(),
       boss: boss
         ? {
@@ -251,8 +291,8 @@ export class AdventureSession {
         (f) => f.kind === 'collection' && this.gathered.has(f.id),
       ).length,
       blossomGoal: this.content.flowers.filter((f) => f.kind === 'collection').length,
-      defeated: this.enemies.filter((e) => e.health === 0).length,
-      enemyGoal: this.enemies.length,
+      defeated: this.enemies.filter((e) => !wildlifeDefinition(e.kind) && e.health === 0).length,
+      enemyGoal: this.enemies.filter((e) => !wildlifeDefinition(e.kind)).length,
       message: this.time < this.messageUntil ? this.message : '',
       level: this.level,
       experience: this.experience,
@@ -387,6 +427,7 @@ export class AdventureSession {
         }
         continue;
       }
+      if (this.tickWildlife(enemy, player, dt)) continue;
       const inTerritory = distance(player, enemy.home) < stats.leash && !this.isSafe(player);
       const seesPlayer =
         inTerritory && distance(enemy, player) < stats.aggro && this.clearLine(enemy, player);
@@ -454,6 +495,10 @@ export class AdventureSession {
       interaction.grant?.some((flag) => !this.scenario!.progress.has(flag));
     const result = this.scenario.interact(interaction);
     this.herbs += result.herbs;
+    for (const item of result.items ?? [])
+      this.inventory = grantItem(this.inventory, item.id, item.quantity);
+    for (const item of result.removeItems ?? [])
+      this.inventory = takeItem(this.inventory, item.id, item.quantity) ?? this.inventory;
     this.syncScenarioCollision();
     if (present) {
       this.storyPresentation = {
@@ -488,6 +533,7 @@ export class AdventureSession {
 
   traveler(): AdventureTraveler {
     return {
+      inventory: this.getInventory(),
       progression: this.getProgression(),
       health: this.health,
       herbs: this.herbs,
@@ -504,7 +550,10 @@ export class AdventureSession {
         this.options.equipmentPolicy,
       );
       this.health = traveler.health;
-      this.herbs = traveler.herbs;
+      this.inventory = traveler.inventory
+        ? sanitizeInventory(traveler.inventory)
+        : { version: 1, stacks: [] };
+      if (!traveler.inventory) this.herbs = traveler.herbs;
       this.spell = traveler.spell;
       this.combatMode = traveler.combatMode;
     }
@@ -523,6 +572,7 @@ export class AdventureSession {
     this.trapContacts.fill(-Infinity);
     for (const enemy of this.enemies) {
       enemy.comboRemaining = 0;
+      enemy.provokedUntil = 0;
       enemy.burningUntil = 0;
       enemy.slowedUntil = 0;
       if (enemy.health > 0) {
@@ -573,6 +623,9 @@ export class AdventureSession {
         readyAt: this.time + 1,
         hit: false,
         burnTickAt: 0,
+        provokedUntil: 0,
+        roamAt: this.time + 1,
+        roamTarget: { ...enemy.home },
       });
     }
     this.say(`Level ${this.enemies[0]?.level ?? 1} encounters reset. Flowers and XP kept.`, 6);
@@ -647,15 +700,17 @@ export class AdventureSession {
     const shot = profile.projectile!;
     const enraged = profile.boss && enemy.health <= enemy.maxHealth / 2;
     const count = shot.count + (enraged ? 2 : enemy.level >= 10 && !profile.boss ? 2 : 0);
-    const angle = Math.atan2(enemy.target.y - enemy.y, enemy.target.x - enemy.x);
+    const origin = enemyProjectileOrigin(enemy.kind, enemy, enemy.target);
+    if (!this.clearLine(enemy, origin)) return;
+    const angle = Math.atan2(enemy.target.y - origin.y, enemy.target.x - origin.x);
     const speed = shot.speed * (1 + Math.max(0, enemy.level - 5) * 0.035);
-    for (let i = 0; i < count && this.enemyProjectiles.length < 32; i++) {
+    for (let i = 0; i < count && this.enemyProjectiles.length < MAX_ENEMY_PROJECTILES; i++) {
       const a = angle + (i - (count - 1) / 2) * shot.spread;
       this.enemyProjectiles.push({
         id: ++this.sequence,
         owner: enemy.id,
-        x: enemy.x,
-        y: enemy.y,
+        visual: shot.visual ?? 'seed',
+        ...origin,
         velocity: { x: Math.cos(a) * speed, y: Math.sin(a) * speed },
         distance: 0,
         range: shot.range,
@@ -687,7 +742,11 @@ export class AdventureSession {
             this.health = Math.max(0, this.health - p.damage);
             this.invincibleUntil = this.time + p.invulnerabilityMs / 1000;
             this.effect(player, 'hit');
-            this.say('Spore hit! Move across the volley; H uses a healing herb.');
+            this.say(
+              p.visual === 'spark'
+                ? 'Spark hit! Sidestep the shot; H uses a healing herb.'
+                : 'Spore hit! Move across the volley; H uses a healing herb.',
+            );
           }
           expired = true;
         }
@@ -795,23 +854,35 @@ export class AdventureSession {
   private damage(enemy: Enemy, amount: number, spell: CombatMode, stagger = true): void {
     if (enemy.health === 0 || !this.isEnemyActive(enemy)) return;
     enemy.health = Math.max(0, enemy.health - amount);
+    enemy.provokedUntil = this.time + 12;
     if (enemy.health === 0) {
       this.phase(enemy, 'death');
       for (let i = this.enemyProjectiles.length - 1; i >= 0; i--)
         if (this.enemyProjectiles[i]!.owner === enemy.id) this.enemyProjectiles.splice(i, 1);
       this.effect(
         enemy,
-        enemy.kind === 'guardian' || enemy.kind === 'snake'
-          ? 'poison-death'
-          : spell === 'fire'
-            ? 'fire-death'
-            : spell === 'water'
-              ? 'water-death'
-              : 'hit',
+        wildlifeDefinition(enemy.kind)
+          ? 'hit'
+          : enemy.kind === 'guardian' || enemy.kind === 'snake'
+            ? 'poison-death'
+            : spell === 'fire'
+              ? 'fire-death'
+              : spell === 'water'
+                ? 'water-death'
+                : 'hit',
       );
       if (!this.rewardedEnemies.has(enemy.id)) {
         this.rewardedEnemies.add(enemy.id);
         this.reward(STATS[enemy.kind].xp, enemy);
+        const wildlife = wildlifeDefinition(enemy.kind);
+        if (wildlife) {
+          for (const drop of wildlife.loot)
+            this.inventory = grantItem(this.inventory, drop.id, drop.quantity);
+          this.say(
+            `${wildlife.loot.map((drop) => `+${drop.quantity} ${getItem(drop.id)!.name}`).join(' · ')} — added to inventory.`,
+            5,
+          );
+        }
       }
       if (STATS[enemy.kind].boss)
         this.say(
@@ -857,6 +928,7 @@ export class AdventureSession {
     if (!flower) return false;
     this.gathered.add(flower.id);
     if (flower.kind === 'healing') this.herbs++;
+    else this.inventory = grantItem(this.inventory, 'moonblossom', 1);
     this.effect(flower, 'gather');
     this.say(
       flower.kind === 'healing'
@@ -868,19 +940,83 @@ export class AdventureSession {
   }
 
   heal(player: Point): void {
-    if (this.health === 100) {
-      this.say('You are already at full health. Save your herbs.');
-      return;
+    this.useInventoryItem('healing-herb', player);
+  }
+
+  getInventory(): InventorySnapshot {
+    return { version: 1, stacks: this.inventory.stacks.map((stack) => ({ ...stack })) };
+  }
+
+  useInventoryItem(id: string, player: Point): UseItemResult {
+    const result = consumeItem(this.inventory, id, this.health, 100);
+    if (result.success) {
+      this.inventory = result.inventory;
+      this.health = result.health;
+      this.effect(player, 'heal');
+      this.say(`Restored ${result.restored} health.`);
+    } else
+      this.say(
+        {
+          missing: 'None left. Gather supplies along the trail.',
+          cooking: 'This needs cooking. Save it for a future meal at camp.',
+          'not-consumable': 'This item cannot be consumed.',
+          'full-health': 'You are already at full health. Save your supplies.',
+        }[result.reason],
+      );
+    return result;
+  }
+
+  /** Wildlife shares damage/collision rules, but never attacks merely on contact. */
+  private tickWildlife(enemy: Enemy, player: Point, dt: number): boolean {
+    const wildlife = wildlifeDefinition(enemy.kind);
+    if (!wildlife) return false;
+    const close = this.clearLine(enemy, player);
+    if (
+      wildlife.temperament === 'defensive' &&
+      this.time < enemy.provokedUntil &&
+      close &&
+      !this.isSafe(player) &&
+      distance(player, enemy.home) < enemy.behavior.leash
+    )
+      return false;
+    if (
+      wildlife.temperament === 'timid' &&
+      close &&
+      distance(enemy, player) < wildlife.fleeRadius
+    ) {
+      const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+      this.phase(enemy, 'walk');
+      // Try alternate escape headings when trees or water block the direct route.
+      for (const turn of [0, 0.8, -0.8, 1.5, -1.5]) {
+        const before = { x: enemy.x, y: enemy.y };
+        this.move(
+          enemy,
+          { x: enemy.x + Math.cos(angle + turn) * 90, y: enemy.y + Math.sin(angle + turn) * 90 },
+          enemy.behavior.speed * (this.time < enemy.slowedUntil ? 0.45 : 1),
+          dt,
+          false,
+        );
+        if (distance(before, enemy) > 0.1) break;
+      }
+      enemy.roamAt = this.time + 2;
+      return true;
     }
-    if (this.herbs === 0) {
-      this.say('No herbs left. Gather a golden flower with E.');
-      return;
+    if (this.time >= enemy.roamAt) {
+      const seed = [...enemy.id].reduce((value, character) => value + character.charCodeAt(0), 0);
+      const angle = seed * 2.4 + Math.floor(this.time / 4) * 1.7;
+      enemy.roamTarget = {
+        x: enemy.home.x + Math.cos(angle) * wildlife.roamRadius,
+        y: enemy.home.y + Math.sin(angle) * wildlife.roamRadius * 0.65,
+      };
+      enemy.roamAt = this.time + 4;
     }
-    this.herbs--;
-    const restored = Math.min(40, 100 - this.health);
-    this.health = Math.min(100, this.health + 40);
-    this.effect(player, 'heal');
-    this.say(`Restored ${restored} health.`);
+    if (enemy.roamAt - this.time < 2 || distance(enemy, enemy.roamTarget) < 22)
+      this.phase(enemy, 'idle');
+    else {
+      this.phase(enemy, 'walk');
+      this.move(enemy, enemy.roamTarget, enemy.behavior.speed * 0.35, dt, false);
+    }
+    return true;
   }
 
   rest(): void {
@@ -974,6 +1110,7 @@ export class AdventureSession {
     );
     enemy.x = next.x + size;
     enemy.y = next.y + 8;
+    if (Math.abs(dx) > 0.01) enemy.sideFacing = dx < 0 ? 'left' : 'right';
   }
   private advanceLunge(enemy: Enemy, fromMs: number, toMs: number): void {
     const until = enemy.behavior.lungeMs;

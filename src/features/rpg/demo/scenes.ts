@@ -54,7 +54,23 @@ export function buildComparisonVillage(): RpgSample {
     'Choose your traveler in Look. Your appearance stays with you as you explore and learn magic.',
     'The northwest grove opens into Mosswild Jungle. Slimes, wild animals and collectible flowers wait along the trail. Press E by the jungle sign to enter.',
   ];
+  addChatGuide(sample);
   return sample;
+}
+
+function addChatGuide(sample: RpgSample): void {
+  sample.npcs.push({
+    id: 'demo-chat-guide',
+    name: 'Wren',
+    role: 'Trail companion',
+    appearance: 'emery',
+    direction: 'down',
+    x: sample.spawn.x - 64,
+    y: sample.spawn.y + 48,
+    lines: [
+      'A trail is better with company. Join my party and we can keep in touch. I’m a demo companion, so my chat replies are scripted.',
+    ],
+  });
 }
 
 export function buildJungleDemo(): RpgSample {
@@ -66,20 +82,30 @@ export function buildJungleDemo(): RpgSample {
   );
   sample.bounds = { x: 0, y: 0, width: 46 * 32, height: 38 * 32 };
   sample.background = '#4d8231';
+  addChatGuide(sample);
   const jungle: JungleDefinition = {
     safeAreas: [
       { x: 0, y: 31 * 32, width: 46 * 32, height: 7 * 32 },
       { x: 40 * 32, y: 20 * 32, width: 6 * 32, height: 7 * 32 },
     ],
     enemies: [
-      { id: 'slime-south', kind: 'slime', ...at(23, 28) },
+      { id: 'slime-south', kind: 'slime', variant: 'pink', ...at(23, 28) },
       { id: 'slime-west', kind: 'slime', variant: 'green', ...at(18, 23) },
-      { id: 'slime-east', kind: 'slime', ...at(28, 23) },
+      { id: 'slime-east', kind: 'slime', variant: 'blue', ...at(28, 23) },
       { id: 'snake-fern', kind: 'snake', ...at(12, 20) },
       { id: 'bear-hollow', kind: 'bear', ...at(36, 23) },
       { id: 'bloom-guardian', kind: 'guardian', elite: true, ...at(23, 14.5) },
       { id: 'fern-brute', kind: 'forest-brute', elite: true, ...at(12, 13) },
       { id: 'pool-skirmisher', kind: 'forest-skirmisher', elite: true, ...at(28, 12) },
+      { id: 'wild-rabbit-camp', kind: 'wild-rabbit', ...at(19, 29) },
+      { id: 'wild-rabbit-fern', kind: 'wild-rabbit', ...at(14, 25) },
+      { id: 'wild-bird-trail', kind: 'wild-bird', ...at(27, 29) },
+      { id: 'wild-deer-meadow', kind: 'wild-deer', ...at(9, 24) },
+      { id: 'wild-stag-meadow', kind: 'wild-stag', ...at(10, 27) },
+      { id: 'wild-fox-east', kind: 'wild-fox', ...at(36, 29) },
+      { id: 'wild-boar-west', kind: 'wild-boar', ...at(8, 18) },
+      { id: 'wild-wolf-north', kind: 'wild-wolf', ...at(17, 9) },
+      { id: 'wild-bear-north', kind: 'wild-bear', ...at(41, 19) },
     ],
     flowers: [
       { id: 'herb-camp', kind: 'healing', ...at(20.5, 32.5) },

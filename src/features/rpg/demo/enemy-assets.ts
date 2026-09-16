@@ -139,6 +139,7 @@ export const FOREST_ENEMY_ASSETS: Readonly<Record<ForestEnemyId, ForestEnemyAsse
           down: [26, 27, 28, 29, 30, 31],
         },
         impactAtMs: 440,
+        windupEndAtMs: 220,
       },
       hurt: {
         durationMs: 240,
@@ -162,11 +163,12 @@ export const FOREST_ENEMY_ASSETS: Readonly<Record<ForestEnemyId, ForestEnemyAsse
       },
     },
     animationNotes: [
-      'Yellow-marked forest fighter, character 3 from the separately licensed animated forest bosses pack; not from the requested modular vector tribal pack.',
+      'Yellow-marked forest caster, character 3 from the separately licensed animated forest bosses pack; not from the requested modular vector tribal pack.',
       'Source faces left. Right frames are exact horizontal mirrors; up/down reuse the right side view.',
       'Constant empty margins removed without clipping any source alpha. Shared foot anchor is (40,48) in 80x48 cells.',
       'Only the listed real frame indices are playable; transparent atlas padding is excluded.',
       'Cycle and impact timing are demo choices rather than author-provided timings.',
+      'Standing cast: preparation plays during windup; the bright-hand frame releases 3/Projectile.png.',
     ],
   },
 };

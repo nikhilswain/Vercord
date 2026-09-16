@@ -44,6 +44,7 @@ function validEnv(): Env {
     AUTH_DB: {} as D1Database,
     WORLD_PRESENCE: {} as Env['WORLD_PRESENCE'],
     DISCORD_GATEWAY_BRIDGE: {} as Env['DISCORD_GATEWAY_BRIDGE'],
+    GAME_CHAT: {} as Env['GAME_CHAT'],
   };
 }
 

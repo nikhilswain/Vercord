@@ -13,6 +13,7 @@ import type {
 } from '../../domain/presence/rpg-protocol';
 import type { RpgSceneId } from '../../domain/world/catalog/scenes';
 import type { AdventureStatus, DemoArea, DemoSceneContent, SpellId } from './demo/types';
+import type { UseItemResult } from '../../domain/adventure/inventory';
 import type { ScenarioSprite } from './adventure/scenario-renderer';
 import type { RitualSeal } from './adventure/ritual-seal-assets';
 
@@ -79,6 +80,7 @@ export interface RpgUiState {
 }
 
 export interface RpgDialogue {
+  npcId?: string;
   closeLabel?: string;
   name: string;
   role: string;
@@ -113,7 +115,8 @@ export interface RpgRuntime {
   heal?(): void;
   selectSpell?(spell: SpellId): void;
   selectMelee?(): void;
-  equipWeapon?(id: string): void;
+  equipWeapon?(id: string): boolean;
+  useInventoryItem?(id: string): UseItemResult | undefined;
   setEnemyLevel?(level: number): void;
   zoomBy(factor: number): void;
   center(): void;

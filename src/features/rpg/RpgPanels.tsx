@@ -1,5 +1,6 @@
-import { Dialog } from '../../components/Dialog';
-import { EquipmentDialog } from './demo/EquipmentDialog';
+import { RpgDialog } from './ui/RpgDialog';
+import { InventoryDialog } from './inventory/InventoryDialog';
+import type { UseItemResult } from '../../domain/adventure/inventory';
 import { GameSettingsDialog } from '../settings/GameSettingsDialog';
 import type { GameMusicControls } from '../audio/use-game-music';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
@@ -20,7 +21,7 @@ const titles: Record<RpgPanel, string> = {
   guide: 'A traveler’s guide',
   appearance: 'Choose your traveler',
   menu: 'By the wayside',
-  equipment: 'Equipment',
+  equipment: 'Inventory',
   settings: 'Settings',
 };
 
@@ -44,7 +45,8 @@ interface Props {
   onClose(): void;
   onSettings(): void;
   music: GameMusicControls;
-  onEquip(id: string): void;
+  onEquip(id: string): boolean;
+  onUseItem(id: string): UseItemResult | undefined;
   onApplyEnemyLevel(level: number): void;
   onTheme(destination: RpgDestination): void;
   onAppearance(id: string): void;
@@ -64,6 +66,7 @@ export function RpgPanels({
   onSettings,
   music,
   onEquip,
+  onUseItem,
   onApplyEnemyLevel,
   onTheme,
   onAppearance,
@@ -74,11 +77,12 @@ export function RpgPanels({
     return <GameSettingsDialog music={music} demo={!server} onClose={onClose} />;
   if (panel === 'equipment' && ui.adventure)
     return (
-      <EquipmentDialog
+      <InventoryDialog
         open
         status={ui.adventure}
         onClose={onClose}
         onEquip={onEquip}
+        onUseItem={onUseItem}
         onApplyEnemyLevel={onApplyEnemyLevel}
       />
     );
@@ -107,7 +111,7 @@ export function RpgPanels({
     );
   }
   return (
-    <Dialog
+    <RpgDialog
       open={panel !== null}
       title={
         panel === 'map' && house
@@ -126,13 +130,6 @@ export function RpgPanels({
         </button>
       }
     >
-      <button
-        className="rpg-icon-button rpg-panel-close"
-        aria-label="Close panel"
-        onClick={onClose}
-      >
-        <RpgIcon name="close" />
-      </button>
       {panel === 'map' &&
         (server?.town && !house ? (
           <RpgTownMap
@@ -152,7 +149,7 @@ export function RpgPanels({
           {sample.demo && (
             <p>
               <strong>Mosswild Jungle:</strong> follow the northwest village path and press E at the
-              jungle sign. I opens equipment: all 24 weapons are available here. Press 3 to use your
+              jungle sign. I opens inventory: all 24 weapons are available here. Press 3 to use your
               weapon. Aim with the cursor and left click, or tap a spot, to attack. WASD moves; J
               and the attack button use your facing direction. Press 1 for Ember, or 2 for Tide
               after reaching level 2. Spells fly straight with limited range; aim ahead of moving
@@ -245,7 +242,7 @@ export function RpgPanels({
         <>
           <button className="rpg-destination rpg-menu-settings" onClick={onSettings}>
             <span className="rpg-destination-mark" aria-hidden="true">
-              <RpgIcon name="settings" />
+              <img src="/game-assets/ornate-retro/settings.svg" width="24" height="24" alt="" />
             </span>
             <span className="rpg-destination-copy">
               <strong>Settings</strong>
@@ -317,11 +314,33 @@ export function RpgPanels({
           </nav>
           <details className="rpg-credits">
             <summary>Art &amp; font credits</summary>
+            <p>
+              UI art: zLizard’s Ornate Retro UI free sample. Alagard font: Hewett Tsoi.{' '}
+              <a href="/game-assets/ornate-retro/CREDITS.txt" target="_blank" rel="noreferrer">
+                UI art &amp; font credits
+              </a>{' '}
+              Hearts by ArtBIT; inventory icon by 7Soul1 (CC0).{' '}
+              <a href="/game-assets/pixel-hud/CREDITS.txt" target="_blank" rel="noreferrer">
+                HUD icon credits
+              </a>
+            </p>
             {!server && world === 'village' && (
               <p>
-                Jungle bear and snake: Electric Lemon; slime: rvros (CC0).{' '}
+                Forest wildlife: LYASeeK.{' '}
+                <a
+                  href="/game-assets/minifolks-animals/CREDITS.txt"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  MiniFolks credits
+                </a>
+                . Jungle bear and snake: Electric Lemon.{' '}
                 <a href="/game-assets/jungle-demo/CREDITS.md" target="_blank" rel="noreferrer">
                   Jungle sources &amp; licenses
+                </a>
+                . Slimes: chiecola’s Momo Mama free demo, with recolors and combat motion by Dmap.{' '}
+                <a href="/game-assets/momo-slime/CREDITS.md" target="_blank" rel="noreferrer">
+                  Slime source &amp; license
                 </a>
                 . Spells, traps and forest guardian: CraftPix.{' '}
                 <a href="/game-assets/magic-demo/CREDITS.md" target="_blank" rel="noreferrer">
@@ -394,6 +413,6 @@ export function RpgPanels({
           </details>
         </>
       )}
-    </Dialog>
+    </RpgDialog>
   );
 }

@@ -128,17 +128,9 @@ function AtlasSession({
   );
   return (
     <div className="atlas-shell">
-      <header className="atlas-header">
-        <span className="atlas-brand">
-          <AtlasIcon name="region" />
-          Dmap
-        </span>
-        <span className="atlas-tab">The atlas</span>
-        <button onClick={onClose} className="atlas-exit" aria-label="Back to exploring">
-          <AtlasIcon name="close" />
-          <span>Back to exploring</span>
-        </button>
-      </header>
+      <button onClick={onClose} className="atlas-exit" aria-label="Back to exploring">
+        <AtlasIcon name="close" />
+      </button>
       <main className="atlas-main" data-detail={selection.detailed}>
         <section className="atlas-stage" aria-label="Interactive atlas">
           <div className="atlas-map-heading">

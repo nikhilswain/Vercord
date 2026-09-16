@@ -146,8 +146,16 @@ export function buildFernHollow(): RpgSample {
       { id: 'hollow-blue-fern', kind: 'blue-death', ...at(12, 15) },
       { id: 'hollow-venus-grove', kind: 'venus-trap', ...at(26, 17) },
       { id: 'hollow-blue-ruins', kind: 'blue-death', ...at(37, 17) },
-      { id: 'hollow-slime-blue', kind: 'slime', ...at(34, 29) },
+      { id: 'hollow-slime-blue', kind: 'slime', variant: 'blue', ...at(34, 29) },
       { id: 'hollow-snake', kind: 'snake', ...at(40, 25) },
+      { id: 'hollow-rabbit', kind: 'wild-rabbit', ...at(9, 33) },
+      { id: 'hollow-bird', kind: 'wild-bird', ...at(17, 20) },
+      { id: 'hollow-fox', kind: 'wild-fox', ...at(31, 32) },
+      { id: 'hollow-deer', kind: 'wild-deer', ...at(24, 22) },
+      { id: 'hollow-stag', kind: 'wild-stag', ...at(27, 23) },
+      { id: 'hollow-boar', kind: 'wild-boar', ...at(9, 18) },
+      { id: 'hollow-wolf', kind: 'wild-wolf', ...at(38, 12) },
+      { id: 'hollow-bear', kind: 'wild-bear', ...at(43, 30) },
     ],
     flowers: [
       { id: 'hollow-herb-arrival', kind: 'healing', ...at(6, 32) },
@@ -226,6 +234,8 @@ export function buildTempleDemo(): RpgSample {
     enemies: [
       { id: 'temple-venus-west', kind: 'venus-trap', ...at(15, 29) },
       { id: 'temple-blue-east', kind: 'blue-death', ...at(30, 28) },
+      { id: 'temple-rabbit', kind: 'wild-rabbit', ...at(15, 34) },
+      { id: 'temple-bird', kind: 'wild-bird', ...at(29, 34) },
       {
         id: 'temple-root-beast',
         kind: 'root-beast',

@@ -7,7 +7,7 @@ import type { MapRoom } from '../../domain/map/snapshot';
 import { Dialog } from '../../components/Dialog';
 import { VirtualJoystick } from '../world/VirtualJoystick';
 import { RPG_APPEARANCES } from './character';
-import { RpgIcon, type RpgIconName } from './RpgIcon';
+import { RpgIcon } from './RpgIcon';
 import { RpgPanels, type RpgPanel } from './RpgPanels';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgRoute, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgDialogue, RpgSample, RpgUiState } from './types';
@@ -16,13 +16,20 @@ import type { RpgConnection } from './use-rpg-presence';
 import type { RpgVoiceController } from './use-rpg-voice';
 import { RpgChannelPanel, RpgVoiceStatus } from './RpgChannelPanel';
 import { RpgHouseRoster } from './RpgHouseRoster';
-import { RpgPortrait } from './RpgPortrait';
 import { AdventureHud } from './demo/AdventureHud';
 import type { DemoArea } from './demo/types';
 import { useGameMusic } from '../audio/use-game-music';
+import { PlayerHud } from './ui/PlayerHud';
+import { ObjectiveTracker } from './ui/ObjectiveTracker';
+import { DialoguePanel } from './ui/DialoguePanel';
+import { useGameChat } from './chat/use-game-chat';
+import { GameChatPanel, GameChatToggle } from './chat/GameChatPanel';
+import { PartyIndicator, PartyInvitation, PlayersButton, SocialPanel } from './chat/SocialPanel';
+import { CHAT_GUIDE_ID, CHAT_GUIDE, DemoChatTransport } from './chat/demo';
 import './rpg.css';
 import './rpg-house.css';
 import './demo/demo.css';
+import './ui/ornate-ui.css';
 
 function houseTravelers(
   house: HouseSceneId | undefined,
@@ -40,11 +47,11 @@ function houseTravelers(
   ];
 }
 
-const actions: Array<{ panel: RpgPanel; icon: RpgIconName; label: string }> = [
-  { panel: 'map', icon: 'map', label: 'Map' },
-  { panel: 'guide', icon: 'guide', label: 'Guide' },
-  { panel: 'appearance', icon: 'person', label: 'Look' },
-  { panel: 'menu', icon: 'menu', label: 'Menu' },
+const actions: Array<{ panel: RpgPanel; label: string }> = [
+  { panel: 'map', label: 'Map' },
+  { panel: 'guide', label: 'Guide' },
+  { panel: 'appearance', label: 'Look' },
+  { panel: 'menu', label: 'Menu' },
 ];
 
 interface Props {
@@ -86,7 +93,6 @@ export function RpgPlayPage({
   pendingState,
 }: Props) {
   const { theme, world } = route;
-  const music = useGameMusic(!server);
   const [appearances, setAppearances] = useState<Record<RpgWorldId, string>>(
     () =>
       Object.fromEntries(
@@ -98,6 +104,16 @@ export function RpgPlayPage({
   const [speech, setSpeech] = useState<RpgDialogue | null>(null);
   const [channelOpen, setChannelOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
+  const [gameChatOpen, setGameChatOpen] = useState(false);
+  const [socialPanel, setSocialPanel] = useState<'players' | null>(null);
+  const [socialFocused, setSocialFocused] = useState(false);
+  const chat = useGameChat(server?.guildId);
+  useEffect(() => {
+    const update = () => chat.client.presence(sample.name, document.visibilityState === 'hidden');
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, [chat, sample.name]);
   const houseRoom = server?.bindings.find((binding) => binding.landmarkId === route.house)
     ?.rooms[0];
   const channelRoom: MapRoom | null = houseRoom ? { ...houseRoom, order: 0 } : null;
@@ -124,7 +140,6 @@ export function RpgPlayPage({
   }));
   const traveler =
     RPG_APPEARANCES.find((option) => option.id === appearance) ?? RPG_APPEARANCES[0]!;
-  const speaker = RPG_APPEARANCES.find((option) => option.id === speech?.appearance);
   const travel = useCallback(
     (destination: RpgDestination) => {
       onTravel(destination);
@@ -171,6 +186,7 @@ export function RpgPlayPage({
       panel !== null ||
       speech !== null ||
       channelOpen ||
+      socialFocused ||
       rosterOpen,
     onUi: setUi,
     onDialogue: talk,
@@ -183,9 +199,57 @@ export function RpgPlayPage({
     playerPosition: server?.connection?.position,
   });
   const suspended = Boolean(pendingState) || networkPending || status !== 'ready' || demoTransition;
+  const music = useGameMusic(!server, status === 'ready' && !pendingState && !networkPending);
   const hasAdventure = Boolean(ui.adventure);
+  const openGameChat = useCallback(() => {
+    setSocialPanel(null);
+    setGameChatOpen(true);
+  }, []);
+  const closeGameChat = useCallback(() => setGameChatOpen(false), []);
+  const openPlayers = useCallback(() => {
+    setGameChatOpen(false);
+    setSocialPanel('players');
+  }, []);
+  const closeSocial = useCallback(() => setSocialPanel(null), []);
+  const messagePlayer = useCallback(
+    (peerId: string) => {
+      setSocialPanel(null);
+      setGameChatOpen(true);
+      chat.client.direct(peerId);
+    },
+    [chat],
+  );
+  const openPartyChat = useCallback(
+    (roomId: string) => {
+      setSocialPanel(null);
+      setGameChatOpen(true);
+      chat.client.select(roomId);
+    },
+    [chat],
+  );
   useEffect(() => {
-    if (suspended || !hasAdventure || panel || speech || channelOpen || rosterOpen) return;
+    if (suspended || panel || speech || channelOpen || rosterOpen || gameChatOpen) return;
+    const openChat = (event: KeyboardEvent) => {
+      if (
+        event.code !== 'KeyT' ||
+        event.repeat ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.metaKey ||
+        worldInputBlocked(event.target)
+      )
+        return;
+      event.preventDefault();
+      openGameChat();
+    };
+    window.addEventListener('keydown', openChat);
+    return () => window.removeEventListener('keydown', openChat);
+  }, [suspended, panel, speech, channelOpen, rosterOpen, gameChatOpen, openGameChat]);
+  useEffect(() => {
+    if (suspended || !hasAdventure || panel || speech || channelOpen || rosterOpen || gameChatOpen)
+      return;
     const openEquipment = (event: KeyboardEvent) => {
       if (
         event.code !== 'KeyI' ||
@@ -203,7 +267,7 @@ export function RpgPlayPage({
     };
     window.addEventListener('keydown', openEquipment);
     return () => window.removeEventListener('keydown', openEquipment);
-  }, [suspended, hasAdventure, panel, speech, channelOpen, rosterOpen]);
+  }, [suspended, hasAdventure, panel, speech, channelOpen, rosterOpen, gameChatOpen]);
   const [overlayOwner, setOverlayOwner] = useState({
     sample,
     navigationKey,
@@ -234,6 +298,9 @@ export function RpgPlayPage({
     setLine(0);
     setChannelOpen(false);
     setRosterOpen(false);
+    setGameChatOpen(false);
+    setSocialPanel(null);
+    setSocialFocused(false);
   }
   const advance = useCallback(() => {
     if (speech && line < speech.lines.length - 1) setLine((value) => value + 1);
@@ -249,6 +316,7 @@ export function RpgPlayPage({
     if (!speech) return;
     const handle = (event: KeyboardEvent) => {
       if (event.repeat || event.isComposing) return;
+      if (speech.npcId === CHAT_GUIDE_ID) return;
       if (
         event.code === 'Enter' &&
         event.target instanceof HTMLElement &&
@@ -284,6 +352,8 @@ export function RpgPlayPage({
       data-game-theme={theme}
       data-demo-area={sample.demo?.area}
       data-adventure={Boolean(sample.demo?.jungle)}
+      data-ui="ornate"
+      data-dialogue={!suspended && speech !== null}
     >
       <div
         ref={hostRef}
@@ -302,31 +372,47 @@ export function RpgPlayPage({
       <div
         className="rpg-hud"
         style={pendingState ? { visibility: 'hidden' } : undefined}
-        inert={suspended}
+        inert={suspended || speech !== null}
       >
-        <button
-          className="rpg-identity rpg-frame"
-          onClick={() => setPanel('appearance')}
-          aria-label={`Change appearance${server ? ` for ${server.playerName}` : ''}, currently ${traveler.name}`}
-        >
-          <RpgPortrait appearance={traveler.id} width={56} height={56} />
-          <span>
-            <strong>{server?.playerName ?? traveler.name}</strong>
-            <small>{server ? `${traveler.name} · You` : 'Traveler · You'}</small>
-          </span>
-        </button>
-        <header className="rpg-location rpg-frame">
-          <span
-            className={server ? 'rpg-kicker rpg-kicker--server' : 'rpg-kicker'}
-            title={server?.displayName}
-          >
-            {sample.demo?.jungle
-              ? 'Forest adventure'
-              : route.house
-                ? 'Inside a channel house'
-                : RPG_THEMES[theme].label}
-            {server?.town?.continuous ? '' : ` · ${server?.displayName ?? 'Local preview'}`}
-          </span>
+        <div className="rpg-player-corner">
+          <PlayerHud
+            name={server?.playerName ?? traveler.name}
+            appearance={traveler.id}
+            status={ui.adventure}
+            onAppearance={() => setPanel('appearance')}
+            onInventory={() => setPanel('equipment')}
+          />
+          <div className="rpg-player-social">
+            <PlayersButton client={chat.client} onOpen={openPlayers} />
+            <PartyIndicator client={chat.client} onOpen={openPartyChat} />
+          </div>
+          {!suspended && !panel && !speech && sample.demo?.area === 'village' && (
+            <details className="rpg-demo-hint">
+              <summary>Village guide</summary>
+              <p>
+                Choose your traveler in <strong>Look</strong>. Meet Juniper by the northwest grove,
+                then enter the jungle to learn magic.
+              </p>
+              <button
+                onClick={() => {
+                  const entrance = sample.landmarks.find(
+                    (p) => p.id === sample.demo?.portals[0]?.id,
+                  );
+                  if (entrance) runtimeRef.current?.focus?.(entrance);
+                }}
+              >
+                Find jungle entrance ↖
+              </button>
+            </details>
+          )}
+          {sample.demo?.jungle && ui.adventure && <ObjectiveTracker status={ui.adventure} />}
+        </div>
+        <header key={sample.name} className="rpg-location rpg-frame">
+          {server && (
+            <span className="rpg-kicker rpg-kicker--server" title={server.displayName}>
+              {server.displayName}
+            </span>
+          )}
           <h1 title={sample.name} className={server?.town ? 'rpg-town-location' : undefined}>
             {sample.name}
           </h1>
@@ -345,24 +431,7 @@ export function RpgPlayPage({
             onHeal={() => runtimeRef.current?.heal?.()}
             onSpell={(spell) => runtimeRef.current?.selectSpell?.(spell)}
             onMelee={() => runtimeRef.current?.selectMelee?.()}
-            onEquipment={() => setPanel('equipment')}
           />
-        )}
-        {!suspended && !panel && !speech && sample.demo?.area === 'village' && (
-          <aside className="rpg-demo-hint rpg-frame">
-            <p>
-              Choose your traveler in <strong>Look</strong>. Meet Juniper by the northwest grove,
-              then enter the jungle to learn magic.
-            </p>
-            <button
-              onClick={() => {
-                const entrance = sample.landmarks.find((p) => p.id === sample.demo?.portals[0]?.id);
-                if (entrance) runtimeRef.current?.focus?.(entrance);
-              }}
-            >
-              Find jungle entrance ↖
-            </button>
-          </aside>
         )}
         {channelRoom && (
           <nav className="rpg-house-tools" aria-label="House tools">
@@ -382,11 +451,14 @@ export function RpgPlayPage({
             className="rpg-interact rpg-button"
             onClick={() => runtimeRef.current?.interact()}
           >
-            <kbd>E</kbd>
+            <span className="rpg-context-star" aria-hidden="true">
+              ✦
+            </span>
             <span>
               {ui.nearby.action === 'Talk' ? 'Talk to' : ui.nearby.action}{' '}
               <strong>{ui.nearby.label}</strong>
             </span>
+            <kbd>E</kbd>
           </button>
         )}
         <span className="rpg-feedback-accessible" role="status">
@@ -397,58 +469,69 @@ export function RpgPlayPage({
             <button
               key={action.panel}
               aria-label={action.panel === 'appearance' ? 'Choose appearance' : action.label}
+              aria-pressed={panel === action.panel}
               onClick={() => setPanel(action.panel)}
             >
-              <RpgIcon name={action.icon} />
               <span>{action.label}</span>
             </button>
           ))}
         </nav>
-        <div className="rpg-camera rpg-frame" aria-label="Camera controls">
-          <button
-            aria-label="Zoom in"
-            disabled={
-              status !== 'ready' ||
-              ui.zoom >= (typeof window !== 'undefined' && window.innerWidth < 700 ? 3 : 4)
-            }
-            onClick={() => runtimeRef.current?.zoomBy(2)}
-          >
-            <RpgIcon name="plus" />
-          </button>
-          <span aria-label={`Zoom ${Math.round(ui.zoom * 100)} percent`}>
-            {Number(ui.zoom.toFixed(2))}×
-          </span>
-          <button
-            aria-label="Zoom out"
-            disabled={status !== 'ready' || ui.zoom <= (ui.minZoom ?? 0.25) + 0.001}
-            onClick={() => runtimeRef.current?.zoomBy(0.5)}
-          >
-            <RpgIcon name="minus" />
-          </button>
-          <button
-            aria-label={route.house ? 'View whole room' : 'View whole town'}
-            disabled={status !== 'ready'}
-            onClick={() => runtimeRef.current?.overview?.()}
-          >
-            <RpgIcon name="map" />
-          </button>
-          <button
-            aria-label="Center on traveler"
-            disabled={status !== 'ready'}
-            onClick={() => runtimeRef.current?.center()}
-          >
+        <details className="rpg-camera" aria-label="Camera controls">
+          <summary>
             <RpgIcon name="center" />
-          </button>
-        </div>
-        <p className="rpg-movement-hint">
-          <kbd>W A S D</kbd> to walk <span>·</span> <kbd>Shift</kbd> to run <span>·</span>{' '}
-          {hasAdventure ? 'Middle / touch drag to look around' : 'Drag to look around'}
-        </p>
-        {status === 'ready' && !suspended && !panel && !speech && !channelOpen && !rosterOpen && (
-          <VirtualJoystick
-            onChange={(x, y, sprint) => runtimeRef.current?.setVirtualAxis(x, y, sprint)}
-          />
+            <span>View</span>
+          </summary>
+          <div className="rpg-camera-tools">
+            <button
+              aria-label="Zoom in"
+              disabled={
+                status !== 'ready' ||
+                ui.zoom >= (typeof window !== 'undefined' && window.innerWidth < 700 ? 3 : 4)
+              }
+              onClick={() => runtimeRef.current?.zoomBy(2)}
+            >
+              <RpgIcon name="plus" />
+            </button>
+            <span aria-label={`Zoom ${Math.round(ui.zoom * 100)} percent`}>
+              {Number(ui.zoom.toFixed(2))}×
+            </span>
+            <button
+              aria-label="Zoom out"
+              disabled={status !== 'ready' || ui.zoom <= (ui.minZoom ?? 0.25) + 0.001}
+              onClick={() => runtimeRef.current?.zoomBy(0.5)}
+            >
+              <RpgIcon name="minus" />
+            </button>
+            <button
+              aria-label={route.house ? 'View whole room' : 'View whole town'}
+              disabled={status !== 'ready'}
+              onClick={() => runtimeRef.current?.overview?.()}
+            >
+              <RpgIcon name="map" />
+            </button>
+            <button
+              aria-label="Center on traveler"
+              disabled={status !== 'ready'}
+              onClick={() => runtimeRef.current?.center()}
+            >
+              <RpgIcon name="center" />
+            </button>
+          </div>
+        </details>
+        {!suspended && !speech && !gameChatOpen && !socialPanel && (
+          <GameChatToggle client={chat.client} onOpen={openGameChat} />
         )}
+        {status === 'ready' &&
+          !suspended &&
+          !panel &&
+          !speech &&
+          !channelOpen &&
+          !rosterOpen &&
+          !socialFocused && (
+            <VirtualJoystick
+              onChange={(x, y, sprint) => runtimeRef.current?.setVirtualAxis(x, y, sprint)}
+            />
+          )}
       </div>
       {server?.voice && !suspended && !channelOpen && !rosterOpen && (
         <RpgVoiceStatus
@@ -459,12 +542,6 @@ export function RpgPlayPage({
           voice={server.voice}
           onReturn={returnToCall}
         />
-      )}
-      {server?.connection && !suspended && !route.house && (
-        <span className="rpg-town-presence" role="status">
-          {server.connection.onlineCount}{' '}
-          {server.connection.onlineCount === 1 ? 'traveler' : 'travelers'} here
-        </span>
       )}
       {pendingState ??
         (status !== 'ready' && (
@@ -527,7 +604,8 @@ export function RpgPlayPage({
           if (panel === 'equipment' || panel === 'settings')
             requestAnimationFrame(() => canvasRef.current?.focus());
         }}
-        onEquip={(id) => runtimeRef.current?.equipWeapon?.(id)}
+        onEquip={(id) => runtimeRef.current?.equipWeapon?.(id) ?? false}
+        onUseItem={(id) => runtimeRef.current?.useInventoryItem?.(id)}
         onApplyEnemyLevel={(level) => runtimeRef.current?.setEnemyLevel?.(level)}
         onTheme={travel}
         onAppearance={(id) => {
@@ -577,34 +655,60 @@ export function RpgPlayPage({
           onClose={() => setRosterOpen(false)}
         />
       )}
-      <Dialog
+      <DialoguePanel
         open={!suspended && speech !== null}
-        title={speech?.name ?? ''}
-        className="rpg-dialog rpg-dialog--speech"
+        dialogue={speech}
+        line={line}
+        advanceRef={advanceRef}
+        onAdvance={advance}
         onClose={() => setSpeech(null)}
-        footer={
-          <>
-            <span className="rpg-dialog-count">
-              {line + 1} / {speech?.lines.length ?? 1}
-            </span>
-            <button className="rpg-button rpg-button--quiet" onClick={() => setSpeech(null)}>
-              Leave
-            </button>
-            <button ref={advanceRef} className="rpg-button" onClick={advance}>
-              {speech && line < speech.lines.length - 1
-                ? 'Continue'
-                : (speech?.closeLabel ?? 'Until next time')}{' '}
-              <kbd>↵</kbd>
-            </button>
-          </>
+        choices={
+          !server && speech?.npcId === CHAT_GUIDE_ID
+            ? [
+                {
+                  id: 'join-party',
+                  label: 'Join Wren’s trail party',
+                  onSelect: () => {
+                    if (chat.transport instanceof DemoChatTransport) chat.transport.inviteParty();
+                    setSpeech(null);
+                  },
+                },
+                {
+                  id: 'direct-chat',
+                  label: 'Send Wren a direct message',
+                  onSelect: () => {
+                    setSpeech(null);
+                    setGameChatOpen(true);
+                    chat.client.direct(CHAT_GUIDE.id);
+                  },
+                },
+              ]
+            : []
         }
-      >
-        <p className="rpg-speaker-role">{speech?.role}</p>
-        <div className="rpg-speech-content">
-          {speaker && <RpgPortrait appearance={speaker.id} width={80} height={80} />}
-          <p aria-live="polite">{speech?.lines[line]}</p>
-        </div>
-      </Dialog>
+      />
+      <GameChatPanel
+        key={server?.guildId ?? 'demo'}
+        client={chat.client}
+        open={!suspended && !panel && !speech && !channelOpen && !rosterOpen && gameChatOpen}
+        onClose={closeGameChat}
+        onPlayers={openPlayers}
+        onFocusChange={setSocialFocused}
+      />
+      <SocialPanel
+        key={`${server?.guildId ?? 'demo'}:${socialPanel ?? 'closed'}`}
+        client={chat.client}
+        open={
+          !suspended && !panel && !speech && !channelOpen && !rosterOpen && socialPanel !== null
+        }
+        onClose={closeSocial}
+        onMessage={messagePlayer}
+        onFocusChange={setSocialFocused}
+      />
+      <PartyInvitation
+        client={chat.client}
+        visible={!suspended && !panel && !speech && !channelOpen && !rosterOpen}
+        onFocusChange={setSocialFocused}
+      />
     </main>
   );
 }

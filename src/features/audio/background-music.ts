@@ -48,7 +48,7 @@ export class BackgroundMusic {
     this.reconcile();
   }
 
-  /** Called within a pointer/key event, or by the explicit Start/Retry control. */
+  /** Attempt playback on game entry or from an explicit sound control. */
   activate = () => {
     this.unlocked = true;
     if (this.status === 'error') return; // A failed track retries only on explicit request.
@@ -127,8 +127,13 @@ export class BackgroundMusic {
           if (generation !== this.generation) return;
           this.pending = false;
           this.output?.media.pause();
+          // Do not retry blocked autoplay because of a render or tab change.
+          this.unlocked = false;
           this.setStatus(
-            error instanceof Error && error.name === 'NotAllowedError' ? 'waiting' : 'error',
+            (error instanceof Error || error instanceof DOMException) &&
+              error.name === 'NotAllowedError'
+              ? 'waiting'
+              : 'error',
           );
         });
     } catch {

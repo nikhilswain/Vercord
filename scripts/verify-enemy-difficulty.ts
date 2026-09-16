@@ -7,6 +7,11 @@ import {
 import { trapState } from '../src/domain/adventure/traps';
 import { AdventureSession } from '../src/features/rpg/adventure/session';
 import { DEMO_EQUIPMENT_POLICY } from '../src/domain/adventure/equipment';
+import { FOREST_ENEMY_ASSETS } from '../src/features/rpg/demo/enemy-assets';
+import { attackAnimationTime } from '../src/features/rpg/adventure/animation-clock';
+import { FOREST_CAST_HAND_OFFSETS } from '../src/features/rpg/adventure/forest-casting';
+import { SPELL_VISUAL_HEIGHT } from '../src/features/rpg/adventure/aim';
+import { wildlifeDefinition } from '../src/domain/adventure/wildlife';
 
 const bounds = { x: 0, y: 0, width: 2000, height: 2000 };
 const player = { x: 800, y: 800 };
@@ -23,6 +28,8 @@ function step(model: AdventureSession, ms: number, point = player) {
   for (let i = 0; i < ms; i += 5) model.tick(0.005, point);
 }
 for (const kind of Object.keys(ENEMY_DEFINITIONS) as CreatureKind[]) {
+  // Neutral wildlife only retaliates when provoked; its behavior is verified separately.
+  if (wildlifeDefinition(kind)) continue;
   const easy = enemyBehavior(kind, 1),
     training = enemyBehavior(kind, 5),
     hard = enemyBehavior(kind, 20);
@@ -75,6 +82,46 @@ assert.deepEqual(hard.enemies[0]!.target, locked, 'committed lunge never homes')
 const blocked = make('forest-brute', 20, 40, [{ x: 780, y: 815, width: 40, height: 10 }]);
 step(blocked, 2000);
 assert.equal(blocked.health, 100, 'higher difficulty still respects solid walls');
+
+// The skirmisher casts a visible shot; sharing its position must never cause touch damage.
+const castAsset = FOREST_ENEMY_ASSETS['forest-skirmisher'];
+const releaseFrame = Math.floor(
+  (castAsset.animations.attack.impactAtMs! / castAsset.animations.attack.durationMs) *
+    castAsset.animations.attack.frames.left.length,
+);
+const releaseHand = FOREST_CAST_HAND_OFFSETS[releaseFrame]!;
+const launch = ENEMY_DEFINITIONS['forest-skirmisher'].projectile!.origin!;
+assert.equal(launch.x, -releaseHand.x * castAsset.suggestedScale);
+assert.equal(
+  launch.y - SPELL_VISUAL_HEIGHT,
+  releaseHand.y * castAsset.suggestedScale,
+  'the projectile starts at the visible casting hand',
+);
+for (const level of [1, 5, 10, 20]) {
+  const cast = make('forest-skirmisher', level, 0);
+  const enemy = cast.enemies[0]!;
+  for (let t = 0; enemy.phase !== 'attack' && t < 2500; t += 5) step(cast, 5);
+  assert.equal(enemy.phase, 'attack');
+  assert.equal(cast.health, 100, 'overlap and preparation cause no damage');
+  assert.equal(cast.enemyProjectiles.length, 0);
+  const native = FOREST_ENEMY_ASSETS['forest-skirmisher'].animations.attack;
+  assert.equal(attackAnimationTime(0, enemy.behavior, native), native.windupEndAtMs);
+  for (let t = 0; !cast.enemyProjectiles.length && t < enemy.behavior.durationMs; t += 5)
+    step(cast, 5);
+  assert(cast.enemyProjectiles.length > 0, 'cast releases native spark at every difficulty');
+  assert.equal(cast.health, 100, 'the release frame alone cannot damage the player');
+  const spark = cast.enemyProjectiles[0]!;
+  assert.equal(spark.visual, 'spark');
+  const velocity = { ...spark.velocity };
+  step(cast, 100, { x: player.x + 120, y: player.y });
+  assert.deepEqual(spark.velocity, velocity, 'released spark never homes');
+  assert.equal(cast.health, 100, 'a sidestep avoids the shot');
+  step(cast, 2000, { x: 1800, y: 1800 });
+  assert(!cast.enemyProjectiles.includes(spark), 'missed spark expires at finite range');
+}
+const casterWall = make('forest-skirmisher', 20, 120, [{ x: 750, y: 850, width: 100, height: 4 }]);
+step(casterWall, 3000);
+assert.equal(casterWall.health, 100, 'caster cannot shoot through a wall');
 
 function attackSequence(level: number) {
   const model = make('forest-skirmisher', level, 20);

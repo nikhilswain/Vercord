@@ -101,6 +101,7 @@ export function hollowChoirInterior(): ScenarioDefinition {
         action: 'Open',
         requires: [CHOIR.freed],
         grant: [CHOIR.notes],
+        items: [{ id: 'mira-notes', quantity: 1 }],
         herbs: 2,
       },
       {
@@ -175,6 +176,7 @@ export function hollowChoirCourtyard(): ScenarioDefinition {
         action: 'Talk',
         requires: [CHOIR.notes],
         grant: [CHOIR.returned],
+        removeItems: [{ id: 'mira-notes', quantity: 1 }],
       },
       { ...hollowChoirStory.interaction('oren'), id: 'oren', ...at(27, 34), action: 'Talk' },
     ],

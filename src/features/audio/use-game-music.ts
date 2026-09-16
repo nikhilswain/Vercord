@@ -4,7 +4,7 @@ import { setBackgroundVolume, useGameSettings } from '../settings/use-game-setti
 import { BackgroundMusic } from './background-music';
 import { DEFAULT_BACKGROUND_TRACK, type MusicTrackId } from './music-catalog';
 
-export function useGameMusic(demo: boolean) {
+export function useGameMusic(demo: boolean, worldReady: boolean) {
   const settings = useGameSettings();
   const volume = settings.audio.backgroundVolume;
   const [player] = useState(() => new BackgroundMusic());
@@ -16,23 +16,11 @@ export function useGameMusic(demo: boolean) {
   useEffect(() => {
     const visibility = () => player.setVisible(!document.hidden);
     const hide = () => player.setVisible(false);
-    const gesture = (event: Event) => {
-      if (
-        event instanceof KeyboardEvent &&
-        (event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey)
-      )
-        return;
-      player.activate();
-    };
     visibility();
-    window.addEventListener('pointerup', gesture);
-    window.addEventListener('keydown', gesture);
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('pagehide', hide);
     window.addEventListener('pageshow', visibility);
     return () => {
-      window.removeEventListener('pointerup', gesture);
-      window.removeEventListener('keydown', gesture);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('pagehide', hide);
       window.removeEventListener('pageshow', visibility);
@@ -42,26 +30,32 @@ export function useGameMusic(demo: boolean) {
 
   useEffect(() => {
     if (volume > 0) lastVolume.current = volume;
-    player.configure(trackId, volume, true);
-  }, [player, trackId, volume]);
+    player.configure(trackId, volume, worldReady);
+  }, [player, trackId, volume, worldReady]);
+
+  useEffect(() => {
+    // World loading, not movement or page mounting, owns automatic playback.
+    if (worldReady) player.activate();
+  }, [player, worldReady]);
 
   const setVolume = useCallback(
     (value: number) => {
       // Apply synchronously so a mute click cannot start music before React's next effect.
-      player.configure(trackId, value, true);
+      player.configure(trackId, value, worldReady);
+      if (value > 0 && worldReady) player.activate();
       setBackgroundVolume(value);
     },
-    [player, trackId],
+    [player, trackId, worldReady],
   );
 
   const selectTrack = useCallback(
     (id: MusicTrackId) => {
       if (!demo) return;
-      player.configure(id, volume, true);
-      player.activate();
+      player.configure(id, volume, worldReady);
+      if (worldReady) player.activate();
       setDemoTrack(id);
     },
-    [demo, player, volume],
+    [demo, player, volume, worldReady],
   );
 
   return {

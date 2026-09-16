@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Dialog } from '../../components/Dialog';
+import { RpgDialog } from '../rpg/ui/RpgDialog';
 import { MUSIC_TRACKS, getMusicTrack } from '../audio/music-catalog';
 import type { GameMusicControls } from '../audio/use-game-music';
 import { RpgIcon } from '../rpg/RpgIcon';
@@ -14,7 +14,7 @@ interface Props {
 export function GameSettingsDialog({ music, demo, onClose }: Props) {
   const id = useId();
   const message = {
-    waiting: 'Music starts when you interact with the game.',
+    waiting: 'Your browser paused automatic playback.',
     loading: 'Loading music…',
     playing: 'Playing',
     paused: 'Paused while the game is in the background.',
@@ -22,24 +22,18 @@ export function GameSettingsDialog({ music, demo, onClose }: Props) {
     error: 'This track could not load. Try again.',
   }[music.status];
   return (
-    <Dialog
+    <RpgDialog
       open
       title="Settings"
       className="rpg-dialog game-settings-dialog"
       onClose={onClose}
+      closeLabel="Close settings"
       footer={
         <button className="rpg-button" onClick={onClose}>
           Back to exploring
         </button>
       }
     >
-      <button
-        className="rpg-icon-button rpg-panel-close"
-        aria-label="Close settings"
-        onClick={onClose}
-      >
-        <RpgIcon name="close" />
-      </button>
       <p className="rpg-muted">Make yourself at home. Changes save on this device.</p>
       <section className="game-settings-section" aria-labelledby={`${id}-audio`}>
         <h3 id={`${id}-audio`}>
@@ -109,6 +103,6 @@ export function GameSettingsDialog({ music, demo, onClose }: Props) {
           ))}
         </fieldset>
       )}
-    </Dialog>
+    </RpgDialog>
   );
 }

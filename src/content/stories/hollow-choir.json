@@ -87,7 +87,7 @@
     }
   ],
   "notes": [
-    "Current demo reward: the supply chest and reliquary each grant two healing herbs once. The field notes are a recorded story fact, not an equipment item.",
+    "Current demo reward: the supply chest and reliquary each grant two healing herbs once. The field notes appear in Quest items until handed back to Mira; story facts preserve their recovery and return.",
     "A permanent rare item, loot table and equipment effects are reserved for a later design discussion.",
     "The courtyard Root Beast is a required encounter. Its defeat unlocks the sanctuary for the expedition, including after travel, rescue and demo difficulty resets. A fresh direct link to the interior starts in the courtyard until that requirement is met.",
     "Travel and defeat preserve story progress during the expedition. Reloading starts a fresh local story; production persistence and multiplayer authority are future work.",

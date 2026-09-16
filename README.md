@@ -107,6 +107,10 @@ Imported LPC art and font notices are linked in [THIRD_PARTY_NOTICES.md](THIRD_P
 
 ## Stack
 
+Native World, Party and Direct game chat is available alongside Discord room chat.
+Press **T** in the RPG view. The local demo includes Wren, an NPC party/chat companion.
+See [GAME_CHAT.md](GAME_CHAT.md) for scope, architecture, limits and testing.
+
 React 19, TypeScript, Phaser 4, Vite, and one Cloudflare Worker containing the API, OAuth flow,
 Discord synchronization, static application, KV/D1 access, presence, and the authenticated voice
 bridge. `apps/gateway` is a small always-on Discord.js process: Discord remains the audio client and

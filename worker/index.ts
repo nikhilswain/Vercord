@@ -2,6 +2,7 @@ import { DiscordDomainError } from '../src/domain/discord/errors';
 import { WorkerError } from './errors';
 import { handleAdminSync } from './http/admin-sync';
 import { handleAuth } from './http/auth';
+import { handleGameChat } from './http/game-chat';
 import { jsonResponse } from './http/json-response';
 import { handleLocalPreviewMap } from './http/local-preview-map';
 import { handleInternalDiscordGateway } from './http/internal-discord-gateway';
@@ -13,6 +14,7 @@ import type { SyncSummary } from './sync/synchronize-guild';
 
 export { GuildPresence } from './presence/guild-presence';
 export { DiscordGatewayBridge } from './voice/discord-gateway-bridge';
+export { GameChat } from './chat/game-chat';
 
 const HEALTH_PATH = '/api/health';
 const ADMIN_SYNC_PATH = '/api/admin/sync';
@@ -34,6 +36,8 @@ export function createWorker(dependencies: Partial<WorkerDependencies> = {}): Ex
   return {
     fetch(request, env) {
       const { pathname } = new URL(request.url);
+      const gameChat = /^\/api\/auth\/guilds\/([1-9]\d{0,19})\/game-chat$/u.exec(pathname);
+      if (gameChat) return handleGameChat(request, env, gameChat[1]!);
 
       if (request.method === 'GET' && pathname === HEALTH_PATH) {
         return jsonResponse(

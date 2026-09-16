@@ -1,0 +1,19 @@
+{
+  "source": "https://lyaseek.itch.io/miniffanimals",
+  "author": "LYASeeK",
+  "downloaded": "2026-09-16",
+  "archive": "MinifolksForestAnimals.7z",
+  "archiveSha256": "e1ee9f5a1a7f5ea41d39b8d318dc59e885d6344768278d388fc71ecf7492d18f",
+  "variant": "Outline",
+  "modifications": "None; original PNG sheets. Left-facing movement mirrors native right-facing frames at runtime.",
+  "files": {
+    "MiniBear.png": "f6da7353bbd3d0813f9a698d50cb3a0dbbaaef65e62cbd062c1e08e86087cb28",
+    "MiniBird.png": "4b4e2bf1d0bc51d3b1489458b839b0063b30ec1c0507711c0054b6d205ef77c3",
+    "MiniBoar.png": "391c06b4b1f03a7400ce3a532c763ebb9034eb45470349d6cf80facab557ed09",
+    "MiniBunny.png": "18dbfd4840d7e96f855fc358c95e6a8a8cf80ae044cfa77f129832c1ff3e6561",
+    "MiniDeer1.png": "d3006cc199323b9b8ad467f7c498be77833b8138245e95b176923184d447724a",
+    "MiniDeer2.png": "d1735fc76f0792786da234ccdbb9df67c9c50a134f01a4bc9ee7b098156a8cc4",
+    "MiniFox.png": "cf0f0fadd0a4a6fd6842af84ac044938cd1e9cd76c6ca2bd5a32f1c6c7f81918",
+    "MiniWolf.png": "a37fdfd27e84edb93588eb51ba9e38b6a7eb59aa1f20cedd8259a3c0828ae43a"
+  }
+}

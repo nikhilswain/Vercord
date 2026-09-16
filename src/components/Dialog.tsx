@@ -8,6 +8,9 @@ export interface DialogProps {
   busy?: boolean;
   error?: string | null;
   className?: string;
+  /** Optional layout slots; the caller owns the scroll styling. */
+  scrollBody?: boolean;
+  headerActions?: ReactNode;
   onClose(): void;
 }
 
@@ -20,6 +23,8 @@ export function Dialog({
   busy = false,
   error = null,
   className = '',
+  scrollBody = false,
+  headerActions,
   onClose,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -63,8 +68,15 @@ export function Dialog({
       }}
     >
       <div className="confirm-dialog__panel">
-        <h2 id={titleId}>{title}</h2>
-        {children}
+        {scrollBody ? (
+          <div className="confirm-dialog__header">
+            <h2 id={titleId}>{title}</h2>
+            {headerActions}
+          </div>
+        ) : (
+          <h2 id={titleId}>{title}</h2>
+        )}
+        {scrollBody ? <div className="confirm-dialog__body">{children}</div> : children}
         {error ? (
           <p className="confirm-dialog__error" role="alert">
             {error}

@@ -335,7 +335,7 @@
     },
     "forest-skirmisher": {
       "file": "forest-skirmisher.png",
-      "sha256": "c6b0ed09f7233dec5a357357b75ab6a44326782efaa18f70c23665eb6a25bc3b",
+      "sha256": "0046e2c15013b686fd81e125c77104aa4a0826e4c5741ebae4431a7ea2990ec1",
       "frameWidth": 80,
       "frameHeight": 48,
       "columns": 8,
@@ -379,7 +379,8 @@
             "up": [26, 27, 28, 29, 30, 31],
             "down": [26, 27, 28, 29, 30, 31]
           },
-          "impactAtMs": 440
+          "impactAtMs": 440,
+          "windupEndAtMs": 220
         },
         "hurt": {
           "durationMs": 240,
@@ -403,9 +404,18 @@
         }
       },
       "pack": "forestBosses",
-      "sourceFiles": ["3/Idle.png", "3/Walk.png", "3/Attack4.png", "3/Hurt.png", "3/Death.png"],
+      "sourceFiles": ["3/Idle.png", "3/Walk.png", "3/Attack1.png", "3/Hurt.png", "3/Death.png"],
       "atlasCellCount": 48,
       "transform": "Crop constant empty margins from 96x96 native cells to 64x48, pad to 80x48 around source foot (72,96), mirror for right; no resampling or invented frames"
+    },
+    "forest-spark": {
+      "file": "forest-spark.png",
+      "sha256": "84b41f0a9fc94a7ed625cf76ea78940ef6e28b986e0d43e6c70a403d62b65152",
+      "pack": "forestBosses",
+      "sourceFiles": ["3/Projectile.png"],
+      "width": 4,
+      "height": 4,
+      "transform": "Unmodified native projectile; integer-scaled at runtime"
     }
   },
   "downloadMethod": "Normal public author itch.io free-download browser controls; no accounts or payments",

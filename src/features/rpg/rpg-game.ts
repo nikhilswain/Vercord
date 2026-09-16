@@ -115,8 +115,11 @@ export class RpgGame implements RpgRuntime {
   public selectMelee(): void {
     this.scene?.selectMelee();
   }
-  public equipWeapon(id: string): void {
-    this.scene?.equipWeapon(id);
+  public equipWeapon(id: string): boolean {
+    return this.scene?.equipWeapon(id) ?? false;
+  }
+  public useInventoryItem(id: string) {
+    return this.scene?.useInventoryItem(id);
   }
   public setEnemyLevel(level: number): void {
     this.scene?.setEnemyLevel(level);

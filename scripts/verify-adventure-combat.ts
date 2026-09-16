@@ -6,10 +6,12 @@ import {
   grantExperience,
 } from '../src/domain/adventure/equipment';
 import { WEAPONS } from '../src/domain/adventure/weapons';
-import { ENEMY_DEFINITIONS, spawnEnemyPower } from '../src/domain/adventure/enemies';
+import { ENEMY_DEFINITIONS, spawnEnemyPower, enemyBehavior } from '../src/domain/adventure/enemies';
 import { FOREST_ENEMY_ASSETS } from '../src/features/rpg/demo/enemy-assets';
 import { attackAnimationTime } from '../src/features/rpg/adventure/animation-clock';
 import { JUNGLE_WILDLIFE_ASSETS } from '../src/features/rpg/demo/wildlife-assets';
+import { MOMO_SLIME_ASSET } from '../src/features/rpg/adventure/slime-assets';
+import { slimeMotion } from '../src/features/rpg/adventure/slime-motion';
 import { FOREST_GUARDIAN_ASSET, GREEN_SLIME_ASSET } from '../src/features/rpg/demo/magic-assets';
 import type { AdventureDefinition } from '../src/features/rpg/adventure/types';
 
@@ -128,6 +130,7 @@ for (const id of ['forest-brute', 'forest-skirmisher'] as const) {
   );
 }
 const attackAssets = [
+  ['slime', MOMO_SLIME_ASSET],
   ['slime', JUNGLE_WILDLIFE_ASSETS.slime],
   ['slime', GREEN_SLIME_ASSET],
   ['snake', JUNGLE_WILDLIFE_ASSETS.snake],
@@ -154,6 +157,37 @@ const camp = new AdventureSession(nearSpawn, [], bounds, player, undefined, {
 });
 advance(camp, 2000);
 assert.equal(camp.health, 100, 'authored safe region protects camp');
+for (const level of [1, 5, 10, 30]) {
+  const behavior = enemyBehavior('slime', level);
+  const airborne = slimeMotion('attack', behavior.impactMs / 2, 500, behavior.impactMs, false);
+  const impact = slimeMotion('attack', behavior.impactMs, 500, behavior.impactMs, false);
+  assert(airborne.lift > 20, 'slime visibly leaves the ground before impact');
+  assert(Math.abs(impact.lift) < 0.001, 'slime lands at the gameplay hit time at every level');
+  for (const phase of ['idle', 'walk', 'windup', 'attack', 'hurt'] as const) {
+    const reduced = slimeMotion(phase, 100, 500, behavior.impactMs, true);
+    assert.equal(reduced.lift, 0, 'reduced motion has no extra jump');
+    assert.equal(reduced.scaleX, 1);
+    assert.equal(reduced.scaleY, 1);
+  }
+}
+for (const animation of Object.values(MOMO_SLIME_ASSET.animations)) {
+  for (const frames of Object.values(animation.frames)) {
+    assert(
+      frames.every((frame) => frame >= 0 && frame < 15),
+      'only free demo cells are used',
+    );
+  }
+}
+assert.notDeepEqual(
+  MOMO_SLIME_ASSET.animations.walk.frames.up,
+  MOMO_SLIME_ASSET.animations.walk.frames.down,
+);
+assert.deepEqual(MOMO_SLIME_ASSET.flipXDirections, ['right']);
+assert.equal(slimeMotion('death', 500, 500, 330, false).alpha, 0);
+assert.equal(slimeMotion('death', 180, 500, 330, true).alpha, 0);
+console.log(
+  'Momo free slime: directional frames, level-scaled landing, defeat and reduced motion passed.',
+);
 console.log(
   'Combat: all 24 contact timings/damage, recovery, arcs, walls, level scaling, reset rewards, shared policy and native boss timings passed.',
 );

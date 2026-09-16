@@ -1,0 +1,16 @@
+MiniFolks - Forest animals by LYASeeK
+Source: https://lyaseek.itch.io/miniffanimals
+Downloaded from the creator's free/name-your-own-price download on 2026-09-16.
+
+Creator's usage terms: "You can use this asset as you like, just don't resell it."
+Credit is appreciated, not required. The creator explicitly confirms commercial
+and non-commercial project use in the source page's comments.
+
+The eight Outline PNG sheets are unmodified. Only these game-used sheets ship.
+Original MinifolksForestAnimals.7z SHA-256:
+e1ee9f5a1a7f5ea41d39b8d318dc59e885d6344768278d388fc71ecf7492d18f
+
+32x32 cells except the bird (16x16). Native right-facing animations are mirrored
+for left-facing movement. This is side-view art adapted to top-down movement;
+the pack does not contain separate up/down views. Fleeing, roaming and combat
+timings are game logic. All shown attack and death frames are native pack art.
