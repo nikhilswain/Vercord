@@ -1316,16 +1316,14 @@ export class RpgScene extends Phaser.Scene {
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
-    if (
-      (!event.isPrimary && event.pointerType !== 'touch') ||
-      this.inputBlocked ||
-      worldInputBlocked()
-    )
-      return;
+    if ((!event.isPrimary && event.pointerType !== 'touch') || this.inputBlocked) return;
     if (this.pointerDrag) return;
     if (event.button !== 0 && event.button !== 1) return;
     const canvas = this.game.canvas;
+    // A deliberate world click leaves non-modal chat editing without closing the chat.
+    // Native dialogs still block through worldInputBlocked after focus is transferred.
     canvas.focus({ preventScroll: true });
+    if (worldInputBlocked()) return;
     if (this.activeAdventure() && event.button === 0 && event.pointerType !== 'touch') {
       event.preventDefault();
       this.previousTap = null;

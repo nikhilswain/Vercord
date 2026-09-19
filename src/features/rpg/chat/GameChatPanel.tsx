@@ -134,13 +134,6 @@ export const GameChatPanel = memo(function GameChatPanel({
   useEffect(() => {
     client.open(open);
   }, [client, open]);
-  useEffect(() => {
-    if (!open) return;
-    const frame = requestAnimationFrame(() =>
-      (input.current ?? search.current)?.focus({ preventScroll: true }),
-    );
-    return () => cancelAnimationFrame(frame);
-  }, [open, state.active]);
   useLayoutEffect(() => {
     const element = log.current;
     if (!element || !open) return;
@@ -168,6 +161,7 @@ export const GameChatPanel = memo(function GameChatPanel({
   ].filter((p) => p.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   return (
     <RpgHudPanel
+      allowGameplay
       open={open}
       title={isDirect ? roomName(active, state.self?.id) : channel === 'party' ? 'Party' : 'Chat'}
       onClose={onClose}

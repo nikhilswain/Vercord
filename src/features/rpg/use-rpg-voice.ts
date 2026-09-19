@@ -23,6 +23,7 @@ export interface RpgVoiceController {
   onVoiceService(service: VoiceServiceStatus): void;
   onVoiceSnapshot(response: VoiceApiResponse): void;
   move(roomKey: string): Promise<void>;
+  followRoom(entryKey: string | null, roomKey: string | null, ready: boolean): void;
   disconnect(): Promise<string | null>;
   dismissNotice(): void;
 }
@@ -41,6 +42,7 @@ interface VoiceSession {
   receivedSnapshot: boolean;
   reading: boolean;
   action: VoicePendingAction | null;
+  follow: { entryKey: string | null; roomKey: string | null; ready: boolean; handled: boolean };
 }
 
 const UNCERTAIN_CHANGE = 'Discord did not confirm the change. Check your call before trying again.';
@@ -72,6 +74,7 @@ export function useRpgVoice(guildId: string | undefined, active: boolean): RpgVo
   const scope = useMemo(() => ({ guildId, active }), [guildId, active]);
   const sessionRef = useRef<VoiceSession | null>(null);
   const [snapshot, setSnapshot] = useState({ scope, state: INITIAL_WORLD_VOICE_STATE });
+  const followPending = useRef<() => void>(() => undefined);
   const currentSession = useCallback(() => {
     const session = sessionRef.current;
     return session?.scope === scope && session.active ? session : null;
@@ -87,6 +90,7 @@ export function useRpgVoice(guildId: string | undefined, active: boolean): RpgVo
       receivedSnapshot: false,
       reading: false,
       action: null,
+      follow: { entryKey: null, roomKey: null, ready: false, handled: false },
     };
     sessionRef.current = session;
     return () => {
@@ -99,8 +103,13 @@ export function useRpgVoice(guildId: string | undefined, active: boolean): RpgVo
     (action: WorldVoiceAction) => {
       const session = currentSession();
       if (!session) return;
+      const wasConnected = session.state.voiceState?.channelKey != null;
       session.state = reduceWorldVoiceState(session.state, action);
+      // An explicit disconnect cancels a queued follow; joining still belongs to Discord.
+      if (wasConnected && session.state.voiceState?.channelKey === null)
+        session.follow.handled = true;
       setSnapshot({ scope, state: session.state });
+      followPending.current();
     },
     [currentSession, scope],
   );
@@ -180,7 +189,10 @@ export function useRpgVoice(guildId: string | undefined, active: boolean): RpgVo
         dispatch({ type: 'failed', pending, message });
         return message;
       } finally {
-        if (current()) session.action = null;
+        if (current()) {
+          session.action = null;
+          followPending.current();
+        }
       }
     },
     [currentSession, dispatch, scope],
@@ -225,6 +237,55 @@ export function useRpgVoice(guildId: string | undefined, active: boolean): RpgVo
   );
   const disconnect = useCallback(() => perform({ type: 'disconnect' }), [perform]);
   const dismissNotice = useCallback(() => dispatch({ type: 'dismiss-notice' }), [dispatch]);
+  const followRoom = useCallback(
+    (entryKey: string | null, roomKey: string | null, ready: boolean) => {
+      const session = currentSession();
+      if (!session) return;
+      const previous = session.follow;
+      if (
+        previous.entryKey === entryKey &&
+        previous.roomKey === roomKey &&
+        previous.ready === ready
+      )
+        return;
+      session.follow = {
+        entryKey,
+        roomKey,
+        ready,
+        handled: previous.entryKey === entryKey && previous.roomKey === roomKey && previous.handled,
+      };
+      followPending.current();
+    },
+    [currentSession],
+  );
+  const followCurrentRoom = useCallback(() => {
+    const session = currentSession();
+    if (
+      !session ||
+      !session.follow.ready ||
+      session.follow.handled ||
+      !session.follow.roomKey ||
+      !session.receivedSnapshot ||
+      session.state.service !== 'online' ||
+      !session.state.voiceState?.channelKey ||
+      session.action ||
+      session.state.pending
+    )
+      return;
+    // At most one automatic write per admitted room entry. External Discord changes and
+    // permission failures must not create a move loop; the latest entry waits for the lock.
+    session.follow.handled = true;
+    if (session.state.voiceState.channelKey !== session.follow.roomKey)
+      void perform({ type: 'move', roomKey: session.follow.roomKey });
+  }, [currentSession, perform]);
+  useEffect(() => {
+    // Room admission and Discord updates drive the queue directly, without a second
+    // render/effect cycle. perform keeps the write lock even after a live confirmation.
+    followPending.current = followCurrentRoom;
+    return () => {
+      followPending.current = () => undefined;
+    };
+  }, [followCurrentRoom]);
 
   return {
     state: snapshot.scope === scope && active ? snapshot.state : INITIAL_WORLD_VOICE_STATE,
@@ -232,6 +293,7 @@ export function useRpgVoice(guildId: string | undefined, active: boolean): RpgVo
     onVoiceSnapshot,
     onVoiceService,
     move,
+    followRoom,
     disconnect,
     dismissNotice,
   };

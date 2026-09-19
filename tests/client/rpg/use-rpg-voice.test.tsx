@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { VoiceApiResponse } from '../../../src/domain/voice/protocol';
@@ -34,7 +34,122 @@ function snapshot(channelKey: string | null, revision = 1): VoiceApiResponse {
 }
 
 describe('RPG voice lifecycle', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => vi.resetAllMocks());
+
+  it('keeps the first join in Discord, then automatically follows admitted voice houses', async () => {
+    vi.mocked(moveVoice).mockResolvedValueOnce(snapshot('second', 3));
+    const { result } = renderHook(() => useRpgVoice('guild-a', true));
+    act(() => {
+      result.current.followRoom('house:0', 'first', true);
+      result.current.onVoiceSnapshot(snapshot(null));
+    });
+    expect(moveVoice).not.toHaveBeenCalled();
+    act(() => result.current.onVoiceSnapshot(snapshot('first', 2)));
+    expect(moveVoice).not.toHaveBeenCalled();
+    act(() => result.current.followRoom('house:1', 'second', false));
+    expect(moveVoice).not.toHaveBeenCalled();
+    act(() => result.current.followRoom('house:1', 'second', true));
+    await waitFor(() => expect(result.current.state.pending).toBeNull());
+    expect(moveVoice).toHaveBeenCalledExactlyOnceWith('guild-a', 'second');
+    expect(result.current.state.voiceState?.channelKey).toBe('second');
+    act(() => {
+      result.current.followRoom(null, null, true);
+      result.current.followRoom('house:2', null, true); // Text houses preserve the call.
+    });
+    expect(moveVoice).toHaveBeenCalledTimes(1);
+    expect(disconnectVoice).not.toHaveBeenCalled();
+  });
+
+  it('does not pull a manual Discord switch back until the player enters another house', async () => {
+    vi.mocked(moveVoice).mockResolvedValueOnce(snapshot('first', 3));
+    const { result } = renderHook(() => useRpgVoice('guild-a', true));
+    act(() => {
+      result.current.onVoiceSnapshot(snapshot('first'));
+      result.current.followRoom('house:0', 'first', true);
+    });
+    act(() => result.current.onVoiceSnapshot(snapshot('elsewhere', 2)));
+    act(() => result.current.followRoom('house:0', 'first', false));
+    act(() => result.current.followRoom('house:0', 'first', true));
+    expect(moveVoice).not.toHaveBeenCalled();
+    act(() => result.current.followRoom(null, null, true));
+    act(() => result.current.followRoom('house:0', 'first', true));
+    await waitFor(() => expect(result.current.state.pending).toBeNull());
+    expect(moveVoice).toHaveBeenCalledExactlyOnceWith('guild-a', 'first');
+  });
+
+  it('queues only the latest admitted house behind an unfinished HTTP move', async () => {
+    let complete!: (response: VoiceApiResponse) => void;
+    vi.mocked(moveVoice)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            complete = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(snapshot('fourth', 3));
+    const { result } = renderHook(() => useRpgVoice('guild-a', true));
+    act(() => {
+      result.current.onVoiceSnapshot(snapshot('first'));
+      result.current.followRoom('house:1', 'second', true);
+    });
+    act(() => result.current.onVoiceSnapshot(snapshot('second', 2)));
+    act(() => result.current.followRoom('house:2', 'third', true));
+    act(() => result.current.followRoom('house:3', 'fourth', true));
+    expect(moveVoice).toHaveBeenCalledTimes(1);
+    await act(async () => complete(snapshot('second', 2)));
+    await waitFor(() => expect(result.current.state.pending).toBeNull());
+    expect(vi.mocked(moveVoice).mock.calls).toEqual([
+      ['guild-a', 'second'],
+      ['guild-a', 'fourth'],
+    ]);
+  });
+
+  it('cancels a queued destination on exit, and never reconnects a disconnected caller', async () => {
+    let complete!: (response: VoiceApiResponse) => void;
+    vi.mocked(moveVoice).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useRpgVoice('guild-a', true));
+    act(() => {
+      result.current.onVoiceSnapshot(snapshot('first'));
+      result.current.followRoom('house:1', 'second', true);
+    });
+    act(() => result.current.followRoom('house:2', 'third', true));
+    act(() => result.current.followRoom(null, null, true));
+    await act(async () => complete(snapshot('second', 2)));
+    expect(moveVoice).toHaveBeenCalledTimes(1);
+    act(() => result.current.followRoom('house:2', 'third', false));
+    act(() => result.current.onVoiceSnapshot(snapshot(null, 3)));
+    act(() => result.current.followRoom('house:2', 'third', true));
+    act(() => result.current.onVoiceSnapshot(snapshot('elsewhere', 4)));
+    expect(moveVoice).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for fresh call state after an outage and does not loop on permission failures', async () => {
+    vi.mocked(moveVoice).mockRejectedValueOnce(new VoiceApiError('VOICE_ROOM_FORBIDDEN'));
+    let refresh!: (response: VoiceApiResponse) => void;
+    vi.mocked(fetchVoiceState).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          refresh = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useRpgVoice('guild-a', true));
+    act(() => result.current.onVoiceSnapshot(snapshot('first')));
+    act(() => result.current.onVoiceService('offline'));
+    act(() => result.current.followRoom('house:1', 'second', true));
+    act(() => result.current.onVoiceService('online'));
+    expect(moveVoice).not.toHaveBeenCalled();
+    await act(async () => refresh(snapshot('first', 2)));
+    await waitFor(() => expect(result.current.state.error).not.toBeNull());
+    expect(moveVoice).toHaveBeenCalledTimes(1);
+    act(() => result.current.onVoiceSnapshot(snapshot('first', 3)));
+    act(() => result.current.followRoom('house:1', 'second', true));
+    expect(moveVoice).toHaveBeenCalledTimes(1);
+  });
 
   it('locks writes until the HTTP action finishes even when the live call confirms first', async () => {
     let complete!: (response: VoiceApiResponse) => void;

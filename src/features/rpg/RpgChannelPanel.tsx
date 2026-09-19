@@ -97,7 +97,7 @@ export function RpgChannelPanel({
           />
           {moveAvailable ? (
             <div className="rpg-channel-panel__call-action">
-              <p>Your call stays where it is until you move it.</p>
+              <p>Your active call follows you into voice houses.</p>
               <button
                 type="button"
                 className="rpg-button"
@@ -108,7 +108,7 @@ export function RpgChannelPanel({
                 }
                 onClick={() => void voice.move(room.key)}
               >
-                Move call here
+                Retry voice switch
               </button>
             </div>
           ) : null}

@@ -233,6 +233,7 @@ describe('town navigation overlays', () => {
       onVoiceService: vi.fn(),
       onVoiceSnapshot: vi.fn(),
       dismissNotice: vi.fn(),
+      followRoom: vi.fn(),
     };
     const props = {
       route: { theme: 'village' as const, world: 'village' as const, house: 'house:0' as const },

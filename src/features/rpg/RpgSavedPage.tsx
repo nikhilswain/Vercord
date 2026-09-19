@@ -18,6 +18,8 @@ import { presentForest, withForestTrail } from './forest/presentation';
 import { createForestJourney } from './forest/journey-storage';
 import { templeSamples } from './forest/temple-presentation';
 import { presentTownHall, presentHallCellar } from './town-hall/presentation';
+import { RpgStatePanel } from './ui/RpgStatePanel';
+import './ui/ornate-ui.css';
 
 const failures: Record<
   Exclude<SavedRpgStatus, 'loading' | 'ready'>,
@@ -65,38 +67,28 @@ function SavedWorldGate({
 }) {
   const failure = status !== 'loading' && status !== 'ready' ? failures[status] : null;
   return (
-    <div className="rpg-state" role={failure ? 'alert' : 'status'}>
-      <div className="rpg-frame">
-        <span className="rpg-kicker">Dmap</span>
-        <h1>
-          {onOutside && status !== 'signed-out'
-            ? failure
-              ? forest
-                ? 'This trail could not open'
-                : hall
-                  ? 'Town Hall could not open'
-                  : 'This house could not open'
-              : forest
-                ? 'Following the forest trail…'
-                : hall
-                  ? 'Opening Town Hall…'
-                  : 'Opening the house…'
-            : onSquare && failure && status !== 'signed-out'
-              ? 'This street could not open'
-              : (failure?.title ?? 'Opening your town…')}
-        </h1>
-        <p>
-          {onOutside && failure && status !== 'signed-out'
+    <RpgStatePanel
+      heading="h1"
+      error={Boolean(failure)}
+      title={
+        onOutside && status !== 'signed-out'
+          ? failure
             ? forest
-              ? 'The trail may be unavailable or your access may have changed. You can return to town.'
+              ? 'This trail could not open'
               : hall
-                ? 'Town Hall is unavailable right now. Try again, or return to the square.'
-                : 'The house may be unavailable or your access may have changed. You can return outside.'
-            : onSquare && failure && status !== 'signed-out'
-              ? 'The street may be unavailable or your access may have changed. You can return to the town square.'
-              : (failure?.message ?? `Getting ${themeName} ready for you.`)}
-        </p>
-        <div className="rpg-state-actions">
+                ? 'Town Hall could not open'
+                : 'This house could not open'
+            : forest
+              ? 'Following the forest trail…'
+              : hall
+                ? 'Opening Town Hall…'
+                : 'Opening the house…'
+          : onSquare && failure && status !== 'signed-out'
+            ? 'This street could not open'
+            : (failure?.title ?? 'Opening your town…')
+      }
+      actions={
+        <>
           {status === 'signed-out' ? (
             <a
               className="rpg-button"
@@ -123,10 +115,22 @@ function SavedWorldGate({
               {forest ? 'Return to town' : 'Return outside'}
             </button>
           )}
-          <a href="/dashboard">Choose another server</a>
-        </div>
-      </div>
-    </div>
+          <a className="rpg-button rpg-button--quiet" href="/dashboard">
+            Choose another server
+          </a>
+        </>
+      }
+    >
+      {onOutside && failure && status !== 'signed-out'
+        ? forest
+          ? 'The trail may be unavailable or your access may have changed. You can return to town.'
+          : hall
+            ? 'Town Hall is unavailable right now. Try again, or return to the square.'
+            : 'The house may be unavailable or your access may have changed. You can return outside.'
+        : onSquare && failure && status !== 'signed-out'
+          ? 'The street may be unavailable or your access may have changed. You can return to the town square.'
+          : (failure?.message ?? `Getting ${themeName} ready for you.`)}
+    </RpgStatePanel>
   );
 }
 
@@ -144,7 +148,8 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     route.house,
     route.forest,
   );
-  const voice = useRpgVoice(guildId, status === 'ready');
+  // A scene fetch must not reset the guild's active call or release an in-flight move lock.
+  const voice = useRpgVoice(guildId, status !== 'signed-out' && status !== 'forbidden');
   const connection = useRpgPresence({
     guildId,
     data,
@@ -160,6 +165,13 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     voice,
     onRefresh: retry,
   });
+  const houseRoom = data?.bindings.find((binding) => binding.landmarkId === route.house)?.rooms[0];
+  const voiceRoomKey =
+    houseRoom?.type === 'voice' || houseRoom?.type === 'stage' ? houseRoom.key : null;
+  const followVoiceRoom = voice.followRoom;
+  useEffect(() => {
+    followVoiceRoom(route.house ?? null, voiceRoomKey, status === 'ready' && connection.ready);
+  }, [followVoiceRoom, route.house, voiceRoomKey, status, connection.ready]);
   useEffect(() => {
     if (status !== 'ready') document.title = 'Your server town — Dmap';
   }, [status]);
@@ -301,7 +313,7 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     );
   if (!data || status !== 'ready' || templeBlocked)
     return (
-      <main className="rpg-page" data-game-theme={route.theme}>
+      <main className="rpg-page" data-game-theme={route.theme} data-ui="ornate">
         {gate}
       </main>
     );

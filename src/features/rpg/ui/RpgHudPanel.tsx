@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { RpgIcon } from '../RpgIcon';
+import { worldInputBlocked } from '../../world/engine/input';
 
 /** Non-modal companion to RpgDialog. Focus can return to the world; no backdrop or trap. */
 export function RpgHudPanel({
@@ -10,6 +11,7 @@ export function RpgHudPanel({
   leading,
   actions,
   compact = false,
+  allowGameplay = false,
   onClose,
   onFocusChange,
 }: {
@@ -20,6 +22,8 @@ export function RpgHudPanel({
   leading?: ReactNode;
   actions?: ReactNode;
   compact?: boolean;
+  /** Reading this panel keeps game controls active; editors still own their keyboard input. */
+  allowGameplay?: boolean;
   onClose(): void;
   onFocusChange(focused: boolean): void;
 }) {
@@ -32,6 +36,7 @@ export function RpgHudPanel({
     returnFocus.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const frame = requestAnimationFrame(() => {
+      if (allowGameplay) return;
       (panel.current?.querySelector<HTMLElement>('[data-autofocus]') ?? panel.current)?.focus({
         preventScroll: true,
       });
@@ -42,7 +47,7 @@ export function RpgHudPanel({
       if (focused.current && returnFocus.current?.isConnected)
         returnFocus.current.focus({ preventScroll: true });
     };
-  }, [open, onFocusChange]);
+  }, [open, onFocusChange, allowGameplay]);
   if (!open) return null;
   return (
     <section
@@ -53,9 +58,9 @@ export function RpgHudPanel({
       aria-modal="false"
       aria-labelledby={id}
       tabIndex={-1}
-      onFocusCapture={() => {
+      onFocusCapture={(event) => {
         focused.current = true;
-        onFocusChange(true);
+        onFocusChange(!allowGameplay || worldInputBlocked(event.target));
       }}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -67,10 +72,13 @@ export function RpgHudPanel({
         if (event.key === 'Escape' && !event.defaultPrevented) {
           event.preventDefault();
           onClose();
+          event.stopPropagation();
         }
-        event.stopPropagation();
+        if (!allowGameplay || worldInputBlocked(event.target)) event.stopPropagation();
       }}
-      onKeyUp={(event) => event.stopPropagation()}
+      onKeyUp={(event) => {
+        if (!allowGameplay || worldInputBlocked(event.target)) event.stopPropagation();
+      }}
       onPointerDown={(event) => event.stopPropagation()}
     >
       <header className="rpg-social-header">

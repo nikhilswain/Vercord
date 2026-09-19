@@ -3,6 +3,7 @@ import { StationDialog } from './provisions/StationDialog';
 import { ProvisionHud } from './provisions/ProvisionHud';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { worldInputBlocked } from '../world/engine/input';
+import { RpgStatePanel } from './ui/RpgStatePanel';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
 import { rpgAppearanceSchema, type RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { isHouseSceneId, type HouseSceneId } from '../../domain/world/catalog/scenes';
@@ -207,7 +208,7 @@ export function RpgPlayPage({
       panel !== null ||
       speech !== null ||
       channelOpen ||
-      socialFocused ||
+      (socialFocused && !gameChatOpen) ||
       rosterOpen,
     onUi: setUi,
     onDialogue: talk,
@@ -245,7 +246,7 @@ export function RpgPlayPage({
       Boolean(speech) ||
       channelOpen ||
       rosterOpen ||
-      gameChatOpen ||
+      socialFocused ||
       socialPanel !== null,
     mapOpen: panel === 'map',
     otherPanelOpen: panel !== null && panel !== 'map',
@@ -255,7 +256,10 @@ export function RpgPlayPage({
     setSocialPanel(null);
     setGameChatOpen(true);
   }, []);
-  const closeGameChat = useCallback(() => setGameChatOpen(false), []);
+  const closeGameChat = useCallback(() => {
+    setGameChatOpen(false);
+    requestAnimationFrame(() => canvasRef.current?.focus({ preventScroll: true }));
+  }, [canvasRef]);
   const openPlayers = useCallback(() => {
     setGameChatOpen(false);
     setSocialPanel('players');
@@ -326,8 +330,7 @@ export function RpgPlayPage({
     return () => window.removeEventListener('keydown', openChat);
   }, [suspended, panel, speech, channelOpen, rosterOpen, gameChatOpen, openGameChat]);
   useEffect(() => {
-    if (suspended || !hasAdventure || panel || speech || channelOpen || rosterOpen || gameChatOpen)
-      return;
+    if (suspended || !hasAdventure || panel || speech || channelOpen || rosterOpen) return;
     const openEquipment = (event: KeyboardEvent) => {
       if (
         event.code !== 'KeyI' ||
@@ -345,7 +348,7 @@ export function RpgPlayPage({
     };
     window.addEventListener('keydown', openEquipment);
     return () => window.removeEventListener('keydown', openEquipment);
-  }, [suspended, hasAdventure, panel, speech, channelOpen, rosterOpen, gameChatOpen]);
+  }, [suspended, hasAdventure, panel, speech, channelOpen, rosterOpen]);
   const [overlayOwner, setOverlayOwner] = useState({
     defeated: Boolean(ui.defeated),
     sample,
@@ -719,48 +722,51 @@ export function RpgPlayPage({
       )}
       {pendingState ??
         (status !== 'ready' && (
-          <div className="rpg-state" role={status === 'error' ? 'alert' : 'status'}>
-            <div className="rpg-frame">
-              <span className="rpg-kicker">Dmap</span>
-              <h2>
-                {status === 'error' ? 'The path could not open' : 'A little world is waking up…'}
-              </h2>
-              <p>
-                {status === 'error'
-                  ? 'The game artwork or graphics could not load. Try opening the path again.'
-                  : `Getting ${sample.name} ready for you.`}
-              </p>
-              {status === 'error' && (
-                <div className="rpg-state-actions">
+          <RpgStatePanel
+            error={status === 'error'}
+            title={status === 'error' ? 'The path could not open' : 'A little world is waking up…'}
+            actions={
+              status === 'error' && (
+                <>
                   <button className="rpg-button" onClick={retry}>
                     Try again
                   </button>
-                  <a href={server ? '/dashboard' : '/map/demo?renderer=2d'}>
+                  <a
+                    className="rpg-button rpg-button--quiet"
+                    href={server ? '/dashboard' : '/map/demo?renderer=2d'}
+                  >
                     {server ? 'Choose another server' : 'Open the original 2D demo'}
                   </a>
-                </div>
-              )}
-            </div>
-          </div>
+                </>
+              )
+            }
+          >
+            {status === 'error'
+              ? 'The game artwork or graphics could not load. Try opening the path again.'
+              : `Getting ${sample.name} ready for you.`}
+          </RpgStatePanel>
         ))}
       {!pendingState && status === 'ready' && networkPending && (
-        <div className="rpg-state" role="status">
-          <div className="rpg-frame">
-            <span className="rpg-kicker">{server?.displayName}</span>
-            <h2>
-              {server?.connection?.connection === 'offline'
-                ? 'Reconnecting to town…'
-                : 'Joining your town…'}
-            </h2>
-            <p>Waiting for your traveler and the other members to arrive.</p>
-            <div className="rpg-state-actions">
+        <RpgStatePanel
+          kicker={server?.displayName}
+          title={
+            server?.connection?.connection === 'offline'
+              ? 'Reconnecting to town…'
+              : 'Joining your town…'
+          }
+          actions={
+            <>
               <button className="rpg-button" onClick={server?.onReconnect}>
                 Try again
               </button>
-              <a href="/dashboard">Choose another server</a>
-            </div>
-          </div>
-        </div>
+              <a className="rpg-button rpg-button--quiet" href="/dashboard">
+                Choose another server
+              </a>
+            </>
+          }
+        >
+          Waiting for your traveler and the other members to arrive.
+        </RpgStatePanel>
       )}
       {ui.supplyCache && ui.adventure && (
         <SupplyCacheDialog
