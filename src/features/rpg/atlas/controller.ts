@@ -1,9 +1,18 @@
 import { AtlasCamera } from './camera';
-import type { AtlasModel, AtlasPin, AtlasSelection, AtlasView, PinDraft, Point } from './types';
+import type {
+  AtlasModel,
+  AtlasPin,
+  AtlasPlace,
+  AtlasSelection,
+  AtlasView,
+  PinDraft,
+  Point,
+} from './types';
 
 interface Callbacks {
   selection(selection: AtlasSelection): void;
   pin(draft: PinDraft): void;
+  destination(target: { place: AtlasPlace } | { pin: AtlasPin }): void;
   zoom(percent: number): void;
 }
 const directions: Record<string, [number, number]> = {
@@ -144,6 +153,19 @@ export class AtlasController {
     this.update();
     this.svg.focus({ preventScroll: true });
   }
+  /** Use the requested view, not an in-flight tween, so two quick Esc presses work. */
+  back(): boolean {
+    if (!this.enabled) return true;
+    // Pausing for a pin editor, resizing or dragging can interrupt a camera move.
+    // The last intent alone cannot establish that we actually reached the overview.
+    const zoomed = this.camera.target.width < this.camera.baseWidth - 1;
+    if (this.intent === 'overview' && !zoomed) return false;
+    if (this.selection.detailed || zoomed || this.camera.view.width < this.camera.baseWidth - 1) {
+      this.overview();
+      return true;
+    }
+    return false;
+  }
   locate(point: Point) {
     this.resetInput();
     this.intent = 'detail';
@@ -166,11 +188,20 @@ export class AtlasController {
     this.camera.setEnabled(value);
   }
   private activate(point: Point, target?: Element | null) {
+    const pinId = target?.closest<SVGGElement>('[data-pin]')?.dataset.pin;
+    const pin = this.pins.find((p) => p.id === pinId);
+    if (pin) {
+      this.callbacks.destination({ pin });
+      return;
+    }
     const placeId = target?.closest<SVGGElement>('[data-place]')?.dataset.place;
     const place = placeId
       ? this.model.regions.flatMap((r) => r.places).find((p) => p.id === placeId)
       : undefined;
-    if (place) point = place;
+    if (place) {
+      this.callbacks.destination({ place });
+      return;
+    }
     if (!this.selection.detailed) {
       const id =
         target?.closest<SVGGElement>('[data-region]')?.dataset.region ??
@@ -179,7 +210,6 @@ export class AtlasController {
       if (id) this.select(id);
       return;
     }
-    const pinId = target?.closest<SVGGElement>('[data-pin]')?.dataset.pin;
     const nearby =
       this.pins.find((p) => p.id === pinId) ??
       this.pins.reduce<AtlasPin | undefined>((best, pin) => {
@@ -190,7 +220,7 @@ export class AtlasController {
           : best;
       }, undefined);
     if (nearby) {
-      this.callbacks.pin({ x: nearby.x, y: nearby.y, existing: nearby });
+      this.callbacks.destination({ pin: nearby });
       return;
     }
     const region = this.model.regionAt(point);
@@ -202,7 +232,7 @@ export class AtlasController {
       this.select(region.id);
       return;
     }
-    this.callbacks.pin({ ...(place ?? point), name: place?.name });
+    this.callbacks.pin(point);
   }
   private focusDirection(dx: number, dy: number) {
     const current = this.model.regions.find((r) => r.id === this.selection.focused);
@@ -224,6 +254,10 @@ export class AtlasController {
     if (best) this.focus(best);
   }
   private activateTarget(target: Element | null) {
+    if (target?.closest('[data-place]')) {
+      this.activate(this.camera.view, target);
+      return;
+    }
     const regionId = target?.closest<SVGGElement>('[data-region]')?.dataset.region;
     if (regionId) {
       this.select(regionId);

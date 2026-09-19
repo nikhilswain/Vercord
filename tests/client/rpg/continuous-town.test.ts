@@ -190,7 +190,7 @@ describe('continuous saved towns', () => {
       expect(scene.colliders.length).toBeLessThan(10000);
       expect(scene.stamps.some(({ depth }) => depth !== undefined && depth < 0)).toBe(true);
       expect(new TextEncoder().encode(JSON.stringify(document)).byteLength).toBeLessThan(2_000_000);
-      expect(new Set(scene.landmarks.map(({ id }) => id)).size).toBe(1002);
+      expect(new Set(scene.landmarks.map(({ id }) => id)).size).toBe(1003);
       expect(scene.stamps.some(({ id }) => id.startsWith('overworld:road:'))).toBe(false);
       expect(connectedRoads(scene).length).toBeGreaterThan(1000);
     },
@@ -203,7 +203,11 @@ describe('continuous saved towns', () => {
     const scene = generateContinuousTownDocument(base, empty).scenes.overworld;
     expect(empty.blocks.map(({ categoryKey }) => categoryKey)).toEqual(['quiet']);
     expect(scene.stamps.some(({ texture }) => texture.startsWith('lpc-house-'))).toBe(false);
-    expect(scene.landmarks).toHaveLength(2);
+    expect(scene.landmarks.map((l) => l.id).sort()).toEqual([
+      'town-hall',
+      'town-noticeboard',
+      'town-square',
+    ]);
     expect(scene.terrain!.roads.some((road) => road.width > 1024 || road.height > 1024)).toBe(
       false,
     );
@@ -214,7 +218,7 @@ describe('continuous saved towns', () => {
     expect(
       generateContinuousTownDocument(base, extendTownLayout(null, [], seed)).scenes.overworld
         .landmarks,
-    ).toHaveLength(2);
+    ).toHaveLength(3);
   });
 
   it('preserves saved lanes when homes and neighboring blocks are appended', () => {

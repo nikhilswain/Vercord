@@ -13,6 +13,18 @@ const createSimulation = () =>
   });
 
 describe('auto-run', () => {
+  it('stops at living guard bodies, resumes after removal, and permits escaping a lunge overlap', () => {
+    const simulation = createSimulation();
+    const guard = { x: 145, y: 85, width: 38, height: 40 };
+    for (let frame = 0; frame < 30; frame++) simulation.tick(1 / 60, running, [guard]);
+    expect(simulation.player.x).toBeLessThan(145);
+    for (let frame = 0; frame < 30; frame++) simulation.tick(1 / 60, running, []);
+    expect(simulation.player.x).toBeGreaterThan(180);
+    const overlap = { x: simulation.player.x - 20, y: 85, width: 40, height: 40 };
+    const start = simulation.player.x;
+    simulation.tick(0.05, running, [overlap]);
+    expect(simulation.player.x).toBeGreaterThan(start);
+  });
   it('reaches exact cardinal corners and retains them between presence samples', () => {
     const simulation = createSimulation();
     simulation.setPlayerPosition({

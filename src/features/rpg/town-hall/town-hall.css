@@ -1,0 +1,136 @@
+.rpg-page[data-ui='ornate'] .rpg-dialog.rpg-hall-board {
+  width: min(680px, calc(100vw - 28px));
+  max-height: min(720px, calc(100dvh - 32px));
+}
+.rpg-hall-caption {
+  color: var(--rpg-muted);
+  margin: 0 0 22px;
+}
+.rpg-hall-caption span {
+  color: var(--rpg-accent);
+  margin-inline: 8px;
+}
+.rpg-hall-notice + .rpg-hall-notice {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rpg-edge);
+}
+.rpg-hall-notice h3 {
+  margin: 6px 0 12px;
+  font-size: 25px;
+}
+.rpg-hall-notice p {
+  margin-block: 12px;
+}
+.rpg-hall-next {
+  border-left: 2px solid var(--rpg-accent);
+  padding-left: 16px;
+  margin-block: 20px;
+}
+.rpg-hall-next strong,
+.rpg-hall-next small {
+  display: block;
+}
+.rpg-hall-next small {
+  color: var(--rpg-muted);
+  margin-bottom: 6px;
+}
+.rpg-hall-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 16px;
+}
+.rpg-hall-register {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+}
+.rpg-hall-register li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rpg-edge);
+}
+.rpg-hall-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rpg-hall-person strong,
+.rpg-hall-person small {
+  display: block;
+}
+.rpg-hall-person small {
+  color: var(--rpg-muted);
+  margin-top: 4px;
+}
+.rpg-hall-presence {
+  color: var(--rpg-accent);
+  font-size: 12px;
+}
+.rpg-hall-register button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.rpg-hall-register svg {
+  width: 16px;
+  height: 16px;
+}
+.rpg-hall-record-title {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  justify-content: space-between;
+}
+.rpg-hall-record-title h3 {
+  margin: 0;
+  font-size: 27px;
+  overflow-wrap: anywhere;
+}
+.rpg-hall-record-title span {
+  color: var(--rpg-accent);
+  flex-shrink: 0;
+}
+.rpg-hall-records {
+  margin-block: 22px;
+}
+.rpg-hall-records > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--rpg-edge);
+}
+.rpg-hall-records dd {
+  margin: 0;
+  color: var(--rpg-accent);
+  text-align: right;
+}
+.rpg-hall-deeds {
+  list-style: none;
+  padding: 0;
+}
+.rpg-hall-deeds li {
+  margin-block: 10px;
+}
+.rpg-hall-deeds span {
+  color: var(--rpg-accent);
+  margin-right: 8px;
+}
+@media (max-width: 540px) {
+  .rpg-hall-register li {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .rpg-hall-register button {
+    margin-left: 24px;
+  }
+}

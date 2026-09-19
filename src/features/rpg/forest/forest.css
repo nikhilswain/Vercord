@@ -1,0 +1,163 @@
+.rpg-page[data-ui='ornate'] .rpg-dialog.rpg-forest-map {
+  width: min(980px, calc(100vw - 24px));
+}
+.forest-map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.forest-map-toolbar > span {
+  margin-left: auto;
+  color: var(--rpg-muted);
+  font-size: 13px;
+}
+.forest-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(180px, 1fr);
+  gap: 24px;
+}
+.forest-chart {
+  position: relative;
+  align-self: start;
+}
+.forest-chart > svg {
+  width: 100%;
+  display: block;
+}
+.forest-chart-ground {
+  fill: var(--rpg-panel);
+}
+.forest-chart-link {
+  fill: none;
+  stroke: var(--rpg-edge);
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+}
+.forest-chart-region {
+  fill: var(--rpg-frame);
+  stroke: var(--rpg-edge);
+  stroke-width: 1;
+}
+.forest-chart-region.is-visited {
+  fill: var(--rpg-panel-dark);
+}
+.forest-chart-region.is-selected {
+  stroke: var(--rpg-accent);
+  stroke-width: 2;
+}
+.forest-chart-detail {
+  fill: none;
+  stroke: var(--rpg-muted);
+  stroke-width: 1;
+  opacity: 0.22;
+}
+.rpg-page .forest-region-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 21%;
+  min-height: 48px;
+  padding: 4px;
+  background: none;
+  border: 0;
+  color: var(--rpg-ink);
+  text-align: center;
+  font-size: clamp(10px, 1.2vw, 14px);
+  line-height: 1.15;
+  cursor: pointer;
+}
+.forest-region-label small {
+  display: block;
+  margin-top: 5px;
+  color: var(--rpg-muted);
+  font-size: 10px;
+}
+.rpg-page .forest-region-label:hover,
+.rpg-page .forest-region-label[aria-pressed='true'] {
+  color: var(--rpg-accent);
+}
+.forest-map-notes {
+  border-left: 1px solid var(--rpg-edge);
+  padding-left: 20px;
+}
+.forest-map-notes h2 {
+  font-size: 27px;
+  margin: 8px 0 14px;
+}
+.forest-map-notes > small {
+  color: var(--rpg-muted);
+  font-size: 12px;
+}
+.forest-map-notes p,
+.forest-homeward {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.forest-homeward {
+  border-top: 1px solid var(--rpg-edge);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+.forest-homeward strong {
+  color: var(--rpg-accent);
+}
+.forest-local-chart {
+  display: block;
+  width: min(100%, 580px);
+  max-height: 45vh;
+  margin: auto;
+}
+.forest-chart-road {
+  fill: var(--rpg-edge);
+}
+.forest-chart-water {
+  fill: #345a58;
+}
+.forest-chart-site {
+  fill: var(--rpg-muted);
+}
+.forest-chart-player {
+  fill: var(--rpg-accent);
+  stroke: var(--rpg-panel);
+  stroke-width: 32;
+}
+.forest-site-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.forest-site-list button {
+  text-align: left;
+  color: var(--rpg-ink);
+  border: 0;
+  border-bottom: 1px solid var(--rpg-edge);
+  background: transparent;
+  padding: 10px 6px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.forest-site-list button:hover {
+  color: var(--rpg-accent);
+}
+@media (max-width: 650px) {
+  .forest-map-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .forest-map-notes {
+    border-left: 0;
+    border-top: 1px solid var(--rpg-edge);
+    padding: 16px 0 0;
+  }
+  .forest-map-toolbar > span {
+    width: 100%;
+    margin-left: 0;
+  }
+  .forest-site-list {
+    grid-template-columns: 1fr;
+  }
+  .forest-region-label small {
+    font-size: 8px;
+  }
+}

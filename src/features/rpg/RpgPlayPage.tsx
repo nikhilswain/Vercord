@@ -1,3 +1,6 @@
+import { SupplyCacheDialog } from './provisions/SupplyCacheDialog';
+import { StationDialog } from './provisions/StationDialog';
+import { ProvisionHud } from './provisions/ProvisionHud';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { worldInputBlocked } from '../world/engine/input';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
@@ -18,16 +21,23 @@ import { RpgChannelPanel, RpgVoiceStatus } from './RpgChannelPanel';
 import { RpgHouseRoster } from './RpgHouseRoster';
 import { AdventureHud } from './demo/AdventureHud';
 import type { DemoArea } from './demo/types';
+import type { ForestDestination } from '../../domain/world/forest/catalog';
+import type { AdventureJourney } from './adventure/journey';
 import { useGameMusic } from '../audio/use-game-music';
 import { PlayerHud } from './ui/PlayerHud';
-import { ObjectiveTracker } from './ui/ObjectiveTracker';
+import { JourneyTracker } from './journal/JourneyDialog';
+import type { JournalObjective } from './journal/model';
+import { useMapShortcut } from './atlas/use-map-shortcut';
 import { DialoguePanel } from './ui/DialoguePanel';
 import { useGameChat } from './chat/use-game-chat';
 import { GameChatPanel, GameChatToggle } from './chat/GameChatPanel';
 import { PartyIndicator, PartyInvitation, PlayersButton, SocialPanel } from './chat/SocialPanel';
 import { CHAT_GUIDE_ID, CHAT_GUIDE, DemoChatTransport } from './chat/demo';
+import { NavigationHud } from './navigation/NavigationControls';
 import './rpg.css';
 import './rpg-house.css';
+import { TownHallBoard } from './town-hall/TownHallBoard';
+import type { HallBoardId } from '../../domain/world/content/town-hall-v1/scene';
 import './demo/demo.css';
 import './ui/ornate-ui.css';
 
@@ -62,6 +72,8 @@ interface Props {
   navigationKey?: string;
   onTravel(destination: RpgDestination): void;
   onDemoTravel?(area: DemoArea): void;
+  onForestTravel?(area: ForestDestination): void;
+  journey?: AdventureJourney;
   demoTransition?: boolean;
   server?: {
     guildId: string;
@@ -88,6 +100,8 @@ export function RpgPlayPage({
   navigationKey,
   onTravel,
   onDemoTravel,
+  onForestTravel,
+  journey,
   demoTransition = false,
   server,
   pendingState,
@@ -100,7 +114,14 @@ export function RpgPlayPage({
       ) as Record<RpgWorldId, string>,
   );
   const appearance = server?.connection?.self?.appearance ?? appearances[world];
-  const [panel, setPanel] = useState<RpgPanel | null>(null);
+  const [panel, setPanel] = useState<RpgPanel | 'hall-board' | null>(null);
+  const [hallBoard, setHallBoard] = useState<HallBoardId>('hall:expeditions');
+  const openHallBoard = useCallback((id: HallBoardId) => {
+    setHallBoard(id);
+    setPanel('hall-board');
+  }, []);
+  const [mapObjective, setMapObjective] = useState<JournalObjective | null>(null);
+  const [mapFocus, setMapFocus] = useState<RpgUiState['position'] | null>(null);
   const [speech, setSpeech] = useState<RpgDialogue | null>(null);
   const [channelOpen, setChannelOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
@@ -192,15 +213,44 @@ export function RpgPlayPage({
     onDialogue: talk,
     onTravel: travel,
     onDemoTravel,
+    onForestTravel,
+    journey,
     onStreet: server ? selectStreet : undefined,
     onHouse: server?.connection ? openHouse : undefined,
+    onHallBoard: openHallBoard,
     onMove: server?.connection?.updateLocation,
     players: server?.connection?.players,
     playerPosition: server?.connection?.position,
   });
-  const suspended = Boolean(pendingState) || networkPending || status !== 'ready' || demoTransition;
+  const suspended =
+    Boolean(ui.defeated) ||
+    Boolean(pendingState) ||
+    networkPending ||
+    status !== 'ready' ||
+    demoTransition;
   const music = useGameMusic(!server, status === 'ready' && !pendingState && !networkPending);
   const hasAdventure = Boolean(ui.adventure);
+  const inAdventure = Boolean(sample.adventure?.definition ?? sample.demo?.jungle);
+  const openMapShortcut = useCallback(
+    (detail: boolean) => {
+      setMapObjective(null);
+      setMapFocus(detail ? { ...ui.position } : null);
+      setPanel('map');
+    },
+    [ui.position],
+  );
+  useMapShortcut({
+    blocked:
+      suspended ||
+      Boolean(speech) ||
+      channelOpen ||
+      rosterOpen ||
+      gameChatOpen ||
+      socialPanel !== null,
+    mapOpen: panel === 'map',
+    otherPanelOpen: panel !== null && panel !== 'map',
+    onOpen: openMapShortcut,
+  });
   const openGameChat = useCallback(() => {
     setSocialPanel(null);
     setGameChatOpen(true);
@@ -211,6 +261,34 @@ export function RpgPlayPage({
     setSocialPanel('players');
   }, []);
   const closeSocial = useCallback(() => setSocialPanel(null), []);
+  useEffect(() => {
+    if (suspended) return;
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape' ||
+        event.defaultPrevented ||
+        event.repeat ||
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey
+      )
+        return;
+      // Native modal dialogs own Escape and their focus restoration. Never open Menu behind one.
+      if (document.querySelector('dialog[open]')) return;
+      event.preventDefault();
+      if (speech) setSpeech(null);
+      else if (gameChatOpen) setGameChatOpen(false);
+      else if (socialPanel) setSocialPanel(null);
+      else if (panel) setPanel(null);
+      else if (channelOpen || rosterOpen) {
+        setChannelOpen(false);
+        setRosterOpen(false);
+      } else if (!worldInputBlocked(event.target)) setPanel('menu');
+    };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [suspended, speech, gameChatOpen, socialPanel, panel, channelOpen, rosterOpen]);
   const messagePlayer = useCallback(
     (peerId: string) => {
       setSocialPanel(null);
@@ -269,6 +347,7 @@ export function RpgPlayPage({
     return () => window.removeEventListener('keydown', openEquipment);
   }, [suspended, hasAdventure, panel, speech, channelOpen, rosterOpen, gameChatOpen]);
   const [overlayOwner, setOverlayOwner] = useState({
+    defeated: Boolean(ui.defeated),
     sample,
     navigationKey,
     canvasKey,
@@ -277,6 +356,7 @@ export function RpgPlayPage({
     house: route.house,
   });
   if (
+    overlayOwner.defeated !== Boolean(ui.defeated) ||
     overlayOwner.sample !== sample ||
     overlayOwner.navigationKey !== navigationKey ||
     overlayOwner.canvasKey !== canvasKey ||
@@ -286,6 +366,7 @@ export function RpgPlayPage({
   ) {
     // Reset before React commits: Back/refresh must never reopen another street's dialogue.
     setOverlayOwner({
+      defeated: Boolean(ui.defeated),
       sample,
       navigationKey,
       canvasKey,
@@ -351,10 +432,25 @@ export function RpgPlayPage({
       className={`rpg-page${route.house ? ' rpg-page--house' : ''}`}
       data-game-theme={theme}
       data-demo-area={sample.demo?.area}
-      data-adventure={Boolean(sample.demo?.jungle)}
+      data-adventure={inAdventure}
+      data-forest-region={sample.forest?.region}
+      data-temple-area={sample.temple}
       data-ui="ornate"
       data-dialogue={!suspended && speech !== null}
+      data-defeated={Boolean(ui.defeated)}
     >
+      {ui.defeated && (
+        <div className="rpg-defeat" role="status" aria-live="assertive">
+          <div className="rpg-defeat-message">
+            <span className="rpg-defeat-mark" aria-hidden="true">
+              ✦
+            </span>
+            <h2>You fell</h2>
+            <p>Your adventure ends here.</p>
+            <span>Returning to town…</span>
+          </div>
+        </div>
+      )}
       <div
         ref={hostRef}
         className="rpg-stage"
@@ -382,10 +478,34 @@ export function RpgPlayPage({
             onAppearance={() => setPanel('appearance')}
             onInventory={() => setPanel('equipment')}
           />
+          {inAdventure && (
+            <ProvisionHud status={ui.adventure} onInventory={() => setPanel('equipment')} />
+          )}
           <div className="rpg-player-social">
-            <PlayersButton client={chat.client} onOpen={openPlayers} />
+            <PlayersButton
+              client={chat.client}
+              onOpen={openPlayers}
+              worldOnlineCount={
+                server?.connection?.ready ? Math.max(1, server.connection.onlineCount) : undefined
+              }
+            />
             <PartyIndicator client={chat.client} onOpen={openPartyChat} />
           </div>
+          {!suspended && !speech && ui.navigation && (
+            <NavigationHud
+              state={ui.navigation}
+              onStop={() => runtimeRef.current?.stopNavigation?.()}
+              onRetry={() => {
+                if (ui.navigation) runtimeRef.current?.guideTo?.(ui.navigation.target);
+              }}
+            />
+          )}
+          {!suspended && !speech && !ui.navigation && ui.feedback?.startsWith('Arrived at ') && (
+            <p className="rpg-navigation-arrival">{ui.feedback}</p>
+          )}
+          {!suspended && !speech && ui.feedback && !ui.feedback.startsWith('Arrived at ') && (
+            <p className="rpg-house-feedback">{ui.feedback}</p>
+          )}
           {!suspended && !panel && !speech && sample.demo?.area === 'village' && (
             <details className="rpg-demo-hint">
               <summary>Village guide</summary>
@@ -405,7 +525,36 @@ export function RpgPlayPage({
               </button>
             </details>
           )}
-          {sample.demo?.jungle && ui.adventure && <ObjectiveTracker status={ui.adventure} />}
+          {ui.journal?.objective && ui.journal.pinned === ui.journal.objective.id && (
+            <JourneyTracker
+              objective={ui.journal.objective}
+              onOpen={() => setPanel('journey')}
+              onUnpin={() => runtimeRef.current?.setJournal?.({ pinned: null })}
+            />
+          )}
+          {!suspended &&
+            !panel &&
+            !speech &&
+            !sample.forest &&
+            !sample.temple &&
+            sample.forestPortals && (
+              <details className="rpg-demo-hint">
+                <summary>Beyond the town</summary>
+                <p>
+                  Follow the Mosswild trail to explore the forest. Its marked paths lead back here.
+                </p>
+                <button
+                  onClick={() => {
+                    const entrance = sample.forestPortals?.find(
+                      (portal) => portal.target === 'verge',
+                    );
+                    if (entrance) runtimeRef.current?.focus?.(entrance);
+                  }}
+                >
+                  Find the forest trail
+                </button>
+              </details>
+            )}
         </div>
         <header key={sample.name} className="rpg-location rpg-frame">
           {server && (
@@ -417,18 +566,23 @@ export function RpgPlayPage({
             {sample.name}
           </h1>
           <p title={sample.subtitle}>
-            {Boolean(sample.demo?.jungle) || route.house || (server?.town && theme !== 'dungeon')
+            {inAdventure || route.house || route.hall || (server?.town && theme !== 'dungeon')
               ? sample.subtitle
               : ui.theme === theme
                 ? ui.place
                 : sample.subtitle}
           </p>
         </header>
-        {!suspended && !panel && !speech && Boolean(sample.demo?.jungle) && ui.adventure && (
+        {!suspended && !panel && !speech && inAdventure && ui.adventure && (
           <AdventureHud
             status={ui.adventure}
             onAttack={() => runtimeRef.current?.attack?.()}
             onHeal={() => runtimeRef.current?.heal?.()}
+            onBuff={() =>
+              runtimeRef.current?.useInventoryItem?.(
+                ui.adventure?.provisions?.quickBuff ?? 'battle-bottle',
+              )
+            }
             onSpell={(spell) => runtimeRef.current?.selectSpell?.(spell)}
             onMelee={() => runtimeRef.current?.selectMelee?.()}
           />
@@ -446,21 +600,31 @@ export function RpgPlayPage({
             </button>
           </nav>
         )}
-        {status === 'ready' && ui.nearby && ui.following !== false && !panel && !speech && (
-          <button
-            className="rpg-interact rpg-button"
-            onClick={() => runtimeRef.current?.interact()}
-          >
-            <span className="rpg-context-star" aria-hidden="true">
-              ✦
-            </span>
-            <span>
-              {ui.nearby.action === 'Talk' ? 'Talk to' : ui.nearby.action}{' '}
-              <strong>{ui.nearby.label}</strong>
-            </span>
-            <kbd>E</kbd>
-          </button>
-        )}
+        {status === 'ready' &&
+          (ui.pickup || ui.nearby) &&
+          ui.following !== false &&
+          !panel &&
+          !speech && (
+            <button
+              className="rpg-interact rpg-button"
+              onClick={() =>
+                ui.pickup ? runtimeRef.current?.pickupLoot?.() : runtimeRef.current?.interact()
+              }
+            >
+              <span className="rpg-context-star" aria-hidden="true">
+                ✦
+              </span>
+              <span>
+                {ui.pickup
+                  ? 'Pick up'
+                  : ui.nearby?.action === 'Talk'
+                    ? 'Talk to'
+                    : ui.nearby?.action}{' '}
+                <strong>{ui.pickup?.label ?? ui.nearby?.label}</strong>
+              </span>
+              <kbd>{ui.pickup ? 'F' : 'E'}</kbd>
+            </button>
+          )}
         <span className="rpg-feedback-accessible" role="status">
           {ui.feedback}
         </span>
@@ -470,7 +634,11 @@ export function RpgPlayPage({
               key={action.panel}
               aria-label={action.panel === 'appearance' ? 'Choose appearance' : action.label}
               aria-pressed={panel === action.panel}
-              onClick={() => setPanel(action.panel)}
+              onClick={() => {
+                setMapObjective(null);
+                setMapFocus(null);
+                setPanel(action.panel);
+              }}
             >
               <span>{action.label}</span>
             </button>
@@ -503,7 +671,13 @@ export function RpgPlayPage({
               <RpgIcon name="minus" />
             </button>
             <button
-              aria-label={route.house ? 'View whole room' : 'View whole town'}
+              aria-label={
+                sample.sceneId === 'town-hall'
+                  ? 'View whole hall'
+                  : route.house
+                    ? 'View whole room'
+                    : 'View whole town'
+              }
               disabled={status !== 'ready'}
               onClick={() => runtimeRef.current?.overview?.()}
             >
@@ -588,24 +762,112 @@ export function RpgPlayPage({
           </div>
         </div>
       )}
+      {ui.supplyCache && ui.adventure && (
+        <SupplyCacheDialog
+          status={ui.adventure}
+          onClose={() => {
+            runtimeRef.current?.closeSupplyCache?.();
+            requestAnimationFrame(() => canvasRef.current?.focus());
+          }}
+          onTake={(id) => {
+            const result = runtimeRef.current?.takeSupplyCache?.(id) ?? 'Cache unavailable.';
+            if (result === 'Collected.') requestAnimationFrame(() => canvasRef.current?.focus());
+            return result;
+          }}
+        />
+      )}
+      {ui.station && ui.adventure && (
+        <StationDialog
+          key={ui.station.id}
+          station={ui.station}
+          status={ui.adventure}
+          onCraft={(...args) => runtimeRef.current?.craftInventoryItem?.(...args)}
+          onTrack={(id) => runtimeRef.current?.configureProvisions?.({ trackedRecipe: id })}
+          onAction={(action) =>
+            runtimeRef.current?.stationAction?.(action) ?? 'The station is unavailable.'
+          }
+          onClose={() => {
+            runtimeRef.current?.closeStation?.();
+            requestAnimationFrame(() => canvasRef.current?.focus());
+          }}
+        />
+      )}
+      {!suspended && panel === 'hall-board' && (
+        <TownHallBoard
+          board={hallBoard}
+          client={chat.client}
+          ui={ui}
+          playerName={server?.playerName ?? traveler.name}
+          onClose={() => {
+            setPanel(null);
+            requestAnimationFrame(() => canvasRef.current?.focus());
+          }}
+          onJourney={() => setPanel('journey')}
+          onInventory={() => setPanel('equipment')}
+          onShowObjective={(objective) => {
+            setMapFocus(null);
+            setMapObjective(objective);
+            setPanel('map');
+          }}
+          onMessage={(id) => {
+            setPanel(null);
+            messagePlayer(id);
+          }}
+          onBoard={openHallBoard}
+        />
+      )}
       <RpgPanels
-        panel={suspended ? null : panel}
+        panel={suspended || panel === 'hall-board' ? null : panel}
         theme={theme}
         world={world}
         appearance={appearance}
         ui={ui}
         sample={sample}
+        samples={samples}
+        mapObjective={mapObjective}
+        mapFocus={mapFocus}
+        onJourney={() => setPanel('journey')}
+        onJournalChange={(preferences) => runtimeRef.current?.setJournal?.(preferences)}
+        onShowObjective={(objective) => {
+          setMapFocus(null);
+          setMapObjective(objective);
+          setPanel('map');
+        }}
         house={route.house}
+        hall={route.hall}
         server={server ? { ...server, onStreet: selectStreet } : undefined}
         music={music}
         onSettings={() => setPanel('settings')}
         onClose={() => {
           setPanel(null);
-          if (panel === 'equipment' || panel === 'settings')
-            requestAnimationFrame(() => canvasRef.current?.focus());
+          requestAnimationFrame(() => canvasRef.current?.focus());
         }}
         onEquip={(id) => runtimeRef.current?.equipWeapon?.(id) ?? false}
-        onUseItem={(id) => runtimeRef.current?.useInventoryItem?.(id)}
+        onUseItem={(id) => {
+          const result = runtimeRef.current?.useInventoryItem?.(id);
+          if (result?.success) {
+            setPanel(null);
+            requestAnimationFrame(() => canvasRef.current?.focus());
+          }
+          return result;
+        }}
+        onConfigureProvisions={(settings) => runtimeRef.current?.configureProvisions?.(settings)}
+        onFindSource={(id) => {
+          const result = runtimeRef.current?.guideToSupply?.(id);
+          if (result?.ok) {
+            setPanel(null);
+            return 'Trail selected.';
+          }
+          return (
+            (result && !result.ok ? result.message : undefined) ??
+            'No source found in this area. Check the recipe for its habitat.'
+          );
+        }}
+        onCraftItem={(id) => runtimeRef.current?.craftInventoryItem?.(id)}
+        onReturnToTown={() => {
+          setPanel(null);
+          runtimeRef.current?.returnToTown?.();
+        }}
         onApplyEnemyLevel={(level) => runtimeRef.current?.setEnemyLevel?.(level)}
         onTheme={travel}
         onAppearance={(id) => {
@@ -617,6 +879,18 @@ export function RpgPlayPage({
           runtimeRef.current?.focus?.(point);
           setPanel(null);
         }}
+        onNavigate={(target) => {
+          const result = runtimeRef.current?.guideTo?.(target) ?? {
+            ok: false as const,
+            message: 'The world is still loading. Try again in a moment.',
+          };
+          if (result.ok) {
+            setPanel(null);
+            requestAnimationFrame(() => canvasRef.current?.focus());
+          }
+          return result;
+        }}
+        onStopNavigation={() => runtimeRef.current?.stopNavigation?.()}
       />
       <Dialog
         open={!suspended && channelOpen && channelRoom !== null}

@@ -4,8 +4,9 @@ import { RoomTypeIcon } from '../map/components/RoomTypeIcon';
 import { RpgSceneMap } from './RpgSceneMap';
 import { activeTownStreet, ROOM_TYPE_LABELS } from './town-presentation';
 import type { RpgSample, RpgThemeId, RpgUiState } from './types';
+import type { NavigationActions } from './navigation/types';
 
-interface Props {
+interface Props extends NavigationActions {
   town: WorldTown;
   displayName: string;
   theme: RpgThemeId;
@@ -15,7 +16,16 @@ interface Props {
   onFocus?(point: Point): void;
 }
 
-export function RpgTownMap({ town, displayName, theme, sample, ui, onStreet, onFocus }: Props) {
+export function RpgTownMap({
+  town,
+  displayName,
+  theme,
+  sample,
+  ui,
+  onStreet,
+  onFocus,
+  ...navigation
+}: Props) {
   const active = activeTownStreet(town);
   const inDungeon = theme === 'dungeon';
   if (town.continuous) {
@@ -30,7 +40,7 @@ export function RpgTownMap({ town, displayName, theme, sample, ui, onStreet, onF
             ? 'Return to the town to find a channel house.'
             : 'One town, connected by paths. Find a neighborhood or show a channel house on the map.'}
         </p>
-        <RpgSceneMap theme={theme} ui={ui} sample={sample} showDirectory={false} />
+        <RpgSceneMap theme={theme} ui={ui} sample={sample} showDirectory={false} {...navigation} />
         <nav className="rpg-town-directory" aria-label="Town neighborhoods and channel houses">
           <button
             className="rpg-street-link"
@@ -195,6 +205,7 @@ export function RpgTownMap({ town, displayName, theme, sample, ui, onStreet, onF
         theme={theme}
         ui={ui}
         sample={sample}
+        {...navigation}
         bindings={
           active && !inDungeon
             ? active.street.rooms.map((room) => ({ landmarkId: room.landmarkId, rooms: [room] }))

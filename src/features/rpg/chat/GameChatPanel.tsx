@@ -48,7 +48,13 @@ export const GameChatToggle = memo(function GameChatToggle({
   );
 });
 
-export function ChatConnectionNotice({ client }: { client: GameChatClient }) {
+export function ChatConnectionNotice({
+  client,
+  context = 'chat',
+}: {
+  client: GameChatClient;
+  context?: 'chat' | 'register';
+}) {
   const state = useSyncExternalStore(client.subscribe, client.snapshot);
   return (
     <>
@@ -57,9 +63,13 @@ export function ChatConnectionNotice({ client }: { client: GameChatClient }) {
           <span>
             {state.connection === 'denied'
               ? 'Access ended. Reopen this world or sign in again.'
-              : state.connection === 'connecting'
-                ? 'Connecting…'
-                : 'Chat disconnected. Your draft is kept.'}
+              : context === 'register'
+                ? state.people.length
+                  ? 'The register is reconnecting. These travelers were last seen online.'
+                  : 'Connecting to the traveler register…'
+                : state.connection === 'connecting'
+                  ? 'Connecting…'
+                  : 'Chat disconnected. Your draft is kept.'}
           </span>
           <button type="button" className="rpg-social-link" onClick={client.resume}>
             Reconnect

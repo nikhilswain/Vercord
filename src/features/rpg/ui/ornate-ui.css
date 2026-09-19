@@ -370,6 +370,20 @@
   font-size: 9px;
   color: var(--rpg-muted);
 }
+.rpg-ability-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+.rpg-ability-slot[data-recovering] .rpg-ability-icon {
+  opacity: 0.55;
+}
+.rpg-ability-slot[data-recovering] > small {
+  color: var(--rpg-accent);
+  font-variant-numeric: tabular-nums;
+}
 .rpg-ability-slot[aria-pressed='true']::after {
   content: '◆';
   position: absolute;
@@ -1368,4 +1382,67 @@
   width: auto;
   max-width: none;
   margin: 8px 6px 0;
+}
+/* Defeat stays in the world: no dialog, focus trap or recovery button to dismiss. */
+.rpg-defeat {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: rgb(9 21 17 / 28%);
+  animation: rpg-defeat-shade 800ms ease-out both;
+  cursor: default;
+}
+.rpg-defeat-message {
+  align-self: end;
+  margin-bottom: clamp(32px, 14vh, 112px);
+  padding: 18px 30px;
+  text-align: center;
+  color: var(--rpg-ink);
+  font-family: var(--font-rpg-body);
+  background: var(--rpg-panel);
+  border-block: 1px solid var(--rpg-edge);
+  animation: rpg-defeat-message 600ms 500ms ease-out both;
+}
+.rpg-defeat-message h2 {
+  margin: 4px 0 8px;
+  font-family: var(--font-rpg-title);
+  font-size: clamp(26px, 4vw, 36px);
+  font-weight: 400;
+}
+.rpg-defeat-message p {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.rpg-defeat-message > span {
+  color: var(--rpg-muted);
+  font-size: 13px;
+}
+.rpg-defeat-message .rpg-defeat-mark {
+  color: var(--rpg-accent);
+  font-size: 20px;
+}
+.rpg-page[data-defeated='true'] .rpg-hud {
+  opacity: 0.2;
+  pointer-events: none;
+}
+@keyframes rpg-defeat-shade {
+  from {
+    background: transparent;
+  }
+}
+@keyframes rpg-defeat-message {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rpg-defeat,
+  .rpg-defeat-message {
+    animation: none;
+  }
 }

@@ -1,0 +1,18 @@
+{
+  "source": "https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg",
+  "author": "Henrique Lazarini (7Soul1)",
+  "license": "CC0-1.0",
+  "modified": false,
+  "files": [
+    {
+      "file": "ember.png",
+      "original": "S_Fire03.png",
+      "sha256": "9aeb3edb65180e6ce492b3609e8eb4b5fcd2c3d8e67769b4571787caa4c40ccd"
+    },
+    {
+      "file": "tide.png",
+      "original": "S_Water02.png",
+      "sha256": "419cd9012285475a99d59fc48bf0402ae3a95531a3e229a1fd8066033552b499"
+    }
+  ]
+}

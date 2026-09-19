@@ -11,6 +11,8 @@ export interface DialogProps {
   /** Optional layout slots; the caller owns the scroll styling. */
   scrollBody?: boolean;
   headerActions?: ReactNode;
+  /** Optional stepped dismissal; explicit close controls still call onClose. */
+  onEscape?(): void;
   onClose(): void;
 }
 
@@ -25,17 +27,21 @@ export function Dialog({
   className = '',
   scrollBody = false,
   headerActions,
+  onEscape,
   onClose,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const returnFocusRef = useRef<HTMLElement | SVGElement | null>(null);
   const titleId = useId();
   useEffect(() => {
     const dialog = dialogRef.current;
     if (dialog === null) return;
     if (open && !dialog.open) {
       returnFocusRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        document.activeElement instanceof HTMLElement ||
+        document.activeElement instanceof SVGElement
+          ? document.activeElement
+          : null;
       if (typeof dialog.showModal === 'function') dialog.showModal();
       else dialog.setAttribute('open', '');
     } else if (!open && dialog.open) {
@@ -58,10 +64,38 @@ export function Dialog({
       className={`confirm-dialog ${className}`}
       aria-labelledby={titleId}
       aria-busy={busy}
-      onCancel={(event) => {
+      onKeyDown={(event) => {
+        if (
+          event.key !== 'Escape' ||
+          event.defaultPrevented ||
+          event.nativeEvent.isComposing ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey ||
+          !(event.target instanceof Element) ||
+          event.target.closest('dialog') !== event.currentTarget
+        )
+          return;
+        // Native cancel can become non-cancelable on consecutive Escapes. Own the
+        // key before that close request so stepped dismissal never hides a live modal.
         event.preventDefault();
         event.stopPropagation();
-        if (!busy) onClose();
+        if (!busy && !event.repeat) (onEscape ?? onClose)();
+      }}
+      onCancel={(event) => {
+        if (event.target !== event.currentTarget) return;
+        event.stopPropagation();
+        // Browser/platform close requests can bypass keydown. If the browser will
+        // close regardless, let onClose synchronize the owner's state afterward.
+        if (!event.cancelable) return;
+        event.preventDefault();
+        if (!busy) (onEscape ?? onClose)();
+      }}
+      onClose={(event) => {
+        if (event.target !== event.currentTarget) return;
+        event.stopPropagation();
+        // Ignore cleanup events queued before a reopen (including Strict Mode).
+        if (open && !event.currentTarget.open && event.currentTarget.isConnected) onClose();
       }}
       onClick={(event) => {
         if (!busy && event.target === event.currentTarget) onClose();

@@ -1,5 +1,6 @@
 import type { AdventureStatus, SpellId } from '../adventure/types';
 import { PixelIcon } from './PixelIcon';
+import { SPELL_DEFINITIONS, spellTimeLabel } from '../../../domain/adventure/spells';
 
 export function AbilityBar({
   status,
@@ -12,28 +13,47 @@ export function AbilityBar({
     <section className="rpg-abilities" aria-label="Abilities">
       <span className="rpg-hud-caption">Abilities</span>
       <div className="rpg-ability-slots" role="group" aria-label="Select ability">
-        <button
-          className="rpg-ability-slot"
-          aria-pressed={status.combatMode === 'fire'}
-          onClick={() => onSpell('fire')}
-          title="Ember · 1"
-        >
-          <kbd>1</kbd>
-          <PixelIcon name="fire" />
-          <span>Ember</span>
-        </button>
-        <button
-          className="rpg-ability-slot"
-          aria-pressed={status.combatMode === 'water'}
-          onClick={() => onSpell('water')}
-          disabled={!status.waterUnlocked}
-          title={status.waterUnlocked ? 'Tide · 2' : 'Tide unlocks at level 2'}
-        >
-          <kbd>2</kbd>
-          <PixelIcon name="water" />
-          <span>Tide</span>
-          {!status.waterUnlocked && <small>LV 2</small>}
-        </button>
+        {(['fire', 'water'] as const).map((id) => {
+          const spell = SPELL_DEFINITIONS[id];
+          const locked = status.level < spell.unlockLevel;
+          const remaining = status.spellCooldowns?.[id] ?? 0;
+          const state = locked
+            ? `Unlocks at level ${spell.unlockLevel}`
+            : remaining > 0
+              ? `Ready in ${spellTimeLabel(remaining)}`
+              : 'Ready';
+          return (
+            <button
+              key={id}
+              type="button"
+              className="rpg-ability-slot"
+              aria-pressed={status.combatMode === id}
+              disabled={locked}
+              aria-label={`${spell.name} · ${state}`}
+              title={`${spell.name} · ${state} · ${spell.key}${id === 'water' ? ' · Freezes for 2 seconds' : ''}`}
+              onClick={() => onSpell(id)}
+              data-recovering={remaining > 0 || undefined}
+            >
+              <kbd>{spell.key}</kbd>
+              <img
+                className="rpg-ability-icon"
+                src={`/game-assets/ability-icons/${id === 'fire' ? 'ember' : 'tide'}.png`}
+                alt=""
+                width="32"
+                height="32"
+                draggable={false}
+              />
+              <span>{spell.name}</span>
+              <small>
+                {locked
+                  ? `LV ${spell.unlockLevel}`
+                  : remaining > 0
+                    ? spellTimeLabel(remaining)
+                    : 'Ready'}
+              </small>
+            </button>
+          );
+        })}
         {[0, 1].map((slot) => (
           <button
             key={slot}

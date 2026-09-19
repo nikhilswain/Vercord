@@ -1,0 +1,148 @@
+.rpg-destination-actions {
+  padding: 14px 0;
+  color: var(--rpg-ink, var(--atlas-paper));
+}
+.rpg-destination-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.rpg-destination-heading > div {
+  min-width: 0;
+}
+.rpg-destination-heading small {
+  color: var(--rpg-muted, var(--atlas-muted));
+  font-size: 12px;
+}
+.rpg-destination-heading h3 {
+  margin: 3px 0 0;
+  font-size: 23px;
+  overflow-wrap: anywhere;
+}
+.rpg-destination-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rpg-destination-buttons button {
+  min-height: 44px;
+}
+.rpg-navigation-error {
+  color: var(--rpg-ink, var(--atlas-paper));
+  font-size: 14px;
+  line-height: 1.5;
+}
+.rpg-navigation-hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(320px, 100%);
+  padding: 9px 10px;
+  background: var(--rpg-panel);
+  color: var(--rpg-ink);
+  border-left: 2px solid var(--rpg-accent);
+  pointer-events: auto;
+}
+.rpg-navigation-hud > .atlas-icon {
+  color: var(--rpg-accent);
+  width: 20px;
+  height: 20px;
+}
+.rpg-navigation-hud > div {
+  flex: 1;
+  min-width: 0;
+}
+.rpg-navigation-hud strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 400;
+}
+.rpg-navigation-caption,
+.rpg-navigation-hud small {
+  display: block;
+  font-size: 11px;
+  color: var(--rpg-muted);
+}
+.rpg-navigation-hud p {
+  font-size: 12px;
+  margin: 5px 0;
+}
+.rpg-navigation-hud > button {
+  border: 0;
+  background: transparent;
+  color: var(--rpg-ink);
+  cursor: pointer;
+  padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.rpg-navigation-hud > button:hover {
+  color: var(--rpg-accent);
+  background: var(--rpg-panel-dark);
+}
+.rpg-navigation-map-route {
+  fill: none;
+  stroke: var(--rpg-accent, #d6c28a);
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+  stroke-linecap: round;
+}
+.atlas-water {
+  fill: #345a58;
+  opacity: 0.75;
+  pointer-events: none;
+}
+.atlas-place-selection .atlas-marker > circle,
+.atlas-pin-selection .atlas-marker > circle {
+  fill: #514a32;
+  stroke: var(--atlas-gold);
+}
+.atlas-shell .atlas-search {
+  position: relative;
+}
+.atlas-shell .atlas-search input {
+  padding-right: 44px;
+}
+.atlas-shell .atlas-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 40px;
+  min-width: 40px;
+}
+.atlas-pins-directory {
+  display: grid;
+  gap: 4px;
+}
+.atlas-pins-directory > button {
+  text-align: left;
+  min-height: 44px;
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+.rpg-navigation-arrival {
+  margin: 0;
+  padding: 9px 12px;
+  background: var(--rpg-panel);
+  color: var(--rpg-accent);
+  font-size: 14px;
+  max-width: 320px;
+}
+.rpg-map [role='button'] {
+  cursor: pointer;
+}
+.rpg-map [role='button']:is(:hover, :focus-visible) circle {
+  fill: var(--rpg-accent);
+  stroke: var(--rpg-ink);
+}
+.atlas-pins-directory summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-top: 12px;
+  color: var(--rpg-accent);
+}

@@ -222,6 +222,7 @@ export function enemyProjectileOrigin(
 
 export interface EnemySpawnOptions {
   elite?: boolean;
+  levelOffset?: number;
   /** Explicit local demo setting; ordinary spawns derive their level from the player. */
   levelOverride?: number;
 }
@@ -233,7 +234,9 @@ export function spawnEnemyPower(
 ): { level: number; health: number; damage: number } {
   const level =
     options.levelOverride === undefined
-      ? encounterLevelForPlayer(playerLevel, options.elite)
+      ? options.levelOffset === undefined
+        ? encounterLevelForPlayer(playerLevel, options.elite)
+        : normalizeEncounterLevel(playerLevel + options.levelOffset)
       : normalizeEncounterLevel(options.levelOverride);
   return { level, ...encounterPower(ENEMY_DEFINITIONS[kind], level) };
 }

@@ -111,6 +111,8 @@
   width: 64px;
   height: 64px;
   flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 .rpg-inventory-item strong {
   font-size: 12px;
@@ -216,6 +218,15 @@
   padding-top: 12px;
   border-top: 0;
 }
+.rpg-inventory-recipe {
+  border-top: 1px solid var(--rpg-edge);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+.rpg-inventory-recipe h4 {
+  margin: 0 0 8px;
+}
+
 @media (max-width: 620px) {
   .rpg-page .rpg-dialog.rpg-inventory-dialog {
     width: calc(100% - 20px);

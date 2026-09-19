@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { RPG_TEXTURES } from './content/v1/assets';
 import { NORSE_TEXTURES } from './content/v1/norse-props';
+import { TOWN_HALL_TEXTURES } from './content/v1/town-hall-assets';
 import type { Rect, RpgSample, RpgStamp } from './content/v1/types';
 import { containsRect, footprint, overlaps } from './geometry';
 import { WORLD_THEME_IDS, getWorldTheme, type WorldThemeId } from './catalog/themes';
@@ -60,7 +61,7 @@ const landmark = point.extend({
   description: text,
   radius: z.number().finite().min(24).max(128),
   kind: z.enum(['sign', 'portal', 'view']),
-  destination: z.enum([...WORLD_THEME_IDS, 'dungeon', 'return']).optional(),
+  destination: z.enum([...WORLD_THEME_IDS, 'dungeon', 'return', 'town-hall']).optional(),
   labelAnchor: point.optional(),
 });
 const npc = point.extend({
@@ -115,7 +116,7 @@ const townScene = scene.extend({
   landmarks: z
     .array(landmark.extend({ ...townPoint.shape, labelAnchor: townPoint.optional() }))
     .min(1)
-    .max(2000),
+    .max(2002),
   lights: z
     .array(
       townPoint.extend({
@@ -142,7 +143,9 @@ const schema = z
   })
   .strict();
 
-const catalog = new Map([...RPG_TEXTURES, ...NORSE_TEXTURES].map((entry) => [entry.key, entry]));
+const catalog = new Map(
+  [...RPG_TEXTURES, ...NORSE_TEXTURES, ...TOWN_HALL_TEXTURES].map((entry) => [entry.key, entry]),
+);
 const frameCounts: Record<string, number> = {
   'lpc-terrain': 416,
   'lpc-flowers': 55,
@@ -278,7 +281,8 @@ function validateScene(value: WorldScene): void {
   for (const target of value.landmarks) {
     if (
       target.kind === 'portal'
-        ? target.destination !== (value.id === 'dungeon' ? 'return' : 'dungeon')
+        ? target.destination !== (value.id === 'dungeon' ? 'return' : 'dungeon') &&
+          !(value.terrain && target.id === 'town-hall' && target.destination === 'town-hall')
         : target.destination !== undefined
     )
       fail();

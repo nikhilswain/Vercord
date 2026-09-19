@@ -7,6 +7,7 @@ import {
   type ContinuousTownLayout,
 } from '../../src/domain/world/continuous-town';
 import { parseWorldDocument } from '../../src/domain/world/document';
+import { withTownHall } from '../../src/domain/world/town-hall';
 import type { StreetSelection, WorldBindings } from '../../src/domain/world/protocol';
 import { WorldAccessError } from '../live-world/coordinator';
 import { type SavedWorld, worldDocumentChecksum } from './instance-store';
@@ -141,8 +142,13 @@ export class ContinuousTownStore {
         square.document.seed,
       );
       const json = JSON.stringify(layout);
-      if (row && current && json === row.layout_json) return current;
-      const document = generateContinuousTownDocument(square.document, layout);
+      const unchangedLayout = row && current && json === row.layout_json;
+      // A civic art upgrade must not regenerate or rearrange any saved channel house.
+      const upgraded = current ? withTownHall(current.saved.document) : null;
+      if (unchangedLayout && upgraded === current.saved.document) return current;
+      const document = unchangedLayout
+        ? parseWorldDocument(upgraded)
+        : generateContinuousTownDocument(square.document, layout);
       const documentJson = JSON.stringify(document);
       if (byteLength(json) > 2_000_000 || byteLength(documentJson) > 8_000_000)
         throw new WorldSaveError('WORLD_SAVE_UNAVAILABLE');

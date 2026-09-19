@@ -53,6 +53,7 @@ import {
 } from '../../src/domain/world/protocol';
 import { publicLabel } from '../../src/domain/map/labels';
 import { readRpgPartition } from '../presence/rpg-state';
+import { forestAreaIdSchema } from '../../src/domain/world/forest/catalog';
 
 const OAUTH_STATE_LIFETIME_SECONDS = 10 * 60;
 const SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
@@ -654,6 +655,13 @@ async function handleGuildRpg(
   const params = new URL(request.url).searchParams;
   const parsedHouse = houseSceneIdSchema.optional().safeParse(params.get('house') ?? undefined);
   if (!parsedHouse.success || params.getAll('house').length > 1) return authError('NOT_FOUND', 404);
+  const parsedForest = forestAreaIdSchema.optional().safeParse(params.get('forest') ?? undefined);
+  if (
+    !parsedForest.success ||
+    params.getAll('forest').length > 1 ||
+    (parsedHouse.data && parsedForest.data)
+  )
+    return authError('NOT_FOUND', 404);
   let authenticated: AuthenticatedSession | null = null;
   try {
     authenticated = await resolveAuthenticatedSession(request, env);
@@ -667,6 +675,7 @@ async function handleGuildRpg(
       parsedTheme.data,
       parsedStreet.data,
       parsedHouse.data,
+      parsedForest.data,
     );
     const identifiers = await createIdentifierFactory(
       decodeBase64UrlSecret(env.SNAPSHOT_ID_SECRET),

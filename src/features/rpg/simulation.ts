@@ -1,3 +1,4 @@
+import { TRAVEL_SPEED } from '../../domain/adventure/movement';
 import { containsPoint, overlaps, resolveMovement } from '../world/engine/collision';
 import { footprint, WORLD_PLAYER_FEET } from '../../domain/world/geometry';
 import { RPG_MAX_MOVEMENT_POINTS, type RpgMovement } from '../../domain/presence/rpg-protocol';
@@ -7,9 +8,7 @@ import type { Point, Rect } from '../world/engine/types';
 import type { RpgAction, RpgDirection, RpgLandmark, RpgNearby, RpgNpc, RpgSample } from './types';
 
 export const RPG_FEET = WORLD_PLAYER_FEET;
-const WALK_SPEED = 108;
-const RUN_SPEED = 174;
-const AUTO_RUN_SPEED = 240;
+const { walk: WALK_SPEED, run: RUN_SPEED, autoRun: AUTO_RUN_SPEED } = TRAVEL_SPEED;
 type MovementVector = Point & { moving: boolean; sprinting: boolean };
 
 export function directionToward(from: Point, to: Point): RpgDirection {
@@ -24,6 +23,7 @@ export class RpgSimulation {
   public direction: RpgDirection = 'down';
   public action: RpgAction = 'idle';
   public blocked = false;
+  public speedMultiplier = 1;
   public movementRevision = 0;
   private movementPath: Point[] = [];
   private route: Point[] = [];
@@ -146,7 +146,12 @@ export class RpgSimulation {
     this.destination = this.route.at(-1) ?? null;
   }
 
-  public tick(delta: number, movement: MovementVector): void {
+  /** Guidance shares the indexed collision geometry without taking over movement. */
+  public get navigationPaths(): RpgPathfinder {
+    return this.pathfinder;
+  }
+
+  public tick(delta: number, movement: MovementVector, creatureBodies: readonly Rect[] = []): void {
     if (this.blocked) {
       this.stop();
       return;
@@ -156,7 +161,7 @@ export class RpgSimulation {
     let dx = movement.x;
     let dy = movement.y;
     let autoRunning = false;
-    let travel = (movement.sprinting ? RUN_SPEED : WALK_SPEED) * dt;
+    let travel = (movement.sprinting ? RUN_SPEED : WALK_SPEED) * this.speedMultiplier * dt;
     if (movement.moving) {
       this.route = [];
       this.destination = null;
@@ -173,7 +178,7 @@ export class RpgSimulation {
         autoRunning = true;
         dx = target.x - this.player.x;
         dy = target.y - this.player.y;
-        travel = Math.min(AUTO_RUN_SPEED * dt, Math.hypot(dx, dy));
+        travel = Math.min(AUTO_RUN_SPEED * this.speedMultiplier * dt, Math.hypot(dx, dy));
       }
     }
     const length = Math.hypot(dx, dy);
@@ -195,6 +200,9 @@ export class RpgSimulation {
       width: feet.width + Math.abs(dx) * 2,
       height: feet.height + Math.abs(dy) * 2,
     });
+    // Moving road guards stop a walk/auto-run without rebuilding the static path index.
+    // If a lunge lands over the player, allow escape rather than trapping their feet.
+    obstacles.push(...creatureBodies.filter((body) => !overlaps(feet, body)));
     let next = { ...this.player };
     const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 5));
     for (let step = 0; step < steps; step++) {
@@ -241,14 +249,17 @@ export class RpgSimulation {
           id: target.id,
           label: target.name,
           action:
-            'lines' in target
+            this.sample.houseInteractions?.find((item) => item.id === target.id)?.action ??
+            ('lines' in target
               ? 'Talk'
-              : openHouses && target.id.startsWith('house:')
-                ? 'Open'
-                : target.kind === 'portal' ||
-                    (target.id === 'town-square' && this.sample.townSquareNavigation)
-                  ? 'Explore'
-                  : 'Read',
+              : target.destination === 'town-hall'
+                ? 'Enter'
+                : openHouses && target.id.startsWith('house:')
+                  ? 'Open'
+                  : target.kind === 'portal' ||
+                      (target.id === 'town-square' && this.sample.townSquareNavigation)
+                    ? 'Explore'
+                    : 'Read'),
         },
       };
     }

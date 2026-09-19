@@ -36,7 +36,14 @@ export function presentTownScene(
         ),
       ),
     );
-    const signage: RpgSceneLabel[] = [];
+    const signage: RpgSceneLabel[] = sample.landmarks
+      .filter((l) => l.id === 'town-hall')
+      .map((l) => ({
+        ...(l.labelAnchor ?? { x: l.x, y: l.y - 236 }),
+        text: 'Town Hall',
+        kind: 'place',
+        maxWidth: 180,
+      }));
     const districtAnchors = new Map<string, Array<{ x: number; y: number }>>();
     const landmarks = sample.landmarks.flatMap((landmark) => {
       if (!landmark.id.startsWith('house:')) return [landmark];

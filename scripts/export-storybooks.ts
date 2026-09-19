@@ -3,6 +3,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
 import { validateStoryBook, type StoryBook } from '../src/domain/adventure/storybook';
+import {
+  FOREST_REGIONS,
+  FOREST_REGION_IDS,
+  forestNeighbors,
+} from '../src/domain/world/forest/catalog';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDir = resolve(root, 'src/content/stories');
@@ -91,4 +96,47 @@ for (const file of readdirSync(sourceDir)
     `${check ? 'Checked' : 'Exported'} ${book.title}: ${Object.keys(book.interactions).length} interactions.`,
   );
 }
+// Environmental discoveries use the same region catalog as the playable forest.
+const forestPath = resolve(outputDir, 'mosswild.md');
+const forestLines = [
+  '# Mosswild Forest — discovery text',
+  '',
+  'Generated from [the forest catalog](../src/domain/world/forest/catalog.ts).',
+  'Edit that source, then run `pnpm story:docs`; normal builds regenerate this document.',
+  '',
+  'These are the environmental descriptions read when interacting with discovered places.',
+  'See [the forest milestone notes](../FOREST.md) for current scope and future content.',
+  '',
+];
+for (const id of FOREST_REGION_IDS) {
+  const region = FOREST_REGIONS[id];
+  forestLines.push(
+    `## ${region.name}`,
+    '',
+    region.subtitle,
+    '',
+    `Trails: ${forestNeighbors(id)
+      .map((next) => FOREST_REGIONS[next].name)
+      .join(', ')}${id === 'verge' ? ', Town' : ''}.`,
+    '',
+  );
+  for (const [name, text] of region.sites) forestLines.push(`### ${name}`, '', text, '');
+}
+const forestOutput = await format(forestLines.join('\n'), {
+  ...(await resolveConfig(forestPath)),
+  parser: 'markdown',
+});
+if (
+  !existsSync(forestPath) ||
+  readFileSync(forestPath, 'utf8').replace(/\r\n/g, '\n') !== forestOutput
+) {
+  if (check) {
+    console.error('Forest story document is missing or stale. Run pnpm story:docs.');
+    stale = true;
+  } else {
+    mkdirSync(outputDir, { recursive: true });
+    writeFileSync(forestPath, forestOutput);
+  }
+}
+console.log(`${check ? 'Checked' : 'Exported'} Mosswild Forest: 96 discoveries.`);
 if (stale) process.exitCode = 1;

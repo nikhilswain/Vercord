@@ -124,6 +124,20 @@ repository. No scenery from the linked Poly Pizza bundle is included.
 - Source: [Pixelarticons users](https://github.com/halfmage/pixelarticons/blob/master/svg/users.svg).
 - Unmodified SVG path used in `RpgIcon.tsx`; [license](public/game-assets/pixel-hud/PIXELARTICONS-LICENSE.txt).
 
+## Forest portals
+
+- [Animated portal by MatiasVME](https://opengameart.org/content/portal-2), based on
+  [Portals by LetargicDev](https://opengameart.org/content/portals): CC0 1.0.
+- Unmodified five-frame stone gate with green runes; runtime uses integer scaling.
+- Asset and [credits](public/game-assets/forest-portal/CREDITS.txt) under `public/game-assets/forest-portal/`.
+
+## Navigation sparkles
+
+- [Particle Pack by Kenney](https://kenney.nl/assets/particle-pack): CC0.
+- Unmodified `star_01.png` and `circle_05.png`, tinted and animated at runtime.
+- [Credits](public/game-assets/navigation-sparkles/CREDITS.md) and the original license
+  are included under `public/game-assets/navigation-sparkles/`.
+
 ## Fonts
 
 ### Alagard
@@ -150,3 +164,64 @@ repository. No scenery from the linked Poly Pizza bundle is included.
 
 - License: OFL-1.1
 - Upstream: https://fontsource.org/fonts/barlow-condensed
+
+## Forest waygates
+
+Forest waygates also reuse the existing CraftPix Free Ruined Temple arch, unchanged;
+see [waygate credits](public/game-assets/waygate/CREDITS.md) and the original
+[Ruined Temple notice](public/game-assets/ruined-temple/CREDITS.md). The ground circle is original Dmap geometry; the inventory Hearthstone now uses
+7Soul’s credited CC0 stone icon. Recall reuses the credited CC0
+[Luke.RUSTLTD summoning circle](public/game-assets/ritual-sigils/CREDITS.md) and
+[Kenney sparkle textures](public/game-assets/navigation-sparkles/CREDITS.md).
+
+## House interiors: LPC Revised
+
+The unmodified PNGs in `public/game-assets/house-v2/` come from [LPC Revised](https://github.com/ElizaWy/LPC), pinned to `f07f7f5892e67c932c68f70bb04472f2c64e46bc`, and are used under OGA-BY 3.0. Artwork by Lanea Zimmerman (Sharm), Eliza Wyatt (DeathsDarling), BlueCarrot16, and Hyptosis. Full license, per-asset credits, original-source links, and download checksums are retained in that directory. Dmap authors the saved room layouts, collision geometry, interaction writing, and runtime presentation; original artists retain rights to their artwork.
+
+## Inventory item artwork
+
+Selected unmodified CC0 icons by Henrique Lazarini (7Soul1), from
+[496 RPG icons](https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg),
+replace the prototype inventory symbols. Raw fowl uses HomoHikka's CC0 meat icon,
+distributed at 32px by AntumDeluge in [CC0 Food Icons](https://opengameart.org/content/cc0-food-icons).
+[Credits, license and source hashes](public/game-assets/inventory-icons/CREDITS.md)
+are retained beside the assets. The herb and Moonblossom UI images reuse the
+existing OGA-BY 3.0 LPC Revised flowers with their original credits.
+
+### Resin Wrap bandage
+
+The unchanged Medicine Pack 16x16 sheet by **Kipperfalcon (Kipper Pixel)** is used
+for the Resin Wrap's bandage icon (frame 5). **CC0 1.0**.
+Source: <https://opengameart.org/content/medicine-pack-16x16>.
+Stored with hashes and credits under `public/game-assets/inventory-icons/`.
+
+### Brewing and provisions: medicinal plants
+
+Healing Herb (`kekik.png`) and Rivercress (`arandula.png`) use unmodified 32px artwork from [CC0 Herb Icons](https://opengameart.org/content/cc0-herb-icons) by Jordan Irwin (AntumDeluge), based respectively on CC0/public-domain sources by frankes and rg1024. Licensed under CC0 1.0; hashes and original download URLs are retained in `public/game-assets/inventory-icons/provenance.json`.
+
+The preparation UI and world stations also reuse the credited 7Soul CC0 item pack and the pinned LPC Revised OGA-BY 3.0 cauldron/furniture artwork. Exact frame mappings live in `src/features/rpg/inventory/item-art.ts` and `src/features/rpg/provisions/stations.ts`; their original licenses and attribution files are retained beside the assets.
+
+## Combat and consumable effects (September 2026)
+
+Viktor Hahn (Unnamed), **Pixelated Attack/Hit Animations**, CC BY 4.0: <https://opengameart.org/content/pixelated-attackhit-animations>. Three original sheets supply directional weapon arcs and impact splashes. License: <https://creativecommons.org/licenses/by/4.0/>.
+
+CodeManu / David Masia, **Free Pixel Effects Pack**, CC0 1.0: <https://opengameart.org/content/free-pixel-effects-pack>. Three original sheets supply healing, battle and Swiftstep bottle effects. Original pixels are unchanged; frames, transforms and tints are selected at runtime. See `public/game-assets/action-fx/CREDITS.md` and `provenance.json` for file mappings and hashes.
+
+The new Slime Resin icon is generated original Dmap art, separate from these third-party licenses. Healing Bottle uses 7Soul1's CC0 `P_Green01.png` from the already credited inventory pack; Battle Bottle remains `P_Orange03.png`.
+
+## Ability icons, plain food and civic hall
+
+- Ember and Tide: Henrique Lazarini (7Soul1), CC0 1.0, curated [496 RPG icons](https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg). See `public/game-assets/ability-icons/CREDITS.md` and provenance manifest. Original PNGs unchanged.
+- Mushroom Broth bowl: ghostpixxells, [Free Pixel foods](https://ghostpixxells.itch.io/pixelfood), CC0 1.0. Original soup bowl icon unchanged; see inventory icon credits.
+- Town hall: bluecarrot16 and the credited LPC contributors, [Thatched-roof Cottage](https://opengameart.org/content/lpc-thatched-roof-cottage) and [Medieval Village Decorations](https://opengameart.org/content/lpc-medieval-village-decorations), CC BY-SA 3.0. Original sheets and complete decoration credits in `public/game-assets/town-hall/`. Native tile arrangement is distributed under the same art license.
+
+### Town Hall interior and noticeboards
+
+[LPC Interior Castle Tiles](https://opengameart.org/content/lpc-interior-castle-tiles)
+by Lanea Zimmerman (Sharm), CC BY 3.0; [LPC Wooden Furniture](https://opengameart.org/content/lpc-wooden-furniture)
+by bluecarrot16 and the complete credited LPC contributors, CC BY-SA 3.0;
+[bulletin board and items](https://opengameart.org/content/bulletin-board-and-items)
+by bleutailfly, OGA BY 3.0. Original PNGs are unchanged. Full upstream furniture
+attribution, per-file source URLs, selected licenses and hashes are retained in
+`public/game-assets/town-hall/`. The room also reuses the previously credited
+LPC Revised furniture and animation sheets.

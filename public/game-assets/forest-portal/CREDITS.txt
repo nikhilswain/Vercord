@@ -1,0 +1,10 @@
+Animated stone portal
+Author: MatiasVME. Based on Portals by LetargicDev.
+License: CC0 1.0 Universal (public domain dedication)
+Source: https://opengameart.org/content/portal-2
+Original: https://opengameart.org/content/portals
+Download: https://opengameart.org/sites/default/files/portal_3.png
+License: https://creativecommons.org/publicdomain/zero/1.0/
+
+portal.png is the unmodified 160x40 source sheet, five 32x40 animation frames.
+Displayed at 3x using nearest-neighbor sampling. No paid assets are included.

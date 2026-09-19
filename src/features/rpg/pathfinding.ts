@@ -31,7 +31,7 @@ interface Road extends Rect {
 }
 
 /** Large rectangles stay in one overflow list instead of occupying thousands of buckets. */
-class SpatialIndex<T extends Rect> {
+export class SpatialIndex<T extends Rect> {
   private readonly cells = new Map<string, T[]>();
   private readonly large: T[] = [];
 

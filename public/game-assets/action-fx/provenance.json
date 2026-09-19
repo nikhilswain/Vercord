@@ -1,0 +1,58 @@
+{
+  "files": [
+    {
+      "file": "slash.png",
+      "original": "hit07.png",
+      "author": "Viktor Hahn (Unnamed)",
+      "license": "CC-BY-4.0",
+      "source": "https://opengameart.org/content/pixelated-attackhit-animations",
+      "sha256": "1789e49ec58a7f0f6fb99c1403754209d2f4620e8699f538704b573f0ee2d3e7",
+      "modifications": "None. Original PNG; frame selection, scaling and color tints happen only at runtime."
+    },
+    {
+      "file": "swing.png",
+      "original": "swing03.png",
+      "author": "Viktor Hahn (Unnamed)",
+      "license": "CC-BY-4.0",
+      "source": "https://opengameart.org/content/pixelated-attackhit-animations",
+      "sha256": "a9d9a1eada2d80c69c20dc22a508cb89ebf26791d979079fed5cad078dc3bf05",
+      "modifications": "None. Original PNG; frame selection, scaling and color tints happen only at runtime."
+    },
+    {
+      "file": "impact.png",
+      "original": "splash01.png",
+      "author": "Viktor Hahn (Unnamed)",
+      "license": "CC-BY-4.0",
+      "source": "https://opengameart.org/content/pixelated-attackhit-animations",
+      "sha256": "9d6a200e22b2e9ce9038755dd2418818392797ac7e22464bdb7767bd46ab96d7",
+      "modifications": "None. Original PNG; frame selection, scaling and color tints happen only at runtime."
+    },
+    {
+      "file": "healing.png",
+      "original": "17_felspell_spritesheet.png",
+      "author": "CodeManu / David Masia",
+      "license": "CC0-1.0",
+      "source": "https://opengameart.org/content/free-pixel-effects-pack",
+      "sha256": "7f1485ff111a0f37a934979837bbaa85a8e0dca15c8f7a5253681d06ed0dab09",
+      "modifications": "None. Original PNG; frame selection, scaling and color tints happen only at runtime."
+    },
+    {
+      "file": "battle.png",
+      "original": "6_flamelash_spritesheet.png",
+      "author": "CodeManu / David Masia",
+      "license": "CC0-1.0",
+      "source": "https://opengameart.org/content/free-pixel-effects-pack",
+      "sha256": "927311ae9b6018144e6f4a179760dec244c140bef35c049fcb290f20099dfc4e",
+      "modifications": "None. Original PNG; frame selection, scaling and color tints happen only at runtime."
+    },
+    {
+      "file": "swiftstep.png",
+      "original": "4_casting_spritesheet.png",
+      "author": "CodeManu / David Masia",
+      "license": "CC0-1.0",
+      "source": "https://opengameart.org/content/free-pixel-effects-pack",
+      "sha256": "e56211e95399256879e63bf1fc37279a49b45806c71a2750dde4e2bde1d1b693",
+      "modifications": "None. Original PNG; frame selection, scaling and color tints happen only at runtime."
+    }
+  ]
+}

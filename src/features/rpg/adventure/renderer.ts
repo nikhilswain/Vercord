@@ -1,4 +1,6 @@
-import type Phaser from 'phaser';
+import { ITEM_ART } from '../inventory/item-art';
+import { FORAGE_ITEMS } from '../../../domain/adventure/forage';
+import * as Phaser from 'phaser';
 import type { Point } from '../../world/engine/types';
 import { AdventureSession, MAX_ENEMY_PROJECTILES, type Enemy } from './session';
 import { SPELL_VISUAL_HEIGHT } from './aim';
@@ -14,6 +16,8 @@ import { applySlimePalette } from './slime-palette';
 import { FOREST_SPARK_ASSET, FOREST_CAST_HAND_OFFSETS } from './forest-casting';
 import { FOREST_WILDLIFE_ASSETS, forestWildlifeAsset } from './wildlife-assets';
 import { wildlifeDefinition } from '../../../domain/adventure/wildlife';
+import { GroundLootRenderer, preloadLoot } from './loot-renderer';
+import { ACTION_FX, actionEffectFrame } from '../effects/assets';
 
 const creatureAsset = (enemy: Enemy) =>
   forestWildlifeAsset(enemy.kind) ??
@@ -28,6 +32,9 @@ const creatureAsset = (enemy: Enemy) =>
           : JUNGLE_WILDLIFE_ASSETS[enemy.kind as 'bear' | 'snake']);
 
 export function preloadJungleCreatures(scene: Phaser.Scene): void {
+  preloadLoot(scene);
+  if (!scene.textures.exists('provisions-cache'))
+    scene.load.image('provisions-cache', '/game-assets/inventory-icons/supply-cache.png');
   for (const asset of [
     JUNGLE_WILDLIFE_ASSETS.bear,
     JUNGLE_WILDLIFE_ASSETS.snake,
@@ -54,9 +61,53 @@ interface CreatureView {
   castGlow: Phaser.GameObjects.Image | null;
 }
 
-/** Fixed sprite pools and one effects layer; static forest art stays in RpgSampleRenderer. */
+function createCreatureView(scene: Phaser.Scene, enemy: Enemy): CreatureView {
+  const asset = creatureAsset(enemy);
+  const sprite = scene.add
+    .image(enemy.x, enemy.y, asset.textureKey, asset.animations.idle.frames.down[0]!)
+    .setOrigin(asset.origin.x, asset.origin.y)
+    .setScale(asset.suggestedScale);
+  if (enemy.kind === 'slime') applySlimePalette(sprite, enemy.variant);
+  return {
+    sprite,
+    castGlow:
+      ENEMY_DEFINITIONS[enemy.kind].projectile?.visual === 'spark'
+        ? scene.add.image(0, 0, FOREST_SPARK_ASSET.textureKey).setVisible(false)
+        : null,
+    label: scene.add
+      .text(enemy.x, enemy.y, '', {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '12px',
+        color: '#f1e5c4',
+        backgroundColor: '#15291fe6',
+        padding: { x: 5, y: 3 },
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(50001)
+      .setVisible(false),
+    shadow: scene.add.ellipse(
+      enemy.x,
+      enemy.y,
+      enemy.kind === 'slime' ? 40 : enemy.kind === 'bear' ? 38 : 25,
+      10,
+      0x102b24,
+      0.3,
+    ),
+  };
+}
+
+function destroyCreatureView(view: CreatureView): void {
+  view.sprite.destroy();
+  view.shadow.destroy();
+  view.label.destroy();
+  view.castGlow?.destroy();
+}
+
+/** Visible creature views and fixed effects pools; distant population stays in the model. */
 export class AdventureSessionRenderer {
-  private readonly creatures: CreatureView[];
+  private readonly caches = new Map<string, Phaser.GameObjects.Image>();
+  private readonly loot: GroundLootRenderer;
+  private readonly creatures = new Map<number, CreatureView>();
   private readonly flowers: Phaser.GameObjects.Image[];
   private readonly effects: Phaser.GameObjects.Graphics;
   private readonly water: Phaser.GameObjects.Graphics;
@@ -65,48 +116,22 @@ export class AdventureSessionRenderer {
   private readonly bursts: Phaser.GameObjects.Image[];
   private readonly traps: Phaser.GameObjects.Image[];
   private readonly charge: Phaser.GameObjects.Image;
+  private readonly contactBursts: Phaser.GameObjects.Image[];
+  private readonly weaponArc: Phaser.GameObjects.Image;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly model: AdventureSession,
   ) {
-    this.creatures = model.enemies.map((enemy) => {
-      const asset = creatureAsset(enemy);
-      const sprite = scene.add
-        .image(enemy.x, enemy.y, asset.textureKey, asset.animations.idle.frames.down[0]!)
-        .setOrigin(asset.origin.x, asset.origin.y)
-        .setScale(asset.suggestedScale);
-      if (enemy.kind === 'slime') applySlimePalette(sprite, enemy.variant);
-      return {
-        castGlow:
-          ENEMY_DEFINITIONS[enemy.kind].projectile?.visual === 'spark'
-            ? scene.add.image(0, 0, FOREST_SPARK_ASSET.textureKey).setVisible(false)
-            : null,
-        label: scene.add
-          .text(enemy.x, enemy.y, '', {
-            fontFamily: 'Arial, sans-serif',
-            fontSize: '12px',
-            color: '#f1e5c4',
-            backgroundColor: '#15291fe6',
-            padding: { x: 5, y: 3 },
-          })
-          .setOrigin(0.5, 1)
-          .setDepth(50001)
-          .setVisible(false),
-        sprite,
-        shadow: scene.add.ellipse(
-          enemy.x,
-          enemy.y,
-          enemy.kind === 'slime' ? 40 : enemy.kind === 'bear' ? 38 : 25,
-          10,
-          0x102b24,
-          0.3,
-        ),
-      };
-    });
+    this.loot = new GroundLootRenderer(scene, model);
     this.flowers = model.content.flowers.map((flower) =>
       scene.add
-        .image(flower.x, flower.y, 'lpc-flowers', flower.kind === 'healing' ? 5 : 8)
+        .image(
+          flower.x,
+          flower.y,
+          ITEM_ART[FORAGE_ITEMS[flower.kind]].key,
+          ITEM_ART[FORAGE_ITEMS[flower.kind]].frame,
+        )
         .setOrigin(0.5, 0.9)
         .setDepth(flower.y),
     );
@@ -121,6 +146,8 @@ export class AdventureSessionRenderer {
       scene.add.image(0, 0, FOREST_SPARK_ASSET.textureKey).setScale(3).setVisible(false),
     );
     this.bursts = pool(16);
+    this.contactBursts = pool(16);
+    this.weaponArc = pool(1)[0]!;
     this.charge = pool(1)[0]!;
     this.traps = (model.content.traps ?? []).map((trap) =>
       scene.add
@@ -134,17 +161,19 @@ export class AdventureSessionRenderer {
   }
 
   update(player: Point, reducedMotion: boolean): void {
+    this.loot.update(player, reducedMotion);
     const g = this.effects.clear();
     const camera = this.scene.cameras.main;
-    const visible = (point: Point) =>
-      (point.x >= camera.worldView.x - 160 &&
-        point.x <= camera.worldView.right + 160 &&
-        point.y >= camera.worldView.y - 160 &&
-        point.y <= camera.worldView.bottom + 160) ||
+    const visible = (point: Point, margin = 160) =>
+      (point.x >= camera.worldView.x - margin &&
+        point.x <= camera.worldView.right + margin &&
+        point.y >= camera.worldView.y - margin &&
+        point.y <= camera.worldView.bottom + margin) ||
       Math.hypot(player.x - point.x, player.y - point.y) < 100;
     this.model.enemies.forEach((enemy, index) => {
-      const view = this.creatures[index]!;
-      const age = this.model.time - enemy.phaseAt;
+      let view = this.creatures.get(index);
+      const age = Math.max(0, this.model.time - enemy.phaseAt);
+      const frozen = enemy.health > 0 && this.model.time < enemy.frozenUntil;
       const asset = creatureAsset(enemy);
       const plant = enemy.kind in PLANT_ASSETS;
       const scale = asset.suggestedScale * (ENEMY_DEFINITIONS[enemy.kind].boss ? 1.5 : 1);
@@ -153,11 +182,28 @@ export class AdventureSessionRenderer {
         (this.model.isEnemyActive(enemy) || (enemy.health === 0 && enemy.phase === 'death')) &&
         visible(enemy) &&
         (enemy.health > 0 || age < deathDuration + 0.35);
-      view.sprite.setVisible(shown);
+      if (!shown) {
+        if (view) {
+          view.sprite.setVisible(false);
+          view.shadow.setVisible(false);
+          view.label.setVisible(false);
+          view.castGlow?.setVisible(false);
+          // Hysteresis prevents allocating/destroying a view as it crosses the camera edge.
+          if (!visible(enemy, 512) || (enemy.health === 0 && age >= deathDuration + 0.35)) {
+            destroyCreatureView(view);
+            this.creatures.delete(index);
+          }
+        }
+        return;
+      }
+      if (!view) {
+        view = createCreatureView(this.scene, enemy);
+        this.creatures.set(index, view);
+      }
+      view.sprite.setVisible(true);
       view.shadow.setVisible(shown && enemy.health > 0 && !plant);
       view.label.setVisible(false);
       view.castGlow?.setVisible(false);
-      if (!shown) return;
       const animation = asset.animations[enemy.phase === 'windup' ? 'attack' : enemy.phase];
       // These side-view cast frames must face the target even during a vertical approach.
       const direction = wildlifeDefinition(enemy.kind)
@@ -202,8 +248,14 @@ export class AdventureSessionRenderer {
         enemy.phase === 'windup' && !reducedMotion
           ? Math.min(1, (age * 1000) / enemy.windupDurationMs)
           : 0;
+      const recoil =
+        enemy.phase === 'hurt' && !reducedMotion && !frozen ? Math.max(0, 1 - age / 0.16) * 3 : 0;
+      const away = Math.atan2(enemy.y - player.y, enemy.x - player.x);
       view.sprite
-        .setPosition(enemy.x, enemy.y - (slime?.lift ?? 0))
+        .setPosition(
+          enemy.x + Math.cos(away) * recoil,
+          enemy.y + Math.sin(away) * recoil - (slime?.lift ?? 0),
+        )
         .setScale(
           scale * (slime?.scaleX ?? 1 + anticipation * 0.035),
           scale * (slime?.scaleY ?? 1 - anticipation * 0.045),
@@ -219,7 +271,11 @@ export class AdventureSessionRenderer {
         .setPosition(enemy.x, enemy.y - 1)
         .setDepth(enemy.y - 0.2)
         .setScale(slime?.shadowScale ?? 1);
-      if (enemy.phase === 'hurt') view.sprite.setTint(0xffc7b2);
+      view.sprite.setTintMode(Phaser.TintModes.MULTIPLY);
+      if (frozen) view.sprite.setTint(0x89d8ff);
+      else if (enemy.phase === 'hurt' && age < 0.06 && !reducedMotion)
+        view.sprite.setTint(0xfff0ce).setTintMode(Phaser.TintModes.FILL);
+      else if (enemy.phase === 'hurt') view.sprite.setTint(0xffc7b2);
       else if (this.model.time < enemy.slowedUntil) view.sprite.setTint(0x91deff);
       else if (enemy.phase === 'windup') view.sprite.setTint(0xffe6c3);
       else view.sprite.clearTint();
@@ -292,8 +348,29 @@ export class AdventureSessionRenderer {
       g.fillStyle(0xcadf8a).fillCircle(x, y, 5);
       g.fillStyle(0xf1ebbb).fillCircle(x - 1, y - 2, 2);
     }
+    const caches = this.model.guardianCaches();
+    for (const [id, image] of this.caches)
+      if (!caches.some((c) => c.id === id)) {
+        image.destroy();
+        this.caches.delete(id);
+      }
+    for (const cache of caches) {
+      if (!visible(cache)) continue;
+      let image = this.caches.get(cache.id);
+      if (!image) {
+        image = this.scene.add
+          .image(cache.x, cache.y, 'provisions-cache')
+          .setOrigin(0.5, 1)
+          .setDisplaySize(30, 30)
+          .setDepth(cache.y);
+        this.caches.set(cache.id, image);
+      }
+      image.setVisible(true);
+    }
     this.model.content.flowers.forEach((flower, index) => {
-      const shown = !this.model.gathered.has(flower.id);
+      const shown =
+        !this.model.gathered.has(flower.id) &&
+        (!flower.project || this.model.provisions.state.projects.includes(flower.project));
       this.flowers[index]!.setVisible(shown);
       if (!shown || !visible(flower)) return;
       const pulse = reducedMotion ? 0.7 : 0.6 + Math.sin(this.model.time * 2 + index) * 0.15;
@@ -311,13 +388,19 @@ export class AdventureSessionRenderer {
       );
     });
     this.drawMagic();
+    this.drawContacts(player, reducedMotion);
     for (const effect of this.model.effects) {
       const age = this.model.time - effect.at;
       const progress = age / 0.85;
-      if (effect.kind === 'fire' || effect.kind === 'water' || effect.kind.endsWith('-death'))
+      if (
+        effect.kind === 'fire' ||
+        effect.kind === 'water' ||
+        effect.kind === 'hit' ||
+        effect.kind === 'hurt' ||
+        effect.kind.endsWith('-death')
+      )
         continue;
-      const color = effect.kind === 'hit' ? 0xffe1b0 : effect.kind === 'heal' ? 0xbbeca8 : 0xd4edfa;
-      g.lineStyle(2, color, 1 - progress).strokeCircle(effect.x, effect.y - 14, 9 + progress * 20);
+      const color = effect.kind === 'heal' ? 0xbbeca8 : 0xd4edfa;
       for (let i = 0; i < 5; i++) {
         const angle = (i * Math.PI * 2) / 5;
         const spread = reducedMotion ? 14 : 14 + progress * 25;
@@ -333,19 +416,69 @@ export class AdventureSessionRenderer {
   }
 
   destroy(): void {
-    this.creatures.forEach(({ sprite, shadow, label, castGlow }) => {
-      sprite.destroy();
-      shadow.destroy();
-      label.destroy();
-      castGlow?.destroy();
-    });
+    this.loot.destroy();
+    this.creatures.forEach(destroyCreatureView);
+    this.creatures.clear();
     this.flowers.forEach((flower) => flower.destroy());
+    for (const image of this.caches.values()) image.destroy();
     this.effects.destroy();
     this.water.destroy();
-    [...this.projectiles, ...this.enemySparks, ...this.bursts, ...this.traps].forEach((sprite) =>
-      sprite.destroy(),
-    );
+    [
+      ...this.projectiles,
+      ...this.enemySparks,
+      ...this.bursts,
+      ...this.contactBursts,
+      this.weaponArc,
+      ...this.traps,
+    ].forEach((sprite) => sprite.destroy());
     this.charge.destroy();
+  }
+
+  private drawContacts(player: Point, reduced: boolean): void {
+    this.contactBursts.forEach((sprite, index) => {
+      const event = this.model.effects[index];
+      const age = event ? (this.model.time - event.at) * 1000 : Infinity;
+      if (
+        !event ||
+        (event.kind !== 'hit' && event.kind !== 'hurt') ||
+        age > ACTION_FX.impact.duration
+      ) {
+        sprite.setVisible(false);
+        return;
+      }
+      const angle = Math.atan2(event.y - player.y, event.x - player.x);
+      sprite
+        .setTexture(ACTION_FX.impact.key, actionEffectFrame('impact', age, reduced))
+        .setPosition(event.x, event.y - 16)
+        .setRotation(event.kind === 'hurt' ? -Math.PI / 2 : angle)
+        .setTint(event.kind === 'hurt' ? 0xe8ad8d : 0xffe6b4)
+        .setScale(reduced ? 0.65 : 0.9)
+        .setDepth(event.y + 42)
+        .setAlpha(reduced ? 0.6 : 1)
+        .setVisible(true);
+    });
+    const swing = this.model.melee;
+    this.weaponArc.setVisible(false);
+    if (!swing || reduced) return;
+    const progress = ((this.model.time - swing.at) * 1000) / swing.weapon.animationMs;
+    if (progress < 0.27 || progress > 0.78) return;
+    const angle = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[swing.direction];
+    const id =
+      swing.weapon.family === 'spear' || swing.weapon.family === 'staff'
+        ? 'impact'
+        : swing.weapon.family === 'axe'
+          ? 'swing'
+          : 'slash';
+    const frame = actionEffectFrame(id, ((progress - 0.27) / 0.51) * ACTION_FX[id].duration, false);
+    this.weaponArc
+      .setTexture(ACTION_FX[id].key, frame)
+      .setPosition(player.x + Math.cos(angle) * 17, player.y - 15 + Math.sin(angle) * 13)
+      .setRotation(angle + (id === 'slash' ? Math.PI / 3 : 0))
+      .setScale(0.72)
+      .setTint(0xf7e7c1)
+      .setAlpha(0.85)
+      .setDepth(player.y + 41)
+      .setVisible(true);
   }
 
   private drawMagic(): void {

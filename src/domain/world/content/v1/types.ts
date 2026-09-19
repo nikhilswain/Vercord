@@ -10,7 +10,7 @@ export interface Rect extends Point {
 }
 
 export type RpgThemeId = WorldThemeId | 'dungeon';
-export type RpgDestination = RpgThemeId | 'return';
+export type RpgDestination = RpgThemeId | 'return' | 'town-hall';
 export type RpgDirection = 'down' | 'left' | 'right' | 'up';
 export type RpgAction = 'idle' | 'walk' | 'run';
 

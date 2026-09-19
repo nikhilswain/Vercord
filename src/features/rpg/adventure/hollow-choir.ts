@@ -6,6 +6,7 @@ import { RITUAL_RELEASE_MS } from './ritual-seal-assets';
 export const hollowChoirStory = createStoryBook(content);
 
 export const CHOIR = {
+  metMira: 'choir.met-mira',
   rootBeast: 'choir.root-beast-defeated',
   westGate: 'choir.west-gate',
   eastGate: 'choir.east-gate',
@@ -157,6 +158,7 @@ export function hollowChoirCourtyard(): ScenarioDefinition {
       {
         ...hollowChoirStory.interaction('mira'),
         id: 'mira',
+        grant: [CHOIR.metMira],
         ...at(20, 35),
         action: 'Talk',
         unless: [CHOIR.freed, CHOIR.notes],

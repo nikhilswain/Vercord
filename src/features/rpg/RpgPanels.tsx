@@ -1,6 +1,8 @@
+import type { ProvisionsSnapshot } from '../../domain/adventure/provisions';
 import { RpgDialog } from './ui/RpgDialog';
 import { InventoryDialog } from './inventory/InventoryDialog';
 import type { UseItemResult } from '../../domain/adventure/inventory';
+import type { CraftItemResult } from '../../domain/adventure/crafting';
 import { GameSettingsDialog } from '../settings/GameSettingsDialog';
 import type { GameMusicControls } from '../audio/use-game-music';
 import type { SavedWorldResponse, WorldTown } from '../../domain/world/protocol';
@@ -10,12 +12,18 @@ import { RPG_APPEARANCES } from './character';
 import { RpgPortrait } from './RpgPortrait';
 import { RpgIcon } from './RpgIcon';
 import { RpgSceneMap } from './RpgSceneMap';
+import { ForestMap } from './forest/ForestMap';
 import { RpgTownMap } from './RpgTownMap';
 import RpgAtlasDialog from './atlas/RpgAtlasDialog';
 import { RPG_THEMES, RPG_WORLD_IDS, type RpgWorldId } from './themes';
 import type { RpgDestination, RpgSample, RpgThemeId, RpgUiState } from './types';
+import type { NavigationActions } from './navigation/types';
+import { JourneyDialog, type JourneyActions } from './journal/JourneyDialog';
+import { JourneyMapNote } from './journal/JourneyMapNote';
+import type { JournalObjective } from './journal/model';
 
-export type RpgPanel = 'map' | 'guide' | 'appearance' | 'menu' | 'equipment' | 'settings';
+export type RpgPanel =
+  'map' | 'guide' | 'appearance' | 'menu' | 'equipment' | 'settings' | 'journey';
 const titles: Record<RpgPanel, string> = {
   map: 'A little sense of direction',
   guide: 'A traveler’s guide',
@@ -23,16 +31,21 @@ const titles: Record<RpgPanel, string> = {
   menu: 'By the wayside',
   equipment: 'Inventory',
   settings: 'Settings',
+  journey: 'Journey',
 };
 
-interface Props {
+interface Props extends NavigationActions, JourneyActions {
   panel: RpgPanel | null;
   theme: RpgThemeId;
   world: RpgWorldId;
   appearance: string;
   ui: RpgUiState;
   sample: RpgSample;
+  samples: readonly RpgSample[];
+  mapObjective?: JournalObjective | null;
+  mapFocus?: Point | null;
   house?: HouseSceneId;
+  hall?: boolean;
   server?: {
     guildId: string;
     worldId?: string;
@@ -47,6 +60,12 @@ interface Props {
   music: GameMusicControls;
   onEquip(id: string): boolean;
   onUseItem(id: string): UseItemResult | undefined;
+  onCraftItem?(id: string): CraftItemResult | undefined;
+  onConfigureProvisions?(
+    settings: Partial<Pick<ProvisionsSnapshot, 'recovery' | 'quickBuff' | 'trackedRecipe'>>,
+  ): void;
+  onFindSource?(id: string): string;
+  onReturnToTown?(): void;
   onApplyEnemyLevel(level: number): void;
   onTheme(destination: RpgDestination): void;
   onAppearance(id: string): void;
@@ -60,19 +79,47 @@ export function RpgPanels({
   appearance,
   ui,
   sample,
+  samples,
+  mapObjective,
+  mapFocus,
   house,
+  hall,
   server,
   onClose,
   onSettings,
   music,
   onEquip,
   onUseItem,
+  onCraftItem,
+  onConfigureProvisions,
+  onFindSource,
+  onReturnToTown,
   onApplyEnemyLevel,
   onTheme,
   onAppearance,
   onFocus,
+  onNavigate,
+  onStopNavigation,
+  onJourney,
+  onJournalChange,
+  onShowObjective,
 }: Props) {
   const place = RPG_THEMES[theme];
+  if (panel === 'journey')
+    return (
+      <JourneyDialog
+        journal={ui.journal}
+        onClose={onClose}
+        onJournalChange={onJournalChange}
+        onShowObjective={onShowObjective}
+        onGuide={(objective) =>
+          onNavigate?.(objective.target) ?? {
+            ok: false,
+            message: 'The world is still loading. Try again in a moment.',
+          }
+        }
+      />
+    );
   if (panel === 'settings')
     return <GameSettingsDialog music={music} demo={!server} onClose={onClose} />;
   if (panel === 'equipment' && ui.adventure)
@@ -83,13 +130,75 @@ export function RpgPanels({
         onClose={onClose}
         onEquip={onEquip}
         onUseItem={onUseItem}
+        onCraftItem={onCraftItem}
+        onConfigureProvisions={onConfigureProvisions}
+        onFindSource={onFindSource}
+        onReturnToTown={onReturnToTown}
         onApplyEnemyLevel={onApplyEnemyLevel}
       />
     );
   const home = RPG_THEMES[world];
+  if (panel === 'map' && sample.sceneId === 'town-hall' && !mapObjective)
+    return (
+      <RpgAtlasDialog
+        sample={sample}
+        name="Town Hall"
+        scope={JSON.stringify([server?.memberKey ?? 'demo', server?.worldId, world, 'town-hall'])}
+        position={ui.position}
+        focusAt={mapFocus}
+        onClose={onClose}
+        onFocus={onFocus}
+        navigation={ui.navigation}
+        onNavigate={onNavigate}
+        onStopNavigation={onStopNavigation}
+        onJourney={onJourney}
+      />
+    );
+  if (panel === 'map' && (sample.forest || sample.temple || mapObjective?.target.area))
+    return (
+      <ForestMap
+        key={mapFocus ? 'player' : 'overview'}
+        sample={sample}
+        ui={ui}
+        onClose={onClose}
+        onFocus={onFocus}
+        scope={JSON.stringify([
+          server?.memberKey ?? 'demo',
+          server?.guildId,
+          server?.worldId,
+          world,
+          sample.temple ?? sample.forest?.region ?? 'town',
+        ])}
+        navigation={ui.navigation}
+        onNavigate={onNavigate}
+        onStopNavigation={onStopNavigation}
+        onJourney={onJourney}
+        objective={mapObjective}
+        focusAt={mapFocus}
+      />
+    );
   const appearances = RPG_APPEARANCES.filter((option) =>
     (home.appearances as readonly string[]).includes(option.id),
   );
+  const mapSample = mapObjective
+    ? (samples.find((s) => s.demo?.area === mapObjective.target.scene) ?? sample)
+    : sample;
+  if (panel === 'map' && mapSample !== sample)
+    return (
+      <RpgAtlasDialog
+        sample={mapSample}
+        name={mapSample.name}
+        scope={`journey:${mapSample.demo?.area}`}
+        position={mapSample.spawn}
+        showPlayer={false}
+        onClose={onClose}
+        onJourney={onJourney}
+        objective={mapObjective}
+        navigation={ui.navigation}
+        onNavigate={onNavigate}
+        onStopNavigation={onStopNavigation}
+      />
+    );
   if (panel === 'map' && !house && theme !== 'dungeon' && (!server || server.town?.continuous)) {
     const scope = server
       ? JSON.stringify([server.memberKey, server.guildId, server.worldId, world, theme])
@@ -105,8 +214,14 @@ export function RpgPanels({
         name={server?.displayName ?? sample.name}
         scope={scope}
         position={ui.position}
+        focusAt={mapFocus}
         onClose={onClose}
         onFocus={onFocus}
+        navigation={ui.navigation}
+        onNavigate={onNavigate}
+        onStopNavigation={onStopNavigation}
+        onJourney={onJourney}
+        objective={mapObjective}
       />
     );
   }
@@ -130,6 +245,7 @@ export function RpgPanels({
         </button>
       }
     >
+      {panel === 'map' && <JourneyMapNote onJourney={onJourney} objective={mapObjective} />}
       {panel === 'map' &&
         (server?.town && !house ? (
           <RpgTownMap
@@ -140,25 +256,47 @@ export function RpgPanels({
             displayName={server.displayName}
             onStreet={server.onStreet}
             onFocus={onFocus}
+            navigation={ui.navigation}
+            onNavigate={onNavigate}
+            onStopNavigation={onStopNavigation}
           />
         ) : (
-          <RpgSceneMap theme={theme} ui={ui} sample={sample} bindings={server?.bindings} />
+          <RpgSceneMap
+            theme={theme}
+            ui={ui}
+            sample={sample}
+            bindings={server?.bindings}
+            navigation={ui.navigation}
+            onNavigate={onNavigate}
+            onStopNavigation={onStopNavigation}
+          />
         ))}
       {panel === 'guide' && (
         <>
+          {(sample.forest || sample.temple) && (
+            <p>
+              Follow marked trails between the twelve forest regions. Map shows the way home and
+              records places you discover. Rootbound Reach has the entrance to Rootbound Temple;
+              meet Mira there, break the guardian’s seal, and explore the sanctuary. Journey in Menu
+              or Map explains your next step. Guidance is always optional.{' '}
+              {ui.exploration?.saveAvailable === false
+                ? 'Browser saving is unavailable. Keep this tab open to preserve this visit.'
+                : 'Your adventure progress is saved in this browser; keep using this device to continue the same journey.'}
+            </p>
+          )}
           {sample.demo && (
             <p>
               <strong>Mosswild Jungle:</strong> follow the northwest village path and press E at the
               jungle sign. I opens inventory: all 24 weapons are available here. Press 3 to use your
               weapon. Aim with the cursor and left click, or tap a spot, to attack. WASD moves; J
-              and the attack button use your facing direction. Press 1 for Ember, or 2 for Tide
-              after reaching level 2. Spells fly straight with limited range; aim ahead of moving
-              enemies. Middle-button drag or touch drag pans the view. Spike plates trigger on
-              contact. Fire burns; water slows and pushes enemies. Watch their preparation poses and
-              sidestep attacks. Higher-level enemies react faster and chain attacks. Gather flowers
-              with E and gain experience. H uses a healing herb. The southern trail returns to
-              Willowmere. Your progress stays between those two areas; reloading or changing world
-              themes starts a new adventure.
+              and the attack button use your facing direction. Ember unlocks at level 15 (1), Tide
+              at level 25 (2). Each needs two minutes to recover. Aim ahead of moving enemies.
+              Middle-button drag or touch drag pans the view. Spike plates trigger on contact. Ember
+              hits hard at close range; Tide reaches further and freezes for two seconds. Watch
+              their preparation poses and sidestep attacks. Higher-level enemies react faster and
+              chain attacks. Gather flowers with E and gain experience. H uses a healing herb. The
+              southern trail returns to Willowmere. Your progress stays between those two areas;
+              reloading or changing world themes starts a new adventure.
             </p>
           )}
           <p>
@@ -171,6 +309,20 @@ export function RpgPanels({
                 : `Take the paths at your own pace. Approach ${place.guide} to hear a little about this place.`}
           </p>
           <dl className="rpg-controls-list">
+            <div>
+              <dt>Map</dt>
+              <dd>
+                <kbd>Tab</kbd> opens the map. Double-tap <kbd>Tab</kbd> to look closer at your
+                location. <kbd>Space</kbd> zooms into a selected area. <kbd>Esc</kbd> zooms out,
+                then closes the map on the next press.
+              </dd>
+            </div>
+            <div>
+              <dt>Return to town</dt>
+              <dd>
+                <kbd>G</kbd> uses your Hearthstone. Always equipped; also in Inventory → Items.
+              </dd>
+            </div>
             <div>
               <dt>Walk</dt>
               <dd>
@@ -196,6 +348,14 @@ export function RpgPanels({
             <div>
               <dt>Touch movement</dt>
               <dd>Drag the thumbstick; drag further to run</dd>
+            </div>
+            <div>
+              <dt>Pick up dropped loot</dt>
+              <dd>
+                <kbd>F</kbd> or tap the pickup prompt. <kbd>I</kbd> opens your inventory; combine
+                recipes there to see ingredients and effects. Brew at benches and cook at hearths; B
+                uses your selected bottle.
+              </dd>
             </div>
             <div>
               <dt>Look around</dt>
@@ -240,6 +400,15 @@ export function RpgPanels({
       )}
       {panel === 'menu' && (
         <>
+          <button className="rpg-destination rpg-menu-settings" onClick={onJourney}>
+            <span className="rpg-destination-mark" aria-hidden="true">
+              <RpgIcon name="guide" />
+            </span>
+            <span className="rpg-destination-copy">
+              <strong>Journey</strong>
+              <span>Story, discoveries &amp; your next step</span>
+            </span>
+          </button>
           <button className="rpg-destination rpg-menu-settings" onClick={onSettings}>
             <span className="rpg-destination-mark" aria-hidden="true">
               <img src="/game-assets/ornate-retro/settings.svg" width="24" height="24" alt="" />
@@ -260,7 +429,7 @@ export function RpgPanels({
               <button
                 className="rpg-destination"
                 key={id}
-                aria-pressed={theme === id && !house}
+                aria-pressed={theme === id && !house && !hall}
                 onClick={() => onTheme(id)}
               >
                 <span className="rpg-destination-mark" data-world={id} aria-hidden="true">
@@ -273,7 +442,7 @@ export function RpgPanels({
                   </span>
                 </span>
                 <span className="rpg-destination-state">
-                  {theme === id && !house ? 'Here' : 'Visit'}
+                  {theme === id && !house && !hall ? 'Here' : 'Visit'}
                 </span>
               </button>
             ))}
@@ -295,23 +464,24 @@ export function RpgPanels({
             </span>
             <span className="rpg-destination-state">{theme === 'dungeon' ? 'Here' : 'Enter'}</span>
           </button>
-          {(house || place.kind === 'location') && (
+          {(house || sample.sceneId === 'town-hall' || place.kind === 'location') && (
             <button className="rpg-button rpg-return" onClick={() => onTheme('return')}>
-              {house ? 'Leave house' : `Return to ${home.name}`}
+              {sample.sceneId === 'town-hall'
+                ? 'Leave Town Hall'
+                : house
+                  ? 'Leave house'
+                  : hall
+                    ? 'Return to Town Hall'
+                    : `Return to ${home.name}`}
             </button>
           )}
           <p className="rpg-muted rpg-destination-note">
-            {place.kind === 'location'
-              ? `Exploring from ${home.name}. The stairs return you to the same village.`
-              : 'Your traveler is remembered for each village as you explore.'}
+            {hall
+              ? 'The cellar stair connects the Lantern Vault to Town Hall.'
+              : place.kind === 'location'
+                ? `Exploring from ${home.name}. The stairs return you to the same village.`
+                : 'Your traveler is remembered for each village as you explore.'}
           </p>
-          <nav className="rpg-menu-links" aria-label="Other Dmap views">
-            {server && <a href={`/world/${server.guildId}`}>Open connected rooms</a>}
-            {server && <a href="/dashboard">Choose another server</a>}
-            <a href="/map/demo?renderer=3d">Explore the 3D demo</a>
-            <a href="/map/demo?renderer=2d">Open the original 2D demo</a>
-            <a href="/">Return to Dmap</a>
-          </nav>
           <details className="rpg-credits">
             <summary>Art &amp; font credits</summary>
             <p>
@@ -345,6 +515,10 @@ export function RpgPanels({
                 . Spells, traps and forest guardian: CraftPix.{' '}
                 <a href="/game-assets/magic-demo/CREDITS.md" target="_blank" rel="noreferrer">
                   Magic sources &amp; licenses
+                </a>
+                . Combat and bottle effects: Viktor Hahn, CodeManu and David Masia.{' '}
+                <a href="/game-assets/action-fx/CREDITS.md" target="_blank" rel="noreferrer">
+                  Effects sources &amp; licenses
                 </a>
                 . Predator plants and the ruined temple: CraftPix.{' '}
                 <a href="/game-assets/predator-plants/CREDITS.md" target="_blank" rel="noreferrer">
@@ -397,6 +571,14 @@ export function RpgPanels({
             {' · '}
             <a href="/game-assets/lpc-world/CREDITS.md" target="_blank" rel="noreferrer">
               Scenery credits
+            </a>
+            {' · '}
+            <a href="/game-assets/town-hall/CREDITS.md" target="_blank" rel="noreferrer">
+              Town hall credits
+            </a>
+            {' · '}
+            <a href="/game-assets/ability-icons/CREDITS.md" target="_blank" rel="noreferrer">
+              Ability icon credits
             </a>
             {' · '}
             <a href="/game-assets/norse/README.md" target="_blank" rel="noreferrer">

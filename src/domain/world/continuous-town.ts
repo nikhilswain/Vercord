@@ -7,6 +7,7 @@ import { parseWorldDocument, type WorldDocument, type WorldScene } from './docum
 import { seededRandom, shuffled } from './random';
 import { containsRect, overlaps, WORLD_PLAYER_FEET } from './geometry';
 import { getWorldTheme } from './catalog/themes';
+import { withTownHall } from './town-hall';
 
 export const MAX_CONTINUOUS_TOWN_HOUSES = 1998;
 import {
@@ -586,8 +587,10 @@ export function generateContinuousTownDocument(
   if (!layout.entries.length) scene.spawn = { x: vault.x, y: civicRoadY + TILE / 2 };
   // Road rectangles form connected spines and frontages by construction. Parsing checks
   // every solid base and entrance without allocating a flood-fill grid for the whole map.
-  return parseWorldDocument({
-    ...base,
-    scenes: { overworld: scene, dungeon: base.scenes.dungeon },
-  });
+  return parseWorldDocument(
+    withTownHall({
+      ...base,
+      scenes: { overworld: scene, dungeon: base.scenes.dungeon },
+    }),
+  );
 }

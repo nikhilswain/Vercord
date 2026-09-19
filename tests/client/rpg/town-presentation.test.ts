@@ -5,6 +5,34 @@ import { presentTownScene } from '../../../src/features/rpg/town-presentation';
 import { readRpgRoute, resolveRpgTravel, writeRpgRoute } from '../../../src/features/rpg/themes';
 
 const streetId = '030748f2-3d55-4cf6-a1d3-fc123e05e820';
+
+it('keeps a clear Town Hall roof plaque alongside permission-filtered channel labels', () => {
+  const hall = {
+    id: 'town-hall',
+    name: 'Town Hall',
+    kind: 'portal' as const,
+    destination: 'town-hall' as const,
+    x: 700,
+    y: 650,
+    labelAnchor: { x: 700, y: 400 },
+    radius: 38,
+    description: 'Enter the gathering hall.',
+  };
+  const result = presentTownScene(
+    { ...sample, landmarks: [...sample.landmarks, hall] },
+    'My town',
+    { ...town, continuous: true },
+  );
+  expect(result.signage).toContainEqual({
+    x: 700,
+    y: 400,
+    text: 'Town Hall',
+    kind: 'place',
+    maxWidth: 180,
+  });
+  expect(result.landmarks.find((l) => l.id === 'town-hall')).toEqual(hall);
+  expect(result.landmarks.some((l) => l.id === 'house:1')).toBe(false);
+});
 const town: WorldTown = {
   activeStreetId: streetId,
   districts: [

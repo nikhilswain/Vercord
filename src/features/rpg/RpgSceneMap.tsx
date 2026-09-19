@@ -1,10 +1,14 @@
+import { useEffect, useRef, useState } from 'react';
 import type { SavedWorldResponse } from '../../domain/world/protocol';
 import { RoomTypeIcon } from '../map/components/RoomTypeIcon';
 import { ROOM_TYPE_LABELS } from './town-presentation';
 import { RPG_THEMES } from './themes';
 import type { RpgSample, RpgThemeId, RpgUiState } from './types';
+import { DestinationActions, NavigationMapRoute } from './navigation/NavigationControls';
+import { navigationScene, pointDestination } from './navigation/destinations';
+import type { NavigationActions } from './navigation/types';
 
-interface Props {
+interface Props extends NavigationActions {
   theme: RpgThemeId;
   ui: RpgUiState;
   sample: RpgSample;
@@ -12,7 +16,22 @@ interface Props {
   showDirectory?: boolean;
 }
 
-export function RpgSceneMap({ theme, ui, sample, bindings, showDirectory = true }: Props) {
+export function RpgSceneMap({
+  theme,
+  ui,
+  sample,
+  bindings,
+  showDirectory = true,
+  navigation,
+  onNavigate,
+  onStopNavigation,
+}: Props) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const selected = sample.landmarks.find((p) => p.id === selectedId);
+  useEffect(() => {
+    if (selectedId) actionsRef.current?.querySelector('button')?.focus();
+  }, [selectedId]);
   const { bounds } = sample;
   const numbered = showDirectory && sample.landmarks.length <= 80;
   const playerRadius = Math.max(15, Math.max(bounds.width, bounds.height) / 100);
@@ -21,7 +40,7 @@ export function RpgSceneMap({ theme, ui, sample, bindings, showDirectory = true 
       <svg
         className="rpg-map"
         viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`}
-        role="img"
+        role="group"
         aria-label={`${sample.name}, landmarks and your current position`}
       >
         <rect {...bounds} fill={RPG_THEMES[theme].map.ground} />
@@ -37,7 +56,20 @@ export function RpgSceneMap({ theme, ui, sample, bindings, showDirectory = true 
           <rect key={index} {...box} fill={RPG_THEMES[theme].map.obstacle} />
         ))}
         {sample.landmarks.map((landmark, index) => (
-          <g key={landmark.id} transform={`translate(${landmark.x},${landmark.y})`}>
+          <g
+            key={landmark.id}
+            transform={`translate(${landmark.x},${landmark.y})`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Select ${landmark.name}`}
+            onClick={() => setSelectedId(landmark.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setSelectedId(landmark.id);
+              }
+            }}
+          >
             <title>{landmark.name}</title>
             <circle r={numbered ? 27 : 14} fill="#efe3be" stroke="#392d23" strokeWidth="5" />
             {numbered && (
@@ -47,6 +79,11 @@ export function RpgSceneMap({ theme, ui, sample, bindings, showDirectory = true 
             )}
           </g>
         ))}
+        <NavigationMapRoute
+          state={navigation}
+          position={ui.position}
+          scene={navigationScene(sample)}
+        />
         <circle
           className="rpg-map-player"
           cx={ui.position.x}
@@ -61,6 +98,17 @@ export function RpgSceneMap({ theme, ui, sample, bindings, showDirectory = true 
         The gold dot is you.
         {numbered ? ' Places are numbered below.' : ' Pale dots mark houses and places.'}
       </p>
+      {selected && (
+        <div ref={actionsRef}>
+          <DestinationActions
+            key={selected.id}
+            target={pointDestination(sample, selected)}
+            navigation={navigation}
+            onNavigate={onNavigate}
+            onStopNavigation={onStopNavigation}
+          />
+        </div>
+      )}
       {showDirectory && (
         <ol className={`rpg-landmarks${bindings ? ' rpg-landmarks--town' : ''}`}>
           {sample.landmarks.map((landmark) => {
@@ -82,6 +130,14 @@ export function RpgSceneMap({ theme, ui, sample, bindings, showDirectory = true 
                   ))
                 ) : (
                   <bdi>{landmark.name}</bdi>
+                )}
+                {onNavigate && (
+                  <button
+                    className="rpg-button rpg-button--quiet"
+                    onClick={() => setSelectedId(landmark.id)}
+                  >
+                    Select destination
+                  </button>
                 )}
               </li>
             );

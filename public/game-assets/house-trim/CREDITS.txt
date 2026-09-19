@@ -1,0 +1,2 @@
+Original Dmap doorway trim and woven mat, authored as pixel-aligned SVG geometry.
+No third-party artwork. The room's existing licensed floor tiles are reused at runtime.

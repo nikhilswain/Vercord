@@ -15,6 +15,7 @@ import type { WorldActor } from './session-access';
 import type { WorldThemeId } from '../../src/domain/world/document';
 import type { HouseSceneId } from '../../src/domain/world/catalog/scenes';
 import { savedWorldViewSchema, type StreetSelection } from '../../src/domain/world/protocol';
+import type { ForestAreaId } from '../../src/domain/world/forest/catalog';
 
 const worldErrorSchema = z.strictObject({
   error: z.strictObject({
@@ -82,12 +83,14 @@ export async function readAuthorizedSavedWorld(
   theme: WorldThemeId,
   street?: StreetSelection,
   house?: HouseSceneId,
+  forest?: ForestAreaId,
 ) {
   const value = await callWorldOwner(env, actor, '/internal/rpg-world', {
     actor,
     theme,
     street,
     house,
+    forest,
   });
   const parsed = savedWorldViewSchema.safeParse(value);
   if (!parsed.success) throw new WorldAccessError('WORLD_SAVE_INVALID', 409);

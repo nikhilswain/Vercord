@@ -1,0 +1,141 @@
+.journey-chapter .rpg-kicker,
+.journey-next .rpg-kicker {
+  color: var(--rpg-accent);
+}
+.rpg-page[data-ui='ornate'] .rpg-journey h3 {
+  margin: 8px 0 12px;
+  font-size: 27px;
+}
+.rpg-page[data-ui='ornate'] .rpg-journey p {
+  margin: 0 0 16px;
+}
+.journey-chapter {
+  padding-bottom: 8px;
+}
+.journey-choice {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  border-top: 1px solid var(--rpg-edge);
+}
+.journey-choice p {
+  flex: 1;
+  color: var(--rpg-muted);
+}
+.journey-choice .rpg-button {
+  flex-shrink: 0;
+}
+.journey-next {
+  padding: 22px 0 12px 18px;
+  border-left: 2px solid var(--rpg-accent);
+}
+.journey-actions,
+.journey-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.journey-footer {
+  width: 100%;
+  justify-content: space-between;
+}
+.journey-completed {
+  margin-top: 22px;
+  border-top: 1px solid var(--rpg-edge);
+  padding-top: 12px;
+}
+.journey-completed summary {
+  cursor: pointer;
+  min-height: 36px;
+  color: var(--rpg-accent);
+}
+.journey-completed ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 16px;
+}
+.journey-completed li {
+  margin: 8px 0;
+  color: var(--rpg-muted);
+}
+.journey-counts,
+.journey-notice {
+  color: var(--rpg-muted);
+}
+.journey-map-note {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.journey-map-note p {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  font-family: var(--font-rpg-body);
+}
+.journey-map-note span {
+  font-size: 13px;
+  color: var(--rpg-muted);
+}
+.journey-map-marker path {
+  fill: var(--rpg-panel);
+  stroke: var(--rpg-accent);
+  stroke-width: 3px;
+}
+.journey-map-marker circle {
+  fill: var(--rpg-accent);
+}
+.journey-map-marker text {
+  fill: var(--rpg-ink);
+  font: 13px var(--font-rpg-body);
+  paint-order: stroke;
+  stroke: var(--rpg-panel);
+  stroke-width: 3px;
+}
+.journey-tracker {
+  display: flex;
+  align-items: start;
+  width: 270px;
+  max-width: 100%;
+  padding: 8px 10px;
+  background: var(--rpg-panel);
+  border-left: 2px solid var(--rpg-edge);
+  pointer-events: auto;
+}
+.journey-tracker > button:first-child {
+  display: grid;
+  text-align: left;
+  gap: 5px;
+  flex: 1;
+  color: var(--rpg-ink);
+  background: none;
+  border: 0;
+  padding: 4px;
+  font-family: var(--font-rpg-body);
+}
+.journey-tracker .rpg-kicker {
+  font-size: 11px;
+}
+.journey-tracker strong {
+  font-size: 14px;
+  font-weight: normal;
+}
+@media (max-width: 600px) {
+  .journey-choice {
+    display: block;
+  }
+  .journey-next {
+    padding-left: 12px;
+  }
+  .journey-actions .rpg-button {
+    flex: 1 1 auto;
+  }
+  .journey-footer .rpg-button {
+    flex: 1;
+  }
+  .journey-tracker {
+    width: 216px;
+  }
+}

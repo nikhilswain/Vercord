@@ -24,6 +24,11 @@ const FRAME_SIZE = 64;
 const FEET_Y = 62;
 const LAYERS = RPG_CHARACTER_LAYERS;
 type CharacterPose = RpgAction | 'cast' | 'slash' | 'thrust';
+export interface CharacterPresentation {
+  consume?: { food: boolean; elapsedMs: number; durationMs: number } | null;
+  defeatMs?: number | null;
+  hurtMs?: number;
+}
 const ACTIONS: CharacterPose[] = ['idle', 'walk', 'run', 'cast', 'slash', 'thrust'];
 /** Seven authored LPC spellcast poses; release begins at the extended-arm frame. */
 export const RPG_CAST_DURATION_MS = 700;
@@ -77,6 +82,7 @@ export function preloadRpgCharacters(scene: Phaser.Scene, includeCasting = false
 export class RpgCharacter {
   readonly container: Phaser.GameObjects.Container;
   private readonly layers: Phaser.GameObjects.Image[];
+  private readonly rig: Phaser.GameObjects.Container;
   private readonly weaponBehind: Phaser.GameObjects.Image;
   private readonly weaponFront: Phaser.GameObjects.Image;
   private readonly handOverlays: Phaser.GameObjects.Image[];
@@ -115,13 +121,13 @@ export class RpgCharacter {
         .setOrigin(0.5, FEET_Y / FRAME_SIZE)
         .setVisible(false),
     );
-    this.container.add([
-      shadow,
+    this.rig = scene.add.container(0, 0, [
       this.weaponBehind,
       ...this.layers,
       this.weaponFront,
       ...this.handOverlays,
     ]);
+    this.container.add([shadow, this.rig]);
     this.update(x, y, 'down', 'idle', 0, false);
   }
 
@@ -142,8 +148,21 @@ export class RpgCharacter {
     reducedMotion: boolean,
     castElapsedMs?: number | null,
     meleePose?: RpgMeleePose | null,
+    presentation: CharacterPresentation = {},
   ): void {
     this.container.setPosition(x, y).setDepth(y);
+    const defeat = presentation.defeatMs;
+    const fallen = defeat !== undefined && defeat !== null;
+    const consume = fallen ? null : presentation.consume;
+    // Presentation transforms never change the collision footprint or network position.
+    const fall = fallen ? Math.min(1, Math.max(0, (defeat - 180) / 560)) : 0;
+    const eased = reducedMotion ? (fall > 0 ? 1 : 0) : fall * fall * (3 - 2 * fall);
+    const hurt = Math.max(0, 1 - (presentation.hurtMs ?? Infinity) / 180);
+    this.rig
+      .setPosition(fallen ? eased * 8 : reducedMotion ? 0 : -hurt * 2, fallen ? -eased * 5 : 0)
+      .setRotation(fallen ? (-eased * Math.PI) / 2 : 0)
+      .setAlpha(fallen ? Math.max(0, 1 - Math.max(0, defeat - 1600) / 1000) : 1);
+    if (fallen || consume) direction = 'down';
     const casting =
       castElapsedMs !== undefined &&
       castElapsedMs !== null &&
@@ -151,6 +170,8 @@ export class RpgCharacter {
       castElapsedMs >= 0 &&
       castElapsedMs < RPG_CAST_DURATION_MS;
     const melee =
+      !fallen &&
+      !consume &&
       meleePose &&
       meleePose.style === RPG_MELEE_WEAPON_STYLE[meleePose.weapon] &&
       Number.isFinite(meleePose.elapsedMs) &&
@@ -158,7 +179,8 @@ export class RpgCharacter {
       meleePose.elapsedMs < RPG_MELEE_ANIMATION[meleePose.style].durationMs
         ? meleePose
         : undefined;
-    const pose: CharacterPose = melee ? melee.style : casting ? 'cast' : action;
+    const pose: CharacterPose =
+      fallen || consume ? 'cast' : melee ? melee.style : casting ? 'cast' : action;
     if (pose !== this.action || direction !== this.direction) {
       const changedAction = pose !== this.action;
       this.direction = direction;
@@ -170,13 +192,28 @@ export class RpgCharacter {
 
     const animation = ANIMATION[pose];
     // Idle breathing is decorative; retain movement feedback with reduced motion.
-    const column = melee
-      ? Math.min(animation.frames - 1, Math.floor(melee.elapsedMs / animation.frameMs))
-      : casting
-        ? Math.min(animation.frames - 1, Math.floor(castElapsedMs / animation.frameMs))
-        : reducedMotion && pose === 'idle'
-          ? 0
-          : Math.floor(Math.max(0, time - this.startedAt) / animation.frameMs) % animation.frames;
+    const column = fallen
+      ? defeat < 180
+        ? 2
+        : 0
+      : consume
+        ? consume.food
+          ? reducedMotion
+            ? 2
+            : Math.sin(consume.elapsedMs / 110) > 0
+              ? 2
+              : 1
+          : consume.elapsedMs / consume.durationMs > 0.4
+            ? 4
+            : 2
+        : melee
+          ? Math.min(animation.frames - 1, Math.floor(melee.elapsedMs / animation.frameMs))
+          : casting
+            ? Math.min(animation.frames - 1, Math.floor(castElapsedMs / animation.frameMs))
+            : reducedMotion && pose === 'idle'
+              ? 0
+              : Math.floor(Math.max(0, time - this.startedAt) / animation.frameMs) %
+                animation.frames;
     const frame = DIRECTION_ROW[direction] * animation.frames + column;
     this.updateWeapon(melee, direction, column, frame);
     if (frame === this.frame) return;

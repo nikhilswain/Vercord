@@ -1,5 +1,5 @@
 /** Shared rules only. Real-world experience must eventually be owned by the server. */
-export const MAX_CHARACTER_LEVEL = 20;
+export const MAX_CHARACTER_LEVEL = 30;
 export function experienceForLevel(level: number): number {
   level = normalizeEncounterLevel(level);
   if (level === 1) return 0;

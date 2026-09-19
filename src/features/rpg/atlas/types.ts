@@ -13,6 +13,7 @@ export type AtlasPlaceKind =
   | 'npc';
 export interface AtlasPlace extends Point {
   id: string;
+  landmarkId?: string;
   name: string;
   kind: AtlasPlaceKind;
 }
@@ -31,6 +32,8 @@ export interface AtlasModel {
   bounds: Rect;
   regions: AtlasRegion[];
   roads: string;
+  water?: readonly Rect[];
+  local?: boolean;
   regionAt(point: Point): AtlasRegion | undefined;
 }
 export interface AtlasView extends Point {

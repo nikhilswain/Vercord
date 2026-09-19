@@ -38,10 +38,14 @@ export class RpgSampleRenderer {
   private readonly flameLights: Phaser.GameObjects.Image[] = [];
   private readonly animated: Array<{
     image: Phaser.GameObjects.Image;
-    frames: readonly number[];
+    frames: readonly (string | number)[];
     durationMs: number;
     phaseMs: number;
+    trigger?: string;
+    requiresProject?: string;
+    inactiveFrame?: string;
   }> = [];
+  private readonly activatedUntil = new Map<string, number>();
   private readonly terrain: TownTerrainRenderer | null;
   private readonly visibility = new SceneryVisibility();
   private readonly detail: SceneryDetail;
@@ -89,6 +93,9 @@ export class RpgSampleRenderer {
         frames: stamp.frames,
         durationMs: stamp.durationMs,
         phaseMs: stamp.phaseMs ?? 0,
+        trigger: stamp.trigger,
+        requiresProject: stamp.requiresProject,
+        inactiveFrame: stamp.inactiveFrame,
       });
     }
     if (sample.id === 'dungeon') {
@@ -101,18 +108,29 @@ export class RpgSampleRenderer {
     this.addLighting(sample);
   }
 
-  public update(time: number, reducedMotion: boolean): void {
+  public update(time: number, reducedMotion: boolean, projects: readonly string[] = []): void {
     this.terrain?.update();
     this.visibility.update(this.scene.cameras.main);
     this.detail.update(this.visibility.visibleImages, this.scene.cameras.main.zoom);
-    for (const { image, frames, durationMs, phaseMs } of this.animated) {
+    for (const {
+      image,
+      frames,
+      durationMs,
+      phaseMs,
+      trigger,
+      requiresProject,
+      inactiveFrame,
+    } of this.animated) {
       if (!image.visible) continue;
       const frame =
-        frames[
-          reducedMotion
-            ? 0
-            : Math.floor((((time + phaseMs) % durationMs) / durationMs) * frames.length)
-        ]!;
+        requiresProject && !projects.includes(requiresProject)
+          ? (inactiveFrame ?? frames[0]!)
+          : frames[
+              reducedMotion ||
+              (trigger !== undefined && (this.activatedUntil.get(trigger) ?? 0) <= time)
+                ? 0
+                : Math.floor((((time + phaseMs) % durationMs) / durationMs) * frames.length)
+            ]!;
       if (String(image.frame.name) !== String(frame)) image.setFrame(frame);
     }
     // Only a handful of torch lights animate; the environment never rebuilds during movement.
@@ -129,6 +147,10 @@ export class RpgSampleRenderer {
     this.owned.forEach((object) => object.destroy());
     this.owned.length = 0;
     this.flameLights.length = 0;
+  }
+
+  public activate(id: string, time: number): void {
+    this.activatedUntil.set(id, time + 6000);
   }
 
   private makeStamp(stamp: RpgStamp, display: boolean): Phaser.GameObjects.Image {

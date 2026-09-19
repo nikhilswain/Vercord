@@ -8,9 +8,11 @@ import { ChatConnectionNotice } from './GameChatPanel';
 export const PlayersButton = memo(function PlayersButton({
   client,
   onOpen,
+  worldOnlineCount,
 }: {
   client: GameChatClient;
   onOpen(): void;
+  worldOnlineCount?: number;
 }) {
   const state = useSyncExternalStore(client.subscribe, client.snapshot);
   return (
@@ -22,7 +24,13 @@ export const PlayersButton = memo(function PlayersButton({
       title="View online players"
     >
       <RpgIcon name="players" />
-      <span>{state.connection === 'online' ? state.people.length : '–'} online</span>
+      <span>
+        {state.connection === 'online'
+          ? `${Math.max(1, state.people.length, worldOnlineCount ?? 0)} online`
+          : worldOnlineCount !== undefined
+            ? `${Math.max(1, worldOnlineCount)} online`
+            : 'Connecting…'}
+      </span>
     </button>
   );
 });

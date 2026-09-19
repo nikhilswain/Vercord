@@ -46,7 +46,7 @@ export function buildComparisonVillage(): RpgSample {
     ...at(11.5, 14),
     lines: [
       'Moonblossoms grow in the forest clearings. Golden herbs can heal you. Gather either with E.',
-      'Your first spell is Ember. Aim with the cursor and left click, or tap a spot, to cast. Spells fly straight and fade at their range limit. Gathering and combat teach you Tide at level 2.',
+      'Press 3 to use your weapon. Ember awakens at level 15, Tide at level 25. Each powerful spell needs two minutes to recover. Aim with the cursor and left click to attack.',
       'Watch creatures prepare to lunge and avoid spike plates: they trigger underfoot. Return to this village to rest; your discoveries will stay with you during this visit.',
     ],
   });

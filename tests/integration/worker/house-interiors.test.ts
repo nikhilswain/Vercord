@@ -9,6 +9,8 @@ import { HouseInteriorStore } from '../../../worker/worlds/house-store';
 import { worldDocumentChecksum } from '../../../worker/worlds/instance-store';
 import { RpgPresenceState, type RpgPartition } from '../../../worker/presence/rpg-state';
 import { RpgCollisionMap } from '../../../worker/presence/rpg-geometry';
+import { generateHouseInterior as generateLegacy } from '../../../src/domain/world/interiors-v1';
+import { generateHouseInterior } from '../../../src/domain/world/interiors';
 
 const square = generateWorldDocument({
   worldId: '167dcf1c-7782-4f1a-9ce4-71f19de323ef',
@@ -29,6 +31,82 @@ const document = generateContinuousTownDocument(
   ),
 );
 const key = `houseInterior:${document.worldId}:house:0`;
+
+it('refreshes cached collision geometry when an admitted legacy house upgrades', async () => {
+  await runInDurableObject(env.WORLD_PRESENCE.getByName(crypto.randomUUID()), async (_, state) => {
+    const input = { ...document, landmarkId: 'house:0', roomType: 'text' as const };
+    const legacy = generateLegacy(input),
+      upgraded = generateHouseInterior(input);
+    const oldCollision = new RpgCollisionMap(legacy.scene),
+      newCollision = new RpgCollisionMap(upgraded.scene);
+    let blocked: { x: number; y: number } | undefined;
+    for (let y = 112; y < upgraded.scene.bounds.height - 32 && !blocked; y += 16)
+      for (let x = 64; x < upgraded.scene.bounds.width - 64 && !blocked; x += 16)
+        if (oldCollision.safe({ x, y }) && !newCollision.safe({ x, y })) blocked = { x, y };
+    expect(blocked).toBeDefined();
+    const presence = new RpgPresenceState(state.storage, (job) => state.waitUntil(job));
+    const saved = {
+      document,
+      checksum: 'a'.repeat(64),
+      bindings: [
+        {
+          landmarkId: 'house:0',
+          rooms: [{ key: `c_${'a'.repeat(43)}`, label: 'General', type: 'text' as const }],
+        },
+      ],
+    };
+    presence.register({ ...saved, interior: legacy });
+    const partition: RpgPartition = {
+      worldId: document.worldId,
+      checksum: saved.checksum,
+      theme: 'village',
+      scene: 'house:0',
+    };
+    const player = await presence.restore(partition, 'upgrading-player', 1000);
+    await presence.save('upgrading-player', { ...player, ...blocked! }, 2000, true);
+    presence.register({ ...saved, interior: upgraded });
+    const restored = await presence.restore(partition, 'upgrading-player', 3000);
+    expect(newCollision.safe(restored)).toBe(true);
+    expect(restored).not.toMatchObject(blocked!);
+  });
+});
+
+it('upgrades a verified legacy room once, retaining its exact backup and town document', async () => {
+  await runInDurableObject(env.WORLD_PRESENCE.getByName(crypto.randomUUID()), async (_, state) => {
+    const old = generateLegacy({ ...document, landmarkId: 'house:0', roomType: 'text' });
+    const json = JSON.stringify(old);
+    const envelope = { version: 1, json, checksum: await worldDocumentChecksum(json) };
+    await state.storage.put(key, envelope);
+    const originalTown = JSON.stringify(document);
+    const store = new HouseInteriorStore(state.storage);
+    const [first, second] = await Promise.all([
+      store.load(document, 'house:0', 'text'),
+      store.load(document, 'house:0', 'text'),
+    ]);
+    expect(first.contentVersion).toBe('house-v2');
+    expect(second).toEqual(first);
+    expect(await state.storage.get(`houseInteriorBackup:v1:${document.worldId}:house:0`)).toEqual(
+      envelope,
+    );
+    expect(await new HouseInteriorStore(state.storage).load(document, 'house:0', 'voice')).toEqual(
+      first,
+    );
+    expect(JSON.stringify(document)).toBe(originalTown);
+  });
+});
+
+it('does not upgrade or back up a damaged legacy room', async () => {
+  await runInDurableObject(env.WORLD_PRESENCE.getByName(crypto.randomUUID()), async (_, state) => {
+    const old = generateLegacy({ ...document, landmarkId: 'house:0', roomType: 'text' });
+    const envelope = { version: 1, json: JSON.stringify(old), checksum: '0'.repeat(64) };
+    await state.storage.put(key, envelope);
+    await expect(
+      new HouseInteriorStore(state.storage).load(document, 'house:0', 'text'),
+    ).rejects.toMatchObject({ code: 'WORLD_SAVE_INVALID' });
+    expect(await state.storage.get(key)).toEqual(envelope);
+    expect(await state.storage.list({ prefix: 'houseInteriorBackup:' })).toHaveLength(0);
+  });
+});
 
 it('saves a house once across concurrent visits, cold reloads, and town extensions', async () => {
   await runInDurableObject(env.WORLD_PRESENCE.getByName(crypto.randomUUID()), async (_, state) => {

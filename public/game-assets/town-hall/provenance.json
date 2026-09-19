@@ -1,0 +1,52 @@
+{
+  "license": "CC-BY-SA-3.0",
+  "modified": false,
+  "composition": "src/domain/world/town-hall.ts",
+  "files": [
+    {
+      "file": "cottage.png",
+      "sha256": "b0c076d67a13608c4542654131c97435aaef24375ef437876da5b6cff380731b"
+    },
+    {
+      "file": "thatched-roof.png",
+      "sha256": "ce93207a11ffc5f22aff46f878631347884c48053474d5733901b1c6b03ee9ee"
+    },
+    {
+      "file": "decorations-medieval.png",
+      "sha256": "b3702f06722a8d7fa60f34afb340c5d392a2974a3746a8d3dcb1494d6bf90f55"
+    },
+    {
+      "file": "castle.png",
+      "original": "castle_2.png",
+      "source": "https://opengameart.org/content/lpc-interior-castle-tiles",
+      "url": "https://opengameart.org/sites/default/files/castle_2.png",
+      "license": "CC-BY-3.0",
+      "sha256": "a7c4c45736f90b0b06e50d7d3f0387de8dbf48d2a325535f504992074ccff328"
+    },
+    {
+      "file": "furniture.png",
+      "original": "dark-wood_4.png",
+      "source": "https://opengameart.org/content/lpc-wooden-furniture",
+      "url": "https://opengameart.org/sites/default/files/dark-wood_4.png",
+      "license": "CC-BY-SA-3.0",
+      "sha256": "04c47b995e6c768ef83f26333869de7c5e486cfb951179acd856a39f8115e113"
+    },
+    {
+      "file": "noticeboard.png",
+      "original": "bulletin_board_0.png",
+      "source": "https://opengameart.org/content/bulletin-board-and-items",
+      "url": "https://opengameart.org/sites/default/files/bulletin_board_0.png",
+      "license": "OGA-BY-3.0",
+      "sha256": "831d1fdd3ec57b9d6b9944434ce9b0bbe1f0b2948d82c62e0b9a958eab2087b1"
+    },
+    {
+      "file": "notices.png",
+      "original": "bulletin_board_items.png",
+      "source": "https://opengameart.org/content/bulletin-board-and-items",
+      "url": "https://opengameart.org/sites/default/files/bulletin_board_items.png",
+      "license": "OGA-BY-3.0",
+      "sha256": "219197a44ac8f78b3b70d8e9026120a8c0c7b2fd9600c6237f087b6b50574f5e"
+    }
+  ],
+  "interiorComposition": "src/domain/world/content/town-hall-v1/scene.ts"
+}

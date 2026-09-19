@@ -1,3 +1,5 @@
+import { RPG_MAX_TRAVEL_SPEED } from '../../src/domain/presence/rpg-protocol';
+import { buildForestAreaLayout } from '../../src/domain/world/forest/temple';
 import { z } from 'zod';
 import {
   rpgAdmissionSchema,
@@ -12,7 +14,15 @@ import { isHouseSceneId, type RpgSceneId } from '../../src/domain/world/catalog/
 import { worldThemeIdSchema, type WorldBindings } from '../../src/domain/world/protocol';
 import { WorldAccessError } from '../live-world/coordinator';
 import { RpgCollisionMap } from './rpg-geometry';
+import { townForestEntrance } from '../../src/domain/world/forest/layout';
+import {
+  forestSceneId,
+  isForestSceneId,
+  type ForestVisit,
+} from '../../src/domain/world/forest/catalog';
+import type { Point } from '../../src/domain/world/content/v1/types';
 import { appearanceFitsTheme, getWorldTheme } from '../../src/domain/world/catalog/themes';
+import { buildTownHall } from '../../src/domain/world/content/town-hall-v1/scene';
 
 export { appearanceFitsTheme } from '../../src/domain/world/catalog/themes';
 
@@ -50,9 +60,10 @@ type SavedProgress = Progress | SavedAppearance;
 type Geometry = {
   collisions: Map<RpgSceneId, RpgCollisionMap>;
   rooms: Map<string, { id: string; x: number; y: number; radius: number }>;
+  arrivals: Map<RpgSceneId, Map<RpgSceneId, Point>>;
 };
 const SAVE_INTERVAL = 2_000;
-const SPEED = 240;
+const SPEED = RPG_MAX_TRAVEL_SPEED;
 const BUDGET = 96;
 const MAX_CACHED_PROGRESS = 1_024;
 const MAX_CACHED_HOUSES = 256;
@@ -67,6 +78,7 @@ export function sameRpgPartition(first: RpgPartition, second: RpgPartition): boo
 /** Geometry stays server-owned; socket attachments and saved progress contain only small state. */
 export class RpgPresenceState {
   private readonly geometries = new Map<string, Geometry>();
+  private readonly houseCollisionVersions = new WeakMap<RpgCollisionMap, number>();
   private readonly pending = new Map<string, SavedProgress>();
   private readonly latest = new Map<string, SavedProgress | undefined>();
   private readonly lanes = new Map<string, Promise<unknown>>();
@@ -84,6 +96,7 @@ export class RpgPresenceState {
     checksum: string;
     bindings: WorldBindings;
     interior?: HouseInterior;
+    forest?: ForestVisit;
   }): void {
     const key = `${saved.document.worldId}:${saved.checksum}`;
     for (const existing of this.geometries.keys())
@@ -108,13 +121,56 @@ export class RpgPresenceState {
       const id = saved.interior.landmarkId;
       const existing = collisions.get(id);
       collisions.delete(id);
-      collisions.set(id, existing ?? new RpgCollisionMap(saved.interior.scene));
+      const collision =
+        existing && this.houseCollisionVersions.get(existing) === saved.interior.generatorVersion
+          ? existing
+          : new RpgCollisionMap(saved.interior.scene);
+      this.houseCollisionVersions.set(collision, saved.interior.generatorVersion);
+      collisions.set(id, collision);
       while (collisions.size > MAX_CACHED_HOUSES + 2) {
         const oldest = [...collisions.keys()].find(isHouseSceneId);
         if (oldest) collisions.delete(oldest);
       }
     }
-    this.geometries.set(key, { collisions, rooms });
+    const arrivals = previous?.arrivals ?? new Map<RpgSceneId, Map<RpgSceneId, Point>>();
+    const hall = saved.document.scenes.overworld.landmarks.find((l) => l.id === 'town-hall');
+    if (hall && !collisions.has('town-hall')) {
+      const layout = buildTownHall(saved.document.themeId);
+      collisions.set(
+        'town-hall',
+        new RpgCollisionMap({ ...layout.scene, stamps: [], textures: [], lights: [] }),
+      );
+      const cellar = layout.scene.landmarks.find((l) => l.id === 'hall:cellar')!;
+      arrivals.set(
+        'town-hall',
+        new Map([
+          ['overworld', layout.scene.spawn],
+          ['dungeon', { x: cellar.x, y: cellar.y + 36 }],
+        ]),
+      );
+      arrivals.set('overworld', new Map([['town-hall', { x: hall.x, y: hall.y + 32 }]]));
+    }
+    if (saved.forest) {
+      const id = forestSceneId(saved.forest.region);
+      if (!collisions.has(id)) {
+        const layout = buildForestAreaLayout(saved.forest.seed, saved.forest.region);
+        // Presence retains collision geometry, not the entire forest art payload.
+        collisions.set(
+          id,
+          new RpgCollisionMap({ ...layout.scene, stamps: [], textures: [], lights: [] }),
+        );
+        arrivals.set(
+          id,
+          new Map(
+            layout.portals.map((p) => [
+              p.target === 'town' ? ('overworld' as const) : forestSceneId(p.target),
+              { x: p.x, y: p.y + 24 },
+            ]),
+          ),
+        );
+      }
+    }
+    this.geometries.set(key, { collisions, rooms, arrivals });
   }
 
   public has(partition: RpgPartition): boolean {
@@ -133,11 +189,40 @@ export class RpgPresenceState {
       const saved = await this.hydrate([positionKey, appearanceKey]);
       const progress = progressSchema.safeParse(saved.get(positionKey));
       const parsedAppearance = savedAppearanceSchema.safeParse(saved.get(appearanceKey));
-      const location =
+      let location =
         progress.success && collision.safe(progress.data)
           ? progress.data
           : { ...collision.scene.spawn, direction: 'down' as const };
       if (isHouseSceneId(partition.scene)) await this.anchorHouseReturn(partition, userId, now);
+      const lastSceneKey = `rpgLastScene:${partition.worldId}:${userId}`;
+      const lastScene = await this.storage.get<string>(lastSceneKey);
+      if (
+        lastScene &&
+        lastScene !== partition.scene &&
+        (isForestSceneId(lastScene) ||
+          isForestSceneId(partition.scene) ||
+          lastScene === 'town-hall' ||
+          partition.scene === 'town-hall')
+      ) {
+        const arrival =
+          partition.scene === 'overworld' && lastScene === forestSceneId('verge')
+            ? townForestEntrance(collision.scene)
+            : this.geometry(partition)
+                .arrivals.get(partition.scene)
+                ?.get(lastScene as RpgSceneId);
+        const point = arrival ?? collision.scene.spawn;
+        if (collision.safe(point)) location = { ...point, direction: 'down' as const };
+        const next = {
+          x: location.x,
+          y: location.y,
+          direction: location.direction,
+          updatedAt: Math.max(now + 1, (progress.success ? progress.data.updatedAt : 0) + 1),
+        };
+        this.remember(positionKey, next);
+        this.pending.set(positionKey, next);
+        await this.flush([positionKey]);
+      }
+      await this.storage.put(lastSceneKey, partition.scene);
       return {
         ...partition,
         x: location.x,

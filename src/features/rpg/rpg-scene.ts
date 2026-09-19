@@ -1,9 +1,15 @@
+import { creatureLoot } from '../../domain/adventure/loot';
+import { nearbyStation, type ProvisionStation } from './provisions/stations';
+import type { ProvisionsSnapshot } from '../../domain/adventure/provisions';
+import { FORAGE_ITEMS } from '../../domain/adventure/forage';
 import * as Phaser from 'phaser';
+import { getItem } from '../../domain/adventure/inventory';
 import { WorldInput, worldInputBlocked } from '../world/engine/input';
 import { steppedZoom, wheelZoom } from './camera-zoom';
 import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import { sampleSceneId, sceneDefinition, isHouseSceneId } from '../../domain/world/catalog/scenes';
+import { isHallBoardId } from '../../domain/world/content/town-hall-v1/scene';
 import { DEFAULT_RPG_CHARACTER_ID } from '../../domain/world/catalog/characters';
 import {
   preloadRpgCharacters,
@@ -14,6 +20,7 @@ import {
 import type { SpellId } from './demo/types';
 import { AdventureSession } from './adventure/session';
 import { AdventureJourney } from './adventure/journey';
+import { isStoryNavigation, type JournalPreferences } from './journal/model';
 import { ScenarioRenderer } from './adventure/scenario-renderer';
 import { combatTargetAtPointer } from './adventure/aim';
 import { DEMO_EQUIPMENT_POLICY } from '../../domain/adventure/equipment';
@@ -22,22 +29,39 @@ import { AdventureSessionRenderer, preloadJungleCreatures } from './adventure/re
 import { preloadRpgWorlds, registerRpgFrames, RpgSampleRenderer } from './sample-renderer';
 import { directionToward, RpgSimulation } from './simulation';
 import { TownSignage } from './town-signage';
+import { HouseAtmosphere } from './house/atmosphere';
+import { TownRecall } from './travel/recall';
+import { WaygateEffects, preloadWaygateEffects } from './travel/waygate-effects';
+import type { ForestDestination } from '../../domain/world/forest/catalog';
 import { RpgRemoteCharacters } from './remote-characters';
 import { RpgAmbientEntities } from './entities/renderer';
 import { preloadRpgAnimals } from './entities/animal';
 import type { RpgCallbacks, RpgSample, RpgUiState, RpgPositionUpdate } from './types';
+import { NavigationSession } from './navigation/session';
+import { navigationContext, navigationScene } from './navigation/destinations';
+import { NavigationTrail, preloadNavigationTrail } from './navigation/trail';
+import type { NavigationResult, NavigationTarget } from './navigation/types';
+import { DefeatSequence } from './adventure/defeat';
+import { TravelerEffects } from './effects/traveler-effects';
+import { preloadActionEffects } from './effects/assets';
+import { preloadLoot } from './adventure/loot-renderer';
 
 export class RpgScene extends Phaser.Scene {
   private readonly simulation: RpgSimulation;
+  private readonly navigation = new NavigationSession();
+  private navigationTrail: NavigationTrail | null = null;
   private readonly motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   private movement: WorldInput | null = null;
   private scenery: RpgSampleRenderer | null = null;
+  private houseAtmosphere: HouseAtmosphere | null = null;
+  private waygateEffects: WaygateEffects | null = null;
+  private readonly recall = new TownRecall();
+  private readonly defeat = new DefeatSequence();
+  private travelerEffects: TravelerEffects | null = null;
+  private materializeAt: number | null = null;
+  private travelTarget: ForestDestination = 'town';
   private avatar: RpgCharacter | null = null;
   private adventureSession: AdventureSession | null = null;
-  private readonly adventureJourney = new AdventureJourney({
-    equipmentPolicy: DEMO_EQUIPMENT_POLICY,
-    enemyLevelOverride: 1,
-  });
   private adventureRenderer: AdventureSessionRenderer | null = null;
   private scenarioRenderer: ScenarioRenderer | null = null;
   private remotes: RpgRemoteCharacters | null = null;
@@ -76,6 +100,10 @@ export class RpgScene extends Phaser.Scene {
     private readonly samples: readonly RpgSample[],
     private sceneKey: string,
     positions: Map<string, Point>,
+    private readonly adventureJourney = new AdventureJourney({
+      equipmentPolicy: DEMO_EQUIPMENT_POLICY,
+      enemyLevelOverride: 1,
+    }),
   ) {
     super({ key: 'rpg-sample' });
     this.simulation = new RpgSimulation(sample, sceneKey, positions);
@@ -84,14 +112,14 @@ export class RpgScene extends Phaser.Scene {
   public preload(): void {
     this.load.on('loaderror', this.onLoadError);
     preloadRpgWorlds(this, this.samples);
-    preloadRpgCharacters(
-      this,
-      this.samples.some((sample) => sample.demo),
-    );
+    preloadRpgCharacters(this, true);
+    preloadActionEffects(this);
     preloadRpgAnimals(this);
-    if (this.samples.some((sample) => sample.demo)) {
+    preloadNavigationTrail(this);
+    preloadWaygateEffects(this);
+    if (this.samples.some((sample) => sample.demo || sample.adventure)) {
       preloadJungleCreatures(this);
-    }
+    } else preloadLoot(this);
   }
 
   public create(): void {
@@ -121,6 +149,10 @@ export class RpgScene extends Phaser.Scene {
     this.callbacks.onReady();
   }
 
+  private station: ProvisionStation | null = null;
+  private supplyCache: string | null = null;
+  private supplyOccupants: Point[] = [];
+
   public update(time: number): void {
     if (!this.created || this.failed || this.disposed || document.hidden || !this.avatar) return;
     // The FPS limiter's delta includes its carried remainder, which may already have been
@@ -134,7 +166,11 @@ export class RpgScene extends Phaser.Scene {
     const adventure = this.activeAdventure();
     if (adventure?.scenario) this.simulation.setDynamicColliders(adventure.scenario.colliders);
     const blocked =
-      this.inputBlocked || worldInputBlocked() || Boolean(adventure && !this.demoFocused);
+      this.defeat.active ||
+      this.recall.active ||
+      this.inputBlocked ||
+      worldInputBlocked() ||
+      Boolean(adventure && !this.demoFocused);
     this.simulation.blocked =
       blocked || Boolean(adventure?.cast || adventure?.melee || adventure?.storyPresentation);
     const input = this.movement?.getMovement() ?? { x: 0, y: 0, moving: false, sprinting: false };
@@ -147,12 +183,29 @@ export class RpgScene extends Phaser.Scene {
     )
       this.following = true;
     this.manualMovement = input.moving;
-    this.simulation.tick(dt / 1000, input);
+    this.simulation.speedMultiplier = adventure
+      ? this.adventureJourney.supplies.provisions.stats.movement
+      : 1;
+    this.simulation.tick(dt / 1000, input, adventure?.roadBlockers(this.simulation.player));
+    const supplies = this.adventureJourney.supplies;
+    const lootRevision = supplies.lootRevision;
+    if (blocked || !adventure) supplies.tickSupplies(dt / 1000, this.simulation.player);
     if (adventure && !blocked && adventure.tick(dt / 1000, this.simulation.player)) {
       this.simulation.stop();
-      this.simulation.player = { ...this.simulation.sample.spawn };
-      this.center();
+      this.cancelPointer();
+      this.stopNavigation();
+      this.defeat.start();
+      this.adventureJourney.checkpoint(true);
+      this.following = true;
+      this.cameras.main.centerOn(this.simulation.player.x, this.simulation.player.y - 18);
+      this.publishUi();
     }
+    adventure?.renewSupplies(
+      Date.now(),
+      [this.simulation.player, ...this.supplyOccupants],
+      this.cameras.main.worldView,
+    );
+    if (supplies.lootRevision !== lootRevision) this.adventureJourney.checkpoint(true);
     const { player, direction, action } = this.simulation;
     const melee = adventure?.melee;
     const meleeStyle = melee ? RPG_MELEE_WEAPON_STYLE[melee.weapon.family] : 'slash';
@@ -178,18 +231,48 @@ export class RpgScene extends Phaser.Scene {
             tier: melee.weapon.tier,
           }
         : null,
+      {
+        consume: supplies.provisions.pending
+          ? {
+              food:
+                getItem(supplies.provisions.pending.id)?.benefit === 'meal' ||
+                getItem(supplies.provisions.pending.id)?.plainFood ||
+                supplies.provisions.pending.id === 'healing-herb',
+              elapsedMs:
+                (supplies.provisions.pending.duration - supplies.provisions.pending.remaining) *
+                1000,
+              durationMs: supplies.provisions.pending.duration * 1000,
+            }
+          : null,
+        defeatMs: this.defeat.elapsed,
+        hurtMs: adventure ? (adventure.time - adventure.playerHurtAt) * 1000 : undefined,
+      },
     );
     this.playerMarker?.setPosition(player.x, player.y - 1).setDepth(player.y - 0.1);
     const completedStory = !blocked ? adventure?.takeStoryDialogue() : null;
     if (completedStory) this.callbacks.onDialogue(completedStory);
+    const arrival = this.materializeAt === null ? null : (this.elapsed - this.materializeAt) / 650;
+    if (arrival !== null && arrival >= 1) this.materializeAt = null;
     this.avatar.container.setAlpha(
-      adventure && adventure.time < adventure.invincibleUntil
-        ? this.motion.matches
-          ? 0.7
-          : 0.65 + Math.sin(adventure.time * 22) * 0.25
-        : 1,
+      this.recall.active
+        ? Math.max(0.15, 1 - Math.max(0, this.recall.progress - 0.6) * 2)
+        : arrival !== null && arrival < 1
+          ? 0.2 + arrival * 0.8
+          : !this.defeat.active && adventure && adventure.time < adventure.invincibleUntil
+            ? this.motion.matches
+              ? 0.7
+              : 0.65 + Math.sin(adventure.time * 22) * 0.25
+            : 1,
     );
     this.adventureRenderer?.update(player, this.motion.matches);
+    this.travelerEffects?.update(
+      player,
+      supplies,
+      this.elapsed,
+      this.motion.matches,
+      this.defeat.elapsed,
+    );
+    this.playerMarker?.setVisible(!this.defeat.active);
     this.scenarioRenderer?.update(player, this.motion.matches);
     const nearby = this.simulation.nearby();
     this.simulation.sample.npcs.forEach((npc, index) => {
@@ -205,7 +288,33 @@ export class RpgScene extends Phaser.Scene {
         ?.setScale(1 / this.cameras.main.zoom)
         .setVisible(this.cameras.main.zoom >= 0.75 || nearby?.target.id === npc.id);
     });
-    this.scenery?.update(this.elapsed, this.motion.matches);
+    this.scenery?.update(
+      this.elapsed,
+      this.motion.matches,
+      this.adventureJourney.supplies.provisions.state.projects,
+    );
+    this.houseAtmosphere?.update(this.elapsed, this.motion.matches);
+    this.waygateEffects?.update(
+      this.elapsed,
+      this.motion.matches,
+      player,
+      this.recall.active
+        ? this.recall.progress
+        : arrival !== null && arrival < 1
+          ? 1 - arrival
+          : null,
+    );
+    if (this.recall.advance(dt)) {
+      this.adventureJourney.checkpoint(true);
+      this.callbacks.onForestTravel?.(this.travelTarget);
+      return;
+    }
+    if (this.defeat.advance(dt)) {
+      this.adventureJourney.checkpoint(true);
+      if (this.callbacks.onForestTravel) this.callbacks.onForestTravel('town');
+      else this.callbacks.onDemoTravel?.('village');
+      return;
+    }
     const camera = this.cameras.main;
     // Phaser applies zoom around the camera origin; scroll stays in unscaled world units.
     if (this.following) {
@@ -220,6 +329,21 @@ export class RpgScene extends Phaser.Scene {
     this.signage?.update(camera);
     this.remotes?.update(camera, this.elapsed, this.motion.matches);
     this.ambient?.update(camera, this.elapsed, this.motion.matches, player);
+    if (this.navigation.state) {
+      const arrived = this.navigation.update(
+        navigationContext(this.simulation.sample, this.simulation.navigationPaths),
+        player,
+        this.elapsed,
+      );
+      if (arrived) this.feedback = { message: `Arrived at ${arrived}`, until: Date.now() + 3500 };
+    }
+    this.navigationTrail?.update(
+      this.navigation.state,
+      player,
+      this.elapsed,
+      this.motion.matches,
+      camera.zoom,
+    );
     this.publishMove();
     if (action !== 'idle') this.marker?.setVisible(false);
     if (this.elapsed - this.lastUiTime >= 100) this.publishUi();
@@ -244,22 +368,49 @@ export class RpgScene extends Phaser.Scene {
 
   public setScene(sample: RpgSample, sceneKey: string): void {
     if (this.simulation.sample === sample && this.sceneKey === sceneKey) return;
-    const blocked = this.adventureJourney.blockedEntry(sample.demo?.jungle);
+    const blocked = this.adventureJourney.blockedEntry(
+      sample.adventure?.definition ?? sample.demo?.jungle,
+    );
     if (blocked) {
       this.simulation.stop();
       this.callbacks.onDialogue(blocked);
       return;
     }
+    this.station = null;
+    this.supplyCache = null;
     if (this.sceneKey !== sceneKey) {
       this.players = [];
       this.positionReady = false;
       this.lastMove = '';
       this.lastMoveTime = this.elapsed;
     }
+    const previousSample = this.simulation.sample;
+    const changedArea = this.sceneKey !== sceneKey;
     this.sceneKey = sceneKey;
     this.simulation.changeSample(sample, sceneKey);
+    // Local previews use the same connecting entrances. Saved worlds receive their
+    // authoritative arrival through setPlayerPosition after socket admission.
+    if (changedArea) {
+      const entry =
+        sample.forest || sample.temple
+          ? sample.forestPortals?.find(
+              (p) =>
+                p.target === (previousSample.temple ?? previousSample.forest?.region ?? 'town'),
+            )
+          : previousSample.forest?.region === 'verge'
+            ? sample.forestPortals?.find((p) => p.target === 'verge')
+            : undefined;
+      if (entry)
+        this.simulation.setPlayerPosition({
+          scene: sampleSceneId(sample),
+          x: entry.x,
+          y: entry.y + (sample.forest || sample.temple ? 24 : 0),
+          direction: 'down',
+          action: 'idle',
+        });
+    }
     if (this.created && !this.failed && !this.disposed) {
-      this.renderSample();
+      this.renderSample(changedArea);
       this.callbacks.onReady();
     }
   }
@@ -269,7 +420,90 @@ export class RpgScene extends Phaser.Scene {
     this.avatar?.setAppearance(id);
   }
 
+  public guideToSupply(id: string): NavigationResult {
+    const adventure = this.activeAdventure();
+    if (!adventure)
+      return {
+        ok: false,
+        message: 'Enter the forest to find wild ingredients. The recipe lists their sources.',
+      };
+    const candidates = [
+      ...adventure.content.flowers.filter(
+        (f) =>
+          FORAGE_ITEMS[f.kind] === id &&
+          !adventure.gathered.has(f.id) &&
+          (!f.project || adventure.provisions.state.projects.includes(f.project)),
+      ),
+      ...adventure.enemies.filter(
+        (e) => e.health > 0 && creatureLoot(e.kind).some((drop) => drop.id === id),
+      ),
+    ].sort(
+      (a, b) =>
+        Math.hypot(a.x - this.simulation.player.x, a.y - this.simulation.player.y) -
+        Math.hypot(b.x - this.simulation.player.x, b.y - this.simulation.player.y),
+    );
+    for (const source of candidates.slice(0, 12)) {
+      const result = this.guideTo({
+        kind: 'place',
+        id: `supply:${source.id}`,
+        name: getItem(id)?.name ?? 'Ingredient',
+        scene: navigationScene(this.simulation.sample),
+        point: source,
+        radius: 60,
+      });
+      if (result.ok) return result;
+    }
+    return {
+      ok: false,
+      message:
+        'No reachable source remains in this area. Try another region or return after the woodland recovers.',
+    };
+  }
+
+  public guideTo(target: NavigationTarget): NavigationResult {
+    if (!this.created || this.failed || this.disposed)
+      return { ok: false, message: 'The world is still loading. Try again in a moment.' };
+    if (isStoryNavigation(target) && isHouseSceneId(sampleSceneId(this.simulation.sample)))
+      return { ok: false, message: 'Step outside the house, then choose Guide me again.' };
+    const result = this.navigation.start(
+      target,
+      navigationContext(this.simulation.sample, this.simulation.navigationPaths),
+      this.simulation.player,
+      this.elapsed,
+    );
+    if (result.ok) {
+      if (isStoryNavigation(target)) this.adventureJourney.setJournal({ mode: 'story' });
+      this.following = true;
+      if (result.arrived)
+        this.feedback = { message: `Arrived at ${target.name}`, until: Date.now() + 3500 };
+      this.publishUi();
+    }
+    return result;
+  }
+
+  public stopNavigation(): void {
+    this.navigation.stop();
+    this.navigationTrail?.update(
+      null,
+      this.simulation.player,
+      this.elapsed,
+      this.motion.matches,
+      1,
+    );
+    this.publishUi();
+  }
+
+  public setJournal(preferences: Partial<JournalPreferences>): void {
+    this.adventureJourney.setJournal(preferences);
+    if (preferences.mode === 'explore' && isStoryNavigation(this.navigation.state?.target))
+      this.navigation.stop();
+    this.publishUi();
+  }
+
   public setPlayers(players: readonly RpgPresencePlayer[]): void {
+    this.supplyOccupants = players
+      .filter((p) => p.scene === sampleSceneId(this.simulation.sample))
+      .map((p) => ({ x: p.x, y: p.y }));
     const scene = sampleSceneId(this.simulation.sample);
     this.players = players.filter((player) => player.scene === scene);
     this.remotes?.setPlayers(this.players, this.elapsed);
@@ -315,10 +549,32 @@ export class RpgScene extends Phaser.Scene {
   }
 
   public interact(): void {
-    if (!this.created || this.failed || this.disposed || this.inputBlocked || worldInputBlocked())
+    if (
+      !this.created ||
+      this.failed ||
+      this.disposed ||
+      this.recall.active ||
+      this.defeat.active ||
+      this.inputBlocked ||
+      worldInputBlocked()
+    )
       return;
     const adventure = this.activeAdventure();
     if (adventure?.storyPresentation) return;
+    const cache = adventure?.nearbyCache(this.simulation.player);
+    if (cache) {
+      this.supplyCache = cache.id;
+      this.simulation.stop();
+      this.publishUi();
+      return;
+    }
+    const station = nearbyStation(this.simulation.sample, this.simulation.player);
+    if (station) {
+      this.station = station;
+      this.simulation.stop();
+      this.publishUi();
+      return;
+    }
     const targetStory = adventure?.nearbyStory(this.simulation.player);
     const story = adventure?.interactStory(this.simulation.player);
     if (adventure?.storyPresentation) {
@@ -343,6 +599,42 @@ export class RpgScene extends Phaser.Scene {
     if (!nearby) return;
     this.simulation.stop();
     const target = nearby.target;
+    if (isHallBoardId(target.id) && this.callbacks.onHallBoard) {
+      this.simulation.direction = directionToward(this.simulation.player, target);
+      this.callbacks.onHallBoard(target.id);
+      this.publishUi();
+      return;
+    }
+    const houseInteraction = this.simulation.sample.houseInteractions?.find(
+      (item) => item.id === target.id,
+    );
+    if (houseInteraction) {
+      this.simulation.direction = directionToward(this.simulation.player, target);
+      this.scenery?.activate(target.id, this.elapsed);
+      this.houseAtmosphere?.activate(target.id, this.elapsed);
+      if (houseInteraction.effect) {
+        this.feedback = { message: houseInteraction.lines[0]!, until: Date.now() + 4200 };
+      } else {
+        this.callbacks.onDialogue({
+          name: target.name,
+          role: this.simulation.sample.name,
+          lines: houseInteraction.lines,
+        });
+      }
+      this.publishUi();
+      return;
+    }
+    const trail = this.simulation.sample.forestPortals?.find((p) => p.id === target.id);
+    if (trail) {
+      const destination = this.samples.find((s) => s.sceneId === `forest:${trail.target}`);
+      const blocked = this.adventureJourney.blockedEntry(destination?.adventure?.definition);
+      if (blocked) {
+        this.callbacks.onDialogue(blocked);
+        return;
+      }
+      this.beginWaygateTravel(trail.target);
+      return;
+    }
     const portal = this.simulation.sample.demo?.portals.find((entry) => entry.id === target.id);
     if (portal) {
       const destination = this.samples.find((sample) => sample.demo?.area === portal.target);
@@ -411,6 +703,8 @@ export class RpgScene extends Phaser.Scene {
     if (
       !this.created ||
       this.disposed ||
+      this.recall.active ||
+      this.defeat.active ||
       this.inputBlocked ||
       !this.demoFocused ||
       worldInputBlocked() ||
@@ -419,6 +713,7 @@ export class RpgScene extends Phaser.Scene {
       return;
     const direction = adventure.attack(this.simulation.player, this.simulation.direction, target);
     if (direction) {
+      if (adventure.cast) this.adventureJourney.checkpoint(true);
       this.simulation.stop();
       this.simulation.direction = direction;
       this.following = true;
@@ -453,7 +748,9 @@ export class RpgScene extends Phaser.Scene {
   }
 
   private activeAdventure(): AdventureSession | null {
-    return this.simulation.sample.demo?.jungle ? this.adventureSession : null;
+    return (this.simulation.sample.adventure?.definition ?? this.simulation.sample.demo?.jungle)
+      ? this.adventureSession
+      : null;
   }
 
   public selectMelee(): void {
@@ -465,19 +762,150 @@ export class RpgScene extends Phaser.Scene {
   // Equipment commands are intentionally available while its modal pauses simulation.
   public equipWeapon(id: string): boolean {
     if (!this.created || this.disposed) return false;
-    const equipped = this.simulation.sample.demo ? this.adventureJourney.supplies.equip(id) : false;
+    const equipped =
+      this.simulation.sample.adventure || this.simulation.sample.demo
+        ? this.adventureJourney.supplies.equip(id)
+        : false;
     if (equipped) this.simulation.stop();
     this.publishUi();
     return equipped;
   }
 
   public useInventoryItem(id: string) {
-    if (!this.created || this.disposed) return;
-    const result = this.simulation.sample.demo
-      ? this.adventureJourney.supplies.useInventoryItem(id, this.simulation.player)
-      : undefined;
+    if (!this.created || this.disposed || this.recall.active || this.defeat.active) return;
+    this.simulation.stop();
+    const result = this.adventureJourney.supplies.useInventoryItem(id, this.simulation.player);
+    if (result.success) this.adventureJourney.checkpoint(true);
     this.publishUi();
     return result;
+  }
+
+  public pickupLoot(): void {
+    if (
+      !this.created ||
+      this.failed ||
+      this.disposed ||
+      this.recall.active ||
+      this.defeat.active ||
+      this.inputBlocked ||
+      worldInputBlocked()
+    )
+      return;
+    const adventure = this.activeAdventure();
+    if (!adventure || adventure.storyPresentation || !this.demoFocused) return;
+    if (adventure.pickupLoot(this.simulation.player)) this.adventureJourney.checkpoint(true);
+    this.publishUi();
+  }
+
+  public craftInventoryItem(id: string, quantity = 1, requestId?: string) {
+    if (!this.created || this.disposed || this.recall.active || this.defeat.active) return;
+    const station = this.validStation();
+    const supplies = this.adventureJourney.supplies;
+    const allowed =
+      station &&
+      !(
+        station.kind === 'brew' &&
+        station.region === 'verge' &&
+        !supplies.provisions.state.projects.includes('verge-bench')
+      );
+    const result = supplies.craftInventoryItem(
+      id,
+      allowed
+        ? { station: station.kind, learned: supplies.provisions.state.learned, quantity }
+        : undefined,
+      requestId,
+    );
+    if (result.success) this.adventureJourney.checkpoint(true);
+    this.publishUi();
+    return result;
+  }
+
+  public closeSupplyCache(): void {
+    this.supplyCache = null;
+    this.publishUi();
+  }
+  public takeSupplyCache(itemId: string): string {
+    const result = this.supplyCache
+      ? this.activeAdventure()?.takeCache(this.supplyCache, itemId, this.simulation.player)
+      : 'Move closer to the cache.';
+    if (result === null) {
+      this.supplyCache = null;
+      this.adventureJourney.checkpoint(true);
+      this.publishUi();
+      return 'Collected.';
+    }
+    return result ?? 'The cache is unavailable.';
+  }
+  private validStation(): ProvisionStation | undefined {
+    const nearby = nearbyStation(this.simulation.sample, this.simulation.player);
+    return nearby?.id === this.station?.id ? nearby : undefined;
+  }
+  public closeStation(): void {
+    this.station = null;
+    this.publishUi();
+  }
+  public stationAction(action: string): string {
+    const station = this.validStation();
+    if (!station) return 'Move closer to the station.';
+    const supplies = this.adventureJourney.supplies;
+    let message: string;
+    if (action === 'rest' && station.kind === 'cook') {
+      if (supplies.provisions.state.combatRemaining > 0)
+        return 'Leave combat for 10 seconds before resting.';
+      supplies.rest();
+      message = 'Rested by the hearth. Health restored.';
+    } else if (action === 'starter' && station.region === 'town')
+      message = supplies.starterSupplies();
+    else if (action === 'project') message = supplies.completeProject(station.region);
+    else return 'That action is unavailable.';
+    this.adventureJourney.checkpoint(true);
+    this.publishUi();
+    return message;
+  }
+  public configureProvisions(
+    settings: Partial<Pick<ProvisionsSnapshot, 'recovery' | 'quickBuff' | 'trackedRecipe'>>,
+  ): void {
+    const state = this.adventureJourney.supplies.provisions.state;
+    if (settings.recovery === 'healing-herb' || settings.recovery === 'healing-bottle')
+      state.recovery = settings.recovery;
+    if (settings.quickBuff === 'battle-bottle' || settings.quickBuff === 'swiftstep-bottle')
+      state.quickBuff = settings.quickBuff;
+    if (settings.trackedRecipe !== undefined) state.trackedRecipe = settings.trackedRecipe;
+    this.adventureJourney.checkpoint(true);
+    this.publishUi();
+  }
+
+  public returnToTown(): void {
+    if (!this.created || this.disposed || this.failed || this.recall.active || this.defeat.active)
+      return;
+    const sample = this.simulation.sample;
+    if (
+      sampleSceneId(sample) === 'overworld' &&
+      !sample.forest &&
+      (!sample.demo || sample.demo.area === 'village')
+    ) {
+      this.feedback = { message: 'You are already in town.', until: Date.now() + 3000 };
+      this.publishUi();
+      return;
+    }
+    this.beginWaygateTravel('town', true);
+  }
+
+  private beginWaygateTravel(target: ForestDestination, hearthstone = false): void {
+    if (!this.recall.start()) return;
+    this.travelTarget = target;
+    this.cancelPointer();
+    this.simulation.stop();
+    // Following a waygate is a leg of an existing route. Only an intentional
+    // Hearthstone recall abandons it; arrival resolves the next leg normally.
+    if (hearthstone) this.stopNavigation();
+    this.activeAdventure()?.suspend();
+    this.center();
+    this.feedback = {
+      message: hearthstone ? 'Hearthstone · Returning to town…' : 'Crossing the waygate…',
+      until: Date.now() + 3500,
+    };
+    this.publishUi();
   }
 
   public setEnemyLevel(level: number): void {
@@ -530,6 +958,7 @@ export class RpgScene extends Phaser.Scene {
 
   private exploringZoom(): number {
     const sample = this.simulation.sample;
+    if (sample.sceneId === 'town-hall') return 1;
     if (isHouseSceneId(sampleSceneId(sample)))
       return Math.max(
         0.75,
@@ -559,7 +988,9 @@ export class RpgScene extends Phaser.Scene {
 
   public dispose(): void {
     if (this.disposed) return;
+    this.adventureJourney.checkpoint(true);
     this.disposed = true;
+    this.navigation.stop();
     this.simulation.rememberPosition();
     this.movement?.destroy();
     this.movement = null;
@@ -585,10 +1016,17 @@ export class RpgScene extends Phaser.Scene {
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 
-  private renderSample(): void {
+  private renderSample(arriving = false): void {
     this.clearVisuals();
+    if (arriving) this.materializeAt = this.elapsed;
     const sample = this.simulation.sample;
     this.scenery = new RpgSampleRenderer(this, sample);
+    this.waygateEffects = new WaygateEffects(
+      this,
+      (sample.forestPortals ?? []).filter((p) => !p.doorway),
+    );
+    if (sample.houseInteractions) this.houseAtmosphere = new HouseAtmosphere(this, sample);
+    this.navigationTrail = new NavigationTrail(this);
     this.signage = new TownSignage(this, sample.signage ?? []);
     const player = this.simulation.player;
     this.playerMarker = this.add
@@ -601,11 +1039,15 @@ export class RpgScene extends Phaser.Scene {
       sceneDefinition(sampleSceneId(this.simulation.sample)).visiblePlayerLimit - 1,
     );
     this.remotes.setPlayers(this.players, this.elapsed);
-    if (!sample.demo) this.ambient = new RpgAmbientEntities(this, sample, this.sceneKey);
-    if (sample.demo?.jungle) {
+    if (!sample.demo && !sample.forest && !sample.temple && sample.sceneId !== 'town-hall')
+      this.ambient = new RpgAmbientEntities(this, sample, this.sceneKey);
+    const content = sample.adventure?.definition ?? sample.demo?.jungle;
+    if (sample.forest) this.adventureJourney.visit(sample.forest.region);
+    if (sample.temple) this.adventureJourney.discover('temple:entered');
+    if (content) {
       this.adventureSession = this.adventureJourney.enter(
-        sample.demo.area,
-        sample.demo.jungle,
+        sample.adventure?.id ?? sample.demo!.area,
+        content,
         sample.colliders,
         sample.bounds,
         sample.spawn,
@@ -626,6 +1068,7 @@ export class RpgScene extends Phaser.Scene {
       this.adventureJourney.leave(true);
       this.adventureSession = null;
     }
+    this.travelerEffects = new TravelerEffects(this, this.adventureJourney.supplies);
     this.npcs = sample.npcs.map((npc) => new RpgCharacter(this, npc.appearance, npc.x, npc.y));
     this.labels = sample.npcs.map((npc) =>
       this.add
@@ -647,6 +1090,15 @@ export class RpgScene extends Phaser.Scene {
   }
 
   private clearVisuals(): void {
+    this.defeat.reset();
+    this.travelerEffects?.destroy();
+    this.travelerEffects = null;
+    this.recall.reset();
+    this.materializeAt = null;
+    this.waygateEffects?.destroy();
+    this.waygateEffects = null;
+    this.navigationTrail?.destroy();
+    this.navigationTrail = null;
     this.scenarioRenderer?.destroy();
     this.scenarioRenderer = null;
     this.adventureRenderer?.destroy();
@@ -655,6 +1107,8 @@ export class RpgScene extends Phaser.Scene {
     this.feedback = null;
     this.scenery?.destroy();
     this.scenery = null;
+    this.houseAtmosphere?.destroy();
+    this.houseAtmosphere = null;
     this.avatar?.destroy();
     this.avatar = null;
     this.remotes?.destroy();
@@ -675,8 +1129,28 @@ export class RpgScene extends Phaser.Scene {
 
   private publishUi(): void {
     if (!this.created || this.disposed) return;
+    const forest = this.simulation.sample.forest;
+    if (forest)
+      for (const site of forest.sites) {
+        if (
+          Math.hypot(site.x - this.simulation.player.x, site.y - this.simulation.player.y) < 128 &&
+          this.adventureJourney.discover(site.id)
+        )
+          this.feedback = { message: `Discovered ${site.name}`, until: Date.now() + 3500 };
+      }
+    this.adventureJourney.checkpoint();
     this.lastUiTime = this.elapsed;
+    const journal = this.adventureJourney.journal(this.simulation.sample, this.samples);
+    if (
+      isStoryNavigation(this.navigation.state?.target) &&
+      this.navigation.state?.target.id !== journal.objective?.target.id
+    )
+      this.navigation.stop();
     const state: RpgUiState = {
+      defeated: this.defeat.active,
+      station: this.station,
+      supplyCache: this.supplyCache,
+      journal,
       theme: this.simulation.sample.id,
       place: this.simulation.place(),
       nearby:
@@ -692,21 +1166,47 @@ export class RpgScene extends Phaser.Scene {
       minZoom: this.minimumZoom(),
       following: this.following,
       feedback: this.feedback && Date.now() < this.feedback.until ? this.feedback.message : '',
+      navigation: this.navigation.state,
     };
     const adventure = this.activeAdventure();
     if (adventure) {
       state.adventure = adventure.status();
+      const drop = adventure.nearbyLoot(this.simulation.player);
+      if (drop)
+        state.pickup = { id: drop.id, label: `${getItem(drop.itemId)!.name} ×${drop.quantity}` };
+      const cache = adventure.nearbyCache(this.simulation.player);
+      if (cache) state.nearby = { id: cache.id, label: 'trail cache', action: 'Open' };
       const flower = adventure.nearbyFlower(this.simulation.player);
       if (flower)
         state.nearby = {
           id: flower.id,
-          label: flower.kind === 'healing' ? 'healing herb' : 'moonblossom',
+          label: getItem(FORAGE_ITEMS[flower.kind])!.name,
           action: 'Gather',
         };
       const story = adventure.nearbyStory(this.simulation.player);
       if (story) state.nearby = { id: story.id, label: story.label, action: story.action };
-    } else if (this.simulation.sample.demo) {
+    } else {
       state.adventure = { ...this.adventureJourney.supplies.status(), canAdjustEncounters: false };
+    }
+    const station = nearbyStation(this.simulation.sample, this.simulation.player);
+    if (station)
+      state.nearby = {
+        id: station.id,
+        label: station.name,
+        action: station.kind === 'brew' ? 'Brew' : 'Cook',
+      };
+    state.exploration = {
+      ...this.adventureJourney.exploration(),
+      saveAvailable: this.adventureJourney.saveAvailable,
+    };
+    const trail = this.simulation.sample.forestPortals?.find((p) => p.id === state.nearby?.id);
+    if (state.nearby && trail) {
+      const destination = this.samples.find((s) => s.sceneId === `forest:${trail.target}`);
+      state.nearby.action = this.adventureJourney.blockedEntry(destination?.adventure?.definition)
+        ? 'Read'
+        : trail.doorway || trail.target === 'temple'
+          ? 'Enter'
+          : 'Follow trail';
     }
     const portal = this.simulation.sample.demo?.portals.find(
       (portal) => portal.id === state.nearby?.id,
@@ -761,10 +1261,30 @@ export class RpgScene extends Phaser.Scene {
       event.repeat ||
       event.isComposing ||
       event.defaultPrevented ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey ||
+      this.recall.active ||
+      this.defeat.active ||
       this.inputBlocked ||
       worldInputBlocked(event.target)
     )
       return;
+    if (event.code === 'KeyG') {
+      event.preventDefault();
+      this.returnToTown();
+      return;
+    }
+    if (event.code === 'KeyB') {
+      event.preventDefault();
+      this.useInventoryItem(this.adventureJourney.supplies.provisions.state.quickBuff);
+      return;
+    }
+    if (event.code === 'KeyF') {
+      event.preventDefault();
+      this.pickupLoot();
+      return;
+    }
     if (event.code === 'KeyE') {
       event.preventDefault();
       this.interact();

@@ -43,7 +43,13 @@ export function AtlasMarker({
 }
 
 /** Expensive paths/house nodes only change when the saved map response changes. */
-export const AtlasChart = memo(function AtlasChart({ model }: { model: AtlasModel }) {
+export const AtlasChart = memo(function AtlasChart({
+  model,
+  selected,
+}: {
+  model: AtlasModel;
+  selected?: string;
+}) {
   const id = useId().replace(/:/g, '');
   return (
     <>
@@ -110,7 +116,9 @@ export const AtlasChart = memo(function AtlasChart({ model }: { model: AtlasMode
                   textAnchor="middle"
                   className="atlas-region-caption"
                 >
-                  {region.places.filter((p) => p.kind !== 'landmark').length} channel houses
+                  {model.local
+                    ? `${region.places.length} places`
+                    : `${region.places.filter((p) => p.kind !== 'landmark').length} channel houses`}
                 </text>
               </g>
             </g>
@@ -122,6 +130,9 @@ export const AtlasChart = memo(function AtlasChart({ model }: { model: AtlasMode
         clipPath={`url(#${id}-land)`}
         pointerEvents="none"
       />
+      {model.water?.map((water, index) => (
+        <rect key={`water:${index}`} {...water} className="atlas-water" />
+      ))}
       {model.regions.map((region) => (
         <g
           key={region.id}
@@ -133,9 +144,10 @@ export const AtlasChart = memo(function AtlasChart({ model }: { model: AtlasMode
             <g
               key={place.id}
               data-place={place.id}
+              className={selected === place.id ? 'atlas-place-selection' : undefined}
               tabIndex={0}
               role="button"
-              aria-label={`Mark ${place.name}`}
+              aria-label={`Select ${place.name}`}
             >
               <title>{place.name}</title>
               <AtlasMarker point={place} name={place.kind} label={place.name} />
@@ -147,7 +159,13 @@ export const AtlasChart = memo(function AtlasChart({ model }: { model: AtlasMode
   );
 });
 
-export const AtlasPins = memo(function AtlasPins({ pins }: { pins: readonly AtlasPin[] }) {
+export const AtlasPins = memo(function AtlasPins({
+  pins,
+  selected,
+}: {
+  pins: readonly AtlasPin[];
+  selected?: string;
+}) {
   return (
     <g className="atlas-pins">
       {pins.map((pin) => (
@@ -156,8 +174,8 @@ export const AtlasPins = memo(function AtlasPins({ pins }: { pins: readonly Atla
           data-pin={pin.id}
           tabIndex={0}
           role="button"
-          aria-label={`Edit ${pin.name} pin`}
-          className={`atlas-pin atlas-pin--${pin.kind}`}
+          aria-label={`Select ${pin.name} pin`}
+          className={`atlas-pin atlas-pin--${pin.kind}${selected === pin.id ? ' atlas-pin-selection' : ''}`}
         >
           <title>{pin.name}</title>
           <AtlasMarker point={pin} name={pin.kind}>
@@ -174,7 +192,7 @@ export const AtlasPins = memo(function AtlasPins({ pins }: { pins: readonly Atla
 export function AtlasPlayer({ position }: { position: Point }) {
   return (
     <g className="atlas-player" aria-label="Your location">
-      <AtlasMarker point={position} name="player" label="You" />
+      <AtlasMarker point={position} name="player" />
     </g>
   );
 }

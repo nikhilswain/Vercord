@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="48" viewBox="0 0 128 48" shape-rendering="crispEdges">
+  <!-- Floor-level woven mat. Its lower edge meets the sill, not an upright door panel. -->
+  <path fill="#493c31" d="M16 10h64v22H16z"/>
+  <path fill="#716047" d="M18 11h60v19H18z"/>
+  <path fill="#a48c5d" d="M19 12h58v1H19zm0 16h58v1H19z"/>
+  <path fill="#5e503c" d="M20 15h56v1H20zm0 4h56v1H20zm0 4h56v1H20z"/>
+  <path fill="#d8c598" d="M42 16h3v2h2v2h2v-2h2v-2h3v3h-3v2h-2v2h-2v-2h-2v-2h-3z"/>
+  <!-- Short jambs line up exactly with the cutaway wall ends. -->
+  <path fill="#49382b" d="M0 32h4v16H0zm92 0h4v16h-4z"/>
+  <path fill="#ac8151" d="M1 32h2v13H1zm92 0h2v13h-2z"/>
+  <!-- Repeatable bottom-wall timber, source frame 96,0 / 32,16. -->
+  <path fill="#4f392a" d="M96 0h32v16H96z"/>
+  <path fill="#8d6341" d="M96 2h32v9H96z"/>
+  <path fill="#b78b58" d="M96 2h32v2H96z"/>
+  <path fill="#6b4931" d="M96 10h32v2H96z"/>
+  <path fill="#a2754a" d="M99 6h10v1H99zm16 1h9v1h-9z"/>
+</svg>

@@ -9,6 +9,18 @@
   pointer-events: none;
 }
 
+.rpg-house-feedback {
+  max-width: min(280px, 60vw);
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--rpg-accent);
+  background: var(--rpg-panel);
+  color: var(--rpg-ink);
+  font-size: 12px;
+  line-height: 1.6;
+  pointer-events: none;
+}
+
 .rpg-house-tools .rpg-button {
   min-width: 76px;
   padding: 9px 12px;
@@ -134,6 +146,10 @@
 }
 
 @media (max-width: 699px) {
+  .rpg-page--house .rpg-house-feedback {
+    margin-top: 64px;
+  }
+
   .rpg-house-tools {
     top: max(126px, calc(env(safe-area-inset-top) + 114px));
     left: max(12px, env(safe-area-inset-left));

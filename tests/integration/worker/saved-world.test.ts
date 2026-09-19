@@ -18,6 +18,7 @@ import { savedWorldResponseSchema } from '../../../src/domain/world/protocol';
 import { TownStore } from '../../../worker/worlds/town-store';
 import { ContinuousTownStore } from '../../../worker/worlds/continuous-town-store';
 import { createContinuousTownRepository } from '../../../worker/worlds/continuous-town-repository';
+import { hasTownHall } from '../../../src/domain/world/town-hall';
 
 const guildId = '100000000000000001';
 const sessionSecret = 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM';
@@ -43,24 +44,30 @@ beforeEach(async () => {
   await createD1WorldRepository(env.AUTH_DB).recordSync(guildId, 'saved-world-test', 0);
 });
 
-it('requires a member session before opening a saved server world', async () => {
-  const response = await createWorker().fetch!(
-    new Request('https://dmap.test/api/auth/guilds/100000000000000001/rpg/village', {
-      method: 'POST',
-      headers: { origin: 'https://dmap.test' },
-    }),
-    env,
-    {} as ExecutionContext,
-  );
-  expect(response.status).toBe(401);
-  expect(await response.json()).toEqual({ error: { code: 'UNAUTHENTICATED' } });
-});
+it.each(['', '?forest=verge'])(
+  'requires a member session before opening a saved server world %s',
+  async (query) => {
+    const response = await createWorker().fetch!(
+      new Request(`https://dmap.test/api/auth/guilds/100000000000000001/rpg/village${query}`, {
+        method: 'POST',
+        headers: { origin: 'https://dmap.test' },
+      }),
+      env,
+      {} as ExecutionContext,
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: { code: 'UNAUTHENTICATED' } });
+  },
+);
 
 it.each([
   'house=house%3A-1',
   'house=house%3A00',
   'house=house%3A100000',
   'house=house%3A0&house=house%3A1',
+  'forest=unknown',
+  'forest=verge&forest=moonmere',
+  'forest=verge&house=house%3A0',
 ])('rejects an invalid or ambiguous house selection: %s', async (query) => {
   const response = await createWorker().fetch!(
     new Request(`https://dmap.test/api/auth/guilds/${guildId}/rpg/village?${query}`, {
@@ -507,6 +514,67 @@ it.each(['village', 'norse'] as const)(
     );
   },
 );
+
+it('persists the town hall upgrade once without reallocating saved channel houses', async () => {
+  const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');
+  const snapshot = townSnapshot(3);
+  const store = new ContinuousTownStore(env.AUTH_DB);
+  const first = (await store.prepare(square, snapshot)).project(snapshot);
+  const repository = createContinuousTownRepository(env.AUTH_DB);
+  const row = (await repository.read(square.document.worldId))!;
+  const legacy = structuredClone(first.document),
+    scene = legacy.scenes.overworld;
+  const hall = scene.landmarks.find((l) => l.id === 'town-hall')!;
+  scene.stamps.forEach((s) => {
+    s.id = s.id.replace('town-hall-v2:', 'town-hall-v1:');
+  });
+  scene.colliders.forEach((s) => {
+    s.id = s.id.replace('town-hall-v2:', 'town-hall-v1:');
+  });
+  hall.kind = 'view';
+  delete hall.destination;
+  scene.landmarks.push({
+    id: 'town-vault',
+    name: 'Lantern Vault',
+    description: 'Old exterior cellar stairs.',
+    kind: 'portal',
+    destination: 'dungeon',
+    radius: 40,
+    x: hall.x + 144,
+    y: hall.y - 4,
+  });
+  scene.stamps.push({
+    id: 'overworld:town-hall-v1:old-stair',
+    texture: 'lpc-stairs',
+    frame: 'down',
+    x: hall.x + 128,
+    y: hall.y - 80,
+    depth: -25,
+  });
+  scene.terrain!.roads.push({ x: hall.x + 128, y: hall.y - 16, width: 32, height: 160 });
+  const json = JSON.stringify(legacy),
+    checksum = await worldDocumentChecksum(json);
+  expect(
+    await repository.save(
+      { ...row, document_json: json, checksum, revision: row.revision + 1 },
+      row.revision,
+    ),
+  ).toBe(true);
+  const upgraded = (await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot)).project(
+    snapshot,
+  );
+  expect(hasTownHall(upgraded.document)).toBe(true);
+  expect(upgraded.checksum).not.toBe(checksum);
+  expect(upgraded.bindings).toEqual(first.bindings);
+  expect(
+    upgraded.document.scenes.overworld.landmarks.filter((l) => l.id.startsWith('house:')),
+  ).toEqual(first.document.scenes.overworld.landmarks.filter((l) => l.id.startsWith('house:')));
+  const saved = (await repository.read(square.document.worldId))!;
+  expect(saved.layout_json).toBe(row.layout_json);
+  expect(saved.revision).toBe(row.revision + 2);
+  await new ContinuousTownStore(env.AUTH_DB).prepare(square, snapshot);
+  expect((await repository.read(square.document.worldId))!.revision).toBe(saved.revision);
+});
 
 it('continuous towns project fresh permissions and preserve corrupt saves without replacing them', async () => {
   const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, 'village');

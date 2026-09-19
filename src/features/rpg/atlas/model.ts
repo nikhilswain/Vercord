@@ -35,7 +35,7 @@ export function getAtlasModel(sample: RpgSample, town?: WorldTown): AtlasModel {
   const create = (id: string, name: string): AtlasRegion => ({
     id,
     name,
-    color: colorFor(id),
+    color: sample.forest ? colors[0]! : colorFor(id),
     places: [],
     seeds: [],
     path: '',
@@ -50,6 +50,7 @@ export function getAtlasModel(sample: RpgSample, town?: WorldTown): AtlasModel {
         if (!home || !inside(home, sample)) continue;
         region.places.push({
           id: room.key,
+          landmarkId: home.id,
           name: room.label,
           kind: room.type,
           x: home.x,
@@ -88,12 +89,29 @@ export function getAtlasModel(sample: RpgSample, town?: WorldTown): AtlasModel {
     });
     nearest.seeds.push(place);
   }
-  const regionAt = buildTerritories(sample.bounds, regions);
+  const regionAt = sample.forest
+    ? (() => {
+        const region = regions[0]!;
+        const b = sample.bounds;
+        region.path = `M${b.x} ${b.y}h${b.width}v${b.height}h${-b.width}Z`;
+        region.bounds = b;
+        region.center = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        return (point: Point) => (inside(point, sample) ? region : undefined);
+      })()
+    : buildTerritories(sample.bounds, regions);
   const roads =
     sample.terrain?.roads
       .map((r) => `M${r.x} ${r.y}h${r.width}v${r.height}h${-r.width}Z`)
       .join('') ?? '';
-  const model = { revision: ++revision, bounds: sample.bounds, regions, regionAt, roads };
+  const model = {
+    revision: ++revision,
+    bounds: sample.bounds,
+    regions,
+    regionAt,
+    roads,
+    local: !town,
+    water: sample.adventure?.definition?.water ?? sample.demo?.jungle?.water,
+  };
   if (town) entries.towns.set(town, model);
   else entries.demo = model;
   return model;

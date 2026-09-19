@@ -41,6 +41,10 @@ export class AtlasCamera {
   private resize() {
     const rect = this.svg.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    // ResizeObserver delivers an initial notification even when the constructor
+    // already measured the open dialog. Do not cancel its requested opening zoom.
+    if (this.measured && rect.width === this.pixelWidth && rect.width / rect.height === this.aspect)
+      return;
     const oldBase = this.baseWidth;
     this.aspect = rect.width / rect.height;
     this.pixelWidth = rect.width;

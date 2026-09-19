@@ -42,6 +42,12 @@ import {
   type WorldBindings,
 } from '../../src/domain/world/protocol';
 import { isHouseSceneId, type HouseSceneId } from '../../src/domain/world/catalog/scenes';
+import {
+  forestAreaIdSchema,
+  isForestSceneId,
+  type ForestAreaId,
+} from '../../src/domain/world/forest/catalog';
+import { ForestStore } from '../worlds/forest-store';
 import type { WorldDocument } from '../../src/domain/world/document';
 import type { HouseInterior } from '../../src/domain/world/interiors';
 import { WorldInstanceStore } from '../worlds/instance-store';
@@ -92,6 +98,7 @@ const internalRpgWorldSchema = z.strictObject({
   theme: worldThemeIdSchema,
   street: streetSelectionSchema,
   house: houseSceneIdSchema.optional(),
+  forest: forestAreaIdSchema.optional(),
 });
 const internalLiveFrameSchema = z.strictObject({
   bridgeEpoch: bridgeEpochSchema,
@@ -231,6 +238,7 @@ export class GuildPresence extends DurableObject<Env> {
   private readonly worldInstances: WorldInstanceStore;
   private readonly towns: ContinuousTownStore;
   private readonly houses: HouseInteriorStore;
+  private readonly forests: ForestStore;
   private readonly rpgPresence: RpgPresenceState;
   private readonly rpgSessionChecks = new WeakMap<WebSocket, number>();
   private messageCoverage: MessageCoverage = {
@@ -251,6 +259,7 @@ export class GuildPresence extends DurableObject<Env> {
     this.worldInstances = new WorldInstanceStore(env.AUTH_DB);
     this.towns = new ContinuousTownStore(env.AUTH_DB);
     this.houses = new HouseInteriorStore(state.storage);
+    this.forests = new ForestStore(state.storage);
     this.rpgPresence = new RpgPresenceState(state.storage, (job) => state.waitUntil(job));
     state.blockConcurrencyWhile(async () => {
       const [voiceService, voiceBridgeEpoch, previousWorldViewEpoch, messageCoverage] =
@@ -591,13 +600,20 @@ export class GuildPresence extends DurableObject<Env> {
       const interior = isHouseSceneId(partition.scene)
         ? await this.loadHouse(town, partition.scene)
         : undefined;
+      const forest = isForestSceneId(partition.scene)
+        ? await this.forests.load(town.document, partition.scene.slice(7) as ForestAreaId)
+        : undefined;
       if (
         !(await sessionIsCurrent(this.env, actor, Date.now())) ||
         this.coordinator.currentView(actor) !== view
       )
         throw new WorldAccessError('UNAUTHENTICATED', 401);
       this.invalidateStaleRpgSockets(town.document.worldId, town.checksum);
-      this.rpgPresence.register({ ...town, ...(interior ? { interior } : {}) });
+      this.rpgPresence.register({
+        ...town,
+        ...(interior ? { interior } : {}),
+        ...(forest ? { forest } : {}),
+      });
       return view;
     } catch (error) {
       throw error instanceof WorldSaveError
@@ -1187,7 +1203,8 @@ export class GuildPresence extends DurableObject<Env> {
       await this.readJson(request, MAX_INTERNAL_BODY_BYTES),
     );
     if (!parsed.success) return new Response(null, { status: 400 });
-    const { actor, theme, street, house } = parsed.data;
+    const { actor, theme, street, house, forest: forestRegion } = parsed.data;
+    if (house && forestRegion) return new Response(null, { status: 400 });
     try {
       const subscriptionId = this.coordinator.subscriptionId(actor.userId);
       // Membership is checked before reserving any persistent map.
@@ -1200,6 +1217,9 @@ export class GuildPresence extends DurableObject<Env> {
       if (this.coordinator.currentView(actor) !== view) throw new WorldAccessError();
       const projected = town.project(view.snapshot);
       const interior = house ? await this.loadHouse(projected, house) : undefined;
+      const forest = forestRegion
+        ? await this.forests.load(projected.document, forestRegion)
+        : undefined;
       if (
         !(await sessionIsCurrent(this.env, actor, Date.now())) ||
         this.coordinator.currentView(actor) !== view
@@ -1207,7 +1227,7 @@ export class GuildPresence extends DurableObject<Env> {
         throw new WorldAccessError('UNAUTHENTICATED', 401);
       this.invalidateStaleRpgSockets(projected.document.worldId, projected.checksum);
       return Response.json(
-        { ...projected, ...(interior ? { interior } : {}) },
+        { ...projected, ...(interior ? { interior } : {}), ...(forest ? { forest } : {}) },
         {
           headers: { 'cache-control': 'no-store' },
         },

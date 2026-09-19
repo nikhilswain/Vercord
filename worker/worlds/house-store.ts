@@ -81,23 +81,50 @@ export class HouseInteriorStore {
       if (
         typeof value === 'object' &&
         value !== null &&
-        (('schemaVersion' in value && value.schemaVersion !== 1) ||
-          ('generatorVersion' in value && value.generatorVersion !== 1) ||
-          ('contentVersion' in value && value.contentVersion !== 'house-v1'))
+        (('schemaVersion' in value && value.schemaVersion !== 1 && value.schemaVersion !== 2) ||
+          ('generatorVersion' in value &&
+            value.generatorVersion !== 1 &&
+            value.generatorVersion !== 2) ||
+          ('contentVersion' in value &&
+            value.contentVersion !== 'house-v1' &&
+            value.contentVersion !== 'house-v2'))
       )
         throw new WorldSaveError('WORLD_VERSION_UNSUPPORTED');
+      let interior: HouseInterior;
       try {
-        const interior = parseHouseInterior(value);
+        interior = parseHouseInterior(value);
         if (
           interior.worldId !== document.worldId ||
           interior.themeId !== document.themeId ||
           interior.landmarkId !== landmarkId
         )
           throw new Error('Mismatched house identity');
-        return interior;
       } catch {
         throw new WorldSaveError('WORLD_SAVE_INVALID');
       }
+      if (interior.schemaVersion === 1) {
+        // Upgrade only a verified room. Keep its complete old envelope for rollback;
+        // geometry, interactions and art switch together, without rewriting the town.
+        const upgraded = generateHouseInterior({
+          worldId: document.worldId,
+          seed: document.seed,
+          themeId: document.themeId,
+          landmarkId,
+          roomType,
+        });
+        const upgradedJson = JSON.stringify(upgraded);
+        if (new TextEncoder().encode(upgradedJson).byteLength > MAX_INTERIOR_BYTES)
+          throw new WorldSaveError('WORLD_SAVE_UNAVAILABLE');
+        const backupKey = `houseInteriorBackup:v1:${document.worldId}:${landmarkId}`;
+        if ((await transaction.get(backupKey)) === undefined) await transaction.put(backupKey, raw);
+        await transaction.put(key, {
+          version: 1,
+          json: upgradedJson,
+          checksum: await worldDocumentChecksum(upgradedJson),
+        });
+        return upgraded;
+      }
+      return interior;
     });
   }
 }

@@ -216,6 +216,37 @@ it('admits the saved town and rejects mismatched geometry before socket acceptan
   });
 });
 
+it.each(['verge', 'temple', 'temple-interior'] as const)(
+  'opens %s through the authorized world endpoint and partitions its players from town',
+  async (area) => {
+    const { stub, partition, town } = await setup();
+    const request = () =>
+      new Request('https://presence.dmap/internal/rpg-world', {
+        method: 'POST',
+        body: JSON.stringify({ actor, theme: partition.theme, forest: area }),
+      });
+    const response = await stub.fetch(request());
+    expect(response.status).toBe(200);
+    const saved = await response.json<{
+      forest: { region: string; worldId: string; seed: string };
+    }>();
+    expect(saved).toEqual({
+      ...town,
+      forest: {
+        contentVersion: 'mosswild-v1',
+        region: area,
+        worldId: partition.worldId,
+        seed: town.document.seed,
+      },
+    });
+    expect(await (await stub.fetch(request())).json()).toEqual(saved);
+    const outside = await open(stub, other, partition);
+    const inside = await open(stub, actor, { ...partition, scene: `forest:${area}` });
+    expect(inside.messages[0]).toMatchObject({ rpg: { scene: `forest:${area}`, players: [] } });
+    expect(outside.messages.filter((m) => m.type === 'rpg-player')).toEqual([]);
+  },
+);
+
 it('lazily opens a persistent house without changing its saved town and isolates its peers', async () => {
   const { stub, partition, town } = await setup();
   const house = town.bindings[0]!.landmarkId;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RpgPlayPage } from './RpgPlayPage';
+import { presentHouse } from './house/presentation';
 import { readRpgRoute, resolveRpgTravel, RPG_THEMES, writeRpgRoute } from './themes';
 import type { RpgDestination, RpgSample } from './types';
 import { presentTownScene, ROOM_TYPE_LABELS } from './town-presentation';
@@ -8,6 +9,15 @@ import { useRpgPresence } from './use-rpg-presence';
 import { useRpgVoice } from './use-rpg-voice';
 import { sampleSceneId, type HouseSceneId } from '../../domain/world/catalog/scenes';
 import './rpg.css';
+import {
+  forestSceneId,
+  forestAreaName,
+  type ForestDestination,
+} from '../../domain/world/forest/catalog';
+import { presentForest, withForestTrail } from './forest/presentation';
+import { createForestJourney } from './forest/journey-storage';
+import { templeSamples } from './forest/temple-presentation';
+import { presentTownHall, presentHallCellar } from './town-hall/presentation';
 
 const failures: Record<
   Exclude<SavedRpgStatus, 'loading' | 'ready'>,
@@ -42,12 +52,16 @@ function SavedWorldGate({
   onRetry,
   onSquare,
   onOutside,
+  forest,
+  hall,
 }: {
   status: SavedRpgStatus;
   themeName: string;
   onRetry(): void;
   onSquare?: () => void;
   onOutside?: () => void;
+  forest?: boolean;
+  hall?: boolean;
 }) {
   const failure = status !== 'loading' && status !== 'ready' ? failures[status] : null;
   return (
@@ -57,15 +71,27 @@ function SavedWorldGate({
         <h1>
           {onOutside && status !== 'signed-out'
             ? failure
-              ? 'This house could not open'
-              : 'Opening the house…'
+              ? forest
+                ? 'This trail could not open'
+                : hall
+                  ? 'Town Hall could not open'
+                  : 'This house could not open'
+              : forest
+                ? 'Following the forest trail…'
+                : hall
+                  ? 'Opening Town Hall…'
+                  : 'Opening the house…'
             : onSquare && failure && status !== 'signed-out'
               ? 'This street could not open'
               : (failure?.title ?? 'Opening your town…')}
         </h1>
         <p>
           {onOutside && failure && status !== 'signed-out'
-            ? 'The house may be unavailable or your access may have changed. You can return outside.'
+            ? forest
+              ? 'The trail may be unavailable or your access may have changed. You can return to town.'
+              : hall
+                ? 'Town Hall is unavailable right now. Try again, or return to the square.'
+                : 'The house may be unavailable or your access may have changed. You can return outside.'
             : onSquare && failure && status !== 'signed-out'
               ? 'The street may be unavailable or your access may have changed. You can return to the town square.'
               : (failure?.message ?? `Getting ${themeName} ready for you.`)}
@@ -94,7 +120,7 @@ function SavedWorldGate({
           )}
           {onOutside && status !== 'signed-out' && (
             <button className="rpg-button" onClick={onOutside}>
-              Return outside
+              {forest ? 'Return to town' : 'Return outside'}
             </button>
           )}
           <a href="/dashboard">Choose another server</a>
@@ -116,12 +142,20 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     revision,
     route.street,
     route.house,
+    route.forest,
   );
   const voice = useRpgVoice(guildId, status === 'ready');
   const connection = useRpgPresence({
     guildId,
     data,
-    scene: route.house ?? sampleSceneId({ id: route.theme }),
+    scene:
+      route.theme === 'dungeon'
+        ? 'dungeon'
+        : route.hall
+          ? 'town-hall'
+          : route.forest
+            ? forestSceneId(route.forest)
+            : (route.house ?? sampleSceneId({ id: route.theme })),
     active: status === 'ready',
     voice,
     onRefresh: retry,
@@ -150,6 +184,18 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     },
     [navigation],
   );
+  const travelForest = useCallback((destination: ForestDestination) => {
+    setNavigation((current) => {
+      const next = {
+        theme: current.route.world,
+        world: current.route.world,
+        ...(current.route.street ? { street: current.route.street } : {}),
+        ...(destination !== 'town' ? { forest: destination } : {}),
+      };
+      history.pushState(history.state, '', writeRpgRoute(new URL(location.href), next));
+      return { route: next, revision: current.revision };
+    });
+  }, []);
   const enterHouse = useCallback(
     (house: HouseSceneId) => {
       if (!connection.ready || !data?.bindings.some((binding) => binding.landmarkId === house))
@@ -176,32 +222,84 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
   const samples = useMemo((): RpgSample[] => {
     if (!data) return [];
     const scenes: RpgSample[] = Object.values(data.document.scenes).map((scene) =>
-      data.town ? presentTownScene(scene, data.server.displayName, data.town) : scene,
+      sampleSceneId(scene) === 'overworld'
+        ? withForestTrail(
+            data.town ? presentTownScene(scene, data.server.displayName, data.town) : scene,
+          )
+        : { ...(route.hall ? presentHallCellar(scene) : scene), adventure: { id: 'camp' } },
     );
+    if (data.document.scenes.overworld.landmarks.some((l) => l.id === 'town-hall'))
+      scenes.push(presentTownHall(data.document.themeId));
     const room = data.bindings.find((binding) => binding.landmarkId === data.interior?.landmarkId)
       ?.rooms[0];
     if (data.interior && room)
       scenes.push({
-        ...data.interior.scene,
+        ...presentHouse(data.interior),
         sceneId: data.interior.landmarkId,
         name: room.label,
         subtitle: `${ROOM_TYPE_LABELS[room.type]} channel · ${data.server.displayName}`,
       });
+    // Keep objective coordinates available from town without preloading both chapters' art.
+    scenes.push(
+      ...templeSamples.map((sample) =>
+        sample.temple === data.forest?.region
+          ? sample
+          : { ...sample, textures: [], stamps: [], animatedScenery: [] },
+      ),
+    );
+    if (data.forest && !scenes.some((s) => s.sceneId === forestSceneId(data.forest!.region)))
+      scenes.push(presentForest(data.forest));
     return scenes;
-  }, [data]);
+  }, [data, route.hall]);
+  const worldId = data?.document.worldId,
+    memberKey = data?.player.memberKey;
+  const journey = useMemo(
+    () => (worldId && memberKey ? createForestJourney(`${memberKey}:${worldId}`) : undefined),
+    [worldId, memberKey],
+  );
+  const templeBlocked =
+    route.forest === 'temple-interior' &&
+    journey !== undefined &&
+    journey.blockedEntry(templeSamples[1]!.adventure!.definition) !== null;
+  useEffect(() => {
+    // A bookmark/back navigation cannot strand a new traveler inside a locked chapter.
+    // Quest admission is local until adventure progress moves to the backend adapter.
+    if (!templeBlocked) return;
+    const url = writeRpgRoute(new URL(location.href), { ...route, forest: 'temple' });
+    history.replaceState(history.state, '', url);
+    // Reuse the page's history subscription, including its request cancellation.
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [templeBlocked, route]);
+  useEffect(() => {
+    if (!journey) return;
+    const save = () => journey.checkpoint(true);
+    window.addEventListener('pagehide', save);
+    return () => {
+      save();
+      window.removeEventListener('pagehide', save);
+    };
+  }, [journey]);
   const gate =
     status === 'ready' ? undefined : (
       <SavedWorldGate
         status={status}
-        themeName={RPG_THEMES[route.theme].name}
+        themeName={
+          route.hall && route.theme !== 'dungeon'
+            ? 'Town Hall'
+            : route.forest
+              ? forestAreaName(route.forest)
+              : RPG_THEMES[route.theme].name
+        }
         onRetry={retry}
-        onOutside={route.house ? () => travel('return') : undefined}
+        forest={route.forest !== undefined}
+        hall={route.hall}
+        onOutside={route.house || route.forest || route.hall ? () => travel('return') : undefined}
         onSquare={
           route.street && route.street !== 'square' ? () => selectStreet('square') : undefined
         }
       />
     );
-  if (!data || status !== 'ready')
+  if (!data || status !== 'ready' || templeBlocked)
     return (
       <main className="rpg-page" data-game-theme={route.theme}>
         {gate}
@@ -209,9 +307,15 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
     );
   const sample =
     samples.find((scene) =>
-      route.house
-        ? scene.sceneId === route.house
-        : scene.id === route.theme && scene.sceneId === undefined,
+      route.theme === 'dungeon'
+        ? scene.id === 'dungeon'
+        : route.hall
+          ? scene.sceneId === 'town-hall'
+          : route.forest
+            ? scene.sceneId === forestSceneId(route.forest)
+            : route.house
+              ? scene.sceneId === route.house
+              : scene.id === route.theme && scene.sceneId === undefined,
     ) ?? samples[0]!;
   return (
     <RpgPlayPage
@@ -221,6 +325,8 @@ export function RpgSavedPage({ guildId }: { guildId: string }) {
       worldKey={`${data.document.worldId}/${data.town?.continuous ? 'town' : (data.town?.activeStreetId ?? 'square')}/${route.house ?? 'outdoors'}`}
       navigationKey={`${guildId}/${route.theme}/${route.street ?? ''}/${route.house ?? ''}/${revision}`}
       onTravel={travel}
+      onForestTravel={travelForest}
+      journey={journey}
       server={{
         guildId,
         displayName: data.server.displayName,

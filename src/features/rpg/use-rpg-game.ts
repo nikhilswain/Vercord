@@ -4,6 +4,9 @@ import { sampleSceneId } from '../../domain/world/catalog/scenes';
 import type { Point } from '../world/engine/types';
 import type { RpgLocation, RpgPresencePlayer } from '../../domain/presence/rpg-protocol';
 import type { DemoArea } from './demo/types';
+import type { ForestDestination } from '../../domain/world/forest/catalog';
+import type { AdventureJourney } from './adventure/journey';
+import type { HallBoardId } from '../../domain/world/content/town-hall-v1/scene';
 import type {
   RpgDestination,
   RpgDialogue,
@@ -27,7 +30,10 @@ interface Options {
   onStreet?(street: string): void;
   onMove?(location: RpgLocation): void;
   onHouse?(landmarkId: string): void;
+  onHallBoard?(id: HallBoardId): void;
   onDemoTravel?(area: DemoArea): void;
+  onForestTravel?(area: ForestDestination): void;
+  journey?: AdventureJourney;
 }
 
 let previousTeardown: Promise<void> = Promise.resolve();
@@ -49,7 +55,10 @@ export function useRpgGame(options: Options) {
     onStreet,
     onMove,
     onHouse,
+    onHallBoard,
     onDemoTravel,
+    onForestTravel,
+    journey,
   } = options;
   const sceneKey = `${worldKey}/${sample.demo?.area ?? sampleSceneId(sample)}`;
   const hostRef = useRef<HTMLDivElement>(null);
@@ -64,7 +73,21 @@ export function useRpgGame(options: Options) {
     players,
     playerPosition,
   });
-  const callbacks = useRef({ onUi, onDialogue, onTravel, onStreet, onMove, onHouse, onDemoTravel });
+  const callbacks = useRef({
+    onUi,
+    onDialogue,
+    onTravel,
+    onStreet,
+    onMove,
+    onHouse,
+    onHallBoard,
+    onDemoTravel,
+    onForestTravel,
+  });
+  const journeyRef = useRef(journey);
+  useEffect(() => {
+    journeyRef.current = journey;
+  }, [journey]);
   const positions = useRef(new Map<string, Point>());
   const [attempt, setAttempt] = useState(0);
   const runtimeKey = `${worldKey}:${attempt}`;
@@ -82,7 +105,17 @@ export function useRpgGame(options: Options) {
       players,
       playerPosition,
     };
-    callbacks.current = { onUi, onDialogue, onTravel, onStreet, onMove, onHouse, onDemoTravel };
+    callbacks.current = {
+      onUi,
+      onDialogue,
+      onTravel,
+      onStreet,
+      onMove,
+      onHouse,
+      onHallBoard,
+      onDemoTravel,
+      onForestTravel,
+    };
   }, [
     sample,
     samples,
@@ -97,7 +130,9 @@ export function useRpgGame(options: Options) {
     onStreet,
     onMove,
     onHouse,
+    onHallBoard,
     onDemoTravel,
+    onForestTravel,
   ]);
   useEffect(() => runtimeRef.current?.setScene(sample, sceneKey), [sample, sceneKey]);
   useEffect(() => runtimeRef.current?.setAppearance(appearance), [appearance]);
@@ -132,7 +167,13 @@ export function useRpgGame(options: Options) {
           onDialogue: (dialogue) => active && callbacks.current.onDialogue(dialogue),
           onTravel: (next) => active && callbacks.current.onTravel(next),
           onDemoTravel: (next) => active && callbacks.current.onDemoTravel?.(next),
+          onForestTravel: (next) => {
+            if (!active) return;
+            if (callbacks.current.onForestTravel) callbacks.current.onForestTravel(next);
+            else if (next === 'town') callbacks.current.onTravel('return');
+          },
           onStreet: (next) => active && callbacks.current.onStreet?.(next),
+          onHallBoard: (id) => active && callbacks.current.onHallBoard?.(id),
           onMove: (location) => active && callbacks.current.onMove?.(location),
           get onHouse() {
             return callbacks.current.onHouse
@@ -143,6 +184,7 @@ export function useRpgGame(options: Options) {
         current.samples,
         current.sceneKey,
         positions.current,
+        journeyRef.current,
       );
       runtimeRef.current = runtime;
       runtime.setAppearance(settings.current.appearance);

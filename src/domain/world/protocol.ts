@@ -5,6 +5,7 @@ import { parseWorldDocument } from './document';
 import { WORLD_THEME_IDS } from './catalog/themes';
 import { isHouseSceneId, type HouseSceneId } from './catalog/scenes';
 import { houseInteriorSchema } from './interiors';
+import { forestVisitSchema } from './forest/catalog';
 
 export const worldThemeIdSchema = z.enum(WORLD_THEME_IDS);
 export const houseSceneIdSchema = z
@@ -101,6 +102,7 @@ export const savedWorldViewSchema = z.strictObject({
   bindings: worldBindingsSchema,
   town: worldTownSchema.optional(),
   interior: houseInteriorSchema.optional(),
+  forest: forestVisitSchema.optional(),
 });
 
 export const savedWorldResponseSchema = savedWorldViewSchema.extend({

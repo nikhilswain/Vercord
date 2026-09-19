@@ -1,0 +1,227 @@
+{
+  "license": "Mixed; see each file and CREDITS.md",
+  "modified": false,
+  "files": [
+    {
+      "file": "hearth-stone.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Rock02.png",
+      "sha256": "5f5059710ee3d75e861a44816bbfe4f5adb9f0a2f37b282d0b1e3714c5317491",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "raw-meat.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_C_RawMeat.png",
+      "sha256": "7aa95d3ea25bd9993d03ae1aa49f18733c116e6341d04c17b6ce6e3adf06fd04",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "wild-hide.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_WolfFur.png",
+      "sha256": "1a907023adcef53d7ec0e976a1b1704049256257d8d812b3206c09efec029ea6",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "feather.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Feather01.png",
+      "sha256": "6d98c4c0ea232294590532c0872d7180c12135613cfd4d15605c83f3da1ac354",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "mira-notes.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Scroll.png",
+      "sha256": "6f4c301097fb9ca1476a1cd51e2b03fe251ecea97cddcc70b00783d4b7d4e196",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "trailcloth.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Fabric.png",
+      "sha256": "a9fc709f22b1b6e73723c9c470dcdb428b7e199e785bf92e29216ce1da8fb944",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "echo-glass.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Crystal01.png",
+      "sha256": "c0287b8c4926ea738638a42a257846f6679c05cd4742ce4aec9ca21f90cc2808",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "choir-opal.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Opal.png",
+      "sha256": "23ee4f25f963518d8cb8ea209d05b4e3d559238c92d457d550b67c59b5f81555",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "lastlight-seed.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_C_Nut.png",
+      "sha256": "cba107460690ffb680a2f01fc80805c6969e69566ac0ea30c0a35203d16661a6",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "camp-meal.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_C_Meat.png",
+      "sha256": "9a4a27a9540756a0eb77f4bec4d32d7bf5d121883062cbfe384dcbaffad008b5",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "resin-wrap.png",
+      "author": "Kipperfalcon (Kipper Pixel)",
+      "archive": null,
+      "original": "medicine_pack.png",
+      "sha256": "d4cb5cb34f9cc4885af958d4878ae30654a49416825cc3819e3dcce0040e6585",
+      "source": "https://opengameart.org/content/medicine-pack-16x16",
+      "frame": {
+        "width": 16,
+        "height": 16,
+        "index": 5
+      },
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "raw-fowl.png",
+      "author": "HomoHikka; 32px distribution by AntumDeluge",
+      "archive": "food-homohikka.zip",
+      "original": "32x32/meat.png",
+      "sha256": "4364842dcd5b3c4496c6c242d0bb878bfbd376c6f5af23263e093aa151e836c6",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "healing-bottle.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "P_Green01.png",
+      "sha256": "8fbbeafadaeb50e8b9a8b1ecea256216999d74365a4c9ed2b625cc911dafb356",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "battle-bottle.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "P_Orange03.png",
+      "sha256": "e6464d16985d2e3cc08ee01b93f622a061b3e550efdfce90f62f977972c152e5",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "swiftstep-bottle.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "P_Blue02.png",
+      "sha256": "be4015773ca861a17e7cf72a83392cf0447a636557664004a344e993cfb0520a",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "thornseed.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_C_Nut.png",
+      "sha256": "cba107460690ffb680a2f01fc80805c6969e69566ac0ea30c0a35203d16661a6",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "spark-pollen.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "E_Gold01.png",
+      "sha256": "a2567599675d8c9033842b9a54595e47d1663ef3aa0bc1cfb526cf3af6352354",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "forest-mushroom.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_C_Mushroom.png",
+      "sha256": "92272189498302496a64e7cde1591cd4547bec1e43e47aea3963d9ee2d6b13e3",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "roasted-meat.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_C_Meat.png",
+      "sha256": "9a4a27a9540756a0eb77f4bec4d32d7bf5d121883062cbfe384dcbaffad008b5",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "pan-mushrooms.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_C_Mushroom.png",
+      "sha256": "92272189498302496a64e7cde1591cd4547bec1e43e47aea3963d9ee2d6b13e3",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "emberleaf.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Clover.png",
+      "sha256": "9efee803668626f2755bd160081206b10aea11e989cc8bfa08433ed1e6ea96c2",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "supply-cache.png",
+      "author": "Henrique Lazarini (7Soul1)",
+      "archive": "496_RPG_icons.zip",
+      "original": "I_Chest01.png",
+      "sha256": "b3a1efc58fe22471ea0d3e1d0e0cab07253ca91b7a8ea2aca9381c0ccc26637a",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "healing-herb.png",
+      "author": "frankes; Jordan Irwin (AntumDeluge)",
+      "source": "https://opengameart.org/content/cc0-herb-icons",
+      "original": "kekik.png",
+      "url": "https://opengameart.org/sites/default/files/kekik.png",
+      "sha256": "a0fb459425bf7c296c0dc142e150959797d126424f7c535c55ad738940f43485",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "rivercress.png",
+      "author": "rg1024; Jordan Irwin (AntumDeluge)",
+      "source": "https://opengameart.org/content/cc0-herb-icons",
+      "original": "arandula.png",
+      "url": "https://opengameart.org/sites/default/files/arandula.png",
+      "sha256": "e271bbd66b2d5811529bf939bed2f4afd3a0b0b129833cdaede7adec8a80f0f8",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "slime-resin.png",
+      "author": "Dmap (generated with the built-in image generation tool)",
+      "source": "Original project asset, 2026-09-20",
+      "original": "exec-06400072-f1d5-4d5d-a01e-ccae46b19f0a.png",
+      "sha256": "86ca8467a99274520d3be277a4125e8153ce745079ddaf454c308eb9356ed96d",
+      "modifications": "Original PNG unchanged. Shared 800px runtime crop at (256,256), nearest-neighbor rendering.",
+      "prompt": "Create ONE production game inventory sprite on a truly transparent background with alpha. A single loose lump of SLIME RESIN, a forest RPG crafting material. Small squat irregular glossy gelatinous green blob, three connected low lobes on ground, a tiny separated droplet adjacent, emerald green translucent-looking interior, dark forest-green 1-pixel outline and one cream mint specular pixel cluster, very simple readable silhouette. NO face, NO eyes, NO bottle, NO glass, NO cork, NO container, NO text, NO sparkles or aura, NO floor shadow, NO checkerboard. Authentic crisp 32x32 pixel art icon, grid-aligned hard square pixels, only 6-8 flat colors, no blur or gradients or antialiasing. Centered and fully contained within a square with a small transparent margin. The material should look like collected jelly/gel, not a living slime enemy. Keep the blob wider than tall, its body around 24 pixels wide and 17 pixels tall in a 32x32 logical grid. Deliver the smallest possible square PNG, preferably native 32x32, retaining transparency.",
+      "license": "Original generated Dmap asset",
+      "tool": "Built-in image_gen.imagegen"
+    },
+    {
+      "file": "mushroom-broth.png",
+      "original": "87_ramen.png",
+      "author": "ghostpixxells",
+      "source": "https://ghostpixxells.itch.io/pixelfood",
+      "license": "CC0-1.0",
+      "modified": false,
+      "sha256": "16f1da7cf34f14a9d95a52d879e4a131e8ebd1836fe5c3850ae1cff613542f12"
+    }
+  ],
+  "defaultThirdPartyLicense": "CC0-1.0"
+}

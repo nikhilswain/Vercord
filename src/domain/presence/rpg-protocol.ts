@@ -1,11 +1,17 @@
+import { MAX_TRAVEL_SPEED } from '../adventure/movement';
 import { z } from 'zod';
 import { RPG_CHARACTER_IDS } from '../world/catalog/characters';
+import { isForestSceneId, type ForestSceneId } from '../world/forest/catalog';
 import { RPG_SCENE_IDS, isHouseSceneId, type HouseSceneId } from '../world/catalog/scenes';
 
 export const RPG_APPEARANCE_IDS = RPG_CHARACTER_IDS;
 export const rpgAppearanceSchema = z.enum(RPG_APPEARANCE_IDS);
 export const rpgSceneSchema = z.union([
   z.enum(RPG_SCENE_IDS),
+  z
+    .string()
+    .refine(isForestSceneId)
+    .transform((value) => value as ForestSceneId),
   z
     .string()
     .refine(isHouseSceneId)
@@ -63,3 +69,8 @@ export type RpgMovement = z.infer<typeof rpgMovementSchema>;
 export type RpgPresencePlayer = z.infer<typeof rpgPlayerSchema>;
 export type RpgAdmission = z.infer<typeof rpgAdmissionSchema>;
 export type RpgWelcome = z.infer<typeof rpgWelcomeSchema>;
+
+/** Fastest currently supported local travel (auto-run with Swiftstep).
+ * Until combat is server-owned this is a collision-checked admission ceiling,
+ * not a claim that a client-supplied buff has been authenticated. */
+export const RPG_MAX_TRAVEL_SPEED = MAX_TRAVEL_SPEED;

@@ -1,0 +1,115 @@
+{
+  "repository": "https://github.com/ElizaWy/LPC",
+  "commit": "f07f7f5892e67c932c68f70bb04472f2c64e46bc",
+  "files": [
+    {
+      "file": "fireplace.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Fireplace.png",
+      "sha256": "8536955ed50a551b8417c620b387f32fcfd5bb9a26acdef18fe159379f71144b",
+      "width": 192,
+      "height": 192
+    },
+    {
+      "file": "fire.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Small%20Items/Fire%2C%20Fireplace.png",
+      "sha256": "df74ef7d2b60a0d7dd1029ef2f10cf1d2caccfb3e4bbb97b9e87ad22c0aa4240",
+      "width": 128,
+      "height": 192
+    },
+    {
+      "file": "clock.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Clock%2C%20Grandfather.png",
+      "sha256": "2e48831aa80bc7600dd7e827745e001debd5cea06f09071652e8f45b472ab80a",
+      "width": 96,
+      "height": 96
+    },
+    {
+      "file": "cauldron.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Cauldron.png",
+      "sha256": "561a383053ffea228f764317af77f0d3834b549ec147660fc835255282a230e4",
+      "width": 32,
+      "height": 160
+    },
+    {
+      "file": "table.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Table%2C%20Rough%20Wood.png",
+      "sha256": "bb1a846dbab420a3d2670937f4892265eb5f33814f9b556a486fa307977c7590",
+      "width": 192,
+      "height": 192
+    },
+    {
+      "file": "desk.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Desk%2C%20Office.png",
+      "sha256": "670e1d6ca399f2207ea4c074d8e29c7ddc6fff92c58752ecdd0b076a67a39eda",
+      "width": 256,
+      "height": 192
+    },
+    {
+      "file": "bed.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Beds/Beds%2C%20Single%20B.png",
+      "sha256": "f49959d936a85bc424f183e2ba650f5a9e6d98bd362163fbf2e63afe6966856d",
+      "width": 512,
+      "height": 448
+    },
+    {
+      "file": "plants.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Planter.png",
+      "sha256": "f48ea3ec96136aa8935abdfd69bf53b6211c2c9866cb4c5b94ac135bc5151fdc",
+      "width": 160,
+      "height": 96
+    },
+    {
+      "file": "floor.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Structure/Floor/Wood%20Floor%20A.png",
+      "sha256": "dbce22679bc0469c4063c626504d98b469b2fdf279e9630b7021ffbcfb113f9d",
+      "width": 160,
+      "height": 192
+    },
+    {
+      "file": "chair.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Seating/Chair%2C%20Dining%20A.png",
+      "sha256": "af76ce09777e65143f89201648a023ef68587ea1db5a248b06beb2581c381c33",
+      "width": 224,
+      "height": 256
+    },
+    {
+      "file": "workbench.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Workbench%2C%20Carpentry.png",
+      "sha256": "82c237c507c40855642ce947008e42fbd7b609ebeb62c23eb363a35eca860298",
+      "width": 128,
+      "height": 160
+    },
+    {
+      "file": "wheel.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Furniture/Sewing%20%26%20Weaving/Spinning%20Wheel.png",
+      "sha256": "d45580649bd8453cb8d9440dbd2bd969d9124838e047f2eac85eb4cd5e2f525d",
+      "width": 320,
+      "height": 64
+    },
+    {
+      "file": "clutter.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Small%20Items/Kitchen%20Clutter%20A.png",
+      "sha256": "6b4d0b97b9498bf733943de00b6c3a307d5be2a6794e7c9b4287399e21f6c6e2",
+      "width": 192,
+      "height": 160
+    },
+    {
+      "file": "candles.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Small%20Items/Lighting%2C%20Table.png",
+      "sha256": "16a90021cabee1a5878fd5b6f23ce9d10fea461496062b1b62a1b983706e18ad",
+      "width": 256,
+      "height": 96
+    },
+    {
+      "file": "paper.png",
+      "source": "https://raw.githubusercontent.com/ElizaWy/LPC/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Objects/Small%20Items/Loose%20Paper.png",
+      "sha256": "3da8463b310f8e71175b69ec3aac64c2f45efe7f89c783eaa94c24f60b7bb9ba",
+      "width": 96,
+      "height": 96
+    }
+  ],
+  "license": "OGA-BY-3.0",
+  "licenseFile": "OGA-BY-3.0.txt",
+  "creditsFile": "CREDITS.md",
+  "modifications": "PNG sources unmodified. Frames selected and layered at runtime; scene layouts and interaction writing authored by Dmap."
+}
