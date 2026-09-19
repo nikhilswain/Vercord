@@ -5,6 +5,10 @@ Implemented preparation loop — September 20, 2026.
 The full approved direction and later phases are in
 [Alchemy and Provisions](ALCHEMY_AND_PROVISIONS.md).
 
+Weapon ownership and proposed reward sources are documented in
+[Weapon progression](WEAPON_PROGRESSION.md). Every traveler now starts with one
+Practice weapon per family; higher-tier weapons are not yet in the loot tables.
+
 ## Collect, prepare, explore
 
 Defeated creatures leave small item icons. Walk close and press **F**, or tap

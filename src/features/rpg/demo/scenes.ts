@@ -13,6 +13,7 @@ import { buildVillage } from '../../../domain/world/content/v1/village';
 import { containsPoint } from '../../world/engine/collision';
 import type { RpgSample } from '../types';
 import type { JungleDefinition } from './types';
+import { SPELL_DEFINITIONS } from '../../../domain/adventure/spells';
 
 export function buildComparisonVillage(): RpgSample {
   const sample: RpgSample = buildVillage();
@@ -46,7 +47,7 @@ export function buildComparisonVillage(): RpgSample {
     ...at(11.5, 14),
     lines: [
       'Moonblossoms grow in the forest clearings. Golden herbs can heal you. Gather either with E.',
-      'Press 3 to use your weapon. Ember awakens at level 15, Tide at level 25. Each powerful spell needs two minutes to recover. Aim with the cursor and left click to attack.',
+      `Press 3 to use your weapon. Ember awakens at level ${SPELL_DEFINITIONS.fire.unlockLevel}, Tide at level ${SPELL_DEFINITIONS.water.unlockLevel}. Each powerful spell needs two minutes to recover. Aim with the cursor and left click to attack.`,
       'Watch creatures prepare to lunge and avoid spike plates: they trigger underfoot. Return to this village to rest; your discoveries will stay with you during this visit.',
     ],
   });

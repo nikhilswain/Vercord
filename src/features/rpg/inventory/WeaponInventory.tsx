@@ -38,6 +38,7 @@ export function WeaponInventory({ status, onEquip }: WeaponInventoryProps) {
 
   const chooseFamily = (nextFamily: WeaponFamily) => {
     setFamily(nextFamily);
+    setNotice('');
     const currentWeapon = getDemoWeapon(status.weaponId);
     setSelectedId(
       currentWeapon.family === nextFamily
@@ -67,7 +68,7 @@ export function WeaponInventory({ status, onEquip }: WeaponInventoryProps) {
     <div className="rpg-equipment">
       <p className="rpg-equipment-intro">
         {status.equipmentPolicy.requireOwnership
-          ? `${status.equipment.ownedWeaponIds.length} weapons owned`
+          ? `${status.equipment.ownedWeaponIds.length} weapons owned · Choose a family to change your fighting style.`
           : 'All 24 weapons are available to try in this demo.'}
       </p>
       <div className="rpg-equipment-tabs" role="tablist" aria-label="Weapon family">
@@ -148,7 +149,7 @@ export function WeaponInventory({ status, onEquip }: WeaponInventoryProps) {
                 <dd>{(selected.cooldownMs / 1000).toFixed(2)} s</dd>
               </div>
               <div>
-                <dt>Unlock level</dt>
+                <dt>Required level</dt>
                 <dd>Level {selected.unlockLevel}</dd>
               </div>
               {selected.spellBonus > 0 && (

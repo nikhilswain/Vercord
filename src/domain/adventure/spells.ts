@@ -3,7 +3,7 @@ export const SPELL_DEFINITIONS = {
   fire: {
     name: 'Ember',
     key: '1',
-    unlockLevel: 15,
+    unlockLevel: 10,
     cooldown: 120,
     speed: 330,
     range: 192,
@@ -12,7 +12,7 @@ export const SPELL_DEFINITIONS = {
   water: {
     name: 'Tide',
     key: '2',
-    unlockLevel: 25,
+    unlockLevel: 16,
     cooldown: 120,
     speed: 360,
     range: 256,

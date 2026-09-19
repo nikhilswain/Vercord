@@ -46,7 +46,7 @@ describe('game interface', () => {
       melee = vi.fn();
     const props = { onAttack: vi.fn(), onHeal: vi.fn(), onSpell: spell, onMelee: melee };
     const view = render(
-      <AdventureHud status={{ ...status(), level: 15, combatMode: 'fire' }} {...props} />,
+      <AdventureHud status={{ ...status(), level: 10, combatMode: 'fire' }} {...props} />,
     );
     expect(screen.getByRole('button', { name: /Tide/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Locked ability slot 3' })).toBeDisabled();
@@ -55,7 +55,7 @@ describe('game interface', () => {
     expect(spell).toHaveBeenCalledWith('fire');
     view.rerender(
       <AdventureHud
-        status={{ ...status(), level: 25, waterUnlocked: true, combatMode: 'water' }}
+        status={{ ...status(), level: 16, waterUnlocked: true, combatMode: 'water' }}
         {...props}
       />,
     );

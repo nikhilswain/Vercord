@@ -24,8 +24,8 @@ function advance(model: AdventureSession, seconds: number) {
 
 describe('adventure spell progression', () => {
   it.each([
-    ['fire', 15],
-    ['water', 25],
+    ['fire', 10],
+    ['water', 16],
   ] as const)('%s unlocks exactly at level %i, including after restore', (id, level) => {
     const locked = session(level - 1);
     locked.selectSpell(id);
@@ -42,7 +42,7 @@ describe('adventure spell progression', () => {
   });
 
   it('keeps independent cooldowns through town, area changes and save/load; melee stays usable', () => {
-    const journey = new AdventureJourney({ progression: profile(25) });
+    const journey = new AdventureJourney({ progression: profile(16) });
     const model = journey.enter('first', empty, [], bounds, player, player, {
       durationMs: 600,
       releaseMs: 200,

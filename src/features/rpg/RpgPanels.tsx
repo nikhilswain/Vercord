@@ -21,6 +21,7 @@ import type { NavigationActions } from './navigation/types';
 import { JourneyDialog, type JourneyActions } from './journal/JourneyDialog';
 import { JourneyMapNote } from './journal/JourneyMapNote';
 import type { JournalObjective } from './journal/model';
+import { SPELL_DEFINITIONS } from '../../domain/adventure/spells';
 
 export type RpgPanel =
   'map' | 'guide' | 'appearance' | 'menu' | 'equipment' | 'settings' | 'journey';
@@ -289,14 +290,15 @@ export function RpgPanels({
               <strong>Mosswild Jungle:</strong> follow the northwest village path and press E at the
               jungle sign. I opens inventory: all 24 weapons are available here. Press 3 to use your
               weapon. Aim with the cursor and left click, or tap a spot, to attack. WASD moves; J
-              and the attack button use your facing direction. Ember unlocks at level 15 (1), Tide
-              at level 25 (2). Each needs two minutes to recover. Aim ahead of moving enemies.
-              Middle-button drag or touch drag pans the view. Spike plates trigger on contact. Ember
-              hits hard at close range; Tide reaches further and freezes for two seconds. Watch
-              their preparation poses and sidestep attacks. Higher-level enemies react faster and
-              chain attacks. Gather flowers with E and gain experience. H uses a healing herb. The
-              southern trail returns to Willowmere. Your progress stays between those two areas;
-              reloading or changing world themes starts a new adventure.
+              and the attack button use your facing direction. Ember unlocks at level{' '}
+              {SPELL_DEFINITIONS.fire.unlockLevel} (1), Tide at level{' '}
+              {SPELL_DEFINITIONS.water.unlockLevel} (2). Each needs two minutes to recover. Aim
+              ahead of moving enemies. Middle-button drag or touch drag pans the view. Spike plates
+              trigger on contact. Ember hits hard at close range; Tide reaches further and freezes
+              for two seconds. Watch their preparation poses and sidestep attacks. Higher-level
+              enemies react faster and chain attacks. Gather flowers with E and gain experience. H
+              uses a healing herb. The southern trail returns to Willowmere. Your progress stays
+              between those two areas; reloading or changing world themes starts a new adventure.
             </p>
           )}
           <p>

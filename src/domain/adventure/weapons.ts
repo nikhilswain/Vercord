@@ -40,6 +40,10 @@ export const WEAPONS: readonly WeaponDefinition[] = WEAPON_FAMILIES.flatMap((fam
 );
 
 export const DEFAULT_WEAPON_ID: WeaponId = 'sword-0';
+/** Every fighting style is available from the beginning; later tiers must be earned. */
+export const STARTER_WEAPON_IDS: readonly WeaponId[] = WEAPONS.filter(
+  (weapon) => weapon.tier === 0,
+).map((weapon) => weapon.id);
 
 /** Unknown IDs stay unknown at the gameplay boundary; adapters may provide visual fallbacks. */
 export function getWeaponDefinition(id: string): WeaponDefinition | undefined {

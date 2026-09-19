@@ -1,5 +1,10 @@
 import { levelForExperience } from './progression';
-import { DEFAULT_WEAPON_ID, getWeaponDefinition, type WeaponId } from './weapons';
+import {
+  DEFAULT_WEAPON_ID,
+  STARTER_WEAPON_IDS,
+  getWeaponDefinition,
+  type WeaponId,
+} from './weapons';
 
 /** Serializable shared state. Storage and authority are supplied by the consuming world. */
 export interface PlayerProgression {
@@ -33,7 +38,7 @@ export function createPlayerProgression(): PlayerProgression {
   return {
     version: 1,
     experience: 0,
-    ownedWeaponIds: [DEFAULT_WEAPON_ID],
+    ownedWeaponIds: [...STARTER_WEAPON_IDS],
     equippedWeaponId: DEFAULT_WEAPON_ID,
   };
 }
@@ -79,7 +84,7 @@ export function grantWeapon(profile: PlayerProgression, id: string): PlayerProgr
 
 /**
  * Validate parsed storage data before use. Unsupported versions start fresh.
- * Only known weapons survive; the starter remains owned, and equipped items
+ * Only known weapons survive; every starter remains owned, and equipped items
  * must satisfy the explicitly selected policy. This does not establish server authority.
  */
 export function sanitizePlayerProgression(
@@ -91,7 +96,8 @@ export function sanitizePlayerProgression(
   }
   const saved = value as Record<string, unknown>;
   if (saved.version !== 1) return createPlayerProgression();
-  const owned = new Set<WeaponId>([DEFAULT_WEAPON_ID]);
+  // Also upgrades sword-only saves without changing earned weapons, XP or equipment.
+  const owned = new Set<WeaponId>(STARTER_WEAPON_IDS);
   if (Array.isArray(saved.ownedWeaponIds)) {
     for (const candidate of saved.ownedWeaponIds) {
       const weapon = typeof candidate === 'string' ? getWeaponDefinition(candidate) : undefined;

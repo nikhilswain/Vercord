@@ -602,7 +602,7 @@ no timed benefit or cooldown, usable again after eating finishes. It does not
 refresh the recovery cooldown or overwrite the active meal. Full health or an
 interrupted action consumes nothing.
 
-Ember unlocks at **15**, Tide at **25**; the reachable level cap is **30**. Each
+Ember unlocks at **10**, Tide at **16**; the reachable level cap is **30**. Each
 has its own **120-second** cooldown, committed at casting start and saved across
 travel, town, rest and reload. Ember reaches 192 world pixels; Tide reaches 256.
 Both deal 100 + 4 per level above 15 + the equipped weapon's spell bonus, then the
