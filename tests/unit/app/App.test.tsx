@@ -30,11 +30,11 @@ describe('App routes', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('World prototype')).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Northstar Commons' }),
+      screen.getByRole('heading', { level: 2, name: 'Step into Willowmere.' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Explore demo map' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Play the demo' })).toHaveAttribute(
       'href',
-      '/map/demo',
+      '/play/demo',
     );
     expect(document.title).toBe('Dmap — Your Discord world');
   });

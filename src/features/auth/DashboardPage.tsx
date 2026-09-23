@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AppHeader } from '../../components/AppHeader';
+import { ButtonPet } from '../../components/ButtonPet';
+import { SceneBackdrop } from '../../components/SceneBackdrop';
 import {
   authSessionSchema,
   guildSyncResponseSchema,
@@ -70,21 +72,28 @@ function SignedOut({ message }: { message: string | null }) {
             {message}
           </p>
         ) : null}
-        <a className="discord-sign-in" href="/api/auth/discord/start?return_to=%2Fdashboard">
-          <DiscordIcon />
-          Continue with Discord
+        <a
+          className="px-button px-button--primary discord-sign-in"
+          href="/api/auth/discord/start?return_to=%2Fdashboard"
+        >
+          <span className="px-button__label">
+            <DiscordIcon />
+            Continue with Discord
+          </span>
+          <ButtonPet kind="cat" />
         </a>
         <p className="auth-scope-note">
           Dmap requests your Discord identity, server list, and your own membership details.
         </p>
       </section>
-      <div className="dashboard-gate-map" aria-hidden="true">
-        <span className="gate-route gate-route--one" />
-        <span className="gate-route gate-route--two" />
-        <span className="gate-node gate-node--one">A</span>
-        <span className="gate-node gate-node--two">W</span>
-        <span className="gate-node gate-node--three">C</span>
-      </div>
+      <figure className="dashboard-gate-scene px-frame">
+        <img
+          src="/screenshots/town-hall.png"
+          alt="The Town Hall interior in the Willowmere demo world"
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
     </main>
   );
 }
@@ -245,7 +254,8 @@ export function DashboardPage() {
   }, []);
 
   return (
-    <div className="page-shell app-shell dashboard-page">
+    <div className="page-shell app-shell pixel-page dashboard-page">
+      <SceneBackdrop src="/screenshots/willowmere.png" variant="ambient" />
       <AppHeader
         context="Explore"
         status={<span>{state.kind === 'ready' ? 'Discord connected' : 'Account access'}</span>}
@@ -268,7 +278,11 @@ export function DashboardPage() {
         <main className="dashboard-main dashboard-error" role="alert">
           <h1>Discord worlds are unavailable</h1>
           <p>Dmap could not load your session right now.</p>
-          <button type="button" onClick={loadSession}>
+          <button
+            type="button"
+            className="px-button px-button--primary dashboard-error-button"
+            onClick={loadSession}
+          >
             Try again
           </button>
         </main>

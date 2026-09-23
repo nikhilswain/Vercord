@@ -26,6 +26,11 @@ damage frame, a hit reaction and a fading collapse in code. These are not the
 creator's paid combat animations. Reduced motion disables the additional
 movement and compression and uses a brief defeat fade. No paid files are used.
 
+Derived file: `mm-green.png` is `mm-demo.png` with the green render palette
+baked in (body `#A2DD8E`, shadow `#5C9C6C`), for surfaces outside the Phaser
+renderer where the runtime palette shader is unavailable. Eyes, outlines, cream
+highlights, transparency and frame geometry are untouched.
+
 Runtime mapping: `src/features/rpg/adventure/slime-assets.ts`.
 Palette configuration: `SLIME_PALETTES` in that file; each spawn chooses `variant`.
 Palette rendering: `src/features/rpg/adventure/slime-palette.ts`.

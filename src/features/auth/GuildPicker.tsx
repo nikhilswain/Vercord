@@ -24,32 +24,6 @@ function readFilters() {
   };
 }
 
-function JourneyMap() {
-  return (
-    <svg className="journey-map" viewBox="0 0 420 230" aria-hidden="true">
-      <path
-        className="journey-terrain"
-        d="m50 46 55-19 40 24 61-13 40 25 64-7 49 42-13 45-66 26-17 29-63-5-38-28-64 10-31-41-28-32Z"
-      />
-      <path
-        className="journey-contour"
-        d="m67 58 37-14 40 26 62-14 37 28 59-9 37 26-11 30-61 23-22 27-39-2-41-31-62 10-24-29-22-36Z"
-      />
-      <path className="journey-river" d="M171 40q-15 35 12 66t-6 77" />
-      <path className="journey-trail" d="m113 116 38 23 48-41 79 13 31-20" />
-      <g className="journey-trees">
-        <path d="m73 82 9-17 9 17h-6v9h-6v-9Zm40-26 9-17 9 17h-6v9h-6v-9Zm8 107 9-17 9 17h-6v9h-6v-9Zm110-87 9-17 9 17h-6v9h-6v-9Zm53 75 9-17 9 17h-6v9h-6v-9Zm28-22 9-17 9 17h-6v9h-6v-9Z" />
-      </g>
-      <g className="journey-village">
-        <path d="m95 116 18-16 18 16m-30-5v25h24v-25m-16 25v-14h8v14M184 92l16-14 16 14m-26-8v27h20V84m-14 27V99h8v12" />
-        <circle cx="281" cy="110" r="14" />
-        <path d="m275 115 6-15 6 15-6-3Z" />
-      </g>
-      <path className="journey-compass" d="M373 26v31m-15-15h30m-15-12 4 12-4 11-4-11Z" />
-    </svg>
-  );
-}
-
 export function GuildPicker({
   onSync,
   session,
@@ -147,7 +121,7 @@ export function GuildPicker({
         </div>
       </section>
 
-      <section className="dashboard-expedition" aria-labelledby="expedition-title">
+      <section className="dashboard-expedition px-frame" aria-labelledby="expedition-title">
         <div className="expedition-copy">
           <p className="dashboard-route">A little adventure, close to home</p>
           <h2 id="expedition-title">Take the forest path.</h2>
@@ -156,7 +130,14 @@ export function GuildPicker({
             Explore the demo <span aria-hidden="true">↗</span>
           </a>
         </div>
-        <JourneyMap />
+        <figure className="expedition-scene">
+          <img
+            src="/screenshots/mosswild-forest.png"
+            alt="The forest path beyond Willowmere"
+            loading="lazy"
+            decoding="async"
+          />
+        </figure>
         <span className="expedition-note">Willowmere · Demo world</span>
       </section>
 
@@ -171,7 +152,7 @@ export function GuildPicker({
           </div>
           <button
             type="button"
-            className="guild-refresh"
+            className="px-button px-button--ghost guild-refresh"
             onClick={onRefresh}
             disabled={
               refreshing || Object.values(syncStates).some((state) => state?.kind === 'pending')
@@ -226,7 +207,7 @@ export function GuildPicker({
             {counts.all > 0 ? (
               <button
                 type="button"
-                className="guild-refresh"
+                className="px-button px-button--ghost guild-refresh"
                 onClick={() => updateFilters({ query: '', filter: 'all' })}
               >
                 Clear filters
@@ -237,14 +218,20 @@ export function GuildPicker({
           <ul className="guild-list" aria-label="Discord servers">
             {filteredGuilds.slice(0, visibleCount).map((guild) => (
               <li
-                className={guild.worldUrl !== null ? 'guild-card guild-card--ready' : 'guild-card'}
+                className={
+                  guild.worldUrl !== null
+                    ? 'guild-card guild-card--ready px-frame'
+                    : 'guild-card px-frame'
+                }
                 key={guild.id}
               >
                 <div className="guild-card-heading">
                   <GuildMark guild={guild} />
                   <span
                     className={
-                      guild.worldUrl !== null ? 'guild-badge guild-badge--ready' : 'guild-badge'
+                      guild.worldUrl !== null
+                        ? 'px-badge px-badge--ready guild-badge'
+                        : 'px-badge guild-badge'
                     }
                   >
                     {guild.worldUrl !== null
@@ -262,11 +249,6 @@ export function GuildPicker({
                   </p>
                 </div>
                 <div className="guild-card-footer">
-                  {guild.connected && guild.synced ? (
-                    <a className="guild-town-link" href={`/play/${guild.id}`}>
-                      Enter town <span aria-hidden="true">↗</span>
-                    </a>
-                  ) : null}
                   <GuildAction
                     guild={guild}
                     onSync={onSync}
@@ -284,7 +266,11 @@ export function GuildPicker({
             {filteredGuilds.length === 1 ? 'server' : 'servers'}
           </p>
           {hasMore ? (
-            <button type="button" className="guild-refresh" onClick={loadMore}>
+            <button
+              type="button"
+              className="px-button px-button--ghost guild-refresh"
+              onClick={loadMore}
+            >
               Show more servers
             </button>
           ) : null}

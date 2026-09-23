@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
+import { ButtonPet } from '../../components/ButtonPet';
+import { petForSeed, type ButtonPetKind } from '../../components/pets';
 import type { AuthGuild } from './session';
 import type { GuildSyncState } from './GuildPicker';
 
@@ -33,6 +35,47 @@ export function GuildMark({ guild }: { guild: AuthGuild }) {
   );
 }
 
+function PrimaryCta({
+  href,
+  onClick,
+  disabled,
+  busy,
+  pet,
+  children,
+}: {
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  pet: ButtonPetKind;
+  children: ReactNode;
+}) {
+  const inner = (
+    <>
+      <span className="px-button__label">{children}</span>
+      <ButtonPet kind={pet} />
+    </>
+  );
+  if (href !== undefined) {
+    return (
+      <a className="px-button px-button--primary guild-action" href={href}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <button
+      className="px-button px-button--primary guild-action"
+      type="button"
+      disabled={disabled}
+      aria-busy={busy}
+      onClick={onClick}
+    >
+      {inner}
+    </button>
+  );
+}
+
 export function GuildAction({
   guild,
   onSync,
@@ -44,18 +87,13 @@ export function GuildAction({
   syncState: GuildSyncState | undefined;
   refreshing: boolean;
 }) {
-  if (guild.worldUrl !== null && (!guild.connected || !guild.canManage)) {
-    return (
-      <a className="guild-action" href={guild.worldUrl}>
-        Explore
-        <span aria-hidden="true">→</span>
-      </a>
-    );
-  }
+  const townHref = `/play/${guild.id}`;
+  const townReady = guild.connected && guild.synced;
+  const pet = petForSeed(guild.id);
 
   if (guild.connected && guild.canManage) {
     const pending = syncState?.kind === 'pending';
-    const label = pending
+    const syncLabel = pending
       ? guild.synced
         ? 'Syncing…'
         : 'Creating…'
@@ -65,21 +103,32 @@ export function GuildAction({
 
     return (
       <div className="guild-actions">
-        {guild.worldUrl !== null ? (
-          <a className="guild-action" href={guild.worldUrl}>
-            Explore
+        {townReady ? (
+          <PrimaryCta href={townHref} pet={pet}>
+            Enter town
             <span aria-hidden="true">→</span>
-          </a>
+          </PrimaryCta>
+        ) : (
+          <PrimaryCta
+            onClick={() => onSync(guild)}
+            disabled={pending || refreshing}
+            busy={pending}
+            pet={pet}
+          >
+            {syncLabel}
+          </PrimaryCta>
+        )}
+        {townReady ? (
+          <button
+            className="px-button px-button--ghost guild-sync-button"
+            type="button"
+            disabled={pending || refreshing}
+            aria-busy={pending}
+            onClick={() => onSync(guild)}
+          >
+            {syncLabel}
+          </button>
         ) : null}
-        <button
-          className={guild.worldUrl === null ? 'guild-action' : 'guild-sync-button'}
-          type="button"
-          disabled={pending || refreshing}
-          aria-busy={pending}
-          onClick={() => onSync(guild)}
-        >
-          {label}
-        </button>
         {syncState?.kind === 'success' ? (
           <span className="guild-sync-feedback" role="status">
             {syncState.message}
@@ -88,10 +137,28 @@ export function GuildAction({
           <span className="guild-sync-feedback guild-sync-feedback--error" role="alert">
             {syncState.message}
           </span>
-        ) : guild.synced && guild.worldUrl === null ? (
+        ) : guild.synced && !townReady ? (
           <span className="guild-sync-feedback">Private snapshot ready</span>
         ) : null}
       </div>
+    );
+  }
+
+  if (townReady) {
+    return (
+      <PrimaryCta href={townHref} pet={pet}>
+        Enter town
+        <span aria-hidden="true">→</span>
+      </PrimaryCta>
+    );
+  }
+
+  if (guild.worldUrl !== null) {
+    return (
+      <PrimaryCta href={guild.worldUrl} pet={pet}>
+        Explore
+        <span aria-hidden="true">→</span>
+      </PrimaryCta>
     );
   }
 

@@ -18,8 +18,7 @@ test('opens the demo atlas with its scoped status and a resettable camera', asyn
   });
   page.on('pageerror', (error) => errors.push(error.message));
 
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Explore demo map' }).click();
+  await page.goto('/map/demo');
   await expect(page).toHaveURL('/map/demo');
   await expect(page.getByRole('heading', { name: 'Explore Northstar Commons' })).toBeVisible();
   await expect(page.getByRole('banner').getByRole('status')).toHaveText('Demo data');

@@ -1,101 +1,77 @@
-@font-face {
-  font-family: 'Dmap Atlas';
-  src: url('/game-assets/atlas/CormorantGaramond.woff2') format('woff2');
-  font-weight: 300 700;
-  font-display: swap;
+.dashboard-page {
+  --color-map-white: var(--px-ink);
+  --color-text-muted: var(--px-muted);
+  --color-void: var(--px-ground);
+  --color-focus: var(--px-focus);
+  --scrollbar-track: var(--px-ground-deep);
+  --scrollbar-thumb: var(--px-edge-strong);
+  --scrollbar-thumb-hover: var(--px-gold);
+  --scrollbar-thumb-active: var(--px-gold-bright);
+  max-width: calc(82rem + var(--page-gutter) * 2);
+  background: none;
+  overflow-x: clip;
 }
 
-.dashboard-page {
-  --dashboard-ground: #101e19;
-  --dashboard-panel: #192b23;
-  --dashboard-raised: #23382d;
-  --dashboard-ink: #f0e3bc;
-  --dashboard-muted: #b4bea5;
-  --dashboard-gold: #d9bd78;
-  --dashboard-edge: #59664d;
-  --color-map-white: var(--dashboard-ink);
-  --color-text-muted: var(--dashboard-muted);
-  --color-void: var(--dashboard-ground);
-  --color-focus: #ffdc87;
-  --scrollbar-track: var(--dashboard-ground);
-  --scrollbar-thumb: #59664d;
-  --scrollbar-thumb-hover: #87906b;
-  --scrollbar-thumb-active: var(--dashboard-gold);
-  max-width: calc(82rem + var(--page-gutter) * 2);
-  isolation: isolate;
-}
-.dashboard-page::before {
-  position: fixed;
-  z-index: -1;
-  inset: 0;
-  background: var(--dashboard-ground);
-  content: '';
-}
-.dashboard-page .site-header {
-  border-bottom-color: var(--dashboard-edge);
-}
-.dashboard-page .brand-mark {
-  color: var(--dashboard-gold);
-  border-color: var(--dashboard-edge);
-  background: var(--dashboard-panel);
-  box-shadow: none;
-}
-.dashboard-page .site-footer {
-  border-color: var(--dashboard-edge);
-}
-.dashboard-page :where(a, button):focus-visible,
-.dashboard-page input:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 4px;
-}
-.dashboard-page a,
-.dashboard-page button {
-  cursor: pointer;
-}
-.dashboard-page button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
 .dashboard-main {
+  position: relative;
+  z-index: 1;
   width: 100%;
   align-self: start;
   padding-block: 2rem;
 }
+
 .dashboard-route {
-  margin: 0 0 0.75rem;
-  color: var(--dashboard-gold);
-  font: 600 0.7rem/1.5 var(--font-ui);
-  letter-spacing: 0.13em;
+  margin: 0 0 0.9rem;
+  color: var(--px-gold);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
+
+/* --- Heading + signed-in user ------------------------------------------------ */
+
 .guild-picker-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 2rem;
 }
+
 .guild-picker-heading h1,
 .dashboard-gate h1,
 .dashboard-error h1 {
   margin: 0;
-  color: var(--dashboard-ink);
-  font:
-    500 clamp(2.9rem, 4vw, 3.8rem)/1 'Dmap Atlas',
-    Georgia,
-    serif;
+  font-family: var(--font-pixel-title);
+  font-size: clamp(2.4rem, 4vw, 3.4rem);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
   text-wrap: balance;
+  text-shadow: 0 2px 24px rgb(0 0 0 / 0.5);
 }
+
 .guild-picker-heading > div > p:last-child {
-  margin: 0.85rem 0 0;
-  color: var(--dashboard-muted);
+  margin: 0.9rem 0 0;
+  color: #ded9c6;
   line-height: 1.6;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 0.6);
 }
+
 .signed-in-user {
   display: grid;
   grid-template-columns: 2.75rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
+  border: 1px solid var(--px-edge);
+  border-radius: 12px;
+  padding: 0.5rem 0.6rem 0.5rem 0.5rem;
+  background: var(--px-panel);
+  backdrop-filter: blur(12px) saturate(1.1);
 }
+
 .signed-in-user > img,
 .signed-in-user > span {
   display: grid;
@@ -103,232 +79,219 @@
   height: 2.75rem;
   place-items: center;
   object-fit: cover;
-  border: 1px solid var(--dashboard-edge);
-  border-radius: 50%;
-  color: var(--dashboard-gold);
-  background: var(--dashboard-raised);
+  border: 1px solid var(--px-edge-strong);
+  border-radius: 8px;
+  color: var(--px-gold-bright);
+  background: var(--px-raised);
+  font-family: var(--font-pixel-title);
+  font-size: 1.2rem;
   font-weight: 700;
 }
+
 .signed-in-user strong,
 .signed-in-user small {
   display: block;
   max-width: 11rem;
   overflow-wrap: anywhere;
 }
+
 .signed-in-user strong {
-  font-size: 0.83rem;
+  font-size: 0.85rem;
 }
+
 .signed-in-user small {
-  margin-top: 0.25rem;
-  color: var(--dashboard-muted);
-  font-size: 0.72rem;
+  margin-top: 0.2rem;
+  color: var(--px-muted);
+  font-size: 0.75rem;
 }
+
 .signed-in-user button {
   border: 0;
-  padding: 0.65rem;
-  color: var(--dashboard-muted);
+  padding: 0.6rem 0.7rem;
+  color: var(--px-muted);
   background: transparent;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   min-height: 44px;
 }
+
 .signed-in-user button:hover {
-  color: var(--dashboard-ink);
+  color: var(--px-gold-bright);
   text-decoration: underline;
 }
+
 .signed-in-user button:active {
-  color: var(--dashboard-gold);
+  color: var(--px-ink);
 }
+
+/* --- Expedition banner ------------------------------------------------------- */
+
 .dashboard-expedition {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 0.8fr;
   align-items: center;
+  gap: 1.5rem;
   min-height: 11rem;
   margin-block: 1.75rem 2rem;
-  border: 1px solid var(--dashboard-edge);
-  padding: 1.25rem 2rem;
-  background: var(--dashboard-panel);
-  box-shadow:
-    inset 0 0 0 5px var(--dashboard-ground),
-    inset 0 0 0 6px #59664d66;
+  padding: 1.5rem 2.25rem;
+  overflow: hidden;
 }
+
 .expedition-copy {
   position: relative;
   z-index: 1;
 }
+
 .expedition-copy h2 {
   margin: 0;
-  font:
-    500 clamp(1.9rem, 2.7vw, 2.5rem)/1.12 'Dmap Atlas',
-    Georgia,
-    serif;
+  font-family: var(--font-pixel-title);
+  font-size: clamp(1.8rem, 2.7vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-transform: uppercase;
 }
+
 .expedition-copy > p:not(.dashboard-route) {
   max-width: 39ch;
   margin: 0.8rem 0;
-  color: var(--dashboard-muted);
+  color: var(--px-muted);
   font-size: 0.9rem;
   line-height: 1.7;
 }
+
 .expedition-link {
   display: inline-flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.5rem;
   min-height: 44px;
-  color: var(--dashboard-gold);
-  font-size: 0.86rem;
+  color: var(--px-gold-bright);
+  font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
+  transition: color 140ms var(--px-ease-out);
 }
+
 .expedition-link:hover {
-  color: var(--dashboard-ink);
+  color: var(--px-ink);
   text-decoration: underline;
 }
+
 .expedition-link:active {
-  opacity: 0.8;
+  opacity: 0.85;
 }
+
 .expedition-note {
   position: absolute;
-  bottom: 1rem;
-  right: 1.5rem;
-  color: var(--dashboard-muted);
-  font-size: 0.65rem;
-  letter-spacing: 0.05em;
+  bottom: 1.1rem;
+  right: 1.75rem;
+  color: var(--px-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
 }
-.journey-map {
+
+.expedition-scene {
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--px-edge);
+  border-radius: 10px;
+  background: rgb(6 12 9 / 0.6);
+  box-shadow: 0 20px 40px -30px rgb(0 0 0 / 0.9);
+}
+
+.expedition-scene img {
+  display: block;
   width: 100%;
-  max-height: 10rem;
-  overflow: visible;
+  border-radius: 6px;
+  image-rendering: pixelated;
 }
-.journey-terrain {
-  fill: #2d4736;
-  stroke: #6f8153;
-  stroke-width: 1.5;
-}
-.journey-contour {
-  fill: none;
-  stroke: #6f815377;
-  stroke-width: 1;
-}
-.journey-river {
-  fill: none;
-  stroke: #749c9788;
-  stroke-width: 6;
-}
-.journey-trail {
-  fill: none;
-  stroke: var(--dashboard-gold);
-  stroke-width: 1.5;
-  stroke-dasharray: 3 5;
-}
-.journey-trees {
-  fill: #819068;
-}
-.journey-village {
-  fill: #23382d;
-  stroke: var(--dashboard-gold);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.journey-compass {
-  fill: var(--dashboard-gold);
-  stroke: var(--dashboard-gold);
-  stroke-width: 1;
-}
+
+/* --- Directory --------------------------------------------------------------- */
+
 .guild-directory-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
+
 .guild-directory-heading h2 {
   margin: 0;
-  font:
-    500 2.25rem/1.1 'Dmap Atlas',
-    Georgia,
-    serif;
+  font-family: var(--font-pixel-title);
+  font-size: 2.15rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-transform: uppercase;
 }
+
 .guild-directory-heading p {
-  margin: 0.6rem 0 0;
-  color: var(--dashboard-muted);
-  font-size: 0.8rem;
+  margin: 0.55rem 0 0;
+  color: var(--px-muted);
+  font-size: 0.82rem;
 }
+
 .guild-directory-heading p > span {
   padding-inline: 0.4rem;
 }
-.guild-refresh,
-.dashboard-error button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  min-height: 44px;
-  min-width: 10rem;
-  padding: 0.7rem 1rem;
-  border: 1px solid var(--dashboard-edge);
-  border-radius: 3px;
-  color: var(--dashboard-ink);
-  background: transparent;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.guild-refresh:hover:not(:disabled),
-.dashboard-error button:hover {
-  border-color: var(--dashboard-gold);
-  background: var(--dashboard-raised);
-}
-.guild-refresh:active:not(:disabled),
-.dashboard-error button:active {
-  background: var(--dashboard-panel);
-}
-.guild-refresh > span {
-  font-size: 1.2rem;
-}
+
 .guild-directory-tools {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   margin-block: 1.75rem 1.25rem;
-  border-bottom: 1px solid var(--dashboard-edge);
-  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--px-edge);
+  padding-bottom: 1.1rem;
 }
+
 .guild-filters {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
+
 .guild-filters button {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
   min-height: 44px;
   border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  color: var(--px-muted);
   background: transparent;
-  color: var(--dashboard-muted);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   white-space: nowrap;
+  transition:
+    border-color 140ms var(--px-ease-out),
+    background 140ms var(--px-ease-out),
+    color 140ms var(--px-ease-out);
 }
+
 .guild-filters button > span {
-  opacity: 0.8;
-  font-size: 0.7rem;
+  opacity: 0.85;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
+
 .guild-filters button[aria-pressed='true'] {
-  border-color: var(--dashboard-edge);
-  background: var(--dashboard-raised);
-  color: var(--dashboard-ink);
+  border-color: var(--px-edge-strong);
+  color: var(--px-ink);
+  background: var(--px-panel);
 }
-.guild-filters button:hover {
-  background: var(--dashboard-panel);
-  color: var(--dashboard-ink);
+
+@media (hover: hover) and (pointer: fine) {
+  .guild-filters button:hover {
+    color: var(--px-ink);
+    background: var(--px-panel-dark);
+  }
 }
+
 .guild-filters button:active {
-  border-color: var(--dashboard-gold);
+  border-color: var(--px-gold);
 }
+
 .guild-search {
   display: flex;
   align-items: center;
@@ -336,22 +299,25 @@
   min-width: 12rem;
   max-width: 20rem;
   width: 100%;
-  border: 1px solid var(--dashboard-edge);
-  border-radius: 3px;
+  border: 1px solid var(--px-edge-strong);
+  border-radius: 8px;
   padding-left: 0.75rem;
-  background: var(--dashboard-panel);
+  background: rgb(6 12 9 / 0.7);
 }
+
 .guild-search:focus-within {
-  border-color: var(--dashboard-gold);
+  border-color: var(--px-gold-bright);
 }
+
 .guild-search svg {
   width: 1rem;
   height: 1rem;
   flex: none;
   fill: none;
-  stroke: var(--dashboard-muted);
-  stroke-width: 1.7;
+  stroke: var(--px-muted);
+  stroke-width: 2;
 }
+
 .guild-search input {
   width: 100%;
   min-width: 0;
@@ -359,209 +325,220 @@
   border: 0;
   padding: 0.6rem 0.75rem 0.6rem 0;
   font: inherit;
-  font-size: 0.82rem;
-  color: var(--dashboard-ink);
+  font-size: 0.85rem;
+  color: var(--px-ink);
   background: transparent;
 }
+
 .guild-search input::placeholder {
-  color: var(--dashboard-muted);
+  color: var(--px-muted);
 }
+
 .guild-refresh-error {
   margin: 0 0 1rem;
-  border-left: 2px solid var(--color-danger);
+  border-left: 3px solid var(--px-danger);
   padding: 0.65rem 1rem;
-  color: var(--color-danger);
+  color: var(--px-danger);
   font-size: 0.85rem;
   line-height: 1.6;
 }
+
+/* --- Guild cards ------------------------------------------------------------- */
+
 .guild-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 1.35rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+
 .guild-card {
   display: flex;
   flex-direction: column;
-  min-height: 17rem;
-  border: 1px solid #59664d88;
-  border-radius: 4px;
-  padding: 1.35rem;
-  background: var(--dashboard-panel);
+  min-height: 13.5rem;
+  padding: 1.5rem;
+  animation: px-rise 480ms var(--px-ease-out) both;
+  transition:
+    transform 180ms var(--px-ease-out),
+    border-color 180ms var(--px-ease-out);
 }
-.guild-card--ready {
-  border-top: 2px solid var(--dashboard-gold);
+
+.guild-card:nth-child(1) {
+  animation-delay: 20ms;
 }
+.guild-card:nth-child(2) {
+  animation-delay: 60ms;
+}
+.guild-card:nth-child(3) {
+  animation-delay: 100ms;
+}
+.guild-card:nth-child(4) {
+  animation-delay: 140ms;
+}
+.guild-card:nth-child(5) {
+  animation-delay: 180ms;
+}
+.guild-card:nth-child(6) {
+  animation-delay: 220ms;
+}
+.guild-card:nth-child(n + 7) {
+  animation-delay: 260ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guild-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--px-edge-strong);
+  }
+}
+
 .guild-card-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
 }
+
 .guild-mark {
   width: 3.2rem;
   height: 3.2rem;
   flex: none;
-  border-radius: 7px;
+  border: 1px solid var(--px-edge);
+  border-radius: 8px;
   object-fit: cover;
 }
+
 .guild-mark--fallback {
   display: grid;
   place-items: center;
-  border: 1px solid var(--dashboard-edge);
-  color: var(--dashboard-gold);
-  background: var(--dashboard-raised);
-  font:
-    600 1.3rem/1 'Dmap Atlas',
-    Georgia,
-    serif;
+  color: var(--px-gold-bright);
+  background: var(--px-raised);
+  font-family: var(--font-pixel-title);
+  font-size: 1.4rem;
+  font-weight: 700;
 }
+
 .guild-badge {
-  color: var(--dashboard-muted);
-  font-size: 0.67rem;
+  color: var(--px-muted);
+  font-size: 0.72rem;
   text-align: right;
 }
+
 .guild-badge--ready {
-  color: var(--dashboard-gold);
+  color: var(--px-green);
 }
+
 .guild-identity {
-  margin-block: 1rem 1.25rem;
+  margin-block: 1.1rem 1.25rem;
   min-width: 0;
 }
+
 .guild-identity h3 {
   margin: 0;
-  font-size: 1rem;
-  line-height: 1.5;
+  font-family: var(--font-pixel-body);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
   overflow-wrap: anywhere;
 }
+
 .guild-identity p {
-  margin: 0.35rem 0 0;
-  color: var(--dashboard-muted);
-  font-size: 0.73rem;
+  margin: 0.45rem 0 0;
+  color: var(--px-muted);
+  font-size: 0.78rem;
   line-height: 1.6;
 }
+
 .guild-card-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.65rem;
   flex-wrap: wrap;
-  border-top: 1px solid #59664d88;
-  padding-top: 0.9rem;
+  border-top: 1px solid var(--px-edge);
+  padding-top: 1rem;
   margin-top: auto;
 }
-.guild-town-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 44px;
-  color: var(--dashboard-gold);
-  font-size: 0.75rem;
-  text-decoration: none;
-}
-.guild-town-link:hover {
-  color: var(--dashboard-ink);
-  text-decoration: underline;
-}
-.guild-town-link:active {
-  opacity: 0.8;
-}
-.guild-action {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.7rem;
-  min-width: 7rem;
-  min-height: 44px;
-  padding: 0.6rem 0.85rem;
-  border: 1px solid var(--dashboard-gold);
-  border-radius: 3px;
-  color: var(--dashboard-ground);
-  background: var(--dashboard-gold);
-  font-size: 0.79rem;
-  font-weight: 700;
-  text-decoration: none;
-}
-.guild-action:hover:not(:disabled) {
-  background: var(--dashboard-ink);
-  border-color: var(--dashboard-ink);
-}
-.guild-action:active:not(:disabled) {
-  filter: brightness(0.9);
-}
+
 .guild-actions {
   display: flex;
   flex: 1;
-  justify-content: flex-end;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.guild-sync-button {
-  min-height: 44px;
-  padding: 0.6rem 0.5rem;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  color: var(--dashboard-muted);
-  background: transparent;
-  font-size: 0.73rem;
+
+.guild-actions > .px-button {
+  flex: 1 1 8rem;
 }
-.guild-sync-button:hover:not(:disabled) {
-  border-color: var(--dashboard-edge);
-  color: var(--dashboard-ink);
+
+.guild-card-footer > .px-button {
+  flex: 1 1 auto;
 }
-.guild-sync-button:active:not(:disabled) {
-  background: var(--dashboard-raised);
-}
+
 .guild-sync-feedback {
   flex-basis: 100%;
-  color: #bad69f;
-  font-size: 0.72rem;
-  line-height: 1.5;
-}
-.guild-sync-feedback--error {
-  color: var(--color-danger);
-}
-.guild-action-note {
-  color: var(--dashboard-muted);
+  color: var(--px-green);
   font-size: 0.76rem;
   line-height: 1.5;
 }
+
+.guild-sync-feedback--error {
+  color: var(--px-danger);
+}
+
+.guild-action-note {
+  flex: 1;
+  color: var(--px-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .guild-list-end {
   display: grid;
   justify-items: center;
   gap: 0.5rem;
-  padding: 1.6rem 0 0;
-  color: var(--dashboard-muted);
-  font-size: 0.75rem;
+  padding: 1.75rem 0 0;
+  color: var(--px-muted);
+  font-size: 0.78rem;
 }
+
 .guild-list-end p {
   margin: 0.5rem 0;
 }
+
 .guild-empty {
   display: grid;
   place-content: center;
   justify-items: center;
   min-height: 17rem;
-  border: 1px dashed var(--dashboard-edge);
+  border: 2px dashed var(--px-edge);
+  border-radius: 12px;
   padding: 2rem;
   text-align: center;
 }
+
 .guild-empty h3 {
   margin: 0;
-  font:
-    500 2rem/1.2 'Dmap Atlas',
-    Georgia,
-    serif;
+  font-family: var(--font-pixel-title);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+  text-transform: uppercase;
 }
+
 .guild-empty p {
   max-width: 45ch;
   margin: 0.75rem 0 1rem;
-  color: var(--dashboard-muted);
+  color: var(--px-muted);
   line-height: 1.7;
 }
+
+/* --- Signed-out gate --------------------------------------------------------- */
+
 .dashboard-gate {
   display: grid;
   min-height: min(42rem, calc(100vh - 9rem));
@@ -569,204 +546,181 @@
   gap: 4rem;
   align-items: center;
 }
+
 .dashboard-gate-copy {
   max-width: 38rem;
 }
-.dashboard-gate-copy > p:not(.dashboard-route),
+
+.dashboard-gate-copy > p:not(.dashboard-route) {
+  max-width: 50ch;
+  margin: 1rem 0 0;
+  color: #ded9c6;
+  line-height: 1.7;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 0.6);
+}
+
 .dashboard-error p {
   max-width: 50ch;
-  color: var(--dashboard-muted);
+  color: #ded9c6;
   line-height: 1.7;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 0.6);
 }
+
 .auth-message {
-  border-left: 2px solid var(--color-danger);
+  margin: 1rem 0 0;
+  border-left: 3px solid var(--px-danger);
   padding: 0.75rem 1rem;
 }
-.discord-sign-in {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  min-height: 48px;
-  margin-top: 1rem;
-  border: 1px solid var(--dashboard-gold);
-  border-radius: 3px;
-  padding: 0.8rem 1.2rem;
-  background: var(--dashboard-gold);
-  color: var(--dashboard-ground);
-  font-weight: 700;
-  text-decoration: none;
+
+.dashboard-gate-copy .discord-sign-in {
+  margin-top: 1.85rem;
 }
+
 .discord-sign-in svg {
   width: 1.5rem;
   height: 1.5rem;
 }
-.discord-sign-in:hover {
-  background: var(--dashboard-ink);
-}
-.discord-sign-in:active {
-  filter: brightness(0.9);
-}
+
 .auth-scope-note {
-  font-size: 0.75rem;
+  margin: 1.1rem 0 0;
+  font-size: 0.78rem;
 }
-.dashboard-gate-map {
-  position: relative;
-  min-height: 24rem;
-  border: 1px solid var(--dashboard-edge);
-  background: var(--dashboard-panel);
+
+.dashboard-gate-scene {
+  margin: 0;
+  padding: 0.75rem;
+  overflow: hidden;
 }
-.gate-route {
-  position: absolute;
-  height: 1px;
-  background: var(--dashboard-gold);
-  transform-origin: left center;
+
+.dashboard-gate-scene img {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+  image-rendering: pixelated;
 }
-.gate-route--one {
-  top: 52%;
-  left: 15%;
-  width: 68%;
-  transform: rotate(-18deg);
-}
-.gate-route--two {
-  top: 28%;
-  left: 41%;
-  width: 55%;
-  transform: rotate(68deg);
-}
-.gate-node {
-  position: absolute;
-  display: grid;
-  width: 4rem;
-  height: 4rem;
-  place-items: center;
-  border: 1px solid var(--dashboard-gold);
-  border-radius: 50%;
-  background: var(--dashboard-raised);
-  color: var(--dashboard-gold);
-  font:
-    500 2rem 'Dmap Atlas',
-    Georgia,
-    serif;
-}
-.gate-node--one {
-  top: 45%;
-  left: 10%;
-}
-.gate-node--two {
-  top: 17%;
-  left: 36%;
-}
-.gate-node--three {
-  top: 62%;
-  left: 70%;
-}
+
+/* --- Loading + error --------------------------------------------------------- */
+
 .dashboard-loading {
   display: grid;
   min-height: 32rem;
   place-content: center;
   justify-items: center;
-  color: var(--dashboard-muted);
+  gap: 1rem;
+  color: var(--px-muted);
 }
+
 .dashboard-loading > span {
   width: 2.25rem;
   height: 2.25rem;
-  border: 2px solid var(--dashboard-edge);
-  border-top-color: var(--dashboard-gold);
+  border: 3px solid var(--px-edge);
+  border-top-color: var(--px-gold-bright);
   border-radius: 50%;
-  animation: dashboard-spin 850ms linear infinite;
+  animation: dashboard-spin 700ms linear infinite;
 }
+
 .dashboard-error {
   min-height: 32rem;
   padding-top: 5rem;
 }
+
 .dashboard-error button {
   margin-top: 1rem;
 }
+
 @keyframes dashboard-spin {
   to {
     transform: rotate(360deg);
   }
 }
+
 @media (max-width: 68rem) {
   .guild-directory-tools {
     align-items: stretch;
     flex-wrap: wrap;
   }
+
   .guild-search {
     max-width: none;
   }
+
   .guild-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .guild-picker-heading {
     align-items: start;
     flex-wrap: wrap;
   }
 }
+
 @media (max-width: 44rem) {
   .dashboard-main {
     padding-top: 1.5rem;
   }
+
   .guild-picker-heading {
     gap: 1.5rem;
   }
+
   .signed-in-user {
     width: 100%;
   }
+
   .dashboard-expedition {
     grid-template-columns: 1fr;
-    padding: 1.75rem;
+    padding: 1.5rem;
     margin-block: 1.75rem 2.5rem;
   }
-  .journey-map {
-    max-height: 10rem;
-    margin-top: 0.75rem;
-  }
+
   .expedition-note {
     position: static;
     margin-top: 0.5rem;
     text-align: center;
   }
+
   .guild-directory-heading {
     align-items: start;
     flex-wrap: wrap;
   }
+
   .guild-filters {
     width: 100%;
     flex-wrap: wrap;
-    gap: 0.2rem;
+    gap: 0.25rem;
   }
+
   .guild-filters button {
     padding-inline: 0.6rem;
   }
+
   .guild-list {
     grid-template-columns: minmax(0, 1fr);
   }
+
   .guild-card {
-    min-height: 15rem;
+    min-height: 0;
+    padding: 1.35rem;
   }
-  .guild-card-footer {
-    flex-wrap: wrap;
-  }
+
   .dashboard-gate {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
-  .dashboard-gate-map {
-    min-height: 18rem;
-  }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .dashboard-loading > span {
     animation: none;
   }
-}
-@media (forced-colors: active) {
-  .guild-filters button[aria-pressed='true'] {
-    border-color: Highlight;
+
+  .guild-card {
+    animation: none;
   }
-  .guild-action,
-  .discord-sign-in {
-    border-color: ButtonText;
+
+  @media (hover: hover) and (pointer: fine) {
+    .guild-card:hover {
+      transform: none;
+    }
   }
 }

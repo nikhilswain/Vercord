@@ -1,0 +1,480 @@
+/*
+ * Shared visual layer for the marketing surface (landing + server list).
+ *
+ * The game feeling is carried by real screenshots of the world plus a few
+ * restrained cues: warm parchment ink on deep forest glass, monospace labels,
+ * condensed uppercase display type, and hard offset button shadows.
+ */
+.pixel-page {
+  --px-ground: #0b1310;
+  --px-ground-deep: #060c09;
+  --px-panel: rgba(12, 23, 18, 0.66);
+  --px-panel-solid: #10201a;
+  --px-panel-dark: rgba(8, 16, 12, 0.72);
+  --px-raised: rgba(30, 48, 38, 0.7);
+  --px-ink: #f4ecd8;
+  --px-muted: #aebaa4;
+  --px-edge: rgba(244, 236, 216, 0.14);
+  --px-edge-strong: rgba(244, 236, 216, 0.26);
+  /* Legacy token names kept for the page stylesheets: these are the accents. */
+  --px-gold: #e8c77e;
+  --px-gold-bright: #f7dfa6;
+  --px-accent: #e8c77e;
+  --px-accent-ink: #1c1608;
+  --px-focus: #f7dfa6;
+  --px-violet: #9a8cf5;
+  --px-cyan: #56c9c2;
+  --px-amber: #e0954a;
+  --px-green: #86d68f;
+  --px-danger: #f0908f;
+  --font-pixel-title: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-pixel-body: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --px-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  color: var(--px-ink);
+  background-color: var(--px-ground);
+  font-family: var(--font-pixel-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.pixel-page :is(h1, h2, h3, h4) {
+  font-family: var(--font-pixel-title);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  color: var(--px-ink);
+}
+
+.pixel-page :is(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+.pixel-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pixel-page :focus-visible {
+  outline: 2px solid var(--px-focus);
+  outline-offset: 3px;
+}
+
+.pixel-page {
+  scrollbar-color: var(--px-edge-strong) var(--px-ground-deep);
+}
+
+.pixel-page *::-webkit-scrollbar-track {
+  background: var(--px-ground-deep);
+}
+
+.pixel-page *::-webkit-scrollbar-thumb {
+  border: 3px solid var(--px-ground-deep);
+  border-radius: 0;
+  background: var(--px-edge-strong);
+}
+
+.pixel-page *::-webkit-scrollbar-thumb:hover {
+  background: var(--px-gold);
+}
+
+/* --- Immersive scene backdrop ------------------------------------------------ */
+
+.scene-backdrop {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.scene-backdrop__image {
+  position: absolute;
+  inset: -10% -10%;
+  background-position: center;
+  background-size: cover;
+  image-rendering: pixelated;
+  will-change: transform;
+}
+
+.scene-backdrop__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-backdrop--hero .scene-backdrop__scrim {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(5 10 7 / 0.9) 0%,
+      rgb(5 10 7 / 0.62) 38%,
+      rgb(5 10 7 / 0.24) 64%,
+      rgb(5 10 7 / 0.5) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(5 10 7 / 0.78) 0%,
+      rgb(5 10 7 / 0.1) 24%,
+      rgb(5 10 7 / 0.22) 58%,
+      rgb(5 10 7 / 0.74) 100%
+    );
+}
+
+.scene-backdrop--ambient .scene-backdrop__image {
+  filter: blur(7px) saturate(0.9) brightness(0.55);
+}
+
+.scene-backdrop--ambient .scene-backdrop__scrim {
+  background: radial-gradient(circle at 50% 0%, rgb(10 20 15 / 0.24), rgb(5 10 7 / 0.82) 74%);
+}
+
+/* --- Panel + button primitives ---------------------------------------------- */
+
+.px-frame {
+  border: 1px solid var(--px-edge);
+  border-radius: 12px;
+  background: var(--px-panel);
+  backdrop-filter: blur(12px) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 30px 60px -40px rgb(0 0 0 / 0.95);
+}
+
+.px-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  border: 2px solid var(--px-edge-strong);
+  border-radius: 8px;
+  padding: 0.7rem 1.15rem;
+  color: var(--px-ink);
+  background: var(--px-panel-dark);
+  box-shadow: 3px 3px 0 rgb(0 0 0 / 0.45);
+  font-family: var(--font-pixel-body);
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 140ms var(--px-ease-out),
+    box-shadow 140ms var(--px-ease-out),
+    background 140ms var(--px-ease-out),
+    border-color 140ms var(--px-ease-out),
+    color 140ms var(--px-ease-out);
+}
+
+.px-button--primary {
+  border-color: var(--px-accent);
+  background: var(--px-accent);
+  color: var(--px-accent-ink);
+  box-shadow: 3px 3px 0 rgb(0 0 0 / 0.5);
+}
+
+.px-button--ghost {
+  border-color: var(--px-edge-strong);
+  background: rgb(6 12 9 / 0.74);
+  color: var(--px-ink);
+  backdrop-filter: blur(10px) saturate(1.1);
+  box-shadow: none;
+}
+
+.px-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .px-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: var(--px-accent);
+  }
+
+  .px-button--primary:hover:not(:disabled) {
+    background: var(--px-gold-bright);
+    border-color: var(--px-gold-bright);
+    box-shadow: 3px 5px 0 rgb(0 0 0 / 0.5);
+  }
+
+  .px-button--ghost:hover:not(:disabled) {
+    color: var(--px-ink);
+    border-color: var(--px-gold-bright);
+    background: rgb(6 12 9 / 0.88);
+  }
+}
+
+.px-button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 rgb(0 0 0 / 0.45);
+}
+
+.px-button--ghost:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* --- Button critters: pixel creatures that live on the button ---------------- */
+
+.px-button:has(.px-pet) {
+  position: relative;
+  min-height: 3.2rem;
+  overflow: hidden;
+}
+
+.px-button__label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.px-pet {
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 1px 0;
+  height: 34px;
+  pointer-events: none;
+}
+
+/* The slimes hop in front of the label, "over" the text. */
+.px-pet--slime,
+.px-pet--slimes {
+  z-index: 2;
+}
+
+.px-pet__run {
+  position: absolute;
+  inset: 0;
+}
+
+.px-pet__sprite {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+/* The game's momo slime (mm-demo.png) with its green render palette baked in.
+   64x64 frames, 5 columns x 3 rows; row 0 is the front-facing crawl (frames
+   0-4), scaled to 36px frames. */
+.px-pet__sprite--slime {
+  width: 36px;
+  height: 30px;
+  background-image: url('/game-assets/momo-slime/mm-green.png');
+  background-size: 180px 108px;
+  background-position: 0 0;
+  animation: px-slime-idle 900ms steps(5) infinite;
+}
+
+/* LPC cat/dog: 16x8 grid of 32px frames scaled to 28px. Row 0 walks right;
+   columns 0-2 are the three walk poses. The cat uses the dark recolour
+   (column 12), the dog the light one (column 0). */
+.px-pet__sprite--cat,
+.px-pet__sprite--dog {
+  width: 28px;
+  height: 28px;
+  background-size: 448px 224px;
+}
+
+.px-pet__sprite--cat {
+  background-image: url('/game-assets/lpc-animals/cat.png');
+  background-position: -336px 0;
+  animation: px-pet-walk-cat 480ms steps(3) infinite;
+}
+
+.px-pet__sprite--dog {
+  background-image: url('/game-assets/lpc-animals/dog.png');
+  background-position: 0 0;
+  animation: px-pet-walk-dog 480ms steps(3) infinite;
+}
+
+.px-pet--slime .px-pet__sprite--slime {
+  left: 12%;
+}
+
+.px-pet--slimes .px-pet__sprite--slime:nth-child(1) {
+  left: 4%;
+}
+
+.px-pet--slimes .px-pet__sprite--slime:nth-child(2) {
+  left: 34%;
+  animation-delay: 260ms;
+}
+
+.px-pet--slimes .px-pet__sprite--slime:nth-child(3) {
+  left: 64%;
+  animation-delay: 520ms;
+}
+
+.px-pet--cat .px-pet__run,
+.px-pet--dog .px-pet__run {
+  animation: px-pet-run 5200ms linear infinite;
+}
+
+@keyframes px-slime-idle {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -180px 0;
+  }
+}
+
+@keyframes px-pet-walk-cat {
+  from {
+    background-position: -336px 0;
+  }
+  to {
+    background-position: -420px 0;
+  }
+}
+
+@keyframes px-pet-walk-dog {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -84px 0;
+  }
+}
+
+@keyframes px-pet-run {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-pet {
+    display: none;
+  }
+}
+
+.px-eyebrow {
+  margin: 0;
+  color: var(--px-gold);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.px-divider {
+  height: 0;
+  border: 0;
+  border-top: 1px solid var(--px-edge);
+  margin: 0;
+}
+
+.px-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--px-edge-strong);
+  border-radius: 5px;
+  padding: 0.3rem 0.5rem;
+  color: var(--px-muted);
+  background: rgb(6 12 9 / 0.7);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.px-badge--ready {
+  border-color: color-mix(in srgb, var(--px-green) 55%, var(--px-edge));
+  color: var(--px-green);
+}
+
+/* --- Shared header/footer chrome -------------------------------------------- */
+
+.pixel-page .site-header,
+.pixel-page .site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.pixel-page .site-header {
+  border-bottom: 1px solid var(--px-edge);
+}
+
+.pixel-page .site-footer {
+  border-top: 1px solid var(--px-edge);
+}
+
+.pixel-page .brand {
+  color: var(--px-ink);
+  font-family: var(--font-pixel-title);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pixel-page .brand-mark {
+  border: 2px solid var(--px-edge-strong);
+  border-radius: 8px;
+  background: var(--px-panel-dark);
+  box-shadow: 2px 2px 0 rgb(0 0 0 / 0.4);
+  color: var(--px-gold-bright);
+  font-family: var(--font-pixel-title);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pixel-page .route-context,
+.pixel-page .header-status,
+.pixel-page .build-status,
+.pixel-page .site-footer {
+  color: var(--px-muted);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+}
+
+/* --- Shared entrance motion -------------------------------------------------- */
+
+@keyframes px-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-page .px-button {
+    transition-duration: 0ms;
+  }
+
+  .pixel-page .px-button:active:not(:disabled),
+  .pixel-page .px-button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .px-frame,
+  .px-button {
+    border: 2px solid ButtonText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  .scene-backdrop {
+    display: none;
+  }
+}
