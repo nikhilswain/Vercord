@@ -437,11 +437,20 @@
   border-radius: 8px;
   background: var(--px-panel-dark);
   box-shadow: 2px 2px 0 rgb(0 0 0 / 0.4);
-  color: var(--px-gold-bright);
-  font-family: var(--font-pixel-title);
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1;
+}
+
+.pixel-page .brand-mark img {
+  display: block;
+  width: 1.6rem;
+  height: 1.6rem;
+  image-rendering: pixelated;
+  transition: transform 200ms var(--px-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pixel-page .brand:hover .brand-mark img {
+    transform: scale(1.08);
+  }
 }
 
 .pixel-page .route-context,
@@ -495,6 +504,16 @@
   .pixel-page .px-button:active:not(:disabled),
   .pixel-page .px-button:hover:not(:disabled) {
     transform: none;
+  }
+
+  .pixel-page .brand-mark img {
+    transition-duration: 0ms;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pixel-page .brand:hover .brand-mark img {
+      transform: none;
+    }
   }
 }
 

@@ -10,7 +10,7 @@ export function AppHeader({ context, status }: AppHeaderProps) {
     <header className="site-header">
       <a className="brand" href="/" aria-label="Dmap home">
         <span className="brand-mark" aria-hidden="true">
-          D
+          <img src="/brand/slime.png" alt="" width="26" height="26" />
         </span>
         <span>Dmap</span>
       </a>
