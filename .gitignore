@@ -5,6 +5,7 @@ coverage/
 .wrangler/
 playwright-report/
 test-results/
+*.tsbuildinfo
 *.local
 /assets/
 /sounds/
