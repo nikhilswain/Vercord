@@ -1,9 +1,40 @@
+import { useEffect, useRef, useState } from 'react';
+
 import { AppHeader } from '../components/AppHeader';
 import { ButtonPet } from '../components/ButtonPet';
 import { SceneBackdrop } from '../components/SceneBackdrop';
+import { SwipeDeck } from '../components/SwipeDeck';
 import '../styles/home.css';
 
 export function HomePage() {
+  const showcaseRef = useRef<HTMLElement>(null);
+  // Reveal immediately when motion is reduced or the observer is unavailable —
+  // the copy must never depend on JS to become visible.
+  const [revealed, setRevealed] = useState(
+    () =>
+      typeof IntersectionObserver === 'undefined' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+
+  useEffect(() => {
+    if (revealed) return;
+    const target = showcaseRef.current;
+    if (target === null) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setRevealed(true);
+          observer.disconnect();
+        }
+      },
+      // Require the section to climb into the lower fifth of the viewport, so
+      // the reveal plays on scroll rather than firing while it sits at the edge.
+      { rootMargin: '0px 0px -20% 0px' },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [revealed]);
+
   return (
     <div className="page-shell app-shell pixel-page home-page">
       <SceneBackdrop src="/screenshots/willowmere.png" variant="hero" />
@@ -34,7 +65,12 @@ export function HomePage() {
           </a>
         </section>
 
-        <section className="showcase" id="showcase" aria-labelledby="showcase-title">
+        <section
+          className={revealed ? 'showcase is-visible' : 'showcase'}
+          id="showcase"
+          aria-labelledby="showcase-title"
+          ref={showcaseRef}
+        >
           <div className="showcase-copy">
             <p className="px-eyebrow">The playable demo</p>
             <h2 id="showcase-title">Step into Willowmere.</h2>
@@ -47,14 +83,22 @@ export function HomePage() {
               <span aria-hidden="true">→</span>
             </a>
           </div>
-          <figure className="showcase-frame px-frame">
-            <img
-              src="/screenshots/town-hall.png"
-              alt="The Town Hall interior in the Willowmere demo world"
-              loading="lazy"
-              decoding="async"
-            />
-          </figure>
+          <SwipeDeck
+            images={[
+              { src: '/screenshots/willowmere.png', alt: 'The crossroads of Willowmere' },
+              {
+                src: '/screenshots/town-hall.png',
+                alt: 'The Town Hall interior in the Willowmere demo world',
+              },
+              {
+                src: '/screenshots/mosswild-forest.png',
+                alt: 'The forest path beyond Willowmere',
+              },
+            ]}
+            variant="flow"
+            className="showcase-deck"
+            label="Willowmere"
+          />
         </section>
       </main>
       <footer className="site-footer">

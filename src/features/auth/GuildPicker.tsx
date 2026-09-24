@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { GuildAction, GuildMark } from './GuildAction';
 import type { AuthGuild, AuthSession } from './session';
+import { useTransitionList } from './use-transition-list';
 
 export type GuildSyncState =
   { kind: 'pending' } | { kind: 'success'; message: string } | { kind: 'error'; message: string };
@@ -23,6 +24,8 @@ function readFilters() {
     filter: filter === 'ready' || filter === 'manage' ? filter : ('all' as GuildFilter),
   };
 }
+
+const guildKey = (guild: AuthGuild) => guild.id;
 
 export function GuildPicker({
   onSync,
@@ -56,6 +59,11 @@ export function GuildPicker({
           (filters.filter === 'ready' ? guild.worldUrl !== null : guild.canManage)),
     );
   }, [filters, session.guilds]);
+  const visibleGuilds = useMemo(
+    () => filteredGuilds.slice(0, visibleCount),
+    [filteredGuilds, visibleCount],
+  );
+  const { listRef, rendered } = useTransitionList(visibleGuilds, guildKey);
   const hasMore = visibleCount < filteredGuilds.length;
   const loadMore = useCallback(() => {
     setVisibleCount((current) => current + PAGE_SIZE);
@@ -159,7 +167,12 @@ export function GuildPicker({
             }
             aria-busy={refreshing}
           >
-            <span aria-hidden="true">↻</span> {refreshing ? 'Refreshing…' : 'Refresh servers'}
+            {refreshing ? (
+              <span className="px-spinner" aria-hidden="true" />
+            ) : (
+              <span aria-hidden="true">↻</span>
+            )}{' '}
+            {refreshing ? 'Refreshing…' : 'Refresh servers'}
           </button>
         </div>
         <div className="guild-directory-tools">
@@ -215,49 +228,70 @@ export function GuildPicker({
             ) : null}
           </div>
         ) : (
-          <ul className="guild-list" aria-label="Discord servers">
-            {filteredGuilds.slice(0, visibleCount).map((guild) => (
-              <li
-                className={
-                  guild.worldUrl !== null
-                    ? 'guild-card guild-card--ready px-frame'
-                    : 'guild-card px-frame'
-                }
-                key={guild.id}
-              >
-                <div className="guild-card-heading">
-                  <GuildMark guild={guild} />
-                  <span
-                    className={
-                      guild.worldUrl !== null
-                        ? 'px-badge px-badge--ready guild-badge'
-                        : 'px-badge guild-badge'
-                    }
-                  >
-                    {guild.worldUrl !== null
-                      ? 'World ready'
-                      : guild.connected
-                        ? 'Connected'
-                        : 'Not connected'}
-                  </span>
-                </div>
-                <div className="guild-identity">
-                  <h3>{guild.name}</h3>
-                  <p>
-                    {guild.owner ? 'Server owner' : guild.canManage ? 'Server manager' : 'Member'}
-                    {guild.published ? ' · Public world' : ''}
-                  </p>
-                </div>
-                <div className="guild-card-footer">
-                  <GuildAction
-                    guild={guild}
-                    onSync={onSync}
-                    syncState={syncStates[guild.id]}
-                    refreshing={refreshing}
-                  />
-                </div>
-              </li>
-            ))}
+          <ul className="guild-list" aria-label="Discord servers" ref={listRef}>
+            {rendered.map((entry) => {
+              const guild = entry.item;
+              const pinned = entry.leaving ? entry.rect : null;
+              return (
+                <li
+                  data-key={entry.key}
+                  className={[
+                    guild.worldUrl !== null
+                      ? 'guild-card guild-card--ready px-frame'
+                      : 'guild-card px-frame',
+                    entry.leaving ? 'guild-card--leaving' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  key={entry.key}
+                  aria-hidden={entry.leaving || undefined}
+                  style={
+                    pinned === null
+                      ? undefined
+                      : {
+                          position: 'absolute',
+                          left: `${pinned.x}px`,
+                          top: `${pinned.y}px`,
+                          width: `${pinned.width}px`,
+                          height: `${pinned.height}px`,
+                          margin: 0,
+                        }
+                  }
+                >
+                  <div className="guild-card-heading">
+                    <GuildMark guild={guild} />
+                    <span
+                      className={
+                        guild.worldUrl !== null
+                          ? 'px-badge px-badge--ready guild-badge'
+                          : 'px-badge guild-badge'
+                      }
+                    >
+                      {guild.worldUrl !== null
+                        ? 'World ready'
+                        : guild.connected
+                          ? 'Connected'
+                          : 'Not connected'}
+                    </span>
+                  </div>
+                  <div className="guild-identity">
+                    <h3>{guild.name}</h3>
+                    <p>
+                      {guild.owner ? 'Server owner' : guild.canManage ? 'Server manager' : 'Member'}
+                      {guild.published ? ' · Public world' : ''}
+                    </p>
+                  </div>
+                  <div className="guild-card-footer">
+                    <GuildAction
+                      guild={guild}
+                      onSync={onSync}
+                      syncState={syncStates[guild.id]}
+                      refreshing={refreshing}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
         <div className="guild-list-end" ref={loadMoreRef}>

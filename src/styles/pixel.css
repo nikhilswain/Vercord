@@ -228,6 +228,19 @@
   gap: 0.55rem;
 }
 
+/* Inline busy spinner for buttons and status controls. Sized in `em` so it
+   tracks the surrounding text, coloured by `currentColor` so it inherits the
+   button variant. */
+.px-spinner {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: px-spin 700ms linear infinite;
+}
+
 .px-pet {
   position: absolute;
   z-index: 0;
@@ -454,9 +467,29 @@
   }
 }
 
+@keyframes px-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes px-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pixel-page .px-button {
     transition-duration: 0ms;
+  }
+
+  /* A spinner's motion *is* its meaning — keep it, just slower. */
+  .px-spinner {
+    animation-duration: 1400ms;
   }
 
   .pixel-page .px-button:active:not(:disabled),

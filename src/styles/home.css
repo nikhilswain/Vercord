@@ -127,6 +127,26 @@
   padding-block: clamp(3rem, 8vw, 6rem);
 }
 
+/* Scroll reveal — marketing surface only, fires once and never re-runs. */
+.showcase-copy,
+.showcase-deck {
+  opacity: 0;
+  transform: translateY(34px);
+  transition:
+    opacity 640ms var(--px-ease-out),
+    transform 640ms var(--px-ease-out);
+}
+
+.showcase-deck {
+  transition-delay: 110ms;
+}
+
+.showcase.is-visible .showcase-copy,
+.showcase.is-visible .showcase-deck {
+  opacity: 1;
+  transform: none;
+}
+
 .showcase-copy h2 {
   margin: 0.9rem 0 0;
   font-size: clamp(2.2rem, 3.8vw, 3.4rem);
@@ -157,22 +177,18 @@
   transition: color 140ms var(--px-ease-out);
 }
 
+.showcase-link > span {
+  transition: transform 160ms var(--px-ease-out);
+}
+
 .showcase-link:hover {
   color: var(--px-ink);
-  text-decoration: underline;
 }
 
-.showcase-frame {
-  margin: 0;
-  padding: 0.75rem;
-  overflow: hidden;
-}
-
-.showcase-frame img {
-  display: block;
-  width: 100%;
-  border-radius: 7px;
-  image-rendering: pixelated;
+@media (hover: hover) and (pointer: fine) {
+  .showcase-link:hover > span {
+    transform: translateX(4px);
+  }
 }
 
 @media (max-width: 60rem) {
@@ -194,9 +210,28 @@
   .hero-scroll {
     display: none;
   }
+}
 
-  .showcase-frame {
-    padding: 0.5rem;
+/* --- Scroll storytelling ----------------------------------------------------- */
+
+/* Progressive enhancement: where scroll-driven animations are supported, the
+   demo shot drifts as it passes through the viewport and the hero copy lifts
+   away as you read past it. Everywhere else the layout stays exactly as it
+   looks without this block. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-copy {
+      animation: hero-depart linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+  }
+}
+
+@keyframes hero-depart {
+  to {
+    opacity: 0.2;
+    transform: translateY(-32px);
   }
 }
 
@@ -207,5 +242,22 @@
 
   .hero-scroll > span {
     animation: none;
+  }
+
+  .showcase-copy,
+  .showcase-deck {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .showcase-link {
+    transition-duration: 0ms;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .showcase-link:hover > span {
+      transform: none;
+    }
   }
 }

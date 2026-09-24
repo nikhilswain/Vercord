@@ -1,0 +1,96 @@
+/*
+ * Swipeable image deck. Depth is expressed through `transform` (not the
+ * individual translate/rotate/scale properties) so a drag can replace it
+ * outright and the cycle can transition between depths.
+ */
+.swipe-deck {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.deck-card {
+  position: absolute;
+  inset: 0;
+  padding: 0.6rem;
+  overflow: hidden;
+  will-change: transform;
+  transition:
+    transform 380ms var(--px-ease-out),
+    border-color 200ms var(--px-ease-out);
+}
+
+.deck-card[data-depth='0'] {
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.deck-card[data-depth='0']:active {
+  cursor: grabbing;
+}
+
+/* Neighbours are clickable — clicking one brings it to the front. */
+.deck-card:not([data-depth='0']) {
+  cursor: pointer;
+}
+
+.deck-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+/* Scattered fan — the signed-out gate. */
+.swipe-deck--fan .deck-card[data-depth='0'] {
+  transform: rotate(-1.5deg);
+}
+
+.swipe-deck--fan .deck-card[data-depth='1'] {
+  transform: translate(6%, -3%) rotate(5deg) scale(0.95);
+}
+
+.swipe-deck--fan .deck-card[data-depth='2'] {
+  transform: translate(-7%, 4%) rotate(-7deg) scale(0.9);
+}
+
+/* 3D cover-flow — the homepage showcase. Cards are inset so the active one
+   leaves room for its neighbours, which sit back in perspective and clip at
+   the edges instead of stacking. */
+.swipe-deck--flow {
+  perspective: 1200px;
+  overflow: hidden;
+}
+
+.swipe-deck--flow .deck-card {
+  inset: 0 12%;
+  transform-origin: center;
+}
+
+.swipe-deck--flow .deck-card[data-offset='0'] {
+  transform: translateX(0) rotateY(0deg) scale(1);
+}
+
+.swipe-deck--flow .deck-card[data-offset='1'] {
+  transform: translateX(76%) rotateY(-46deg) scale(0.95);
+}
+
+.swipe-deck--flow .deck-card[data-offset='-1'] {
+  transform: translateX(-76%) rotateY(46deg) scale(0.95);
+}
+
+.swipe-deck--flow .deck-card[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-card {
+    transition-duration: 0ms;
+  }
+}

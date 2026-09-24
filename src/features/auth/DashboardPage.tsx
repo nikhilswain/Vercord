@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppHeader } from '../../components/AppHeader';
 import { ButtonPet } from '../../components/ButtonPet';
 import { SceneBackdrop } from '../../components/SceneBackdrop';
+import { SwipeDeck } from '../../components/SwipeDeck';
 import {
   authSessionSchema,
   guildSyncResponseSchema,
@@ -86,14 +87,16 @@ function SignedOut({ message }: { message: string | null }) {
           Dmap requests your Discord identity, server list, and your own membership details.
         </p>
       </section>
-      <figure className="dashboard-gate-scene px-frame">
-        <img
-          src="/screenshots/town-hall.png"
-          alt="The Town Hall interior in the Willowmere demo world"
-          loading="lazy"
-          decoding="async"
-        />
-      </figure>
+      <SwipeDeck
+        images={[
+          { src: '/screenshots/willowmere.png' },
+          { src: '/screenshots/town-hall.png' },
+          { src: '/screenshots/mosswild-forest.png' },
+        ]}
+        variant="fan"
+        className="dashboard-gate-deck"
+        decorative
+      />
     </main>
   );
 }

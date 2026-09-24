@@ -112,6 +112,9 @@
   background: transparent;
   font-size: 0.8rem;
   min-height: 44px;
+  transition:
+    color 140ms var(--px-ease-out),
+    transform 140ms var(--px-ease-out);
 }
 
 .signed-in-user button:hover {
@@ -121,6 +124,7 @@
 
 .signed-in-user button:active {
   color: var(--px-ink);
+  transform: scale(0.96);
 }
 
 /* --- Expedition banner ------------------------------------------------------- */
@@ -170,6 +174,16 @@
   font-weight: 600;
   text-decoration: none;
   transition: color 140ms var(--px-ease-out);
+}
+
+.expedition-link > span {
+  transition: transform 160ms var(--px-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .expedition-link:hover > span {
+    transform: translate(3px, -3px);
+  }
 }
 
 .expedition-link:hover {
@@ -266,7 +280,8 @@
   transition:
     border-color 140ms var(--px-ease-out),
     background 140ms var(--px-ease-out),
-    color 140ms var(--px-ease-out);
+    color 140ms var(--px-ease-out),
+    transform 140ms var(--px-ease-out);
 }
 
 .guild-filters button > span {
@@ -290,6 +305,7 @@
 
 .guild-filters button:active {
   border-color: var(--px-gold);
+  transform: scale(0.96);
 }
 
 .guild-search {
@@ -303,10 +319,19 @@
   border-radius: 8px;
   padding-left: 0.75rem;
   background: rgb(6 12 9 / 0.7);
+  transition:
+    border-color 160ms var(--px-ease-out),
+    box-shadow 160ms var(--px-ease-out);
 }
 
+/* The field owns the focus ring; the bare input must not draw its own. */
 .guild-search:focus-within {
   border-color: var(--px-gold-bright);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--px-gold-bright) 20%, transparent);
+}
+
+.guild-search input:focus-visible {
+  outline: none;
 }
 
 .guild-search svg {
@@ -346,6 +371,7 @@
 /* --- Guild cards ------------------------------------------------------------- */
 
 .guild-list {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.35rem;
@@ -359,32 +385,17 @@
   flex-direction: column;
   min-height: 13.5rem;
   padding: 1.5rem;
-  animation: px-rise 480ms var(--px-ease-out) both;
+  /* Entrance, reflow and exit are driven by useTransitionList (WAAPI). */
   transition:
-    transform 180ms var(--px-ease-out),
-    border-color 180ms var(--px-ease-out);
+    transform 240ms var(--px-ease-out),
+    border-color 220ms var(--px-ease-out);
 }
 
-.guild-card:nth-child(1) {
-  animation-delay: 20ms;
-}
-.guild-card:nth-child(2) {
-  animation-delay: 60ms;
-}
-.guild-card:nth-child(3) {
-  animation-delay: 100ms;
-}
-.guild-card:nth-child(4) {
-  animation-delay: 140ms;
-}
-.guild-card:nth-child(5) {
-  animation-delay: 180ms;
-}
-.guild-card:nth-child(6) {
-  animation-delay: 220ms;
-}
-.guild-card:nth-child(n + 7) {
-  animation-delay: 260ms;
+/* A removed card is pinned out of flow at its last position while it exits, so
+   the survivors can reflow underneath it without waiting. */
+.guild-card--leaving {
+  pointer-events: none;
+  z-index: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -408,6 +419,13 @@
   border: 1px solid var(--px-edge);
   border-radius: 8px;
   object-fit: cover;
+  transition: transform 280ms var(--px-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guild-card:hover .guild-mark {
+    transform: scale(1.06);
+  }
 }
 
 .guild-mark--fallback {
@@ -472,6 +490,9 @@
 
 .guild-actions > .px-button {
   flex: 1 1 8rem;
+  /* The primary carries a button pet (min-height 3.2rem); match it so the
+     paired ghost button is the same height. */
+  min-height: 3.2rem;
 }
 
 .guild-card-footer > .px-button {
@@ -483,6 +504,9 @@
   color: var(--px-green);
   font-size: 0.76rem;
   line-height: 1.5;
+  /* Arrives after a network round-trip, so it rises into place instead of
+     popping. */
+  animation: px-rise 240ms var(--px-ease-out) both;
 }
 
 .guild-sync-feedback--error {
@@ -518,6 +542,7 @@
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
+  animation: px-rise 320ms var(--px-ease-out) both;
 }
 
 .guild-empty h3 {
@@ -549,6 +574,25 @@
 
 .dashboard-gate-copy {
   max-width: 38rem;
+}
+
+/* The gate is the first surface a new visitor meets, so it earns the same
+   restrained entrance as the marketing hero: a short stagger that never
+   blocks the sign-in control. */
+.dashboard-gate-copy > * {
+  animation: px-rise 560ms var(--px-ease-out) both;
+}
+
+.dashboard-gate-copy > *:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.dashboard-gate-copy > *:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.dashboard-gate-copy > *:nth-child(n + 4) {
+  animation-delay: 200ms;
 }
 
 .dashboard-gate-copy > p:not(.dashboard-route) {
@@ -586,17 +630,10 @@
   font-size: 0.78rem;
 }
 
-.dashboard-gate-scene {
-  margin: 0;
-  padding: 0.75rem;
-  overflow: hidden;
-}
-
-.dashboard-gate-scene img {
-  display: block;
-  width: 100%;
-  border-radius: 8px;
-  image-rendering: pixelated;
+/* The deck component owns its geometry (see swipe-deck.css); the gate only
+   adds its entrance. */
+.dashboard-gate-deck {
+  animation: px-rise 620ms var(--px-ease-out) 140ms both;
 }
 
 /* --- Loading + error --------------------------------------------------------- */
@@ -616,7 +653,7 @@
   border: 3px solid var(--px-edge);
   border-top-color: var(--px-gold-bright);
   border-radius: 50%;
-  animation: dashboard-spin 700ms linear infinite;
+  animation: px-spin 700ms linear infinite;
 }
 
 .dashboard-error {
@@ -628,10 +665,14 @@
   margin-top: 1rem;
 }
 
-@keyframes dashboard-spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* --- Surface swap ------------------------------------------------------------ */
+
+/* loading → list / gate / error should cross-fade rather than teleport. The
+   inner content carries the movement; the container only softens the seam. */
+.guild-picker,
+.dashboard-loading,
+.dashboard-error {
+  animation: px-fade 220ms var(--px-ease-out) both;
 }
 
 @media (max-width: 68rem) {
@@ -714,12 +755,33 @@
     animation: none;
   }
 
-  .guild-card {
+  .guild-empty,
+  .guild-sync-feedback,
+  .dashboard-gate-copy > *,
+  .dashboard-gate-deck,
+  .guild-picker,
+  .dashboard-loading,
+  .dashboard-error {
     animation: none;
+  }
+
+  .guild-filters button,
+  .signed-in-user button,
+  .guild-mark,
+  .expedition-link > span {
+    transition-duration: 0ms;
   }
 
   @media (hover: hover) and (pointer: fine) {
     .guild-card:hover {
+      transform: none;
+    }
+
+    .guild-card:hover .guild-mark {
+      transform: none;
+    }
+
+    .expedition-link:hover > span {
       transform: none;
     }
   }

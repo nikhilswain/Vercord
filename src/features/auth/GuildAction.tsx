@@ -52,7 +52,10 @@ function PrimaryCta({
 }) {
   const inner = (
     <>
-      <span className="px-button__label">{children}</span>
+      <span className="px-button__label">
+        {busy ? <span className="px-spinner" aria-hidden="true" /> : null}
+        {children}
+      </span>
       <ButtonPet kind={pet} />
     </>
   );
@@ -126,6 +129,7 @@ export function GuildAction({
             aria-busy={pending}
             onClick={() => onSync(guild)}
           >
+            {pending ? <span className="px-spinner" aria-hidden="true" /> : null}
             {syncLabel}
           </button>
         ) : null}
