@@ -18,11 +18,30 @@ export interface SwipeDeckProps {
   decorative?: boolean;
 }
 
+interface PointerState {
+  id: number;
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastT: number;
+  velocity: number;
+  moved: boolean;
+  index: number;
+  isFront: boolean;
+}
+
 /**
- * A small stack of images you can drag through. The front card follows the
- * pointer, then either springs back or cycles to the back of the stack — the
- * depth change is a CSS transition, so the whole deck animates from one state
- * update and stays on the compositor. Arrow keys cycle when focused.
+ * A stack of images you can drag or click through.
+ *
+ * The front card follows the pointer, then either springs back or cycles on
+ * distance/flick; the depth change is a CSS transition, so the deck animates
+ * from one state update and stays on the compositor. Neighbours are tap targets
+ * that bring themselves forward, and arrow keys cycle when the deck is focused.
+ *
+ * Taps are handled in the pointer handlers rather than `onClick`: the browser
+ * fires `click` on the same node after `pointerup`, and by then React has
+ * re-rendered that node as a different card, so a click handler would act on
+ * the wrong index.
  */
 export function SwipeDeck({
   images,
@@ -33,77 +52,75 @@ export function SwipeDeck({
 }: SwipeDeckProps) {
   const [active, setActive] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pointerRef = useRef<{
-    id: number;
-    startX: number;
-    startY: number;
-    lastX: number;
-    lastT: number;
-    velocity: number;
-    moved: boolean;
-  } | null>(null);
+  const pointerRef = useRef<PointerState | null>(null);
   const count = images.length;
 
   const step = (direction: 1 | -1) => {
     setActive((current) => (current + direction + count) % count);
   };
 
-  const release = (element: HTMLElement) => {
-    element.style.transition = '';
-    element.style.transform = '';
-    element.style.cursor = '';
-  };
-
-  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+  const onCardPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (pointerRef.current !== null || count < 2) return;
     const element = event.currentTarget;
+    const index = Number(element.dataset.index ?? '0');
+    const isFront = index === active;
     try {
       element.setPointerCapture(event.pointerId);
     } catch {
-      // Synthetic or already-released pointers cannot be captured; the drag
-      // still works from the events that do arrive.
+      // Synthetic or already-released pointers cannot be captured; the events
+      // that do arrive are still enough to drive the gesture.
     }
-    element.style.transition = 'none';
-    element.style.cursor = 'grabbing';
+    if (isFront) {
+      element.style.transition = 'none';
+      element.style.cursor = 'grabbing';
+    }
     pointerRef.current = {
       id: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       lastX: event.clientX,
-      lastT: performance.now(),
+      lastT: event.timeStamp,
       velocity: 0,
       moved: false,
+      index,
+      isFront,
     };
   };
 
-  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+  const onCardPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const pointer = pointerRef.current;
     if (pointer === null || event.pointerId !== pointer.id) return;
-    const now = performance.now();
+    const now = event.timeStamp;
     const elapsed = Math.max(1, now - pointer.lastT);
     pointer.velocity = (event.clientX - pointer.lastX) / elapsed;
     pointer.lastX = event.clientX;
     pointer.lastT = now;
     const dx = event.clientX - pointer.startX;
-    const dy = (event.clientY - pointer.startY) * 0.35;
     if (Math.abs(dx) > 6) pointer.moved = true;
+    if (!pointer.isFront) return;
+    const dy = (event.clientY - pointer.startY) * 0.35;
     event.currentTarget.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${dx * 0.035}deg)`;
   };
 
-  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+  const onCardPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     const pointer = pointerRef.current;
     if (pointer === null || event.pointerId !== pointer.id) return;
     pointerRef.current = null;
     const element = event.currentTarget;
-    release(element);
+    if (pointer.isFront) {
+      element.style.transition = '';
+      element.style.transform = '';
+      element.style.cursor = '';
+    }
 
     const dx = event.clientX - pointer.startX;
     const width = containerRef.current?.offsetWidth ?? 320;
     const flung = Math.abs(pointer.velocity) > 0.45;
-    if (Math.abs(dx) > width * 0.22 || flung) {
+    if (pointer.isFront && (Math.abs(dx) > width * 0.22 || flung)) {
       step(dx < 0 ? 1 : -1);
     } else if (!pointer.moved) {
-      step(1);
+      if (pointer.isFront) step(1);
+      else setActive(pointer.index);
     }
   };
 
@@ -141,15 +158,15 @@ export function SwipeDeck({
           <div
             key={`${image.src}-${index}`}
             className="deck-card px-frame"
+            data-index={index}
             data-depth={depth}
             data-offset={offset}
             data-hidden={variant === 'flow' && Math.abs(offset) > 1 ? true : undefined}
             style={{ zIndex: variant === 'flow' ? count - Math.abs(offset) : count - depth }}
-            onPointerDown={isFront ? onPointerDown : undefined}
-            onPointerMove={isFront ? onPointerMove : undefined}
-            onPointerUp={isFront ? onPointerUp : undefined}
-            onPointerCancel={isFront ? onPointerUp : undefined}
-            onClick={isFront ? undefined : () => setActive(index)}
+            onPointerDown={onCardPointerDown}
+            onPointerMove={onCardPointerMove}
+            onPointerUp={onCardPointerUp}
+            onPointerCancel={onCardPointerUp}
           >
             <img
               src={image.src}

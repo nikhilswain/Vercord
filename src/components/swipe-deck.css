@@ -16,6 +16,7 @@
   inset: 0;
   padding: 0.6rem;
   overflow: hidden;
+  touch-action: pan-y;
   will-change: transform;
   transition:
     transform 380ms var(--px-ease-out),
@@ -24,7 +25,6 @@
 
 .deck-card[data-depth='0'] {
   cursor: grab;
-  touch-action: pan-y;
 }
 
 .deck-card[data-depth='0']:active {
