@@ -65,8 +65,16 @@ const guildSchema = z
     name: discordSourceNameSchema,
     owner_id: snowflakeSchema,
     roles: z.array(roleSchema).max(MAX_COLLECTION_SIZE),
+    // Approximate guild size, requested with ?with_counts=true so the bot can scale the village.
+    approximate_member_count: z.number().int().min(0).max(100_000_000).optional(),
   })
-  .transform(({ id, name, owner_id, roles }) => ({ id, name, ownerId: owner_id, roles }));
+  .transform(({ id, name, owner_id, roles, approximate_member_count }) => ({
+    id,
+    name,
+    ownerId: owner_id,
+    roles,
+    ...(approximate_member_count === undefined ? {} : { memberCount: approximate_member_count }),
+  }));
 
 const botMemberSchema = z
   .object({ roles: z.array(snowflakeSchema).max(MAX_COLLECTION_SIZE) })

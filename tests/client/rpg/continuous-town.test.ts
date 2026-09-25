@@ -315,6 +315,26 @@ describe('continuous saved towns', () => {
     );
   });
 
+  it('scales the village with guild size and keeps the chosen scale when saving', () => {
+    const base = generateWorldDocument({ worldId, seed, themeId: 'village' });
+    const requests = [request('a', 3), request('b', 4)];
+    const small = extendTownLayout(null, requests, seed, 100);
+    const large = extendTownLayout(null, requests, seed, 20_000);
+    expect(small.scale).toBeDefined();
+    expect(large.scale! > small.scale!).toBe(true);
+    const smallScene = generateContinuousTownDocument(base, small).scenes.overworld;
+    const largeScene = generateContinuousTownDocument(base, large).scenes.overworld;
+    expect(largeScene.bounds.width > smallScene.bounds.width).toBe(true);
+    expect(largeScene.bounds.height > smallScene.bounds.height).toBe(true);
+    for (const scene of [smallScene, largeScene])
+      expect(scene.landmarks.filter((landmark) => landmark.id.startsWith('house:'))).toHaveLength(
+        7,
+      );
+    expect(parseContinuousTownLayout(JSON.parse(JSON.stringify(small))).scale).toBe(small.scale);
+    // An unknown guild size keeps the original village dimensions.
+    expect(extendTownLayout(null, requests, seed).scale).toBe(1);
+  });
+
   it('rejects malformed saved layouts and terrain while retaining strict legacy world limits', () => {
     const base = generateWorldDocument({ worldId, seed, themeId: 'village' });
     const layout = extendTownLayout(null, [request('one', 2)], seed);

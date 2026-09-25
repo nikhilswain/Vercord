@@ -207,7 +207,7 @@ export function createDiscordRestClient(options: {
     try {
       const bot = parseDiscordBot(await requestJson('/users/@me', deadline));
       const guild = parseDiscordGuild(
-        await requestJson(`/guilds/${encodeURIComponent(guildId)}`, deadline),
+        await requestJson(`/guilds/${encodeURIComponent(guildId)}?with_counts=true`, deadline),
       );
       if (guild.id !== guildId) throw new DiscordDomainError('DISCORD_SOURCE_INVALID');
       const botMember = parseDiscordBotMember(

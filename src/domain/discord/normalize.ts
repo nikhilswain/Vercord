@@ -120,6 +120,7 @@ export async function normalizeGuildStructure(
       displayName: bundle.guild.name,
       ownerKey,
       everyoneRoleKey,
+      ...(bundle.guild.memberCount === undefined ? {} : { memberCount: bundle.guild.memberCount }),
     },
     roles,
     channels,

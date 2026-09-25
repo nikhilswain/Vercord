@@ -15,6 +15,8 @@ export interface DiscordGuildSource {
   name: string;
   ownerId: Snowflake;
   roles: DiscordRoleSource[];
+  /** Approximate member count from Discord; drives village scale. */
+  memberCount?: number;
 }
 
 export interface DiscordBotMemberSource {

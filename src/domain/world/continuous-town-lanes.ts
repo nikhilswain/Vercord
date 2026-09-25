@@ -14,10 +14,10 @@ export function frontage(plot: ContinuousTownPlot): Point {
   return { x: plot.x + 5 * TILE, y: plot.y + 10 * TILE };
 }
 
-function roofAreas(block: ContinuousTownBlock): Rect[] {
+function roofAreas(block: ContinuousTownBlock, vault?: Point): Rect[] {
   const areas = block.plots.map((plot) => ({ ...plot, width: 10 * TILE, height: 8 * TILE }));
-  if (block.id === 0)
-    areas.push({ x: 44 * TILE, y: 46 * TILE, variant: 0, width: 14 * TILE, height: 8 * TILE });
+  if (block.id === 0 && vault)
+    areas.push({ ...vault, variant: 0, width: 14 * TILE, height: 8 * TILE });
   return areas;
 }
 
@@ -29,9 +29,12 @@ interface BlockLink {
 }
 
 /** Every new block chooses an earlier neighbor; optional second links make small loops. */
-export function blockLinks(block: ContinuousTownBlock, layout: ContinuousTownLayout): BlockLink[] {
+export function blockLinks(
+  block: ContinuousTownBlock,
+  layout: ContinuousTownLayout,
+  size: number,
+): BlockLink[] {
   if (block.id === 0 || block.roadStyle !== 2) return [];
-  const size = CONTINUOUS_TOWN_BLOCK_SIZE;
   const random = seededRandom(`${layout.seed}:lanes-v2:links:${block.id}`);
   const neighbors = shuffled(
     layout.blocks.filter(
@@ -43,7 +46,8 @@ export function blockLinks(block: ContinuousTownBlock, layout: ContinuousTownLay
   );
   return neighbors.slice(0, random() < 0.3 ? 2 : 1).map((parent) => {
     const vertical = parent.x === block.x;
-    const gate = (parent.roadStyle === 2 ? 5 + Math.floor(random() * 54) : 2) * TILE;
+    const gate =
+      (parent.roadStyle === 2 ? 5 + Math.floor(random() * (size / TILE - 10)) : 2) * TILE;
     if (vertical) {
       const border = Math.max(parent.y, block.y);
       return {
@@ -68,17 +72,23 @@ export function blockLinks(block: ContinuousTownBlock, layout: ContinuousTownLay
   });
 }
 
-/** A small 63x63 local search joins new destinations onto the already saved road tree. */
+/** A block-sized local search joins new destinations onto the already saved road tree. */
 export class LaneBuilder {
-  private readonly blocked = new Uint8Array(63 * 63);
-  private readonly network = new Uint8Array(63 * 63);
+  private readonly window: number;
+  private readonly blocked: Uint8Array;
+  private readonly network: Uint8Array;
   private readonly directions: Array<readonly [number, number]>;
 
   public constructor(
     private readonly block: ContinuousTownBlock,
     seed: string,
+    size: number = CONTINUOUS_TOWN_BLOCK_SIZE,
+    vault?: Point,
   ) {
-    const roofs = roofAreas(block);
+    this.window = Math.floor(size / TILE) - 1;
+    this.blocked = new Uint8Array(this.window * this.window);
+    this.network = new Uint8Array(this.window * this.window);
+    const roofs = roofAreas(block, vault);
     this.directions = shuffled(
       [
         [1, 0],
@@ -98,7 +108,7 @@ export class LaneBuilder {
 
   public connect(target: Point): void {
     const start =
-      ((target.y - this.block.y) / TILE - 1) * 63 + (target.x - this.block.x) / TILE - 1;
+      ((target.y - this.block.y) / TILE - 1) * this.window + (target.x - this.block.x) / TILE - 1;
     if (
       !Number.isInteger(start) ||
       start < 0 ||
@@ -115,13 +125,13 @@ export class LaneBuilder {
     let end = -1;
     for (let head = 0; head < tail && end < 0; head++) {
       const current = queue[head]!;
-      const x = current % 63,
-        y = Math.floor(current / 63);
+      const x = current % this.window,
+        y = Math.floor(current / this.window);
       for (const [dx, dy] of this.directions) {
         const nx = x + dx,
           ny = y + dy;
-        if (nx < 0 || nx >= 63 || ny < 0 || ny >= 63) continue;
-        const next = ny * 63 + nx;
+        if (nx < 0 || nx >= this.window || ny < 0 || ny >= this.window) continue;
+        const next = ny * this.window + nx;
         if (this.blocked[next] || previous[next] !== -1) continue;
         previous[next] = current;
         if (this.network[next]) {
@@ -159,8 +169,8 @@ export class LaneBuilder {
 
   private point(index: number): Point {
     return {
-      x: this.block.x + ((index % 63) + 1) * TILE,
-      y: this.block.y + (Math.floor(index / 63) + 1) * TILE,
+      x: this.block.x + ((index % this.window) + 1) * TILE,
+      y: this.block.y + (Math.floor(index / this.window) + 1) * TILE,
     };
   }
 }

@@ -43,8 +43,76 @@ export interface ContinuousTownEntry {
 export interface ContinuousTownLayout {
   version: 1;
   seed: string;
+  /** Village scale chosen from guild size at creation; fixed for the life of the town. */
+  scale?: number;
   blocks: ContinuousTownBlock[];
   entries: ContinuousTownEntry[];
+}
+
+const MIN_TOWN_SCALE = 0.85;
+const MAX_TOWN_SCALE = 1.25;
+const BASE_BLOCK_SIZE = CONTINUOUS_TOWN_BLOCK_SIZE;
+
+/** Approximate guild size maps to a village scale, not a per-member building count. */
+export function villageScale(memberCount: number): number {
+  // Unknown size keeps the original village; known sizes scale up or down from it.
+  if (!Number.isFinite(memberCount) || memberCount <= 0) return 1;
+  if (memberCount < 500) return MIN_TOWN_SCALE;
+  if (memberCount < 2_500) return 1;
+  if (memberCount < 10_000) return 1.12;
+  return MAX_TOWN_SCALE;
+}
+
+interface TownGeometry {
+  blockSize: number;
+  colPitch: number;
+  rowPitch: number;
+  startX: number;
+  startY: number;
+  jitterX: number;
+  jitterY: number;
+  roadRow: number;
+  civic: {
+    vaultX: number;
+    vaultY: number;
+    signX: number;
+    signY: number;
+    rootX: number;
+    rootRow: number;
+  };
+}
+
+/** All village dimensions derive from one scale so a small server is a small, consistent village. */
+function townGeometry(scale: number): TownGeometry {
+  const clamp = (value: number, min: number) => Math.max(min, value);
+  const scaled = (value: number, min = 0) => clamp(Math.round(value * scale), min);
+  const colPitch = scaled(18, 12);
+  const rowPitch = scaled(14, 12);
+  return {
+    blockSize: Math.round((BASE_BLOCK_SIZE * scale) / TILE) * TILE,
+    colPitch,
+    rowPitch,
+    startX: scaled(6, 4),
+    startY: scaled(3, 2),
+    // Jitter must keep the same lane corridors as the base grid: two clear tiles between columns
+    // and enough room in front of a row for its approach road.
+    jitterX: Math.min(scaled(4), colPitch - 12),
+    jitterY: Math.min(scaled(3), rowPitch - 11),
+    roadRow: scaled(14, 12),
+    civic: {
+      vaultX: scaled(44),
+      vaultY: scaled(46),
+      signX: scaled(56),
+      signY: scaled(53),
+      rootX: scaled(49),
+      rootRow: scaled(42),
+    },
+  };
+}
+
+function layoutScale(layout: { scale?: number }): number {
+  const value = layout.scale ?? 1;
+  return value >= MIN_TOWN_SCALE && value <= MAX_TOWN_SCALE ? value : 1;
 }
 export interface ContinuousTownRequest {
   key: string;
@@ -57,6 +125,7 @@ const layoutSchema = z
   .object({
     version: z.literal(1),
     seed: z.string().min(1).max(256),
+    scale: z.number().min(MIN_TOWN_SCALE).max(MAX_TOWN_SCALE).optional(),
     blocks: z
       .array(
         z
@@ -118,50 +187,48 @@ const layoutSchema = z
   .strict();
 
 /** Enumerate square shells; every newly allocated cell touches an older cell. */
-function blockOrigin(id: number): Point {
+function blockOrigin(id: number, size: number): Point {
   const shell = Math.floor(Math.sqrt(id));
   const offset = id - shell * shell;
   return offset <= shell
-    ? { x: shell * CONTINUOUS_TOWN_BLOCK_SIZE, y: offset * CONTINUOUS_TOWN_BLOCK_SIZE }
-    : {
-        x: (2 * shell - offset) * CONTINUOUS_TOWN_BLOCK_SIZE,
-        y: shell * CONTINUOUS_TOWN_BLOCK_SIZE,
-      };
+    ? { x: shell * size, y: offset * size }
+    : { x: (2 * shell - offset) * size, y: shell * size };
 }
 
 /** Validate the saved allocation without repairing it or deriving replacement geometry. */
 export function parseContinuousTownLayout(value: unknown): ContinuousTownLayout {
   const layout = layoutSchema.parse(value);
+  const geometry = townGeometry(layoutScale(layout));
   const fail = () => {
     throw new Error('Invalid saved continuous town layout');
   };
   for (const [index, block] of layout.blocks.entries()) {
-    const origin = blockOrigin(index);
+    const origin = blockOrigin(index, geometry.blockSize);
     if (
       block.id !== index ||
       block.x !== origin.x ||
       block.y !== origin.y ||
-      ![14 * TILE, 15 * TILE].includes(block.roadY - block.y) ||
+      ![
+        geometry.roadRow * TILE,
+        (geometry.roadRow + (block.roadStyle === 2 ? 1 : 0)) * TILE,
+      ].includes(block.roadY - block.y) ||
       block.plots.length !== (index === 0 ? 11 : 12)
     )
       fail();
     if ((block.roadStyle === 2) !== (block.roads !== undefined)) fail();
     for (const road of block.roads ?? []) {
       if (
-        !containsRect(
-          { ...block, width: CONTINUOUS_TOWN_BLOCK_SIZE, height: CONTINUOUS_TOWN_BLOCK_SIZE },
-          road,
-        ) ||
+        !containsRect({ ...block, width: geometry.blockSize, height: geometry.blockSize }, road) ||
         [road.x, road.y, road.width, road.height].some((coordinate) => coordinate % TILE !== 0)
       )
         fail();
     }
     const slots = new Set<string>();
     for (const plot of block.plots) {
-      const x = (plot.x - block.x) / TILE - 6;
-      const y = (plot.y - block.y) / TILE - 3;
-      const column = Math.floor(x / 18);
-      const row = Math.floor(y / 14);
+      const x = (plot.x - block.x) / TILE - geometry.startX;
+      const y = (plot.y - block.y) / TILE - geometry.startY;
+      const column = Math.floor(x / geometry.colPitch);
+      const row = Math.floor(y / geometry.rowPitch);
       const slot = `${column}:${row}`;
       if (
         !Number.isInteger(x) ||
@@ -170,8 +237,8 @@ export function parseContinuousTownLayout(value: unknown): ContinuousTownLayout 
         column > 2 ||
         row < 0 ||
         row > 3 ||
-        x % 18 > (block.roadStyle === 2 ? 4 : 2) ||
-        y % 14 > (block.roadStyle === 2 ? 3 : 1) ||
+        x % geometry.colPitch > (block.roadStyle === 2 ? geometry.jitterX : 2) ||
+        y % geometry.rowPitch > (block.roadStyle === 2 ? geometry.jitterY : 1) ||
         slots.has(slot) ||
         (index === 0 && column === 2 && row === 3)
       )
@@ -200,18 +267,34 @@ export function parseContinuousTownLayout(value: unknown): ContinuousTownLayout 
   return layout;
 }
 
-function createBlock(id: number, categoryKey: string, seed: string): ContinuousTownBlock {
-  const origin = blockOrigin(id);
+function createBlock(
+  id: number,
+  categoryKey: string,
+  seed: string,
+  scale: number,
+): ContinuousTownBlock {
+  const geometry = townGeometry(scale);
+  const origin = blockOrigin(id, geometry.blockSize);
   const random = seededRandom(`${seed}:continuous-town-v1:block:${id}`);
   const plots: ContinuousTownPlot[] = [];
-  const roadY = origin.y + (14 + Math.floor(random() * 2)) * TILE;
+  const roadY = origin.y + (geometry.roadRow + Math.floor(random() * 2)) * TILE;
   for (let row = 0; row < 4; row++) {
     for (let column = 0; column < 3; column++) {
       // The first block's last plot contains the public vault and village sign.
       if (id === 0 && row === 3 && column === 2) continue;
       plots.push({
-        x: origin.x + (6 + column * 18 + Math.floor(random() * 5)) * TILE,
-        y: origin.y + (3 + row * 14 + Math.floor(random() * 4)) * TILE,
+        x:
+          origin.x +
+          (geometry.startX +
+            column * geometry.colPitch +
+            Math.floor(random() * (geometry.jitterX + 1))) *
+            TILE,
+        y:
+          origin.y +
+          (geometry.startY +
+            row * geometry.rowPitch +
+            Math.floor(random() * (geometry.jitterY + 1))) *
+            TILE,
         variant: Math.floor(random() * 3),
       });
     }
@@ -225,7 +308,10 @@ function createBlock(id: number, categoryKey: string, seed: string): ContinuousT
     roadStyle: 2,
     roads: [],
   };
-  const root = id === 0 ? { x: 49 * TILE, y: roadY + 42 * TILE } : frontage(block.plots[0]!);
+  const root =
+    id === 0
+      ? { x: geometry.civic.rootX * TILE, y: roadY + geometry.civic.rootRow * TILE }
+      : frontage(block.plots[0]!);
   block.roads!.push({ x: root.x - TILE, y: root.y - TILE, width: 2 * TILE, height: 2 * TILE });
   return block;
 }
@@ -235,11 +321,19 @@ export function extendTownLayout(
   previous: ContinuousTownLayout | null,
   requests: ContinuousTownRequest[],
   seed: string,
+  memberCount = 0,
 ): ContinuousTownLayout {
   const layout = previous
     ? parseContinuousTownLayout(previous)
-    : parseContinuousTownLayout({ version: 1, seed, blocks: [], entries: [] });
+    : parseContinuousTownLayout({
+        version: 1,
+        seed,
+        scale: villageScale(memberCount),
+        blocks: [],
+        entries: [],
+      });
   if (layout.seed !== seed) throw new Error('Saved town seed does not match');
+  const scale = layoutScale(layout);
   const previousBlocks = layout.blocks.length;
   const previousEntries = layout.entries.length;
   const groups = z
@@ -262,7 +356,7 @@ export function extendTownLayout(
   const appendBlock = (categoryKey: string) => {
     if (layout.blocks.length >= MAX_BLOCKS)
       throw new Error('Continuous town block capacity reached');
-    const block = createBlock(layout.blocks.length, categoryKey, layout.seed);
+    const block = createBlock(layout.blocks.length, categoryKey, layout.seed, scale);
     layout.blocks.push(block);
     return block;
   };
@@ -297,24 +391,35 @@ export function extendTownLayout(
       existing.add(identity);
     }
   }
+  const geometry = townGeometry(scale);
   const builders = new Map<number, LaneBuilder>();
   const builder = (block: ContinuousTownBlock) => {
     let value = builders.get(block.id);
     if (!value) {
-      value = new LaneBuilder(block, layout.seed);
+      value = new LaneBuilder(
+        block,
+        layout.seed,
+        geometry.blockSize,
+        block.id === 0
+          ? { x: geometry.civic.vaultX * TILE, y: geometry.civic.vaultY * TILE }
+          : undefined,
+      );
       builders.set(block.id, value);
     }
     return value;
   };
   if (previousBlocks === 0 && layout.blocks[0]?.roadStyle === 2) {
-    builder(layout.blocks[0]).connect({ x: 56 * TILE, y: layout.blocks[0].roadY + 42 * TILE });
+    builder(layout.blocks[0]).connect({
+      x: geometry.civic.signX * TILE,
+      y: layout.blocks[0].roadY + geometry.civic.rootRow * TILE,
+    });
   }
   for (const entry of layout.entries.slice(previousEntries)) {
     const block = layout.blocks[entry.blockId]!;
     if (block.roadStyle === 2) builder(block).connect(frontage(block.plots[entry.plotIndex]!));
   }
   for (const block of layout.blocks.slice(previousBlocks)) {
-    for (const link of blockLinks(block, layout)) {
+    for (const link of blockLinks(block, layout, geometry.blockSize)) {
       builder(block).connect(link.local);
       if (link.parent.roadStyle === 2) builder(link.parent).connect(link.remote);
     }
@@ -414,6 +519,8 @@ function addWoodland(
   layout: ContinuousTownLayout,
   block: ContinuousTownBlock,
 ): void {
+  const geometry = townGeometry(layoutScale(layout));
+  const tiles = geometry.blockSize / TILE;
   const norse = getWorldTheme(scene.id).generation.style === 'norse-timber';
   const random = seededRandom(`${layout.seed}:woodland-v2:${block.id}`);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
@@ -425,15 +532,20 @@ function addWoodland(
       width: 11 * TILE,
       height: 9 * TILE,
     }));
-  if (block.id === 0) plots.push({ ...at(44, 46), width: 14 * TILE, height: 9 * TILE });
-  const area = { ...block, width: CONTINUOUS_TOWN_BLOCK_SIZE, height: CONTINUOUS_TOWN_BLOCK_SIZE };
+  if (block.id === 0)
+    plots.push({
+      ...at(geometry.civic.vaultX, geometry.civic.vaultY),
+      width: 14 * TILE,
+      height: 9 * TILE,
+    });
+  const area = { ...block, width: geometry.blockSize, height: geometry.blockSize };
   const roads = scene.terrain!.roads.filter((road) => overlaps(road, area));
   const open = (box: Rect) =>
     containsRect(area, box) &&
     !plots.some((plot) => overlaps(plot, box)) &&
     !roads.some((road) => overlaps(road, box));
   for (let grove = 0; grove < 4; grove++) {
-    const center = { x: integer(6, 57), y: integer(7, 59) };
+    const center = { x: integer(6, tiles - 7), y: integer(7, tiles - 5) };
     for (let tree = 0; tree < 10; tree++) {
       const x = block.x / TILE + center.x + integer(-5, 5);
       const y = block.y / TILE + center.y + integer(-4, 4);
@@ -445,7 +557,10 @@ function addWoodland(
     }
   }
   for (let patch = 0; patch < 10; patch++) {
-    const point = { x: block.x + integer(3, 60) * TILE, y: block.y + integer(4, 60) * TILE };
+    const point = {
+      x: block.x + integer(3, tiles - 4) * TILE,
+      y: block.y + integer(4, tiles - 4) * TILE,
+    };
     const flower = 1 + integer(0, 3) * 2;
     const pair = random() < 0.4;
     if (open({ ...point, width: 2 * TILE, height: TILE })) {
@@ -511,22 +626,32 @@ export function generateContinuousTownDocument(
   savedLayout: ContinuousTownLayout,
 ): WorldDocument {
   const layout = parseContinuousTownLayout(savedLayout);
+  const scale = layoutScale(layout);
+  const geometry = townGeometry(scale);
   const theme = base.themeId;
   const pack = getWorldTheme(theme);
-  const civicBlock = layout.blocks[0] ?? createBlock(0, 'civic', layout.seed);
+  const civicBlock = layout.blocks[0] ?? createBlock(0, 'civic', layout.seed, scale);
   const blocks = layout.blocks.length ? layout.blocks : [civicBlock];
   if (!layout.blocks.length)
-    new LaneBuilder(civicBlock, layout.seed).connect({
-      x: 56 * TILE,
-      y: civicBlock.roadY + 42 * TILE,
+    new LaneBuilder(civicBlock, layout.seed, geometry.blockSize, {
+      x: geometry.civic.vaultX * TILE,
+      y: geometry.civic.vaultY * TILE,
+    }).connect({
+      x: geometry.civic.signX * TILE,
+      y: civicBlock.roadY + geometry.civic.rootRow * TILE,
     });
   const bounds = {
     x: 0,
     y: 0,
-    width: Math.max(...blocks.map((block) => block.x)) + CONTINUOUS_TOWN_BLOCK_SIZE,
-    height: Math.max(...blocks.map((block) => block.y)) + CONTINUOUS_TOWN_BLOCK_SIZE,
+    width: Math.max(...blocks.map((block) => block.x)) + geometry.blockSize,
+    height: Math.max(...blocks.map((block) => block.y)) + geometry.blockSize,
   };
-  const sample = makeSample(theme, pack.name, pack.generation.townSubtitle, at(49, 56));
+  const sample = makeSample(
+    theme,
+    pack.name,
+    pack.generation.townSubtitle,
+    at(geometry.civic.rootX, Math.round(56 * scale)),
+  );
   const scene: WorldScene = {
     ...sample,
     bounds,
@@ -542,7 +667,10 @@ export function generateContinuousTownDocument(
   const roads = scene.terrain!.roads;
   for (const block of blocks) {
     if (block.roadStyle === 2) {
-      roads.push(...block.roads!, ...blockLinks(block, layout).map((link) => link.bridge));
+      roads.push(
+        ...block.roads!,
+        ...blockLinks(block, layout, geometry.blockSize).map((link) => link.bridge),
+      );
     } else {
       roads.push(...blockRoads(block, bounds));
       addDecorations(scene, layout.seed, block);
@@ -557,16 +685,27 @@ export function generateContinuousTownDocument(
       plot,
       entry.landmarkId,
     );
-    const row = Math.floor(((plot.y - block.y) / TILE - 3) / 14);
-    const roadY = block.roadStyle === 2 ? frontage(plot).y : block.roadY + row * 14 * TILE;
+    const row = Math.floor(((plot.y - block.y) / TILE - geometry.startY) / geometry.rowPitch);
+    const roadY =
+      block.roadStyle === 2 ? frontage(plot).y : block.roadY + row * geometry.rowPitch * TILE;
     approach(roads, entrance, roadY);
     if (entry === layout.entries[0]) scene.spawn = { x: entrance.x, y: entrance.y + TILE };
   }
-  const civicRoadY = civicBlock.roadY + 42 * TILE;
-  const vault = placePrefab(scene, 'vault', at(44, 46), 'town-vault');
+  const civicRoadY = civicBlock.roadY + geometry.civic.rootRow * TILE;
+  const vault = placePrefab(
+    scene,
+    'vault',
+    at(geometry.civic.vaultX, geometry.civic.vaultY),
+    'town-vault',
+  );
   approach(roads, vault, civicRoadY);
-  const civic = makeSample(theme, 'square', 'square', at(56, 53));
-  const sign = signpost(civic, 56, 53);
+  const civic = makeSample(
+    theme,
+    'square',
+    'square',
+    at(geometry.civic.signX, geometry.civic.signY),
+  );
+  const sign = signpost(civic, geometry.civic.signX, geometry.civic.signY);
   scene.stamps.push(
     ...civic.stamps.map((stamp, index) => ({ ...stamp, id: `overworld:square:stamp:${index}` })),
   );

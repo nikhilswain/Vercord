@@ -56,11 +56,16 @@ export class ContinuousTownStore {
     this.addresses = createTownRepository(database);
   }
 
-  public async prepare(square: SavedWorld, snapshot: MapSnapshot, selection?: StreetSelection) {
+  public async prepare(
+    square: SavedWorld,
+    snapshot: MapSnapshot,
+    selection?: StreetSelection,
+    memberCount = 0,
+  ) {
     try {
       const addresses = await this.addresses.addresses(square.document.worldId, snapshot);
       const streets = await this.addresses.streets(square.document.worldId, addresses);
-      const prepared = await this.load(square, snapshot);
+      const prepared = await this.load(square, snapshot, memberCount);
       return {
         project: (current: MapSnapshot) => {
           const town = {
@@ -107,13 +112,13 @@ export class ContinuousTownStore {
     }
   }
 
-  private load(square: SavedWorld, snapshot: MapSnapshot): Promise<SavedTown> {
+  private load(square: SavedWorld, snapshot: MapSnapshot, memberCount: number): Promise<SavedTown> {
     const worldId = square.document.worldId;
     // Serialize mutations, not reads with different member projections: each visit must append
     // its own newly discovered channels after the previous save completes.
     const previous = this.pending.get(worldId);
     const operation = (previous ? previous.catch(() => undefined) : Promise.resolve())
-      .then(() => this.readOrCreate(square, snapshot))
+      .then(() => this.readOrCreate(square, snapshot, memberCount))
       .finally(() => {
         if (this.pending.get(worldId) === operation) this.pending.delete(worldId);
       });
@@ -150,7 +155,11 @@ export class ContinuousTownStore {
     }
   }
 
-  private async readOrCreate(square: SavedWorld, snapshot: MapSnapshot): Promise<SavedTown> {
+  private async readOrCreate(
+    square: SavedWorld,
+    snapshot: MapSnapshot,
+    memberCount: number,
+  ): Promise<SavedTown> {
     for (let attempt = 0; attempt < 4; attempt++) {
       const row = await this.repository.read(square.document.worldId);
       const current = row ? await this.decode(row, square) : null;
@@ -158,6 +167,7 @@ export class ContinuousTownStore {
         current?.layout ?? null,
         snapshot.areas,
         square.document.seed,
+        memberCount,
       );
       const json = JSON.stringify(layout);
       const unchangedLayout = row && current && json === row.layout_json;
