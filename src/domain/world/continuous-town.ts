@@ -171,18 +171,25 @@ function packPositions(
   geometry: TownGeometry,
   seed: string,
 ): Array<{ x: number; y: number }> {
-  const positions: Rect[] = [];
+  const placed: Array<{ rect: Rect; categoryKey: string }> = [];
+  const positions = () => placed.map((entry) => entry.rect);
   const center = { x: 0, y: 0 };
   for (const [index, block] of blocks.entries()) {
     const size = expectedBlockSize(block, geometry);
     if (index === 0) {
-      positions.push({ x: 0, y: 0, width: size.width, height: size.height });
+      placed.push({
+        rect: { x: 0, y: 0, width: size.width, height: size.height },
+        categoryKey: block.categoryKey,
+      });
       center.x = size.width / 2;
       center.y = size.height / 2;
       continue;
     }
     const candidates: Array<{ x: number; y: number }> = [];
-    for (const rect of positions) {
+    // Grow a category's extra blocks next to its existing ones so the district stays one place.
+    const same = placed.filter((entry) => entry.categoryKey === block.categoryKey);
+    const hosts = (same.length ? same : placed).map((entry) => entry.rect);
+    for (const rect of hosts) {
       for (const point of [
         { x: rect.x + rect.width, y: rect.y },
         { x: rect.x - size.width, y: rect.y },
@@ -191,7 +198,7 @@ function packPositions(
       ]) {
         if (point.x < 0 || point.y < 0) continue;
         const box = { x: point.x, y: point.y, width: size.width, height: size.height };
-        if (positions.some((other) => overlaps(other, box))) continue;
+        if (positions().some((other) => overlaps(other, box))) continue;
         candidates.push(point);
       }
     }
@@ -207,19 +214,25 @@ function packPositions(
         best = point;
       }
     }
-    if (!best) best = { x: 0, y: Math.max(...positions.map((rect) => rect.y + rect.height)) };
-    positions.push({ x: best.x, y: best.y, width: size.width, height: size.height });
-    const minX = Math.min(...positions.map((rect) => rect.x));
-    const minY = Math.min(...positions.map((rect) => rect.y));
-    const maxX = Math.max(...positions.map((rect) => rect.x + rect.width));
-    const maxY = Math.max(...positions.map((rect) => rect.y + rect.height));
+    if (!best)
+      best = { x: 0, y: Math.max(...placed.map((entry) => entry.rect.y + entry.rect.height)) };
+    placed.push({
+      rect: { x: best.x, y: best.y, width: size.width, height: size.height },
+      categoryKey: block.categoryKey,
+    });
+    const rects = positions();
+    const minX = Math.min(...rects.map((rect) => rect.x));
+    const minY = Math.min(...rects.map((rect) => rect.y));
+    const maxX = Math.max(...rects.map((rect) => rect.x + rect.width));
+    const maxY = Math.max(...rects.map((rect) => rect.y + rect.height));
     center.x = (minX + maxX) / 2;
     center.y = (minY + maxY) / 2;
   }
-  if (!positions.length) return [];
-  const minX = Math.min(...positions.map((rect) => rect.x));
-  const minY = Math.min(...positions.map((rect) => rect.y));
-  return positions.map((rect) => ({ x: rect.x - minX, y: rect.y - minY }));
+  const rects = positions();
+  if (!rects.length) return [];
+  const minX = Math.min(...rects.map((rect) => rect.x));
+  const minY = Math.min(...rects.map((rect) => rect.y));
+  return rects.map((rect) => ({ x: rect.x - minX, y: rect.y - minY }));
 }
 
 function packDistricts(blocks: ContinuousTownBlock[], geometry: TownGeometry, seed: string): void {
