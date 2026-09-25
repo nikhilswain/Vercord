@@ -47,14 +47,14 @@ function adjacency(parent: ContinuousTownBlock, block: ContinuousTownBlock): Adj
   const p = dimensions(parent);
   const b = dimensions(block);
   const overlapY = Math.min(parent.y + p.h, block.y + b.h) - Math.max(parent.y, block.y);
-  if (parent.x + p.w === block.x && overlapY > 0)
+  if (parent.x + p.w === block.x && overlapY >= 2 * TILE)
     return {
       horizontal: true,
       border: block.x,
       start: Math.max(parent.y, block.y),
       end: Math.min(parent.y + p.h, block.y + b.h),
     };
-  if (block.x + b.w === parent.x && overlapY > 0)
+  if (block.x + b.w === parent.x && overlapY >= 2 * TILE)
     return {
       horizontal: true,
       border: parent.x,
@@ -62,14 +62,14 @@ function adjacency(parent: ContinuousTownBlock, block: ContinuousTownBlock): Adj
       end: Math.min(parent.y + p.h, block.y + b.h),
     };
   const overlapX = Math.min(parent.x + p.w, block.x + b.w) - Math.max(parent.x, block.x);
-  if (parent.y + p.h === block.y && overlapX > 0)
+  if (parent.y + p.h === block.y && overlapX >= 2 * TILE)
     return {
       horizontal: false,
       border: block.y,
       start: Math.max(parent.x, block.x),
       end: Math.min(parent.x + p.w, block.x + b.w),
     };
-  if (block.y + b.h === parent.y && overlapX > 0)
+  if (block.y + b.h === parent.y && overlapX >= 2 * TILE)
     return {
       horizontal: false,
       border: parent.y,
@@ -126,8 +126,8 @@ export function blockLinks(
   }
   return neighbors.slice(0, random() < 0.3 ? 2 : 1).map((parent) => {
     const a = adjacency(parent, block)!;
-    const room = Math.max(1, Math.floor((a.end - a.start) / TILE));
-    let gate = a.start + (1 + Math.floor(random() * Math.max(1, room - 2))) * TILE;
+    const room = Math.max(2, Math.floor((a.end - a.start) / TILE));
+    let gate = a.start + (1 + Math.floor(random() * (room - 1))) * TILE;
     // A horizontal link meets the civic block 0's side, where the vault stands; keep the gate above it.
     if (a.horizontal && parent.id === 0 && vault && gate + TILE > vault.y)
       gate = Math.max(a.start + TILE, vault.y - 2 * TILE);
