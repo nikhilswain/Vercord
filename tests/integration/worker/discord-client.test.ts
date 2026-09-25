@@ -127,7 +127,7 @@ describe('Discord REST request construction and sequencing', () => {
 
     expect(queued.requests.map(({ method, url }) => `${method} ${url}`)).toEqual([
       'GET https://discord.com/api/v10/users/@me',
-      `GET https://discord.com/api/v10/guilds/${TEST_IDS.guild}`,
+      `GET https://discord.com/api/v10/guilds/${TEST_IDS.guild}?with_counts=true`,
       `GET https://discord.com/api/v10/guilds/${TEST_IDS.guild}/members/${TEST_IDS.bot}`,
       `GET https://discord.com/api/v10/guilds/${TEST_IDS.guild}/channels`,
     ]);
@@ -160,7 +160,7 @@ describe('Discord REST request construction and sequencing', () => {
     await expect(failure).rejects.toBeInstanceOf(WorkerError);
     expect(queued.requests.map(({ url }) => url)).toEqual([
       'https://discord.com/api/v10/users/@me',
-      `https://discord.com/api/v10/guilds/${TEST_IDS.guild}`,
+      `https://discord.com/api/v10/guilds/${TEST_IDS.guild}?with_counts=true`,
     ]);
   });
 
@@ -174,7 +174,9 @@ describe('Discord REST request construction and sequencing', () => {
 
     await captureWorkerError(client.fetchGuildSource('%/'));
 
-    expect(queued.requests[1]?.url).toBe('https://discord.com/api/v10/guilds/%25%2F');
+    expect(queued.requests[1]?.url).toBe(
+      'https://discord.com/api/v10/guilds/%25%2F?with_counts=true',
+    );
   });
 });
 

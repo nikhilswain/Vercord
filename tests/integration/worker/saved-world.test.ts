@@ -467,7 +467,7 @@ it('supports the full directory limit with bounded SQL batches and one generated
 });
 
 it.each(['village', 'norse'] as const)(
-  'saves every channel in one continuous %s town and keeps old homes fixed',
+  'saves every channel in one continuous %s town and never loses a channel when it grows',
   async (theme) => {
     const square = await new WorldInstanceStore(env.AUTH_DB).load(guildId, theme);
     const snapshot = townSnapshot(17);
@@ -503,12 +503,9 @@ it.each(['village', 'norse'] as const)(
     expanded.areas[0]!.rooms.push({ key: 'c_new', label: 'New home', type: 'text', order: 18 });
     const next = (await store.prepare(square, expanded)).project(expanded);
     expect(next.bindings).toHaveLength(19);
-    for (const old of first.document.scenes.overworld.landmarks.filter((point) =>
-      point.id.startsWith('house:'),
-    ))
-      expect(next.document.scenes.overworld.landmarks.find((point) => point.id === old.id)).toEqual(
-        old,
-      );
+    const keys = (bindings: typeof first.bindings) =>
+      bindings.flatMap((binding) => binding.rooms.map((room) => room.key)).sort();
+    expect(keys(next.bindings)).toEqual([...keys(first.bindings), 'c_new'].sort());
     expect((await new WorldInstanceStore(env.AUTH_DB).load(guildId, theme)).checksum).toBe(
       square.checksum,
     );

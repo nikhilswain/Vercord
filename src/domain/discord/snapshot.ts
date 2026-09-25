@@ -22,6 +22,8 @@ export interface GuildStructureSnapshot {
     displayName: string;
     ownerKey: string;
     everyoneRoleKey: string;
+    /** Approximate member count; absent on older snapshots. */
+    memberCount?: number;
   };
   roles: Array<{ key: string; permissions: string }>;
   channels: Array<{
@@ -96,6 +98,7 @@ const guildStructureSnapshotSchema = z.object({
     displayName: displayStringSchema,
     ownerKey: memberKeySchema,
     everyoneRoleKey: roleKeySchema,
+    memberCount: z.number().int().min(0).max(100_000_000).optional(),
   }),
   roles: z.array(z.object({ key: roleKeySchema, permissions: permissionStringSchema })),
   channels: z.array(

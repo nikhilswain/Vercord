@@ -587,7 +587,12 @@ export class GuildPresence extends DurableObject<Env> {
   ): Promise<WorldView> {
     try {
       const saved = await this.worldInstances.load(actor.guildId, partition.theme);
-      const prepared = await this.towns.prepare(saved, initial.snapshot);
+      const prepared = await this.towns.prepare(
+        saved,
+        initial.snapshot,
+        undefined,
+        this.coordinator.guildMemberCount(),
+      );
       const view = await this.coordinator.read(actor, subscriptionId);
       if (
         !(await sessionIsCurrent(this.env, actor, Date.now())) ||
@@ -1210,7 +1215,12 @@ export class GuildPresence extends DurableObject<Env> {
       // Membership is checked before reserving any persistent map.
       const initial = await this.coordinator.read(actor, subscriptionId);
       const saved = await this.worldInstances.load(actor.guildId, theme);
-      const town = await this.towns.prepare(saved, initial.snapshot, street);
+      const town = await this.towns.prepare(
+        saved,
+        initial.snapshot,
+        street,
+        this.coordinator.guildMemberCount(),
+      );
       const view = await this.coordinator.read(actor, subscriptionId);
       if (!(await sessionIsCurrent(this.env, actor, Date.now())))
         throw new WorldAccessError('UNAUTHENTICATED', 401);

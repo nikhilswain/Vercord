@@ -25,7 +25,10 @@ export interface ContinuousTownPlot extends Point {
 export interface ContinuousTownBlock extends Point {
   id: number;
   categoryKey: string;
-  /** First row's road center, in world pixels; subsequent rows are 448px apart. */
+  /** Content-sized footprint; absent on legacy uniform blocks (the shell grid defines them). */
+  width?: number;
+  height?: number;
+  /** First row's road center, in world pixels; subsequent rows are one row-pitch apart. */
   roadY: number;
   plots: ContinuousTownPlot[];
   /** Missing means the original lane layout; newer lanes are persisted append-only. */
@@ -43,8 +46,201 @@ export interface ContinuousTownEntry {
 export interface ContinuousTownLayout {
   version: 1;
   seed: string;
+  /** Village scale chosen from guild size at creation; fixed for the life of the town. */
+  scale?: number;
   blocks: ContinuousTownBlock[];
   entries: ContinuousTownEntry[];
+}
+
+const MIN_TOWN_SCALE = 0.8;
+const MAX_TOWN_SCALE = 1.25;
+const BASE_BLOCK_SIZE = CONTINUOUS_TOWN_BLOCK_SIZE;
+
+/** Approximate guild size maps to a village scale, not a per-member building count. */
+export function villageScale(memberCount: number): number {
+  // Unknown size keeps the original village; known sizes scale up or down from it.
+  if (!Number.isFinite(memberCount) || memberCount <= 0) return 1;
+  if (memberCount < 500) return MIN_TOWN_SCALE;
+  if (memberCount < 2_500) return 1;
+  if (memberCount < 10_000) return 1.12;
+  return MAX_TOWN_SCALE;
+}
+
+interface TownGeometry {
+  blockSize: number;
+  columns: number;
+  rows: number;
+  blockPlots: number;
+  block0Plots: number;
+  colPitch: number;
+  rowPitch: number;
+  startX: number;
+  startY: number;
+  jitterX: number;
+  jitterY: number;
+  roadRow: number;
+  reserved: (column: number, row: number) => boolean;
+  civic: {
+    vaultX: number;
+    vaultY: number;
+    signX: number;
+    signY: number;
+    rootX: number;
+    rootRow: number;
+  };
+}
+
+/** All village dimensions derive from one scale so a small server is a small, consistent village. */
+function townGeometry(scale: number): TownGeometry {
+  const clamp = (value: number, min: number) => Math.max(min, value);
+  const scaled = (value: number, min = 0) => clamp(Math.round(value * scale), min);
+  const columns = 3;
+  const rows = 4;
+  const colPitch = scaled(18, 12);
+  const rowPitch = scaled(14, 12);
+  return {
+    blockSize: Math.round((BASE_BLOCK_SIZE * scale) / TILE) * TILE,
+    columns,
+    rows,
+    blockPlots: columns * rows,
+    block0Plots: columns * rows - 1,
+    colPitch,
+    rowPitch,
+    startX: scaled(6, 4),
+    startY: scaled(3, 2),
+    // Jitter must keep the same lane corridors as the base grid: two clear tiles between columns
+    // and enough room in front of a row for its approach road.
+    jitterX: Math.min(scaled(4), colPitch - 12),
+    jitterY: Math.min(scaled(3), rowPitch - 11),
+    roadRow: scaled(14, 12),
+    reserved: (column, row) => column === columns - 1 && row === rows - 1,
+    civic: {
+      vaultX: scaled(44),
+      vaultY: scaled(46),
+      signX: scaled(56),
+      signY: scaled(53),
+      rootX: scaled(49),
+      rootRow: scaled(42),
+    },
+  };
+}
+
+function layoutScale(layout: { scale?: number }): number {
+  const value = layout.scale ?? 1;
+  return value >= MIN_TOWN_SCALE && value <= MAX_TOWN_SCALE ? value : 1;
+}
+
+const DISTRICT_MAX_COLUMNS = 3;
+const DISTRICT_CAPACITY = DISTRICT_MAX_COLUMNS * 4;
+
+/** Content footprint for a district holding `count` houses; tiny districts stay narrow. */
+function districtGrid(count: number, geometry: TownGeometry) {
+  const columns = count <= 1 ? 1 : count <= 4 ? 2 : DISTRICT_MAX_COLUMNS;
+  const rows = Math.max(1, Math.ceil(count / columns));
+  const widthTiles =
+    2 * geometry.startX + (columns - 1) * geometry.colPitch + geometry.jitterX + 10;
+  const heightTiles = 2 * geometry.startY + (rows - 1) * geometry.rowPitch + geometry.jitterY + 12;
+  return {
+    columns,
+    rows,
+    width: Math.ceil(widthTiles * TILE),
+    height: Math.ceil(heightTiles * TILE),
+  };
+}
+
+/** Expected footprint of a block derived from how many plots (channels) it holds. */
+function expectedBlockSize(block: ContinuousTownBlock, geometry: TownGeometry) {
+  if (block.id === 0)
+    return {
+      width: geometry.blockSize,
+      height: geometry.blockSize,
+      columns: geometry.columns,
+      rows: geometry.rows,
+    };
+  const grid = districtGrid(block.plots.length, geometry);
+  return { width: grid.width, height: grid.height, columns: grid.columns, rows: grid.rows };
+}
+
+/**
+ * Grow the village outward from the town hall: block 0 sits at the centre and each later district
+ * is placed flush against an already-placed district, as close to the centre as possible. A seeded
+ * tie-break between equally-close spots means two servers rarely grow the same way.
+ */
+function packPositions(
+  blocks: ContinuousTownBlock[],
+  geometry: TownGeometry,
+  seed: string,
+): Array<{ x: number; y: number }> {
+  const placed: Array<{ rect: Rect; categoryKey: string }> = [];
+  const positions = () => placed.map((entry) => entry.rect);
+  const center = { x: 0, y: 0 };
+  for (const [index, block] of blocks.entries()) {
+    const size = expectedBlockSize(block, geometry);
+    if (index === 0) {
+      placed.push({
+        rect: { x: 0, y: 0, width: size.width, height: size.height },
+        categoryKey: block.categoryKey,
+      });
+      center.x = size.width / 2;
+      center.y = size.height / 2;
+      continue;
+    }
+    const candidates: Array<{ x: number; y: number }> = [];
+    // Grow a category's extra blocks next to its existing ones so the district stays one place.
+    const same = placed.filter((entry) => entry.categoryKey === block.categoryKey);
+    const hosts = (same.length ? same : placed).map((entry) => entry.rect);
+    for (const rect of hosts) {
+      for (const point of [
+        { x: rect.x + rect.width, y: rect.y },
+        { x: rect.x - size.width, y: rect.y },
+        { x: rect.x, y: rect.y + rect.height },
+        { x: rect.x, y: rect.y - size.height },
+      ]) {
+        if (point.x < 0 || point.y < 0) continue;
+        const box = { x: point.x, y: point.y, width: size.width, height: size.height };
+        if (positions().some((other) => overlaps(other, box))) continue;
+        candidates.push(point);
+      }
+    }
+    const tie = seededRandom(`${seed}:pack:${index}`);
+    let best: { x: number; y: number } | null = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const point of candidates) {
+      const score =
+        Math.hypot(point.x + size.width / 2 - center.x, point.y + size.height / 2 - center.y) +
+        tie() * 1000;
+      if (score < bestScore) {
+        bestScore = score;
+        best = point;
+      }
+    }
+    if (!best)
+      best = { x: 0, y: Math.max(...placed.map((entry) => entry.rect.y + entry.rect.height)) };
+    placed.push({
+      rect: { x: best.x, y: best.y, width: size.width, height: size.height },
+      categoryKey: block.categoryKey,
+    });
+    const rects = positions();
+    const minX = Math.min(...rects.map((rect) => rect.x));
+    const minY = Math.min(...rects.map((rect) => rect.y));
+    const maxX = Math.max(...rects.map((rect) => rect.x + rect.width));
+    const maxY = Math.max(...rects.map((rect) => rect.y + rect.height));
+    center.x = (minX + maxX) / 2;
+    center.y = (minY + maxY) / 2;
+  }
+  const rects = positions();
+  if (!rects.length) return [];
+  const minX = Math.min(...rects.map((rect) => rect.x));
+  const minY = Math.min(...rects.map((rect) => rect.y));
+  return rects.map((rect) => ({ x: rect.x - minX, y: rect.y - minY }));
+}
+
+function packDistricts(blocks: ContinuousTownBlock[], geometry: TownGeometry, seed: string): void {
+  const positions = packPositions(blocks, geometry, seed);
+  blocks.forEach((block, index) => {
+    block.x = positions[index]!.x;
+    block.y = positions[index]!.y;
+  });
 }
 export interface ContinuousTownRequest {
   key: string;
@@ -57,6 +253,7 @@ const layoutSchema = z
   .object({
     version: z.literal(1),
     seed: z.string().min(1).max(256),
+    scale: z.number().min(MIN_TOWN_SCALE).max(MAX_TOWN_SCALE).optional(),
     blocks: z
       .array(
         z
@@ -69,6 +266,9 @@ const layoutSchema = z
             categoryKey: key,
             x: integer,
             y: integer,
+            // Content-sized districts; absent means a legacy uniform block.
+            width: integer.positive().max(32768).optional(),
+            height: integer.positive().max(32768).optional(),
             roadY: integer,
             plots: z
               .array(
@@ -76,7 +276,7 @@ const layoutSchema = z
                   .object({ x: integer, y: integer, variant: z.number().int().min(0).max(2) })
                   .strict(),
               )
-              .min(11)
+              .min(1)
               .max(12),
             roadStyle: z.literal(2).optional(),
             roads: z
@@ -117,66 +317,120 @@ const layoutSchema = z
   })
   .strict();
 
-/** Enumerate square shells; every newly allocated cell touches an older cell. */
-function blockOrigin(id: number): Point {
+/** Enumerate square shells; legacy uniform layouts keep this placement. */
+function blockOrigin(id: number, size: number): Point {
   const shell = Math.floor(Math.sqrt(id));
   const offset = id - shell * shell;
   return offset <= shell
-    ? { x: shell * CONTINUOUS_TOWN_BLOCK_SIZE, y: offset * CONTINUOUS_TOWN_BLOCK_SIZE }
-    : {
-        x: (2 * shell - offset) * CONTINUOUS_TOWN_BLOCK_SIZE,
-        y: shell * CONTINUOUS_TOWN_BLOCK_SIZE,
-      };
+    ? { x: shell * size, y: offset * size }
+    : { x: (2 * shell - offset) * size, y: shell * size };
 }
 
 /** Validate the saved allocation without repairing it or deriving replacement geometry. */
 export function parseContinuousTownLayout(value: unknown): ContinuousTownLayout {
   const layout = layoutSchema.parse(value);
+  const geometry = townGeometry(layoutScale(layout));
   const fail = () => {
     throw new Error('Invalid saved continuous town layout');
   };
-  for (const [index, block] of layout.blocks.entries()) {
-    const origin = blockOrigin(index);
-    if (
-      block.id !== index ||
-      block.x !== origin.x ||
-      block.y !== origin.y ||
-      ![14 * TILE, 15 * TILE].includes(block.roadY - block.y) ||
-      block.plots.length !== (index === 0 ? 11 : 12)
-    )
-      fail();
-    if ((block.roadStyle === 2) !== (block.roads !== undefined)) fail();
-    for (const road of block.roads ?? []) {
+  const content = layout.blocks.some(
+    (block) => block.width !== undefined || block.height !== undefined,
+  );
+  if (!content) {
+    for (const [index, block] of layout.blocks.entries()) {
+      const origin = blockOrigin(index, geometry.blockSize);
       if (
-        !containsRect(
-          { ...block, width: CONTINUOUS_TOWN_BLOCK_SIZE, height: CONTINUOUS_TOWN_BLOCK_SIZE },
-          road,
-        ) ||
-        [road.x, road.y, road.width, road.height].some((coordinate) => coordinate % TILE !== 0)
+        block.id !== index ||
+        block.x !== origin.x ||
+        block.y !== origin.y ||
+        ![
+          geometry.roadRow * TILE,
+          (geometry.roadRow + (block.roadStyle === 2 ? 1 : 0)) * TILE,
+        ].includes(block.roadY - block.y) ||
+        block.plots.length !== (index === 0 ? geometry.block0Plots : geometry.blockPlots)
       )
         fail();
+      if ((block.roadStyle === 2) !== (block.roads !== undefined)) fail();
+      for (const road of block.roads ?? []) {
+        if (
+          !containsRect(
+            { ...block, width: geometry.blockSize, height: geometry.blockSize },
+            road,
+          ) ||
+          [road.x, road.y, road.width, road.height].some((coordinate) => coordinate % TILE !== 0)
+        )
+          fail();
+      }
+      const slots = new Set<string>();
+      for (const plot of block.plots) {
+        const x = (plot.x - block.x) / TILE - geometry.startX;
+        const y = (plot.y - block.y) / TILE - geometry.startY;
+        const column = Math.floor(x / geometry.colPitch);
+        const row = Math.floor(y / geometry.rowPitch);
+        const slot = `${column}:${row}`;
+        if (
+          !Number.isInteger(x) ||
+          !Number.isInteger(y) ||
+          column < 0 ||
+          column > geometry.columns - 1 ||
+          row < 0 ||
+          row > geometry.rows - 1 ||
+          x % geometry.colPitch > (block.roadStyle === 2 ? geometry.jitterX : 2) ||
+          y % geometry.rowPitch > (block.roadStyle === 2 ? geometry.jitterY : 1) ||
+          slots.has(slot) ||
+          (index === 0 && geometry.reserved(column, row))
+        )
+          fail();
+        slots.add(slot);
+      }
     }
-    const slots = new Set<string>();
-    for (const plot of block.plots) {
-      const x = (plot.x - block.x) / TILE - 6;
-      const y = (plot.y - block.y) / TILE - 3;
-      const column = Math.floor(x / 18);
-      const row = Math.floor(y / 14);
-      const slot = `${column}:${row}`;
+  } else {
+    const positions = packPositions(layout.blocks, geometry, layout.seed);
+    for (const [index, block] of layout.blocks.entries()) {
+      if (block.id !== index) fail();
+      const size = expectedBlockSize(block, geometry);
+      if (block.width !== size.width || block.height !== size.height) fail();
+      if (block.plots.length < 1 || block.plots.length > DISTRICT_CAPACITY) fail();
+      if (index === 0 && block.plots.length > geometry.block0Plots) fail();
+      if (block.x !== positions[index]!.x || block.y !== positions[index]!.y) fail();
       if (
-        !Number.isInteger(x) ||
-        !Number.isInteger(y) ||
-        column < 0 ||
-        column > 2 ||
-        row < 0 ||
-        row > 3 ||
-        x % 18 > (block.roadStyle === 2 ? 4 : 2) ||
-        y % 14 > (block.roadStyle === 2 ? 3 : 1) ||
-        slots.has(slot) ||
-        (index === 0 && column === 2 && row === 3)
+        (index === 0 &&
+          ![geometry.roadRow * TILE, (geometry.roadRow + 1) * TILE].includes(
+            block.roadY - block.y,
+          )) ||
+        (index !== 0 && block.roadY - block.y !== (geometry.startY + 10) * TILE)
       )
         fail();
-      slots.add(slot);
+      if ((block.roadStyle === 2) !== (block.roads !== undefined)) fail();
+      for (const road of block.roads ?? []) {
+        if (
+          !containsRect({ x: block.x, y: block.y, width: size.width, height: size.height }, road) ||
+          [road.x, road.y, road.width, road.height].some((coordinate) => coordinate % TILE !== 0)
+        )
+          fail();
+      }
+      const slots = new Set<string>();
+      for (const plot of block.plots) {
+        const px = (plot.x - block.x) / TILE - geometry.startX;
+        const py = (plot.y - block.y) / TILE - geometry.startY;
+        const column = Math.floor(px / geometry.colPitch);
+        const row = Math.floor(py / geometry.rowPitch);
+        const slot = `${column}:${row}`;
+        if (
+          !Number.isInteger(px) ||
+          !Number.isInteger(py) ||
+          column < 0 ||
+          column > size.columns - 1 ||
+          row < 0 ||
+          row > size.rows - 1 ||
+          px % geometry.colPitch > geometry.jitterX ||
+          py % geometry.rowPitch > geometry.jitterY ||
+          slots.has(slot) ||
+          (index === 0 && geometry.reserved(column, row))
+        )
+          fail();
+        slots.add(slot);
+      }
     }
   }
   const channels = new Set<string>();
@@ -200,18 +454,34 @@ export function parseContinuousTownLayout(value: unknown): ContinuousTownLayout 
   return layout;
 }
 
-function createBlock(id: number, categoryKey: string, seed: string): ContinuousTownBlock {
-  const origin = blockOrigin(id);
+/**
+ * Block 0 is the civic block: a uniform footprint that always fits the town hall, vault and sign.
+ * Plots are authored relative to the block origin; packing shifts them into place afterwards.
+ */
+function createCivicBlock(
+  id: number,
+  categoryKey: string,
+  count: number,
+  seed: string,
+  geometry: TownGeometry,
+): ContinuousTownBlock {
   const random = seededRandom(`${seed}:continuous-town-v1:block:${id}`);
-  const plots: ContinuousTownPlot[] = [];
-  const roadY = origin.y + (14 + Math.floor(random() * 2)) * TILE;
-  for (let row = 0; row < 4; row++) {
-    for (let column = 0; column < 3; column++) {
-      // The first block's last plot contains the public vault and village sign.
-      if (id === 0 && row === 3 && column === 2) continue;
-      plots.push({
-        x: origin.x + (6 + column * 18 + Math.floor(random() * 5)) * TILE,
-        y: origin.y + (3 + row * 14 + Math.floor(random() * 4)) * TILE,
+  const slots: ContinuousTownPlot[] = [];
+  const roadY = (geometry.roadRow + Math.floor(random() * 2)) * TILE;
+  for (let row = 0; row < geometry.rows; row++) {
+    for (let column = 0; column < geometry.columns; column++) {
+      if (geometry.reserved(column, row)) continue;
+      slots.push({
+        x:
+          (geometry.startX +
+            column * geometry.colPitch +
+            Math.floor(random() * (geometry.jitterX + 1))) *
+          TILE,
+        y:
+          (geometry.startY +
+            row * geometry.rowPitch +
+            Math.floor(random() * (geometry.jitterY + 1))) *
+          TILE,
         variant: Math.floor(random() * 3),
       });
     }
@@ -219,13 +489,61 @@ function createBlock(id: number, categoryKey: string, seed: string): ContinuousT
   const block: ContinuousTownBlock = {
     id,
     categoryKey,
-    ...origin,
+    x: 0,
+    y: 0,
+    width: geometry.blockSize,
+    height: geometry.blockSize,
     roadY,
-    plots: shuffled(plots, random),
+    plots: slots.slice(0, Math.max(1, Math.min(count, slots.length))),
     roadStyle: 2,
     roads: [],
   };
-  const root = id === 0 ? { x: 49 * TILE, y: roadY + 42 * TILE } : frontage(block.plots[0]!);
+  const root = { x: geometry.civic.rootX * TILE, y: roadY + geometry.civic.rootRow * TILE };
+  block.roads!.push({ x: root.x - TILE, y: root.y - TILE, width: 2 * TILE, height: 2 * TILE });
+  return block;
+}
+
+/** A content-sized district: narrow and short for a category with one or two channels. */
+function createDistrictBlock(
+  id: number,
+  categoryKey: string,
+  count: number,
+  seed: string,
+  geometry: TownGeometry,
+): ContinuousTownBlock {
+  const grid = districtGrid(count, geometry);
+  const random = seededRandom(`${seed}:continuous-town-v1:block:${id}`);
+  const plots: ContinuousTownPlot[] = [];
+  for (let index = 0; index < count; index++) {
+    const column = index % grid.columns;
+    const row = Math.floor(index / grid.columns);
+    plots.push({
+      x:
+        (geometry.startX +
+          column * geometry.colPitch +
+          Math.floor(random() * (geometry.jitterX + 1))) *
+        TILE,
+      y:
+        (geometry.startY +
+          row * geometry.rowPitch +
+          Math.floor(random() * (geometry.jitterY + 1))) *
+        TILE,
+      variant: Math.floor(random() * 3),
+    });
+  }
+  const block: ContinuousTownBlock = {
+    id,
+    categoryKey,
+    x: 0,
+    y: 0,
+    width: grid.width,
+    height: grid.height,
+    roadY: (geometry.startY + 10) * TILE,
+    plots,
+    roadStyle: 2,
+    roads: [],
+  };
+  const root = frontage(block.plots[0]!);
   block.roads!.push({ x: root.x - TILE, y: root.y - TILE, width: 2 * TILE, height: 2 * TILE });
   return block;
 }
@@ -235,13 +553,13 @@ export function extendTownLayout(
   previous: ContinuousTownLayout | null,
   requests: ContinuousTownRequest[],
   seed: string,
+  memberCount = 0,
 ): ContinuousTownLayout {
-  const layout = previous
-    ? parseContinuousTownLayout(previous)
-    : parseContinuousTownLayout({ version: 1, seed, blocks: [], entries: [] });
-  if (layout.seed !== seed) throw new Error('Saved town seed does not match');
-  const previousBlocks = layout.blocks.length;
-  const previousEntries = layout.entries.length;
+  const parsed = previous ? parseContinuousTownLayout(previous) : null;
+  if (parsed && parsed.seed !== seed) throw new Error('Saved town seed does not match');
+  const townSeed = parsed?.seed ?? seed;
+  const scale = parsed ? layoutScale(parsed) : villageScale(memberCount);
+  const geometry = townGeometry(scale);
   const groups = z
     .array(z.object({ key, rooms: z.array(z.object({ key })).max(MAX_CONTINUOUS_TOWN_HOUSES) }))
     .max(MAX_BLOCKS)
@@ -255,66 +573,96 @@ export function extendTownLayout(
       throw new Error('Duplicate town request');
     categoryKeys.add(group.key);
   }
-  const existing = new Set(
-    layout.entries.map((entry) => JSON.stringify([entry.categoryKey, entry.channelKey])),
-  );
-  const occupied = new Set(layout.entries.map((entry) => `${entry.blockId}:${entry.plotIndex}`));
-  const appendBlock = (categoryKey: string) => {
-    if (layout.blocks.length >= MAX_BLOCKS)
-      throw new Error('Continuous town block capacity reached');
-    const block = createBlock(layout.blocks.length, categoryKey, layout.seed);
-    layout.blocks.push(block);
-    return block;
+  // Rebuild the whole allocation each time, from the union of every channel ever seen plus the
+  // current snapshot: content-sized districts re-pack tightly, but a member with fewer permissions
+  // never erases a house another member added.
+  const roomsByCategory = new Map<string, Set<string>>();
+  const addRoom = (categoryKey: string, channelKey: string) => {
+    const rooms = roomsByCategory.get(categoryKey) ?? new Set<string>();
+    rooms.add(channelKey);
+    roomsByCategory.set(categoryKey, rooms);
   };
-  const orderedGroups = shuffled(
-    [...groups].sort((a, b) => a.key.localeCompare(b.key)),
-    seededRandom(`${seed}:continuous-town-v1:categories`),
+  for (const entry of parsed?.entries ?? []) addRoom(entry.categoryKey, entry.channelKey);
+  for (const group of groups) for (const room of group.rooms) addRoom(group.key, room.key);
+  const orderedCategories = shuffled(
+    [...roomsByCategory.keys()].sort((a, b) => a.localeCompare(b)),
+    seededRandom(`${townSeed}:continuous-town-v1:categories`),
   );
-  for (const group of orderedGroups) {
-    let blocks = layout.blocks.filter((block) => block.categoryKey === group.key);
-    if (!blocks.length) blocks = [appendBlock(group.key)];
-    for (const room of [...group.rooms].sort((a, b) => a.key.localeCompare(b.key))) {
-      const identity = JSON.stringify([group.key, room.key]);
-      if (existing.has(identity)) continue;
-      if (layout.entries.length >= MAX_CONTINUOUS_TOWN_HOUSES)
-        throw new Error('Continuous town house capacity reached');
-      let block = blocks.find((candidate) =>
-        candidate.plots.some((_, index) => !occupied.has(`${candidate.id}:${index}`)),
+  const blocks: ContinuousTownBlock[] = [];
+  const entries: ContinuousTownEntry[] = [];
+  for (const categoryKey of orderedCategories) {
+    const rooms = [...roomsByCategory.get(categoryKey)!].sort((a, b) => a.localeCompare(b));
+    let index = 0;
+    while (index < rooms.length) {
+      if (blocks.length >= MAX_BLOCKS) throw new Error('Continuous town block capacity reached');
+      const id = blocks.length;
+      const capacity = id === 0 ? geometry.block0Plots : DISTRICT_CAPACITY;
+      const count = Math.min(capacity, rooms.length - index);
+      blocks.push(
+        id === 0
+          ? createCivicBlock(id, categoryKey, count, townSeed, geometry)
+          : createDistrictBlock(id, categoryKey, count, townSeed, geometry),
       );
-      if (!block) {
-        block = appendBlock(group.key);
-        blocks.push(block);
+      for (let plotIndex = 0; plotIndex < count; plotIndex++) {
+        if (entries.length >= MAX_CONTINUOUS_TOWN_HOUSES)
+          throw new Error('Continuous town house capacity reached');
+        entries.push({
+          categoryKey,
+          channelKey: rooms[index + plotIndex]!,
+          landmarkId: `house:${entries.length}`,
+          blockId: id,
+          plotIndex,
+        });
       }
-      const plotIndex = block.plots.findIndex((_, index) => !occupied.has(`${block.id}:${index}`));
-      layout.entries.push({
-        categoryKey: group.key,
-        channelKey: room.key,
-        landmarkId: `house:${layout.entries.length}`,
-        blockId: block.id,
-        plotIndex,
-      });
-      occupied.add(`${block.id}:${plotIndex}`);
-      existing.add(identity);
+      index += count;
     }
   }
+
+  packDistricts(blocks, geometry, townSeed);
+  for (const block of blocks) {
+    block.roadY += block.y;
+    for (const plot of block.plots) {
+      plot.x += block.x;
+      plot.y += block.y;
+    }
+    for (const road of block.roads ?? []) {
+      road.x += block.x;
+      road.y += block.y;
+    }
+  }
+  const origin = blocks[0] ?? { x: 0, y: 0 };
+  const vaultPoint = {
+    x: origin.x + geometry.civic.vaultX * TILE,
+    y: origin.y + geometry.civic.vaultY * TILE,
+  };
+
+  const layout: ContinuousTownLayout = { version: 1, seed: townSeed, scale, blocks, entries };
   const builders = new Map<number, LaneBuilder>();
   const builder = (block: ContinuousTownBlock) => {
     let value = builders.get(block.id);
     if (!value) {
-      value = new LaneBuilder(block, layout.seed);
+      value = new LaneBuilder(
+        block,
+        townSeed,
+        Math.max(block.width ?? geometry.blockSize, block.height ?? geometry.blockSize),
+        block.id === 0 ? vaultPoint : undefined,
+      );
       builders.set(block.id, value);
     }
     return value;
   };
-  if (previousBlocks === 0 && layout.blocks[0]?.roadStyle === 2) {
-    builder(layout.blocks[0]).connect({ x: 56 * TILE, y: layout.blocks[0].roadY + 42 * TILE });
+  if (blocks[0]) {
+    builder(blocks[0]).connect({
+      x: origin.x + geometry.civic.signX * TILE,
+      y: blocks[0].roadY + geometry.civic.rootRow * TILE,
+    });
   }
-  for (const entry of layout.entries.slice(previousEntries)) {
-    const block = layout.blocks[entry.blockId]!;
+  for (const entry of entries) {
+    const block = blocks[entry.blockId]!;
     if (block.roadStyle === 2) builder(block).connect(frontage(block.plots[entry.plotIndex]!));
   }
-  for (const block of layout.blocks.slice(previousBlocks)) {
-    for (const link of blockLinks(block, layout)) {
+  for (const block of blocks) {
+    for (const link of blockLinks(block, layout, vaultPoint)) {
       builder(block).connect(link.local);
       if (link.parent.roadStyle === 2) builder(link.parent).connect(link.remote);
     }
@@ -414,6 +762,9 @@ function addWoodland(
   layout: ContinuousTownLayout,
   block: ContinuousTownBlock,
 ): void {
+  const geometry = townGeometry(layoutScale(layout));
+  const widthTiles = Math.floor((block.width ?? geometry.blockSize) / TILE);
+  const heightTiles = Math.floor((block.height ?? geometry.blockSize) / TILE);
   const norse = getWorldTheme(scene.id).generation.style === 'norse-timber';
   const random = seededRandom(`${layout.seed}:woodland-v2:${block.id}`);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
@@ -425,15 +776,29 @@ function addWoodland(
       width: 11 * TILE,
       height: 9 * TILE,
     }));
-  if (block.id === 0) plots.push({ ...at(44, 46), width: 14 * TILE, height: 9 * TILE });
-  const area = { ...block, width: CONTINUOUS_TOWN_BLOCK_SIZE, height: CONTINUOUS_TOWN_BLOCK_SIZE };
+  if (block.id === 0)
+    plots.push({
+      x: block.x + geometry.civic.vaultX * TILE,
+      y: block.y + geometry.civic.vaultY * TILE,
+      width: 14 * TILE,
+      height: 9 * TILE,
+    });
+  const area = {
+    x: block.x,
+    y: block.y,
+    width: block.width ?? geometry.blockSize,
+    height: block.height ?? geometry.blockSize,
+  };
   const roads = scene.terrain!.roads.filter((road) => overlaps(road, area));
   const open = (box: Rect) =>
     containsRect(area, box) &&
     !plots.some((plot) => overlaps(plot, box)) &&
     !roads.some((road) => overlaps(road, box));
   for (let grove = 0; grove < 4; grove++) {
-    const center = { x: integer(6, 57), y: integer(7, 59) };
+    const center = {
+      x: integer(6, Math.max(7, widthTiles - 7)),
+      y: integer(7, Math.max(8, heightTiles - 5)),
+    };
     for (let tree = 0; tree < 10; tree++) {
       const x = block.x / TILE + center.x + integer(-5, 5);
       const y = block.y / TILE + center.y + integer(-4, 4);
@@ -445,7 +810,10 @@ function addWoodland(
     }
   }
   for (let patch = 0; patch < 10; patch++) {
-    const point = { x: block.x + integer(3, 60) * TILE, y: block.y + integer(4, 60) * TILE };
+    const point = {
+      x: block.x + integer(3, Math.max(4, widthTiles - 2)) * TILE,
+      y: block.y + integer(4, Math.max(5, heightTiles - 2)) * TILE,
+    };
     const flower = 1 + integer(0, 3) * 2;
     const pair = random() < 0.4;
     if (open({ ...point, width: 2 * TILE, height: TILE })) {
@@ -468,7 +836,7 @@ function addWoodland(
 }
 
 function blockRoads(block: ContinuousTownBlock, bounds: Rect): Rect[] {
-  const size = CONTINUOUS_TOWN_BLOCK_SIZE;
+  const size = block.width ?? CONTINUOUS_TOWN_BLOCK_SIZE;
   const left = Math.max(0, block.x - TILE);
   const top = Math.max(0, block.y - TILE);
   const roads: Rect[] = [
@@ -511,22 +879,36 @@ export function generateContinuousTownDocument(
   savedLayout: ContinuousTownLayout,
 ): WorldDocument {
   const layout = parseContinuousTownLayout(savedLayout);
+  const scale = layoutScale(layout);
+  const geometry = townGeometry(scale);
   const theme = base.themeId;
   const pack = getWorldTheme(theme);
-  const civicBlock = layout.blocks[0] ?? createBlock(0, 'civic', layout.seed);
+  const civicBlock =
+    layout.blocks[0] ?? createCivicBlock(0, 'civic', geometry.block0Plots, layout.seed, geometry);
   const blocks = layout.blocks.length ? layout.blocks : [civicBlock];
+  const civicTileX = Math.round(civicBlock.x / TILE);
+  const civicTileY = Math.round(civicBlock.y / TILE);
   if (!layout.blocks.length)
-    new LaneBuilder(civicBlock, layout.seed).connect({
-      x: 56 * TILE,
-      y: civicBlock.roadY + 42 * TILE,
+    new LaneBuilder(civicBlock, layout.seed, geometry.blockSize, {
+      x: civicBlock.x + geometry.civic.vaultX * TILE,
+      y: civicBlock.y + geometry.civic.vaultY * TILE,
+    }).connect({
+      x: civicBlock.x + geometry.civic.signX * TILE,
+      y: civicBlock.roadY + geometry.civic.rootRow * TILE,
     });
   const bounds = {
     x: 0,
     y: 0,
-    width: Math.max(...blocks.map((block) => block.x)) + CONTINUOUS_TOWN_BLOCK_SIZE,
-    height: Math.max(...blocks.map((block) => block.y)) + CONTINUOUS_TOWN_BLOCK_SIZE,
+    width: Math.max(...blocks.map((block) => block.x + (block.width ?? geometry.blockSize))) + TILE,
+    height:
+      Math.max(...blocks.map((block) => block.y + (block.height ?? geometry.blockSize))) + TILE,
   };
-  const sample = makeSample(theme, pack.name, pack.generation.townSubtitle, at(49, 56));
+  const sample = makeSample(
+    theme,
+    pack.name,
+    pack.generation.townSubtitle,
+    at(civicTileX + geometry.civic.rootX, civicTileY + Math.round(56 * scale)),
+  );
   const scene: WorldScene = {
     ...sample,
     bounds,
@@ -542,7 +924,13 @@ export function generateContinuousTownDocument(
   const roads = scene.terrain!.roads;
   for (const block of blocks) {
     if (block.roadStyle === 2) {
-      roads.push(...block.roads!, ...blockLinks(block, layout).map((link) => link.bridge));
+      roads.push(
+        ...block.roads!,
+        ...blockLinks(block, layout, {
+          x: civicBlock.x + geometry.civic.vaultX * TILE,
+          y: civicBlock.y + geometry.civic.vaultY * TILE,
+        }).map((link) => link.bridge),
+      );
     } else {
       roads.push(...blockRoads(block, bounds));
       addDecorations(scene, layout.seed, block);
@@ -557,16 +945,31 @@ export function generateContinuousTownDocument(
       plot,
       entry.landmarkId,
     );
-    const row = Math.floor(((plot.y - block.y) / TILE - 3) / 14);
-    const roadY = block.roadStyle === 2 ? frontage(plot).y : block.roadY + row * 14 * TILE;
+    const row = Math.floor(((plot.y - block.y) / TILE - geometry.startY) / geometry.rowPitch);
+    const roadY =
+      block.roadStyle === 2 ? frontage(plot).y : block.roadY + row * geometry.rowPitch * TILE;
     approach(roads, entrance, roadY);
     if (entry === layout.entries[0]) scene.spawn = { x: entrance.x, y: entrance.y + TILE };
   }
-  const civicRoadY = civicBlock.roadY + 42 * TILE;
-  const vault = placePrefab(scene, 'vault', at(44, 46), 'town-vault');
+  const civicRoadY = civicBlock.roadY + geometry.civic.rootRow * TILE;
+  const vault = placePrefab(
+    scene,
+    'vault',
+    at(civicTileX + geometry.civic.vaultX, civicTileY + geometry.civic.vaultY),
+    'town-vault',
+  );
   approach(roads, vault, civicRoadY);
-  const civic = makeSample(theme, 'square', 'square', at(56, 53));
-  const sign = signpost(civic, 56, 53);
+  const civic = makeSample(
+    theme,
+    'square',
+    'square',
+    at(civicTileX + geometry.civic.signX, civicTileY + geometry.civic.signY),
+  );
+  const sign = signpost(
+    civic,
+    civicTileX + geometry.civic.signX,
+    civicTileY + geometry.civic.signY,
+  );
   scene.stamps.push(
     ...civic.stamps.map((stamp, index) => ({ ...stamp, id: `overworld:square:stamp:${index}` })),
   );

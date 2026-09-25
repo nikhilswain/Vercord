@@ -95,6 +95,11 @@ export class LiveWorldCoordinator {
     ) => Promise<void>,
   ) {}
 
+  /** Approximate guild size from the live source; only used to scale the private village layout. */
+  public guildMemberCount(): number {
+    return this.source?.guild.memberCount ?? 0;
+  }
+
   public subscriptionId(userId: string): string {
     this.prune();
     let id = this.defaultIds.get(userId);

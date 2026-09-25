@@ -1,7 +1,7 @@
 import type { MapSnapshot } from '../../src/domain/map/snapshot';
+import { TILE } from '../../src/domain/world/content/v1/builder';
 import {
   extendTownLayout,
-  CONTINUOUS_TOWN_BLOCK_SIZE,
   generateContinuousTownDocument,
   parseContinuousTownLayout,
   type ContinuousTownLayout,
@@ -25,6 +25,26 @@ interface SavedTown {
 }
 const byteLength = (value: string) => new TextEncoder().encode(value).byteLength;
 
+/**
+ * A single district sign centered above the top row of the category's houses. A category that
+ * wraps onto more blocks keeps one label, so its channels always read as one neighborhood.
+ */
+function districtAnchor(layout: ContinuousTownLayout, categoryKey: string) {
+  const plots = layout.entries
+    .filter((entry) => entry.categoryKey === categoryKey)
+    .flatMap((entry) => {
+      const plot = layout.blocks[entry.blockId]?.plots[entry.plotIndex];
+      return plot ? [plot] : [];
+    });
+  if (!plots.length) return [];
+  const top = Math.min(...plots.map((plot) => plot.y));
+  const left = Math.min(...plots.map((plot) => plot.x));
+  const right = Math.max(...plots.map((plot) => plot.x));
+  // Houses sit two tiles in from the plot origin, so one tile above the top plot row clears the
+  // roofs and their channel labels.
+  return [{ x: (left + right) / 2 + 5 * TILE, y: top - TILE }];
+}
+
 /** Geometry is server-owned; labels are projected only after the caller rechecks membership. */
 export class ContinuousTownStore {
   private readonly repository: ReturnType<typeof createContinuousTownRepository>;
@@ -36,11 +56,16 @@ export class ContinuousTownStore {
     this.addresses = createTownRepository(database);
   }
 
-  public async prepare(square: SavedWorld, snapshot: MapSnapshot, selection?: StreetSelection) {
+  public async prepare(
+    square: SavedWorld,
+    snapshot: MapSnapshot,
+    selection?: StreetSelection,
+    memberCount = 0,
+  ) {
     try {
       const addresses = await this.addresses.addresses(square.document.worldId, snapshot);
       const streets = await this.addresses.streets(square.document.worldId, addresses);
-      const prepared = await this.load(square, snapshot);
+      const prepared = await this.load(square, snapshot, memberCount);
       return {
         project: (current: MapSnapshot) => {
           const town = {
@@ -49,9 +74,7 @@ export class ContinuousTownStore {
           };
           town.districts = town.districts.map((district) => ({
             ...district,
-            anchors: prepared.layout.blocks
-              .filter((block) => block.categoryKey === district.key)
-              .map((block) => ({ x: block.x + CONTINUOUS_TOWN_BLOCK_SIZE / 2, y: block.y + 112 })),
+            anchors: districtAnchor(prepared.layout, district.key),
           }));
           // Old street bookmarks resolve into the continuous town, retaining their access boundary.
           if (
@@ -89,13 +112,13 @@ export class ContinuousTownStore {
     }
   }
 
-  private load(square: SavedWorld, snapshot: MapSnapshot): Promise<SavedTown> {
+  private load(square: SavedWorld, snapshot: MapSnapshot, memberCount: number): Promise<SavedTown> {
     const worldId = square.document.worldId;
     // Serialize mutations, not reads with different member projections: each visit must append
     // its own newly discovered channels after the previous save completes.
     const previous = this.pending.get(worldId);
     const operation = (previous ? previous.catch(() => undefined) : Promise.resolve())
-      .then(() => this.readOrCreate(square, snapshot))
+      .then(() => this.readOrCreate(square, snapshot, memberCount))
       .finally(() => {
         if (this.pending.get(worldId) === operation) this.pending.delete(worldId);
       });
@@ -132,7 +155,11 @@ export class ContinuousTownStore {
     }
   }
 
-  private async readOrCreate(square: SavedWorld, snapshot: MapSnapshot): Promise<SavedTown> {
+  private async readOrCreate(
+    square: SavedWorld,
+    snapshot: MapSnapshot,
+    memberCount: number,
+  ): Promise<SavedTown> {
     for (let attempt = 0; attempt < 4; attempt++) {
       const row = await this.repository.read(square.document.worldId);
       const current = row ? await this.decode(row, square) : null;
@@ -140,6 +167,7 @@ export class ContinuousTownStore {
         current?.layout ?? null,
         snapshot.areas,
         square.document.seed,
+        memberCount,
       );
       const json = JSON.stringify(layout);
       const unchangedLayout = row && current && json === row.layout_json;
