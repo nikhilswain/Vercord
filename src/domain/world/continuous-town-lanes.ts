@@ -33,6 +33,7 @@ export function blockLinks(
   block: ContinuousTownBlock,
   layout: ContinuousTownLayout,
   size: number,
+  vault?: Point,
 ): BlockLink[] {
   if (block.id === 0 || block.roadStyle !== 2) return [];
   const random = seededRandom(`${layout.seed}:lanes-v2:links:${block.id}`);
@@ -46,8 +47,12 @@ export function blockLinks(
   );
   return neighbors.slice(0, random() < 0.3 ? 2 : 1).map((parent) => {
     const vertical = parent.x === block.x;
+    let maxGate = size / TILE - 5;
+    // A horizontal link reaches the parent's side, which for the civic block 0 can be where the
+    // vault stands; keep the gate above the vault so the lane never crosses it.
+    if (!vertical && parent.id === 0 && vault) maxGate = Math.min(maxGate, vault.y / TILE - 2);
     const gate =
-      (parent.roadStyle === 2 ? 5 + Math.floor(random() * (size / TILE - 10)) : 2) * TILE;
+      (parent.roadStyle === 2 ? 5 + Math.floor(random() * Math.max(1, maxGate - 5)) : 2) * TILE;
     if (vertical) {
       const border = Math.max(parent.y, block.y);
       return {

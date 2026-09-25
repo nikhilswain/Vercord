@@ -49,7 +49,7 @@ export interface ContinuousTownLayout {
   entries: ContinuousTownEntry[];
 }
 
-const MIN_TOWN_SCALE = 0.85;
+const MIN_TOWN_SCALE = 0.8;
 const MAX_TOWN_SCALE = 1.25;
 const BASE_BLOCK_SIZE = CONTINUOUS_TOWN_BLOCK_SIZE;
 
@@ -65,6 +65,10 @@ export function villageScale(memberCount: number): number {
 
 interface TownGeometry {
   blockSize: number;
+  columns: number;
+  rows: number;
+  blockPlots: number;
+  block0Plots: number;
   colPitch: number;
   rowPitch: number;
   startX: number;
@@ -72,6 +76,7 @@ interface TownGeometry {
   jitterX: number;
   jitterY: number;
   roadRow: number;
+  reserved: (column: number, row: number) => boolean;
   civic: {
     vaultX: number;
     vaultY: number;
@@ -86,10 +91,16 @@ interface TownGeometry {
 function townGeometry(scale: number): TownGeometry {
   const clamp = (value: number, min: number) => Math.max(min, value);
   const scaled = (value: number, min = 0) => clamp(Math.round(value * scale), min);
+  const columns = 3;
+  const rows = 4;
   const colPitch = scaled(18, 12);
   const rowPitch = scaled(14, 12);
   return {
     blockSize: Math.round((BASE_BLOCK_SIZE * scale) / TILE) * TILE,
+    columns,
+    rows,
+    blockPlots: columns * rows,
+    block0Plots: columns * rows - 1,
     colPitch,
     rowPitch,
     startX: scaled(6, 4),
@@ -99,6 +110,7 @@ function townGeometry(scale: number): TownGeometry {
     jitterX: Math.min(scaled(4), colPitch - 12),
     jitterY: Math.min(scaled(3), rowPitch - 11),
     roadRow: scaled(14, 12),
+    reserved: (column, row) => column === columns - 1 && row === rows - 1,
     civic: {
       vaultX: scaled(44),
       vaultY: scaled(46),
@@ -145,7 +157,7 @@ const layoutSchema = z
                   .object({ x: integer, y: integer, variant: z.number().int().min(0).max(2) })
                   .strict(),
               )
-              .min(11)
+              .min(8)
               .max(12),
             roadStyle: z.literal(2).optional(),
             roads: z
@@ -212,7 +224,7 @@ export function parseContinuousTownLayout(value: unknown): ContinuousTownLayout 
         geometry.roadRow * TILE,
         (geometry.roadRow + (block.roadStyle === 2 ? 1 : 0)) * TILE,
       ].includes(block.roadY - block.y) ||
-      block.plots.length !== (index === 0 ? 11 : 12)
+      block.plots.length !== (index === 0 ? geometry.block0Plots : geometry.blockPlots)
     )
       fail();
     if ((block.roadStyle === 2) !== (block.roads !== undefined)) fail();
@@ -234,13 +246,13 @@ export function parseContinuousTownLayout(value: unknown): ContinuousTownLayout 
         !Number.isInteger(x) ||
         !Number.isInteger(y) ||
         column < 0 ||
-        column > 2 ||
+        column > geometry.columns - 1 ||
         row < 0 ||
-        row > 3 ||
+        row > geometry.rows - 1 ||
         x % geometry.colPitch > (block.roadStyle === 2 ? geometry.jitterX : 2) ||
         y % geometry.rowPitch > (block.roadStyle === 2 ? geometry.jitterY : 1) ||
         slots.has(slot) ||
-        (index === 0 && column === 2 && row === 3)
+        (index === 0 && geometry.reserved(column, row))
       )
         fail();
       slots.add(slot);
@@ -278,10 +290,10 @@ function createBlock(
   const random = seededRandom(`${seed}:continuous-town-v1:block:${id}`);
   const plots: ContinuousTownPlot[] = [];
   const roadY = origin.y + (geometry.roadRow + Math.floor(random() * 2)) * TILE;
-  for (let row = 0; row < 4; row++) {
-    for (let column = 0; column < 3; column++) {
+  for (let row = 0; row < geometry.rows; row++) {
+    for (let column = 0; column < geometry.columns; column++) {
       // The first block's last plot contains the public vault and village sign.
-      if (id === 0 && row === 3 && column === 2) continue;
+      if (id === 0 && geometry.reserved(column, row)) continue;
       plots.push({
         x:
           origin.x +
@@ -304,7 +316,9 @@ function createBlock(
     categoryKey,
     ...origin,
     roadY,
-    plots: shuffled(plots, random),
+    // Plots stay in row-major order so a category's houses fill the first slots and cluster
+    // together instead of scattering across the whole block.
+    plots,
     roadStyle: 2,
     roads: [],
   };
@@ -418,8 +432,9 @@ export function extendTownLayout(
     const block = layout.blocks[entry.blockId]!;
     if (block.roadStyle === 2) builder(block).connect(frontage(block.plots[entry.plotIndex]!));
   }
+  const vaultPoint = { x: geometry.civic.vaultX * TILE, y: geometry.civic.vaultY * TILE };
   for (const block of layout.blocks.slice(previousBlocks)) {
-    for (const link of blockLinks(block, layout, geometry.blockSize)) {
+    for (const link of blockLinks(block, layout, geometry.blockSize, vaultPoint)) {
       builder(block).connect(link.local);
       if (link.parent.roadStyle === 2) builder(link.parent).connect(link.remote);
     }
@@ -669,7 +684,10 @@ export function generateContinuousTownDocument(
     if (block.roadStyle === 2) {
       roads.push(
         ...block.roads!,
-        ...blockLinks(block, layout, geometry.blockSize).map((link) => link.bridge),
+        ...blockLinks(block, layout, geometry.blockSize, {
+          x: geometry.civic.vaultX * TILE,
+          y: geometry.civic.vaultY * TILE,
+        }).map((link) => link.bridge),
       );
     } else {
       roads.push(...blockRoads(block, bounds));
