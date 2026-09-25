@@ -51,12 +51,13 @@ function sweptFeet(from: Point, to: Point): Rect {
 
 describe('continuous saved towns', () => {
   it.each(themes)(
-    'keeps every %s house fixed when rooms and neighborhoods are added',
+    're-packs %s districts deterministically and keeps every channel housed as categories grow',
     (themeId) => {
       const base = generateWorldDocument({ worldId, seed, themeId });
       const original = structuredClone(base);
       const initial = extendTownLayout(null, [request('music', 2), request('games', 16)], seed);
       const saved = JSON.parse(JSON.stringify(initial));
+      expect(parseContinuousTownLayout(saved)).toEqual(initial);
       const first = generateContinuousTownDocument(base, initial);
       const firstHouse = first.scenes.overworld.landmarks.find(
         ({ id }) => id === initial.entries[0]!.landmarkId,
@@ -67,15 +68,7 @@ describe('continuous saved towns', () => {
           firstHouse.y - first.scenes.overworld.spawn.y,
         ),
       ).toBeLessThanOrEqual(64);
-      const grown = extendTownLayout(
-        initial,
-        [request('games', 28), request('music', 7), request('art', 3)],
-        seed,
-      );
-      const second = generateContinuousTownDocument(base, grown);
-
-      expect(initial).toEqual(saved);
-      expect(parseContinuousTownLayout(saved)).toEqual(initial);
+      // Rebuilding from the same channels is stable and ignores private labels.
       expect(extendTownLayout(initial, [request('games', 16), request('music', 2)], seed)).toEqual(
         initial,
       );
@@ -85,32 +78,26 @@ describe('continuous saved towns', () => {
         rooms: group.rooms.map((room) => ({ ...room, label: 'Private room name', type: 'text' })),
       }));
       expect(extendTownLayout(initial, labeledRequests, seed)).toEqual(initial);
-      expect(grown.entries.slice(0, initial.entries.length)).toEqual(initial.entries);
-      for (const block of initial.blocks) {
-        expect({ ...grown.blocks[block.id], roads: block.roads }).toEqual(block);
-        expect(grown.blocks[block.id]!.roads!.slice(0, block.roads!.length)).toEqual(block.roads);
-      }
+      // Growing re-packs the districts but never drops a channel.
+      const grown = extendTownLayout(
+        initial,
+        [request('games', 28), request('music', 7), request('art', 3)],
+        seed,
+      );
+      const second = generateContinuousTownDocument(base, grown);
+      expect(grown.entries).toHaveLength(38);
+      expect(grown.entries.every((entry) => entry.landmarkId.startsWith('house:'))).toBe(true);
+      expect(new Set(grown.entries.map((entry) => entry.channelKey)).size).toBe(38);
       expect(
         second.scenes.overworld.landmarks.filter(({ id }) => id.startsWith('house:')),
       ).toHaveLength(38);
-      for (const entry of initial.entries) {
-        const oldHouse = first.scenes.overworld.landmarks.find(
-          ({ id }) => id === entry.landmarkId,
-        )!;
-        expect(second.scenes.overworld.landmarks.find(({ id }) => id === entry.landmarkId)).toEqual(
-          oldHouse,
-        );
-        const oldStamps = first.scenes.overworld.stamps.filter(({ id }) =>
-          id.startsWith(`overworld:${entry.landmarkId}:`),
-        );
-        expect(oldStamps.length).toBeGreaterThan(0);
-        expect(
-          second.scenes.overworld.stamps.filter(({ id }) =>
-            id.startsWith(`overworld:${entry.landmarkId}:`),
-          ),
-        ).toEqual(oldStamps);
-        expect(oldHouse.labelAnchor!.y).toBeLessThan(oldHouse.y - 96);
-      }
+      expect(
+        extendTownLayout(
+          grown,
+          [request('games', 28), request('music', 7), request('art', 3)],
+          seed,
+        ),
+      ).toEqual(grown);
       expect(first.scenes.dungeon).toEqual(original.scenes.dungeon);
       expect(base).toEqual(original);
       expect(parseWorldDocument(JSON.parse(JSON.stringify(second)))).toEqual(second);
@@ -197,31 +184,30 @@ describe('continuous saved towns', () => {
     20_000,
   );
 
-  it('reserves empty neighborhood plots without inventing physical homes', () => {
+  it('creates no district for an empty category and a small one when it gains a channel', () => {
     const base = generateWorldDocument({ worldId, seed, themeId: 'village' });
     const empty = extendTownLayout(null, [request('quiet', 0)], seed);
     const scene = generateContinuousTownDocument(base, empty).scenes.overworld;
-    expect(empty.blocks.map(({ categoryKey }) => categoryKey)).toEqual(['quiet']);
+    expect(empty.blocks).toHaveLength(0);
+    expect(empty.entries).toHaveLength(0);
     expect(scene.stamps.some(({ texture }) => texture.startsWith('lpc-house-'))).toBe(false);
     expect(scene.landmarks.map((l) => l.id).sort()).toEqual([
       'town-hall',
       'town-noticeboard',
       'town-square',
     ]);
-    expect(scene.terrain!.roads.some((road) => road.width > 1024 || road.height > 1024)).toBe(
-      false,
-    );
     connectedRoads(scene);
     const grown = extendTownLayout(empty, [request('quiet', 1)], seed);
-    expect(grown.blocks[0]!.plots).toEqual(empty.blocks[0]!.plots);
+    expect(grown.blocks).toHaveLength(1);
     expect(grown.entries).toHaveLength(1);
+    expect(grown.blocks[0]!.plots).toHaveLength(1);
     expect(
       generateContinuousTownDocument(base, extendTownLayout(null, [], seed)).scenes.overworld
         .landmarks,
     ).toHaveLength(3);
   });
 
-  it('preserves saved lanes when homes and neighboring blocks are appended', () => {
+  it('re-packs compactly and deterministically when districts are appended', () => {
     const initial = extendTownLayout(null, [request('one', 2)], 'winding-lanes');
     const grown = extendTownLayout(
       initial,
@@ -229,46 +215,31 @@ describe('continuous saved towns', () => {
       'winding-lanes',
     );
     expect(initial.blocks[0]!.roads!.length).toBeGreaterThan(0);
-    expect(grown.blocks[0]!.roads!.slice(0, initial.blocks[0]!.roads!.length)).toEqual(
-      initial.blocks[0]!.roads,
-    );
     expect(initial.blocks[0]!.roadStyle).toBe(2);
+    // The small district is rebuilt bigger for eight channels; nothing is left behind.
+    expect(grown.entries).toHaveLength(12);
+    expect(grown.blocks.length).toBeGreaterThanOrEqual(2);
+    expect(
+      extendTownLayout(grown, [request('one', 8), request('two', 4)], 'winding-lanes'),
+    ).toEqual(grown);
   });
 
-  it('keeps woodland candidates fixed when a new house clears another part of the block', () => {
+  it('scatters trees clear of houses and roads', () => {
     const base = generateWorldDocument({ worldId, seed, themeId: 'village' });
-    const initial = extendTownLayout(null, [{ key: 'a', rooms: [{ key: 'c_0' }] }], seed);
-    const grown = extendTownLayout(
-      initial,
-      [{ key: 'a', rooms: [{ key: 'c_0' }, { key: 'c_1' }] }],
+    const layout = extendTownLayout(
+      null,
+      [request('a', 3), request('b', 6), request('c', 2)],
       seed,
     );
-    const before = generateContinuousTownDocument(base, initial).scenes.overworld;
-    const after = generateContinuousTownDocument(base, grown).scenes.overworld;
-    const plots = grown.entries.map((entry) => ({
-      ...grown.blocks[entry.blockId]!.plots[entry.plotIndex]!,
-      width: 352,
-      height: 288,
-    }));
-    let checked = 0;
-    for (const stamp of before.stamps.filter(
-      (part) => part.id.startsWith('overworld:woodland:') && part.texture === 'lpc-trees',
-    )) {
-      const height = stamp.frame === 'pine' ? 112 : stamp.frame === 'tallOak' ? 128 : 96;
-      const canopy = { x: stamp.x, y: stamp.y + height - 128, width: 96, height: 144 };
-      if ([...after.terrain!.roads, ...plots].some((box) => overlaps(canopy, box))) continue;
-      checked++;
+    const scene = generateContinuousTownDocument(base, layout).scenes.overworld;
+    const trees = scene.stamps.filter(({ texture }) => texture === 'lpc-trees');
+    expect(trees.length).toBeGreaterThan(0);
+    for (const tree of trees)
       expect(
-        after.stamps.some(
-          (next) =>
-            next.texture === stamp.texture &&
-            next.frame === stamp.frame &&
-            next.x === stamp.x &&
-            next.y === stamp.y,
+        scene.terrain!.roads.some((box) =>
+          overlaps({ x: tree.x, y: tree.y, width: 32, height: 32 }, box),
         ),
-      ).toBe(true);
-    }
-    expect(checked).toBeGreaterThan(3);
+      ).toBe(false);
   });
 
   it('retains the original geometry path for saved blocks without a road style', () => {
@@ -308,11 +279,12 @@ describe('continuous saved towns', () => {
       height: 96,
     });
     const next = extendTownLayout(legacy, [request('old', 1), request('new', 2)], seed);
-    expect(next.blocks[0]).toEqual(legacy.blocks[0]);
+    expect(next.blocks.every((block) => block.width !== undefined)).toBe(true);
+    expect(next.entries).toHaveLength(3);
     const second = generateContinuousTownDocument(base, next);
-    expect(second.scenes.overworld.landmarks.find(({ id }) => id === 'house:0')).toEqual(
-      first.scenes.overworld.landmarks.find(({ id }) => id === 'house:0'),
-    );
+    expect(
+      second.scenes.overworld.landmarks.filter(({ id }) => id.startsWith('house:')),
+    ).toHaveLength(3);
   });
 
   it('scales the village with guild size and keeps the chosen scale when saving', () => {

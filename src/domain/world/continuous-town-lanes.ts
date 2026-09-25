@@ -14,6 +14,13 @@ export function frontage(plot: ContinuousTownPlot): Point {
   return { x: plot.x + 5 * TILE, y: plot.y + 10 * TILE };
 }
 
+function dimensions(block: ContinuousTownBlock) {
+  return {
+    w: block.width ?? CONTINUOUS_TOWN_BLOCK_SIZE,
+    h: block.height ?? CONTINUOUS_TOWN_BLOCK_SIZE,
+  };
+}
+
 function roofAreas(block: ContinuousTownBlock, vault?: Point): Rect[] {
   const areas = block.plots.map((plot) => ({ ...plot, width: 10 * TILE, height: 8 * TILE }));
   if (block.id === 0 && vault)
@@ -28,58 +35,131 @@ interface BlockLink {
   bridge: Rect;
 }
 
-/** Every new block chooses an earlier neighbor; optional second links make small loops. */
+interface Adjacency {
+  horizontal: boolean;
+  border: number;
+  start: number;
+  end: number;
+}
+
+/** Two districts touch when their rectangles share an edge and overlap on the other axis. */
+function adjacency(parent: ContinuousTownBlock, block: ContinuousTownBlock): Adjacency | null {
+  const p = dimensions(parent);
+  const b = dimensions(block);
+  const overlapY = Math.min(parent.y + p.h, block.y + b.h) - Math.max(parent.y, block.y);
+  if (parent.x + p.w === block.x && overlapY > 0)
+    return {
+      horizontal: true,
+      border: block.x,
+      start: Math.max(parent.y, block.y),
+      end: Math.min(parent.y + p.h, block.y + b.h),
+    };
+  if (block.x + b.w === parent.x && overlapY > 0)
+    return {
+      horizontal: true,
+      border: parent.x,
+      start: Math.max(parent.y, block.y),
+      end: Math.min(parent.y + p.h, block.y + b.h),
+    };
+  const overlapX = Math.min(parent.x + p.w, block.x + b.w) - Math.max(parent.x, block.x);
+  if (parent.y + p.h === block.y && overlapX > 0)
+    return {
+      horizontal: false,
+      border: block.y,
+      start: Math.max(parent.x, block.x),
+      end: Math.min(parent.x + p.w, block.x + b.w),
+    };
+  if (block.y + b.h === parent.y && overlapX > 0)
+    return {
+      horizontal: false,
+      border: parent.y,
+      start: Math.max(parent.x, block.x),
+      end: Math.min(parent.x + p.w, block.x + b.w),
+    };
+  return null;
+}
+
+/** Every new district links to an earlier neighbour; optional second links make small loops. */
 export function blockLinks(
   block: ContinuousTownBlock,
   layout: ContinuousTownLayout,
-  size: number,
   vault?: Point,
 ): BlockLink[] {
   if (block.id === 0 || block.roadStyle !== 2) return [];
   const random = seededRandom(`${layout.seed}:lanes-v2:links:${block.id}`);
   const neighbors = shuffled(
     layout.blocks.filter(
-      (candidate) =>
-        candidate.id < block.id &&
-        Math.abs(candidate.x - block.x) + Math.abs(candidate.y - block.y) === size,
+      (candidate) => candidate.id < block.id && adjacency(candidate, block) !== null,
     ),
     random,
   );
+  if (!neighbors.length) {
+    // A new shelf row starts back at x = 0 but its first block may sit below a shorter block,
+    // leaving a vertical gap. Bridge that gap through the clear left margin of both districts.
+    const above = layout.blocks
+      .filter(
+        (candidate) =>
+          candidate.id < block.id &&
+          candidate.x === block.x &&
+          candidate.y + (candidate.height ?? CONTINUOUS_TOWN_BLOCK_SIZE) <= block.y,
+      )
+      .sort((a, b) => b.y - a.y)[0];
+    if (!above) return [];
+    const local = { x: block.x + 2 * TILE, y: block.y + TILE };
+    const remote = {
+      x: above.x + 2 * TILE,
+      y: above.y + (above.height ?? CONTINUOUS_TOWN_BLOCK_SIZE) - TILE,
+    };
+    return [
+      {
+        parent: above,
+        local,
+        remote,
+        bridge: {
+          x: block.x + TILE,
+          y: remote.y,
+          width: 3 * TILE,
+          height: local.y - remote.y + TILE,
+        },
+      },
+    ];
+  }
   return neighbors.slice(0, random() < 0.3 ? 2 : 1).map((parent) => {
-    const vertical = parent.x === block.x;
-    let maxGate = size / TILE - 5;
-    // A horizontal link reaches the parent's side, which for the civic block 0 can be where the
-    // vault stands; keep the gate above the vault so the lane never crosses it.
-    if (!vertical && parent.id === 0 && vault) maxGate = Math.min(maxGate, vault.y / TILE - 2);
-    const gate =
-      (parent.roadStyle === 2 ? 5 + Math.floor(random() * Math.max(1, maxGate - 5)) : 2) * TILE;
-    if (vertical) {
-      const border = Math.max(parent.y, block.y);
+    const a = adjacency(parent, block)!;
+    const room = Math.max(1, Math.floor((a.end - a.start) / TILE));
+    let gate = a.start + (1 + Math.floor(random() * Math.max(1, room - 2))) * TILE;
+    // A horizontal link meets the civic block 0's side, where the vault stands; keep the gate above it.
+    if (a.horizontal && parent.id === 0 && vault && gate + TILE > vault.y)
+      gate = Math.max(a.start + TILE, vault.y - 2 * TILE);
+    if (a.horizontal) {
+      const blockRight = block.x > parent.x;
       return {
         parent,
-        local: { x: block.x + gate, y: border + (block.y > parent.y ? TILE : -TILE) },
-        remote: { x: block.x + gate, y: border + (block.y > parent.y ? -TILE : TILE) },
-        bridge: {
-          x: block.x + gate - TILE,
-          y: border - 2 * TILE,
-          width: 2 * TILE,
-          height: 4 * TILE,
+        local: {
+          x: blockRight ? block.x + TILE : block.x + dimensions(block).w - TILE,
+          y: gate,
         },
+        remote: { x: blockRight ? block.x - TILE : parent.x + TILE, y: gate },
+        bridge: { x: a.border - TILE, y: gate - TILE, width: 2 * TILE, height: 2 * TILE },
       };
     }
-    const border = Math.max(parent.x, block.x);
+    const blockBelow = block.y > parent.y;
     return {
       parent,
-      local: { x: border + (block.x > parent.x ? TILE : -TILE), y: block.y + gate },
-      remote: { x: border + (block.x > parent.x ? -TILE : TILE), y: block.y + gate },
-      bridge: { x: border - 2 * TILE, y: block.y + gate - TILE, width: 4 * TILE, height: 2 * TILE },
+      local: {
+        x: gate,
+        y: blockBelow ? block.y + TILE : block.y + dimensions(block).h - TILE,
+      },
+      remote: { x: gate, y: blockBelow ? block.y - TILE : parent.y + TILE },
+      bridge: { x: gate - TILE, y: a.border - TILE, width: 2 * TILE, height: 2 * TILE },
     };
   });
 }
 
 /** A block-sized local search joins new destinations onto the already saved road tree. */
 export class LaneBuilder {
-  private readonly window: number;
+  private readonly columns: number;
+  private readonly rows: number;
   private readonly blocked: Uint8Array;
   private readonly network: Uint8Array;
   private readonly directions: Array<readonly [number, number]>;
@@ -90,9 +170,12 @@ export class LaneBuilder {
     size: number = CONTINUOUS_TOWN_BLOCK_SIZE,
     vault?: Point,
   ) {
-    this.window = Math.floor(size / TILE) - 1;
-    this.blocked = new Uint8Array(this.window * this.window);
-    this.network = new Uint8Array(this.window * this.window);
+    const width = block.width ?? size;
+    const height = block.height ?? size;
+    this.columns = Math.max(2, Math.floor(width / TILE) - 1);
+    this.rows = Math.max(2, Math.floor(height / TILE) - 1);
+    this.blocked = new Uint8Array(this.columns * this.rows);
+    this.network = new Uint8Array(this.columns * this.rows);
     const roofs = roofAreas(block, vault);
     this.directions = shuffled(
       [
@@ -113,7 +196,7 @@ export class LaneBuilder {
 
   public connect(target: Point): void {
     const start =
-      ((target.y - this.block.y) / TILE - 1) * this.window + (target.x - this.block.x) / TILE - 1;
+      ((target.y - this.block.y) / TILE - 1) * this.columns + (target.x - this.block.x) / TILE - 1;
     if (
       !Number.isInteger(start) ||
       start < 0 ||
@@ -130,13 +213,13 @@ export class LaneBuilder {
     let end = -1;
     for (let head = 0; head < tail && end < 0; head++) {
       const current = queue[head]!;
-      const x = current % this.window,
-        y = Math.floor(current / this.window);
+      const x = current % this.columns,
+        y = Math.floor(current / this.columns);
       for (const [dx, dy] of this.directions) {
         const nx = x + dx,
           ny = y + dy;
-        if (nx < 0 || nx >= this.window || ny < 0 || ny >= this.window) continue;
-        const next = ny * this.window + nx;
+        if (nx < 0 || nx >= this.columns || ny < 0 || ny >= this.rows) continue;
+        const next = ny * this.columns + nx;
         if (this.blocked[next] || previous[next] !== -1) continue;
         previous[next] = current;
         if (this.network[next]) {
@@ -146,7 +229,10 @@ export class LaneBuilder {
         queue[tail++] = next;
       }
     }
-    if (end < 0) throw new Error('Unable to connect a town lane');
+    if (end < 0)
+      throw new Error(
+        `Unable to connect a town lane block=${this.block.id} target=${JSON.stringify(target)} grid=${this.columns}x${this.rows}`,
+      );
     const points: Point[] = [];
     for (let index = end; ; index = previous[index]!) {
       this.network[index] = 1;
@@ -174,8 +260,8 @@ export class LaneBuilder {
 
   private point(index: number): Point {
     return {
-      x: this.block.x + ((index % this.window) + 1) * TILE,
-      y: this.block.y + (Math.floor(index / this.window) + 1) * TILE,
+      x: this.block.x + ((index % this.columns) + 1) * TILE,
+      y: this.block.y + (Math.floor(index / this.columns) + 1) * TILE,
     };
   }
 }
